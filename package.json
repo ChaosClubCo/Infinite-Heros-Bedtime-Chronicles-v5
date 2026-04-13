@@ -29,7 +29,7 @@
     "npm": ">=10.0.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.85.0",
+    "@anthropic-ai/sdk": "^0.88.0",
     "@expo-google-fonts/bangers": "^0.4.1",
     "@expo-google-fonts/nunito": "^0.4.2",
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
