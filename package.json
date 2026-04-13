@@ -76,7 +76,7 @@
     "p-retry": "5.1.2",
     "pg": "^8.20.0",
     "pino": "^10.3.1",
-    "react": "19.2.4",
+    "react": "19.2.5",
     "react-dom": "19.2.5",
     "react-native": "0.85.0",
     "react-native-gesture-handler": "~2.31.0",
