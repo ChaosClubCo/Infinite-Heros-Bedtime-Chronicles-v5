@@ -45,7 +45,7 @@
     "drizzle-orm": "^0.45.2",
     "drizzle-zod": "^0.8.3",
     "elevenlabs": "^1.59.0",
-    "eslint": "^9.39.2",
+    "eslint": "^10.2.1",
     "eslint-config-expo": "~55.0.0",
     "expo": "~54.0.33",
     "expo-asset": "~55.0.15",
