@@ -9,6 +9,8 @@ import type {
   StreamingTextChunk,
   FallbackChain,
 } from "./types";
+import { CircuitBreaker } from "../circuit-breaker";
+import { retryWithJitter } from "../retry";
 
 const DEFAULT_CHAINS: FallbackChain[] = [
   { taskType: "story", providers: ["anthropic", "gemini", "openai", "meta-llama", "xai", "mistral", "cohere"] },
@@ -18,12 +20,29 @@ const DEFAULT_CHAINS: FallbackChain[] = [
   { taskType: "scene", providers: ["gemini", "openai"] },
 ];
 
+interface AIRouterOptions {
+  circuitBreakerThreshold?: number;
+  circuitBreakerResetMs?: number;
+}
+
 export class AIRouter {
   private providers: Map<ProviderName, AIProvider> = new Map();
   private chains: FallbackChain[] = DEFAULT_CHAINS;
+  private breakers: Map<ProviderName, CircuitBreaker> = new Map();
+  private readonly cbThreshold: number;
+  private readonly cbResetMs: number;
+
+  constructor(options?: AIRouterOptions) {
+    this.cbThreshold = options?.circuitBreakerThreshold ?? 5;
+    this.cbResetMs = options?.circuitBreakerResetMs ?? 60_000;
+  }
 
   registerProvider(provider: AIProvider): void {
     this.providers.set(provider.name, provider);
+    this.breakers.set(provider.name, new CircuitBreaker({
+      failureThreshold: this.cbThreshold,
+      resetTimeoutMs: this.cbResetMs,
+    }));
   }
 
   getProvider(name: ProviderName): AIProvider | undefined {
@@ -62,8 +81,30 @@ export class AIRouter {
 
     let lastError: Error | null = null;
     for (const provider of chain) {
+      const breaker = this.breakers.get(provider.name);
+      if (breaker && breaker.getState() === 'open') {
+        console.error(`[AI Router] ${provider.displayName} circuit open, skipping`);
+        continue;
+      }
+
       try {
-        const response = await provider.generateText(req);
+        const makeCall = () => {
+          const providerCall = provider.generateText(req);
+          if (req.timeoutMs && req.timeoutMs > 0) {
+            return Promise.race([
+              providerCall,
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error(`${provider.displayName} timed out after ${req.timeoutMs}ms`)), req.timeoutMs)
+              ),
+            ]);
+          }
+          return providerCall;
+        };
+
+        const response: TextGenerationResponse = await retryWithJitter(
+          () => breaker ? breaker.execute(makeCall) : makeCall(),
+          { maxRetries: 1 }
+        );
 
         if (req.jsonMode) {
           let cleaned = response.text.trim();
@@ -75,7 +116,8 @@ export class AIRouter {
             continue;
           }
           try {
-            JSON.parse(jsonMatch[0]);
+            response.parsedJson = JSON.parse(jsonMatch[0]);
+            response.text = jsonMatch[0];
           } catch {
             console.error(`[AI Router] ${provider.displayName} returned unparseable JSON for ${taskType}, trying next provider`);
             lastError = new Error(`${provider.displayName} returned malformed JSON`);
@@ -134,8 +176,18 @@ export class AIRouter {
     let lastError: Error | null = null;
     for (const provider of chain) {
       if (!provider.generateImage) continue;
+      const breaker = this.breakers.get(provider.name);
+      if (breaker && breaker.getState() === 'open') {
+        console.error(`[AI Router] ${provider.displayName} circuit open, skipping image`);
+        continue;
+      }
+
       try {
-        const response = await provider.generateImage(req);
+        const makeCall = () => provider.generateImage!(req);
+        const response = await retryWithJitter(
+          () => breaker ? breaker.execute(makeCall) : makeCall(),
+          { maxRetries: 1 }
+        );
         return response;
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));

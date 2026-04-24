@@ -9,6 +9,7 @@ import {
   TextInput,
   Animated as RNAnimated,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,6 +18,8 @@ import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { StarField } from "@/components/StarField";
 import Colors from "@/constants/colors";
+import { HEROES } from "@/constants/heroes";
+import { HeroCard } from "@/components/HeroCard";
 
 const THEMES = [
   {
@@ -122,6 +125,7 @@ export default function QuickCreateScreen() {
   };
 
   const selectedThemeData = THEMES.find((t) => t.id === selectedTheme) || THEMES[0];
+  const selectedHero = HEROES.find((h) => h.id === selectedThemeData.heroId);
 
   return (
     <View style={styles.container}>
@@ -139,10 +143,9 @@ export default function QuickCreateScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollViewCompat
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: 120 + bottomInset }]}
-        keyboardShouldPersistTaps="handled"
       >
         <Animated.View entering={FadeInDown.duration(400).delay(100)}>
           <Text style={styles.sectionLabel}>Choose a Theme</Text>
@@ -184,8 +187,25 @@ export default function QuickCreateScreen() {
           </ScrollView>
         </Animated.View>
 
+        {selectedHero && (
+          <Animated.View entering={FadeInDown.duration(400).delay(150)} style={styles.heroPreview}>
+            <Text style={styles.sectionLabel}>Your Hero</Text>
+            <View style={styles.heroCardWrap}>
+              <HeroCard
+                hero={selectedHero}
+                onPress={() => {
+                  router.push({
+                    pathname: "/story-details",
+                    params: { heroId: selectedHero.id },
+                  });
+                }}
+              />
+            </View>
+          </Animated.View>
+        )}
+
         <Animated.View entering={FadeInDown.duration(400).delay(200)} style={styles.nameSection}>
-          <Text style={styles.sectionLabel}>Child's Name</Text>
+          <Text style={styles.sectionLabel}>Child&apos;s Name</Text>
           <View style={styles.inputWrap}>
             <Ionicons name="person-outline" size={18} color="rgba(255,255,255,0.3)" style={styles.inputIcon} />
             <TextInput
@@ -281,7 +301,7 @@ export default function QuickCreateScreen() {
             </View>
           </RNAnimated.View>
         </Animated.View>
-      </ScrollView>
+      </KeyboardAwareScrollViewCompat>
 
       <Animated.View
         entering={FadeInUp.duration(500).delay(300)}
@@ -289,7 +309,7 @@ export default function QuickCreateScreen() {
       >
         <LinearGradient
           colors={["transparent", "rgba(2,2,26,0.98)"]}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
         <View style={styles.selectedInfo}>
           <Text style={styles.selectedInfoEmoji}>{selectedThemeData.emoji}</Text>
@@ -407,6 +427,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  heroPreview: { marginTop: 20 },
+  heroCardWrap: { alignItems: "center" },
   nameSection: { marginTop: 24 },
   inputWrap: {
     flexDirection: "row",

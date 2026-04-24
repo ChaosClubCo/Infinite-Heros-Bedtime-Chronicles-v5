@@ -6,6 +6,18 @@ All endpoints return JSON unless otherwise noted. Rate limiting applies to all P
 
 ---
 
+## Authentication
+
+All POST endpoints require a valid Firebase Auth token in the `Authorization: Bearer <token>` header.
+
+- **Dev mode**: If `FIREBASE_SERVICE_ACCOUNT_KEY` is not set, auth is bypassed and requests are accepted without tokens.
+- **Production**: The server validates tokens using Firebase Admin SDK. Invalid/expired tokens return `401 Unauthorized`.
+- **GET endpoints** (`/api/health`, `/api/voices`, `/api/ai-providers`, etc.) do not require authentication.
+
+Rate limiting uses the authenticated user's UID when available, falling back to IP-based limiting.
+
+---
+
 ## Health & Status
 
 ### `GET /api/health`
@@ -113,6 +125,19 @@ Generates a hero portrait image.
 **Response:**
 ```json
 { "image": "data:image/png;base64,..." }
+```
+
+### `POST /api/generate-image`
+Generates an image directly via Gemini (requires `AI_INTEGRATIONS_GEMINI_API_KEY`).
+
+**Request Body:**
+```json
+{ "prompt": "A whimsical castle floating in the clouds" }
+```
+
+**Response:**
+```json
+{ "b64_json": "<base64-image-data>", "mimeType": "image/png" }
 ```
 
 ### `POST /api/generate-scene`
@@ -274,10 +299,27 @@ Serves a completed video file. ID must match `/^[a-f0-9]+$/`.
 ## Voice Chat (requires DATABASE_URL + AI_INTEGRATIONS_OPENAI_API_KEY)
 
 ### `GET /api/conversations`
-Lists all conversations.
+Lists conversations with optional pagination.
+
+**Query Parameters:**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| limit | number | 50 | Results per page (1-200) |
+| offset | number | 0 | Number of results to skip |
+
+**Response:**
+```json
+{
+  "data": [{ "id": 1, "title": "Chat with Luna", "createdAt": "..." }],
+  "total": 42,
+  "limit": 50,
+  "offset": 0
+}
+```
 
 ### `POST /api/conversations`
-Creates a new conversation.
+Creates a new conversation. Title is sanitized (trimmed, max 200 chars).
 
 **Request Body:**
 ```json
@@ -285,10 +327,10 @@ Creates a new conversation.
 ```
 
 ### `GET /api/conversations/:id`
-Gets a conversation with all messages.
+Gets a conversation with all messages. Returns `400` if `:id` is not a valid positive integer.
 
 ### `DELETE /api/conversations/:id`
-Deletes a conversation and all its messages.
+Deletes a conversation and all its messages. Returns `400` if `:id` is not a valid positive integer.
 
 ### `POST /api/conversations/:id/messages`
 Sends a voice message and receives a streaming audio response.
@@ -301,12 +343,41 @@ Sends a voice message and receives a streaming audio response.
 }
 ```
 
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| audio | string | Yes | Base64-encoded audio data (max 25MB decoded) |
+| voice | string | No | `alloy` \| `echo` \| `fable` \| `onyx` \| `nova` \| `shimmer` (default: alloy) |
+
+**Validation:**
+- `:id` must be a valid positive integer (returns `400` otherwise)
+- `audio` must be a non-empty base64 string under 25MB decoded
+- `voice` is validated against the allowlist; invalid values default to `alloy`
+
 **SSE Response Events:**
 ```
 data: {"type":"user_transcript","data":"Hello hero!"}
 data: {"type":"transcript","data":"Hi there!"}
 data: {"type":"audio","data":"<base64-pcm16-chunk>"}
 data: {"type":"done","transcript":"Hi there! How are you?"}
+```
+
+### `POST /api/conversations/:id/messages` (text chat variant)
+Sends a text message and receives a streaming AI response.
+
+**Request Body:**
+```json
+{ "content": "Tell me a bedtime story!" }
+```
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| content | string | Yes | Non-empty, max 10,000 characters |
+
+**SSE Response Events:**
+```
+data: {"content":"Once upon..."}
+data: {"content":" a time..."}
+data: {"done":true}
 ```
 
 ---
@@ -324,4 +395,5 @@ All errors follow this format:
 | 404 | Resource not found |
 | 429 | Rate limit exceeded |
 | 500 | Internal server error |
+| 401 | Unauthorized (missing/invalid Firebase Auth token) |
 | 503 | Service unavailable |

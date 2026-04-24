@@ -10,6 +10,10 @@ export interface TextGenerationRequest {
   jsonMode?: boolean;
   thinkingBudget?: number;
   responseSchema?: Record<string, unknown>;
+  /** Abort if the provider doesn't respond within this many milliseconds. */
+  timeoutMs?: number;
+  /** Correlation ID for structured logging. */
+  requestId?: string;
 }
 
 export interface TextGenerationResponse {
@@ -17,6 +21,8 @@ export interface TextGenerationResponse {
   provider: ProviderName;
   model: string;
   usage?: { inputTokens?: number; outputTokens?: number };
+  /** When jsonMode is true, the router parses the JSON and sets this field. */
+  parsedJson?: unknown;
 }
 
 export interface ImageGenerationRequest {

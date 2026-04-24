@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
 } from "react-native";
 import { Audio, AVPlaybackStatus } from "expo-av";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -26,10 +27,13 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withRepeat,
+  withTiming,
 } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { HEROES, Hero } from "@/constants/heroes";
 import { StarField } from "@/components/StarField";
+import { HeroCard } from "@/components/HeroCard";
 import { PulsingOrb } from "@/components/PulsingOrb";
 import { MemoryJar } from "@/components/MemoryJar";
 import { SettingsModal } from "@/components/SettingsModal";
@@ -158,6 +162,48 @@ export default function CreateScreen() {
   const [suggestionLoading, setSuggestionLoading] = useState(false);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const lastFetchedHeroRef = useRef<number>(-1);
+
+  const [heroAvatarUri, setHeroAvatarUri] = useState<Record<string, string>>({});
+  const [avatarLoading, setAvatarLoading] = useState<Record<string, boolean>>({});
+  const avatarShimmerOpacity = useSharedValue(0.3);
+
+  useEffect(() => {
+    avatarShimmerOpacity.value = withRepeat(
+      withTiming(1, { duration: 800 }),
+      -1,
+      true,
+    );
+  }, []);
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    opacity: avatarShimmerOpacity.value,
+  }));
+
+  useEffect(() => {
+    const h = HEROES[heroIndex];
+    if (heroAvatarUri[h.id] || avatarLoading[h.id]) return;
+
+    setAvatarLoading((prev) => ({ ...prev, [h.id]: true }));
+
+    apiRequest("POST", "/api/generate-avatar", {
+      heroName: h.name,
+      heroTitle: h.title,
+      heroPower: h.power,
+      heroDescription: h.description,
+    })
+      .then((res) => res.json())
+      .then((data: { image?: string }) => {
+        if (data.image) {
+          setHeroAvatarUri((prev) => ({ ...prev, [h.id]: data.image! }));
+        }
+      })
+      .catch((e) => {
+        if (__DEV__) console.log("Avatar fetch failed:", e);
+      })
+      .finally(() => {
+        setAvatarLoading((prev) => ({ ...prev, [h.id]: false }));
+      });
+  }, [heroIndex]);
 
   const hero = HEROES[heroIndex];
   const theme = MODE_THEMES[mode];
@@ -297,6 +343,8 @@ export default function CreateScreen() {
             }}
             style={s.topBarBtn}
             testID="profile-button"
+            accessibilityLabel="Open profile"
+            accessibilityRole="button"
           >
             {activeProfile ? (
               <Text style={{ fontSize: 18 }}>{activeProfile.avatarEmoji}</Text>
@@ -312,6 +360,8 @@ export default function CreateScreen() {
             }}
             style={s.topBarBtn}
             testID="trophy-button"
+            accessibilityLabel="View trophies"
+            accessibilityRole="button"
           >
             <Ionicons name="trophy" size={20} color="#FFD54F" />
           </Pressable>
@@ -322,6 +372,8 @@ export default function CreateScreen() {
             }}
             style={[s.topBarBtn, { marginLeft: 8 }]}
             testID="parent-controls-button"
+            accessibilityLabel="Open parent controls"
+            accessibilityRole="button"
           >
             <Ionicons name="shield-checkmark-outline" size={20} color="rgba(255,255,255,0.5)" />
           </Pressable>
@@ -369,6 +421,8 @@ export default function CreateScreen() {
                     isActive && { backgroundColor: mTheme.accent, borderColor: mTheme.accent },
                   ]}
                   testID={`mode-${m.id}`}
+                  accessibilityLabel={`Story mode: ${mTheme.label}`}
+                  accessibilityRole="button"
                 >
                   <MaterialCommunityIcons
                     name={m.icon}
@@ -459,43 +513,45 @@ export default function CreateScreen() {
             <Text style={s.sectionLabel}>CHOOSE YOUR HERO</Text>
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.heroChipScroll}
-          >
+          <View style={s.heroCardGrid}>
             {HEROES.map((h, i) => {
               const isActive = i === heroIndex;
               return (
-                <Pressable
+                <View
                   key={h.id}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setHeroIndex(i);
-                  }}
-                  style={[
-                    s.heroChip,
-                    isActive && { backgroundColor: `${theme.accent}20`, borderColor: theme.accent },
-                  ]}
+                  style={[s.heroCardWrapper, isActive && { borderColor: theme.accent }]}
                   testID={`hero-${h.id}`}
+                  accessibilityLabel={`Select hero: ${h.name}`}
+                  accessibilityRole="button"
                 >
-                  <View style={[s.heroChipIcon, isActive && { backgroundColor: theme.accent }]}>
-                    <Ionicons name={h.iconName} size={18} color={isActive ? "#FFF" : h.color} />
-                  </View>
-                  <View>
-                    <Text style={[s.heroChipName, isActive && { color: "#FFF" }]}>{h.name}</Text>
-                    <Text style={[s.heroChipTitle, isActive && { color: theme.accentLight }]}>{h.title}</Text>
-                  </View>
-                </Pressable>
+                  <HeroCard
+                    hero={h}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setHeroIndex(i);
+                    }}
+                  />
+                </View>
               );
             })}
-          </ScrollView>
+          </View>
 
           <View style={s.heroDetailCard}>
             <View style={s.glassCard}>
               <View style={s.heroDetailRow}>
                 <View style={[s.heroDetailIcon, { backgroundColor: `${hero.color}20` }]}>
-                  <Ionicons name={hero.iconName} size={28} color={hero.color} />
+                  {heroAvatarUri[hero.id] ? (
+                    <Image
+                      source={{ uri: heroAvatarUri[hero.id] }}
+                      style={s.heroAvatarImage}
+                    />
+                  ) : avatarLoading[hero.id] ? (
+                    <Animated.View style={[s.heroAvatarShimmer, { backgroundColor: `${hero.color}40` }, shimmerStyle]}>
+                      <Ionicons name={hero.iconName} size={28} color={hero.color} />
+                    </Animated.View>
+                  ) : (
+                    <Ionicons name={hero.iconName} size={28} color={hero.color} />
+                  )}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.heroDetailName}>{hero.name}</Text>
@@ -531,6 +587,8 @@ export default function CreateScreen() {
                     isActive && { backgroundColor: theme.accent, borderColor: theme.accent },
                   ]}
                   testID={`duration-${d.id}`}
+                  accessibilityLabel={`Story length: ${d.label}`}
+                  accessibilityRole="button"
                 >
                   <Ionicons
                     name={d.icon}
@@ -579,6 +637,8 @@ export default function CreateScreen() {
                     isActive && { borderColor: theme.accent, backgroundColor: `${theme.accent}18` },
                   ]}
                   testID={`voice-${v.id}`}
+                  accessibilityLabel={`Select voice: ${v.label}`}
+                  accessibilityRole="button"
                 >
                   <View style={s.voiceChipTop}>
                     <View
@@ -600,6 +660,8 @@ export default function CreateScreen() {
                       }}
                       hitSlop={8}
                       style={[s.previewBtn, isPreviewing && { backgroundColor: `${theme.accent}30` }]}
+                      accessibilityLabel={`Preview voice: ${v.label}`}
+                      accessibilityRole="button"
                     >
                       {isPreviewing ? (
                         <ActivityIndicator size={10} color={theme.accent} />
@@ -639,6 +701,8 @@ export default function CreateScreen() {
                     isActive && { borderColor: theme.accent, backgroundColor: `${theme.accent}18` },
                   ]}
                   testID={`speed-${sp.id}`}
+                  accessibilityLabel={`Narration speed: ${sp.label}`}
+                  accessibilityRole="button"
                 >
                   <View
                     style={[
@@ -670,6 +734,8 @@ export default function CreateScreen() {
               { transform: [{ scale: pressed ? 0.96 : 1 }] },
             ]}
             testID="engage-mission-button"
+            accessibilityLabel="Start creating story"
+            accessibilityRole="button"
           >
             <LinearGradient
               colors={theme.buttonGradient}
@@ -809,40 +875,17 @@ const s = StyleSheet.create({
     marginLeft: "auto",
     letterSpacing: 0.5,
   },
-  heroChipScroll: {
-    paddingHorizontal: 20,
-    gap: 8,
-    paddingBottom: 4,
-  },
-  heroChip: {
+  heroCardGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    backgroundColor: Colors.cardBg,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    flexWrap: "wrap",
+    gap: 12,
+    paddingHorizontal: 20,
   },
-  heroChipIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroChipName: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.7)",
-  },
-  heroChipTitle: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 10,
-    color: "rgba(255,255,255,0.35)",
-    marginTop: 1,
+  heroCardWrapper: {
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: "transparent",
+    overflow: "hidden",
   },
   heroDetailCard: {
     paddingHorizontal: 20,
@@ -862,6 +905,19 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   heroDetailIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  heroAvatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  heroAvatarShimmer: {
     width: 48,
     height: 48,
     borderRadius: 24,
