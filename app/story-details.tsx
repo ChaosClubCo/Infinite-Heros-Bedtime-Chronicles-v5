@@ -5,11 +5,11 @@ import {
   Pressable,
   StyleSheet,
   Platform,
-  ScrollView,
   TextInput,
   Image,
   Dimensions,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
 import { router, useLocalSearchParams } from "expo-router";
@@ -160,7 +160,7 @@ export default function StoryDetailsScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <ScrollView
+      <KeyboardAwareScrollViewCompat
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 + bottomInset }}
         bounces={false}
@@ -222,7 +222,7 @@ export default function StoryDetailsScreen() {
             </View>
 
             <View style={styles.inputWrap}>
-              <Text style={styles.inputLabel}>Child's Name</Text>
+              <Text style={styles.inputLabel}>Child&apos;s Name</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="Enter name..."
@@ -323,7 +323,7 @@ export default function StoryDetailsScreen() {
               </Animated.View>
 
               <Animated.View entering={FadeInDown.duration(400).delay(550)}>
-                <Text style={styles.subsectionTitle}>Today's Challenge</Text>
+                <Text style={styles.subsectionTitle}>Today&apos;s Challenge</Text>
                 <View style={styles.problemRow}>
                   {PROBLEMS.map((p) => {
                     const isActive = selectedProblem === p.id;
@@ -365,7 +365,7 @@ export default function StoryDetailsScreen() {
             </View>
           </Animated.View>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollViewCompat>
 
       <View style={[styles.bottomCTA, { paddingBottom: bottomInset + 12 }]}>
         <LinearGradient
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   heroImageOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   backBtn: {
     position: "absolute",
@@ -688,7 +688,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   bottomCTAGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     height: 120,
   },
   ctaButton: {

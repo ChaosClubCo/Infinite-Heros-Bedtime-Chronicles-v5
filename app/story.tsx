@@ -936,7 +936,7 @@ export default function StoryScreen() {
             {messages[loadingMsg]}
           </Text>
           <Text style={styles.loadingSubtitle}>
-            {hero.name} is preparing tonight's story
+            {hero.name} is preparing tonight&apos;s story
           </Text>
 
           <View style={styles.loadingDotsRow}>

@@ -4,6 +4,7 @@
     "baseUrl": ".",
     "strict": true,
     "noEmitOnError": true,
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@/*": [
         "./*"
@@ -18,5 +19,13 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "artifacts",
+    "attached_assets",
+    "server_dist",
+    "static-build",
+    "**/*.test.ts"
   ]
 }
