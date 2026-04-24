@@ -1,0 +1,89 @@
+name: Agent - PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: agent-pr-review-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-review-agent:
+    name: PR Review Agent
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Run PR review agent
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node agents/pr-review/index.js \
+            --base "${BASE_SHA:-HEAD~1}" \
+            --head "${HEAD_SHA:-HEAD}" \
+            --output agents/pr-review/pr-review-report.json \
+            --markdown agents/pr-review/pr-review.md
+
+      - name: Upload PR review artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-review-agent-report
+          path: |
+            agents/pr-review/pr-review-report.json
+            agents/pr-review/pr-review.md
+          retention-days: 14
+
+      - name: Publish PR summary comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- pr-review-agent -->';
+            const body = fs.readFileSync('agents/pr-review/pr-review.md', 'utf8');
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find(
+              (comment) => comment.user.type === 'Bot' && comment.body && comment.body.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }

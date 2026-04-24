@@ -59,7 +59,7 @@ function SectionHeader({ title, icon }: { title: string; icon: string }) {
   return (
     <View style={styles.sectionHeader}>
       <View style={styles.sectionIconWrap}>
-        <Ionicons name={icon as any} size={16} color={Colors.accent} />
+        <Ionicons name={icon as React.ComponentProps<typeof Ionicons>["name"]} size={16} color={Colors.accent} />
       </View>
       <Text style={styles.sectionTitle}>{title}</Text>
     </View>

@@ -22,8 +22,8 @@
 │  ┌──────────────────────────────────────────────┐   │
 │  │              Route Handlers                    │   │
 │  │  /api/generate-story    → AI Router            │   │
-│  │  /api/generate-avatar   → AI Router (image)    │   │
 │  │  /api/generate-scene    → AI Router (image)    │   │
+│  │  /api/generate-image    → Gemini (direct)       │   │
 │  │  /api/tts               → ElevenLabs           │   │
 │  │  /api/suggest-settings  → AI Router            │   │
 │  │  /api/generate-video    → OpenAI Sora           │   │
@@ -102,7 +102,7 @@ SettingsContext (lib/SettingsContext.tsx)
 ## Server Architecture
 
 ### Middleware Stack (in order)
-1. **Security Headers** — CSP, HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, X-XSS-Protection
+1. **Security Headers** — CSP, HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, X-XSS-Protection, Permissions-Policy, X-Permitted-Cross-Domain-Policies
 2. **CORS** — Dynamic origin matching (Replit domains + localhost)
 3. **Body Parser** — JSON (100KB limit)
 4. **Auth Middleware** — Firebase JWT validation (skipped in dev mode)
@@ -135,7 +135,9 @@ SettingsContext (lib/SettingsContext.tsx)
 
 When `AI_INTEGRATIONS_OPENAI_API_KEY` and `DATABASE_URL` are set:
 - Conversation history stored in PostgreSQL (`conversations` + `messages` tables)
-- Audio input: auto-format detection (WAV, MP3, WebM, MP4, OGG) with ffmpeg conversion
+- Audio input: auto-format detection (WAV, MP3, WebM, MP4, OGG) — all natively supported by OpenAI
 - Speech-to-text: OpenAI `gpt-4o-mini-transcribe`
-- Voice response: OpenAI `gpt-audio` model with streaming audio output
+- Voice response: OpenAI `gpt-4o-audio-preview` model with streaming audio output
 - Response delivery: Server-Sent Events (SSE)
+- Input validation: route param IDs validated (positive integers), message length capped (10K chars), audio size capped (25MB), voice parameter allowlisted, conversation titles sanitized (200 chars)
+- Pagination: conversation list supports `limit`/`offset` query params (max 200 per page)

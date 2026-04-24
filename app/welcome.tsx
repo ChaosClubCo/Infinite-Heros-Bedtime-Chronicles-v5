@@ -23,12 +23,11 @@ import Animated, {
   withTiming,
   Easing,
 } from "react-native-reanimated";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StarField } from "@/components/StarField";
 import Colors from "@/constants/colors";
+import { setOnboardingComplete } from "@/lib/storage";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const ONBOARDING_KEY = "@infinity_heroes_onboarding_complete";
 
 function PulsingOrb({ color }: { color: string }) {
   const scale = useSharedValue(1);
@@ -79,7 +78,7 @@ export default function WelcomeScreen() {
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
   const handleSkip = async () => {
-    await AsyncStorage.setItem(ONBOARDING_KEY, "true");
+    await setOnboardingComplete();
     router.replace("/(tabs)");
   };
 
@@ -130,7 +129,8 @@ export default function WelcomeScreen() {
           ].map((f) => (
             <View key={f.label} style={styles.featureChip}>
               <View style={[styles.featureIconWrap, { backgroundColor: `${f.color}18` }]}>
-                <Ionicons name={f.icon as any} size={16} color={f.color} />
+                {/* intentional: icon names are string literals from inline data, not the typed Ionicons union */}
+                <Ionicons name={f.icon as React.ComponentProps<typeof Ionicons>["name"]} size={16} color={f.color} />
               </View>
               <Text style={styles.featureLabel}>{f.label}</Text>
             </View>

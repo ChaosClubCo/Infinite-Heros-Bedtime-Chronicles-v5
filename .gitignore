@@ -47,3 +47,4 @@ server_dist/
 # Android EAS — NEVER commit signing keys or service account credentials
 google-services-key.json
 *.keystore
+coverage/

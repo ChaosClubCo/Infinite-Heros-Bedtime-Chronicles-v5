@@ -1,315 +1,48 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
-import { generateSpeech, VOICE_MAP, MODE_DEFAULT_VOICES, getVoicesForMode, type VoiceConfig } from "./elevenlabs";
+import { generateSpeech, VOICE_MAP, MODE_DEFAULT_VOICES, getVoicesForMode } from "./elevenlabs";
 import { getMusicFilePath, getMusicTrackCount } from "./suno";
 import { createVideoJob, getVideoJob, getVideoFilePath, isVideoAvailable } from "./video";
 import { getAIRouter, getProviderStatuses, logProviderStatus } from "./ai";
 import { registerAudioRoutes } from "./replit_integrations/audio";
 import { requireAuth } from "./auth";
+import { sanitizeString, StoryRequestSchema, AvatarRequestSchema, SceneRequestSchema, TtsRequestSchema, VideoRequestSchema, SuggestSettingsRequestSchema, VALID_MODES, VALID_DURATIONS } from "./validation";
+import { getStorySystemPrompt, getStoryUserPrompt, getPartCount, getWordCount, getRandomStyle, STORY_RESPONSE_SCHEMA } from "./prompts";
+import { checkRateLimit, cleanupExpiredEntries } from "./rate-limit";
+import { toErrorMessage, classifyError, createErrorResponse } from "./utils";
+import { getFeatureFlags, isFeatureEnabled } from "./feature-flags";
+import { logger } from "./logger";
+import { getMetrics } from "./metrics";
+import { getActiveRequests } from "./load-shedding";
+import { IdempotencyCache } from "./idempotency";
+import { TtsCacheManager } from "./tts-cache";
+import { registerImageRoutes } from "./replit_integrations/image";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-const TTS_CACHE_DIR = path.resolve("/tmp/tts-cache");
-if (!fs.existsSync(TTS_CACHE_DIR)) {
-  fs.mkdirSync(TTS_CACHE_DIR, { recursive: true });
-}
+const ttsCacheManager = new TtsCacheManager({
+  cacheDir: path.resolve("/tmp/tts-cache"),
+  maxAgeMs: parseInt(process.env.TTS_CACHE_MAX_AGE_MS || String(24 * 60 * 60 * 1000), 10),
+  maxSizeBytes: parseInt(process.env.TTS_CACHE_MAX_SIZE_BYTES || String(500 * 1024 * 1024), 10),
+});
+ttsCacheManager.ensureDir();
 
-const TTS_CACHE_MAX_AGE_MS = parseInt(process.env.TTS_CACHE_MAX_AGE_MS || String(24 * 60 * 60 * 1000), 10);
+const TTS_CACHE_DIR = ttsCacheManager.cacheDir;
 
-async function cleanTtsCache() {
-  try {
-    const files = await fs.promises.readdir(TTS_CACHE_DIR);
-    const now = Date.now();
-    let removed = 0;
-    for (const file of files) {
-      const filePath = path.join(TTS_CACHE_DIR, file);
-      const stat = await fs.promises.stat(filePath);
-      if (now - stat.mtimeMs > TTS_CACHE_MAX_AGE_MS) {
-        await fs.promises.unlink(filePath);
-        removed++;
-      }
-    }
-    if (removed > 0) {
-      console.log(`[Cache] Cleaned ${removed} expired TTS files`);
-    }
-  } catch (err) {
-    console.error("[Cache] Cleanup error:", err);
+setInterval(async () => {
+  const { removedCount, freedBytes } = await ttsCacheManager.cleanup();
+  if (removedCount > 0) {
+    logger.info({ removedCount, freedBytes }, 'TTS cache cleanup');
   }
-}
+}, 60 * 60 * 1000);
+ttsCacheManager.cleanup();
 
-setInterval(cleanTtsCache, 60 * 60 * 1000);
-cleanTtsCache();
-
-const MAX_TTS_TEXT_LENGTH = 5000;
-const MAX_INPUT_STRING_LENGTH = 500;
-const VALID_MODES = ["classic", "madlibs", "sleep"];
-const VALID_DURATIONS = ["short", "medium-short", "medium", "long", "epic"];
-
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || String(60 * 1000), 10);
-const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || "10", 10);
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-  entry.count++;
-  return entry.count <= RATE_LIMIT_MAX;
-}
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, entry] of rateLimitMap) {
-    if (now > entry.resetAt) rateLimitMap.delete(ip);
-  }
-}, 5 * 60 * 1000);
-
-function sanitizeString(val: unknown, maxLen: number): string {
-  if (typeof val !== "string") return "";
-  return val.slice(0, maxLen).trim();
-}
-
-function validateMadlibWords(input: unknown): Record<string, string> | undefined {
-  if (input == null) return undefined;
-  if (typeof input !== 'object' || Array.isArray(input)) return undefined;
-  const obj = input as Record<string, unknown>;
-  const keys = Object.keys(obj);
-  if (keys.length > 20) return undefined;
-  const result: Record<string, string> = {};
-  for (const key of keys) {
-    if (typeof key !== 'string' || key.length > 100) continue;
-    const val = obj[key];
-    if (typeof val !== 'string') continue;
-    result[key.slice(0, 100)] = String(val).slice(0, 100);
-  }
-  return Object.keys(result).length > 0 ? result : undefined;
-}
+// Rate limit cleanup runs every 5 minutes
+setInterval(cleanupExpiredEntries, 5 * 60 * 1000);
 
 const aiRouter = getAIRouter();
-
-const ART_STYLES = [
-  'soft watercolor illustration with dreamy washes and gentle color bleeds',
-  'bold cel-shaded cartoon style with thick outlines and flat vibrant colors',
-  'textured paper cutout collage with layered shapes and handmade feel',
-  'warm gouache painting style with rich opaque colors and visible brushstrokes',
-  'playful crayon drawing style with textured strokes and childlike energy',
-  'luminous digital painting with glowing light effects and soft gradients',
-  'retro storybook illustration style reminiscent of 1960s picture books',
-  'whimsical ink and wash style with fine linework and splashy color accents',
-  'cozy pastel illustration with muted tones and rounded soft forms',
-  'vibrant pop art style with halftone dots and high contrast primary colors',
-  'gentle chalk on dark paper illustration with soft dusty textures',
-  'modern flat design with geometric shapes and clean bold colors',
-];
-
-function getRandomStyle(): string {
-  return ART_STYLES[Math.floor(Math.random() * ART_STYLES.length)];
-}
-
-const STORY_RESPONSE_SCHEMA = {
-  type: 'object' as const,
-  properties: {
-    title: { type: 'string' as const },
-    parts: {
-      type: 'array' as const,
-      items: {
-        type: 'object' as const,
-        properties: {
-          text: { type: 'string' as const },
-          choices: { type: 'array' as const, items: { type: 'string' as const } },
-          partIndex: { type: 'number' as const },
-        },
-        required: ['text', 'choices', 'partIndex'] as const,
-      },
-    },
-    vocabWord: {
-      type: 'object' as const,
-      properties: {
-        word: { type: 'string' as const },
-        definition: { type: 'string' as const },
-      },
-      required: ['word', 'definition'] as const,
-    },
-    joke: { type: 'string' as const },
-    lesson: { type: 'string' as const },
-    tomorrowHook: { type: 'string' as const },
-    rewardBadge: {
-      type: 'object' as const,
-      properties: {
-        emoji: { type: 'string' as const },
-        title: { type: 'string' as const },
-        description: { type: 'string' as const },
-      },
-      required: ['emoji', 'title', 'description'] as const,
-    },
-  },
-  required: ['title', 'parts', 'vocabWord', 'joke', 'lesson', 'tomorrowHook', 'rewardBadge'] as const,
-};
-
-const CHILD_SAFETY_RULES = `
-CRITICAL SAFETY RULES (non-negotiable):
-- NEVER include violence, weapons, fighting, battles, or physical conflict of any kind
-- NEVER include scary, frightening, dark, or horror elements — no monsters, villains, or threats
-- NEVER reference real-world brands, products, celebrities, or copyrighted characters
-- NEVER include death, injury, illness, abandonment, or loss themes
-- NEVER include bullying, meanness, exclusion, or unkind behavior that isn't immediately resolved
-- NEVER use language that could cause anxiety, fear, or nightmares
-- Every choice the hero makes leads to a positive, heroic, or interesting outcome — there are no failures
-- Keep all content 100% appropriate for children ages 3-9
-- Focus on themes of courage, kindness, friendship, wonder, imagination, and comfort
-- All conflicts should be gentle (e.g., solving puzzles, helping friends, finding lost items) and resolve peacefully`;
-
-function getPartCount(duration: string): number {
-  switch (duration) {
-    case "short": return 3;
-    case "medium-short": return 4;
-    case "medium": return 5;
-    case "long": return 6;
-    case "epic": return 7;
-    default: return 5;
-  }
-}
-
-function getWordCount(duration: string): string {
-  switch (duration) {
-    case "short": return "200-300";
-    case "medium-short": return "350-450";
-    case "medium": return "500-650";
-    case "long": return "750-950";
-    case "epic": return "1000-1300";
-    default: return "500-650";
-  }
-}
-
-function getStorySystemPrompt(mode: string, partCount: number): string {
-  const modeRules = mode === "madlibs"
-    ? `You are a hilarious bedtime storyteller. Create wildly funny, silly bedtime stories.
-Additional Mad Libs rules:
-- Use ALL provided Mad Libs words naturally, making them integral to the plot
-- Make the story absurdly funny — kids should giggle
-- Include silly situations, unexpected twists, and playful humor
-- Despite being funny, wind down to a peaceful, sleepy ending
-- Use the hero's powers in creative, silly ways`
-    : mode === "sleep"
-    ? `You are a gentle, hypnotic bedtime narrator creating the most soothing story possible.
-Additional Sleep Mode rules:
-- Write in an extremely slow, calming, almost meditative voice
-- Use heavy repetition of soothing phrases and rhythmic language
-- Include progressive relaxation cues woven into the story
-- Use zero-conflict narratives — absolutely no tension or obstacles
-- The story should feel like a guided meditation disguised as a story
-- Use shorter sentences that get progressively slower and sleepier`
-    : `You are a master bedtime storyteller. Create magical, soothing bedtime stories.
-Additional Classic Mode rules:
-- Write in a gentle, calming narrative voice
-- Include sensory details (soft sounds, warm lights, gentle breezes)
-- The story should gradually become more peaceful toward the end
-- Include themes of courage, kindness, friendship, or wonder`;
-
-  const choiceInstructions = mode === "sleep"
-    ? `Since this is Sleep Mode, do NOT include choices. Each part should flow naturally into the next with calming transitions.`
-    : `For each part EXCEPT the last one, include exactly 3 choices the child can make. Choices should be fun, creative, and age-appropriate. Every choice leads to a positive outcome. The last part is the conclusion with no choices.`;
-
-  return `${modeRules}
-
-${CHILD_SAFETY_RULES}
-
-You MUST respond with valid JSON matching this exact structure:
-{
-  "title": "A short magical title (3-6 words)",
-  "parts": [
-    {
-      "text": "The story text for this part (2-4 paragraphs)",
-      "choices": ["Choice A", "Choice B", "Choice C"],
-      "partIndex": 0
-    }
-  ],
-  "vocabWord": { "word": "A fun vocabulary word from the story", "definition": "Simple child-friendly definition" },
-  "joke": "A short, age-appropriate joke related to the story theme",
-  "lesson": "A gentle life lesson from the story (1-2 sentences)",
-  "tomorrowHook": "A teaser for what adventure could happen next time (1 sentence)",
-  "rewardBadge": { "emoji": "A single emoji representing the achievement", "title": "Badge Name (2-3 words)", "description": "What the child earned (1 sentence)" }
-}
-
-The story MUST have exactly ${partCount} parts. ${choiceInstructions}
-Parts should have partIndex starting from 0.`;
-}
-
-function getStoryUserPrompt(
-  mode: string,
-  heroName: string,
-  heroTitle: string,
-  heroPower: string,
-  heroDescription: string,
-  wordCount: string,
-  partCount: number,
-  madlibWords?: Record<string, string>,
-  soundscape?: string,
-  setting?: string,
-  tone?: string,
-  childName?: string,
-  sidekick?: string,
-  problem?: string,
-): string {
-  let prompt = `Create a bedtime story featuring the hero "${heroName}" who is the "${heroTitle}" with the power of "${heroPower}".
-Hero background: ${heroDescription}
-Total story length: approximately ${wordCount} words spread across ${partCount} parts.`;
-
-  if (childName) {
-    prompt += `\nThe story is being told for a child named "${childName}" — weave their name naturally into the narrative when it feels right.`;
-  }
-
-  if (mode === "classic") {
-    if (setting) {
-      prompt += `\nAdventure setting: The story takes place in ${setting}. Bring this location to life with vivid sensory details.`;
-    }
-    if (tone) {
-      const toneDescriptions: Record<string, string> = {
-        gentle: "gentle and soothing — calming language, soft pacing, warm and cozy atmosphere",
-        adventurous: "adventurous and exciting — energetic pacing, bold descriptions, heroic moments",
-        funny: "funny and silly — include humor, playful wordplay, unexpected comic twists",
-        mysterious: "mysterious and wonder-filled — intriguing atmosphere, surprising discoveries, a sense of magic",
-      };
-      prompt += `\nNarration tone: ${toneDescriptions[tone] || tone}.`;
-    }
-    if (sidekick && sidekick !== "none") {
-      prompt += `\nSidekick companion: ${sidekick} accompanies the hero throughout the adventure. Give them a distinct personality and meaningful role in the story.`;
-    }
-    if (problem) {
-      prompt += `\nCentral challenge: The story revolves around ${problem}. This is the main obstacle the hero must resolve.`;
-    }
-  }
-
-  if (mode === "madlibs" && madlibWords) {
-    const wordsList = Object.entries(madlibWords)
-      .slice(0, 20)
-      .map(([key, value]) => `${sanitizeString(key, 50)}: "${sanitizeString(value, 100)}"`)
-      .join(", ");
-    prompt += `\n\nThe child provided these Mad Libs words that MUST appear naturally in the story: ${wordsList}`;
-  }
-
-  if (mode === "sleep") {
-    const soundscapeDescriptions: Record<string, string> = {
-      rain: "the soft patter of rain on the windowsill",
-      ocean: "the gentle rhythm of ocean waves",
-      crickets: "the peaceful chirping of crickets in the night",
-      wind: "a soft breeze rustling through the leaves",
-      fire: "the warm crackling of a cozy fire",
-      forest: "the quiet sounds of a moonlit forest",
-    };
-    const soundAnchor = soundscape && soundscapeDescriptions[soundscape]
-      ? soundscapeDescriptions[soundscape]
-      : "peaceful quiet";
-    prompt += `\n\nThis is a Sleep Mode story. Make it extremely calming with progressive relaxation cues. No choices needed — parts flow naturally into deeper calm.
-Sensory anchor: Weave in the sounds of "${soundAnchor}" throughout the story — the hero hears it and it deepens their sense of peace and safety.`;
-  }
-
-  return prompt;
-}
+const idempotencyCache = new IdempotencyCache({ ttlMs: 5 * 60 * 1000, maxEntries: 200 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   logProviderStatus();
@@ -321,8 +54,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return requireAuth(req, res, next);
   });
 
+  app.get("/api/metrics", (_req, res) => {
+    res.json(getMetrics());
+  });
+
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", timestamp: Date.now() });
+    const providers = getProviderStatuses();
+    const aiAvailable = providers.some((p) => p.available && p.capabilities.text);
+    const ttsAvailable = !!process.env.ELEVENLABS_API_KEY;
+    res.json({
+      status: "ok",
+      timestamp: Date.now(),
+      aiProvidersAvailable: aiAvailable,
+      ttsAvailable,
+      features: getFeatureFlags(),
+      activeRequests: getActiveRequests(),
+    });
+  });
+
+  app.get("/privacy", (_req, res) => {
+    const privacyPath = path.resolve(process.cwd(), "server", "templates", "privacy-policy.html");
+    res.sendFile(privacyPath, (err) => {
+      if (err && !res.headersSent) {
+        res.status(404).json({ error: "Privacy policy not found" });
+      }
+    });
   });
 
   app.get("/api/ai-providers", (_req, res) => {
@@ -335,76 +91,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(429).json({ error: "Too many requests. Please wait a moment." });
     }
 
-    try {
-      const heroName = sanitizeString(req.body.heroName, MAX_INPUT_STRING_LENGTH);
-      const heroTitle = sanitizeString(req.body.heroTitle, MAX_INPUT_STRING_LENGTH);
-      const heroPower = sanitizeString(req.body.heroPower, MAX_INPUT_STRING_LENGTH);
-      const heroDescription = sanitizeString(req.body.heroDescription, MAX_INPUT_STRING_LENGTH);
-      const duration = sanitizeString(req.body.duration, 20);
-      const mode = sanitizeString(req.body.mode, 20);
-      const madlibWords = validateMadlibWords(req.body.madlibWords);
-      const soundscape = sanitizeString(req.body.soundscape, 30) || undefined;
-      const setting = sanitizeString(req.body.setting, 100) || undefined;
-      const tone = sanitizeString(req.body.tone, 50) || undefined;
-      const childName = sanitizeString(req.body.childName, 50) || undefined;
-      const sidekick = sanitizeString(req.body.sidekick, 100) || undefined;
-      const problem = sanitizeString(req.body.problem, 100) || undefined;
+    const parsed = StoryRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
+    }
 
-      if (!heroName) {
-        return res.status(400).json({ error: "Hero name is required" });
-      }
+    const { heroName, heroTitle, heroPower, heroDescription, duration, mode, madlibWords, soundscape, setting, tone, childName, sidekick, problem } = parsed.data;
 
-      const storyMode = VALID_MODES.includes(mode) ? mode : "classic";
-      const storyDuration = VALID_DURATIONS.includes(duration) ? duration : "medium";
-      const wordCount = getWordCount(storyDuration);
-      const partCount = getPartCount(storyDuration);
+    const idempotencyKey = IdempotencyCache.keyFromBody(parsed.data);
+    const cached = idempotencyCache.get(idempotencyKey);
+    if (cached) {
+      req.log?.info('story request deduplicated (idempotency hit)');
+      const result = await cached;
+      return res.json(result);
+    }
 
-      const systemPrompt = getStorySystemPrompt(storyMode, partCount);
-      const userPrompt = getStoryUserPrompt(storyMode, heroName, heroTitle, heroPower, heroDescription, wordCount, partCount, madlibWords, soundscape, setting, tone, childName, sidekick, problem);
+    const generationPromise = (async () => {
+      const partCount = getPartCount(duration);
+      const wordCount = getWordCount(duration);
+
+      const systemPrompt = getStorySystemPrompt(mode, partCount);
+      const userPrompt = getStoryUserPrompt(mode, heroName, heroTitle, heroPower, heroDescription, wordCount, partCount, madlibWords, soundscape, setting, tone, childName, sidekick, problem);
 
       const aiResponse = await aiRouter.generateText("story", {
         systemPrompt,
         userPrompt,
-        temperature: storyMode === "sleep" ? 0.7 : 0.9,
+        temperature: mode === "sleep" ? 0.7 : 0.9,
         maxTokens: 8192,
         jsonMode: true,
         responseSchema: STORY_RESPONSE_SCHEMA,
+        timeoutMs: 60_000,
+        requestId: req.requestId,
       });
 
-      const content = aiResponse.text;
-      if (!content) {
-        return res.status(500).json({ error: "No response from AI" });
+      if (!aiResponse.parsedJson) {
+        throw new Error("Invalid story response");
       }
 
-      console.log(`[Story] Generated by ${aiResponse.provider} (${aiResponse.model})`);
+      req.log?.info({ provider: aiResponse.provider, model: aiResponse.model }, 'story generated');
 
-      let rawJson = content.trim();
-      rawJson = rawJson.replace(/```json\s*/g, "").replace(/```\s*/g, "");
-      const jsonMatch = rawJson.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        return res.status(500).json({ error: "Invalid story response" });
-      }
-
-      const story = JSON.parse(jsonMatch[0]);
+      const story = aiResponse.parsedJson as Record<string, unknown>;
 
       if (!story.parts || !Array.isArray(story.parts)) {
-        return res.status(500).json({ error: "Invalid story structure" });
+        throw new Error("Invalid story structure");
       }
 
-      story.parts = story.parts.map((part: { text?: string; choices?: string[] }, i: number) => ({
+      story.parts = (story.parts as Array<{ text?: string; choices?: string[] }>).map((part, i) => ({
         text: part.text || "",
-        choices: storyMode === "sleep" ? undefined : (part.choices || undefined),
+        choices: mode === "sleep" ? undefined : (part.choices || undefined),
         partIndex: i,
       }));
 
-      if (story.parts.length > 0 && storyMode !== "sleep") {
-        delete story.parts[story.parts.length - 1].choices;
+      if ((story.parts as unknown[]).length > 0 && mode !== "sleep") {
+        delete (story.parts as Record<string, unknown>[])[(story.parts as unknown[]).length - 1].choices;
       }
 
+      return story;
+    })();
+
+    idempotencyCache.set(idempotencyKey, generationPromise);
+
+    try {
+      const story = await generationPromise;
       res.json(story);
-    } catch (error) {
-      console.error("Error generating story:", error);
-      res.status(500).json({ error: "Failed to generate story" });
+    } catch (error: unknown) {
+      idempotencyCache.delete(idempotencyKey);
+      req.log?.error({ err: error }, 'story generation failed');
+      const kind = classifyError(error);
+      res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to generate story', kind));
     }
   });
 
@@ -414,32 +168,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(429).json({ error: "Too many requests. Please wait a moment." });
     }
 
+    const parsed = StoryRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
+    }
+
+    const { heroName, heroTitle, heroPower, heroDescription, duration, mode, madlibWords, soundscape, setting, tone, childName, sidekick, problem } = parsed.data;
+
     try {
-      const heroName = sanitizeString(req.body.heroName, MAX_INPUT_STRING_LENGTH);
-      const heroTitle = sanitizeString(req.body.heroTitle, MAX_INPUT_STRING_LENGTH);
-      const heroPower = sanitizeString(req.body.heroPower, MAX_INPUT_STRING_LENGTH);
-      const heroDescription = sanitizeString(req.body.heroDescription, MAX_INPUT_STRING_LENGTH);
-      const duration = sanitizeString(req.body.duration, 20);
-      const mode = sanitizeString(req.body.mode, 20);
-      const madlibWords = validateMadlibWords(req.body.madlibWords);
-      const soundscape = sanitizeString(req.body.soundscape, 30) || undefined;
-      const setting = sanitizeString(req.body.setting, 100) || undefined;
-      const tone = sanitizeString(req.body.tone, 50) || undefined;
-      const childName = sanitizeString(req.body.childName, 50) || undefined;
-      const sidekick = sanitizeString(req.body.sidekick, 100) || undefined;
-      const problem = sanitizeString(req.body.problem, 100) || undefined;
+      const partCount = getPartCount(duration);
+      const wordCount = getWordCount(duration);
 
-      if (!heroName) {
-        return res.status(400).json({ error: "Hero name is required" });
-      }
-
-      const storyMode = VALID_MODES.includes(mode) ? mode : "classic";
-      const storyDuration = VALID_DURATIONS.includes(duration) ? duration : "medium";
-      const wordCount = getWordCount(storyDuration);
-      const partCount = getPartCount(storyDuration);
-
-      const systemPrompt = getStorySystemPrompt(storyMode, partCount);
-      const userPrompt = getStoryUserPrompt(storyMode, heroName, heroTitle, heroPower, heroDescription, wordCount, partCount, madlibWords, soundscape, setting, tone, childName, sidekick, problem);
+      const systemPrompt = getStorySystemPrompt(mode, partCount);
+      const userPrompt = getStoryUserPrompt(mode, heroName, heroTitle, heroPower, heroDescription, wordCount, partCount, madlibWords, soundscape, setting, tone, childName, sidekick, problem);
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
@@ -448,7 +189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const stream = aiRouter.generateTextStream("story", {
         systemPrompt,
         userPrompt,
-        temperature: storyMode === "sleep" ? 0.7 : 0.9,
+        temperature: mode === "sleep" ? 0.7 : 0.9,
         maxTokens: 8192,
       });
 
@@ -465,15 +206,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      console.log(`[Story Stream] Generated by ${providerInfo}`);
+      req.log?.info({ provider: providerInfo }, 'story stream completed');
       res.end();
     } catch (error: unknown) {
-      console.error("Error streaming story:", error instanceof Error ? error.message : String(error));
+      req.log?.error({ err: error }, 'story streaming failed');
+      const kind = classifyError(error);
       if (res.headersSent) {
-        res.write(`data: ${JSON.stringify({ type: "error", error: "Failed to generate story" })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "error", error: "Failed to generate story", retryable: kind === 'transient' })}\n\n`);
         res.end();
       } else {
-        res.status(500).json({ error: "Failed to generate story" });
+        res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to generate story', kind));
       }
     }
   });
@@ -484,26 +226,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(429).json({ error: "Too many requests. Please wait a moment." });
     }
 
+    const parsed = AvatarRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
+    }
+
+    const { heroName, heroTitle, heroPower, heroDescription } = parsed.data;
+
     try {
-      const heroName = sanitizeString(req.body.heroName, MAX_INPUT_STRING_LENGTH);
-      const heroTitle = sanitizeString(req.body.heroTitle, MAX_INPUT_STRING_LENGTH);
-      const heroPower = sanitizeString(req.body.heroPower, MAX_INPUT_STRING_LENGTH);
-      const heroDescription = sanitizeString(req.body.heroDescription, MAX_INPUT_STRING_LENGTH);
-
-      if (!heroName) {
-        return res.status(400).json({ error: "Hero name is required" });
-      }
-
       const artStyle = getRandomStyle();
       const prompt = `A children's book illustration portrait of a superhero named "${heroName}" who is "${heroTitle}" with the power of "${heroPower}". ${heroDescription}.
 Style: ${artStyle}. Close-up friendly portrait, expressive eyes, child-safe content, suitable for ages 3-9. No scary elements, no weapons. Circular portrait composition with a cosmic/starry background.`;
 
       const result = await aiRouter.generateImage("avatar", { prompt });
-      console.log(`[Avatar] Generated by ${result.provider} (${result.model})`);
+      req.log?.info({ provider: result.provider, model: result.model }, 'avatar generated');
       return res.json({ image: result.imageDataUri });
     } catch (error: unknown) {
-      console.error("Error generating avatar:", error instanceof Error ? error.message : String(error));
-      res.status(500).json({ error: "Failed to generate avatar" });
+      req.log?.error({ err: error }, 'avatar generation failed');
+      const kind = classifyError(error);
+      res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to generate avatar', kind));
     }
   });
 
@@ -513,15 +254,14 @@ Style: ${artStyle}. Close-up friendly portrait, expressive eyes, child-safe cont
       return res.status(429).json({ error: "Too many requests. Please wait a moment." });
     }
 
+    const parsed = SceneRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
+    }
+
+    const { heroName, sceneText, heroDescription } = parsed.data;
+
     try {
-      const heroName = sanitizeString(req.body.heroName, MAX_INPUT_STRING_LENGTH);
-      const sceneText = sanitizeString(req.body.sceneText, 2000);
-      const heroDescription = sanitizeString(req.body.heroDescription, MAX_INPUT_STRING_LENGTH);
-
-      if (!sceneText) {
-        return res.status(400).json({ error: "Scene text is required" });
-      }
-
       const summary = sceneText.substring(0, 300);
       const sceneStyle = getRandomStyle();
       const prompt = `Children's storybook scene illustration for a bedtime story. The hero is "${heroName}": ${heroDescription?.substring(0, 100) || ""}.
@@ -529,11 +269,12 @@ Scene: ${summary}
 Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe content, suitable for ages 3-9. No scary elements. Warm, cozy, wonder-filled.`;
 
       const result = await aiRouter.generateImage("scene", { prompt });
-      console.log(`[Scene] Generated by ${result.provider} (${result.model})`);
+      req.log?.info({ provider: result.provider, model: result.model }, 'scene generated');
       return res.json({ image: result.imageDataUri });
     } catch (error: unknown) {
-      console.error("Error generating scene:", error instanceof Error ? error.message : String(error));
-      res.status(500).json({ error: "Failed to generate scene" });
+      req.log?.error({ err: error }, 'scene generation failed');
+      const kind = classifyError(error);
+      res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to generate scene', kind));
     }
   });
 
@@ -543,18 +284,14 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
       return res.status(429).json({ error: "Too many requests. Please wait a moment." });
     }
 
+    const parsed = TtsRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
+    }
+
+    const { text, voice: voiceKey, mode: storyMode } = parsed.data;
+
     try {
-      const { text, voice, mode } = req.body;
-      if (!text || typeof text !== "string") {
-        return res.status(400).json({ error: "Text is required" });
-      }
-
-      if (text.length > MAX_TTS_TEXT_LENGTH) {
-        return res.status(400).json({ error: `Text too long. Maximum ${MAX_TTS_TEXT_LENGTH} characters.` });
-      }
-
-      const voiceKey = sanitizeString(voice || "moonbeam", 20).toLowerCase();
-      const storyMode = mode && typeof mode === "string" ? sanitizeString(mode, 20) : undefined;
       const hash = crypto.createHash("md5").update(`${voiceKey}:${storyMode || ""}:${text}`).digest("hex");
       const fileName = `${hash}.mp3`;
       const filePath = path.join(TTS_CACHE_DIR, fileName);
@@ -566,8 +303,9 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
 
       res.json({ audioUrl: `/api/tts-audio/${fileName}` });
     } catch (error: unknown) {
-      console.error("TTS error:", error instanceof Error ? error.message : String(error));
-      res.status(500).json({ error: "Failed to generate speech" });
+      req.log?.error({ err: error }, 'TTS generation failed');
+      const kind = classifyError(error);
+      res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to generate speech', kind));
     }
   });
 
@@ -593,7 +331,7 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
 
   app.get("/api/music/:mode", (req, res) => {
     const mode = sanitizeString(req.params.mode, 20);
-    if (!VALID_MODES.includes(mode)) {
+    if (!(VALID_MODES as readonly string[]).includes(mode)) {
       return res.status(400).json({ error: "Invalid mode" });
     }
     // Parse optional track index from query param (for cycling through multiple tracks)
@@ -606,7 +344,7 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
     res.setHeader("Cache-Control", "public, max-age=300");
     res.sendFile(filePath, (err) => {
       if (err) {
-        console.error("Music file error:", err);
+        logger.error({ err }, 'music file error');
         if (!res.headersSent) {
           res.status(404).json({ error: "Music file not found" });
         }
@@ -616,7 +354,7 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
 
   app.get("/api/music-info/:mode", (req, res) => {
     const mode = sanitizeString(req.params.mode, 20);
-    if (!VALID_MODES.includes(mode)) {
+    if (!(VALID_MODES as readonly string[]).includes(mode)) {
       return res.status(400).json({ error: "Invalid mode" });
     }
     res.json({ trackCount: getMusicTrackCount(mode) });
@@ -628,14 +366,14 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
       return res.status(429).json({ error: "Too many requests" });
     }
 
-    try {
-      const heroName = sanitizeString(req.body.heroName, MAX_INPUT_STRING_LENGTH);
-      const heroPower = sanitizeString(req.body.heroPower, MAX_INPUT_STRING_LENGTH);
-      const heroDescription = sanitizeString(req.body.heroDescription, MAX_INPUT_STRING_LENGTH);
-      const hour = typeof req.body.hour === "number" ? Math.min(23, Math.max(0, Math.floor(req.body.hour))) : new Date().getHours();
-      const childAge = typeof req.body.childAge === "number" ? Math.min(12, Math.max(1, Math.floor(req.body.childAge))) : null;
-      const childName = req.body.childName ? sanitizeString(req.body.childName, 30) : null;
+    const parsed = SuggestSettingsRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
+    }
 
+    const { heroName, heroPower, heroDescription, hour, childAge, childName } = parsed.data;
+
+    try {
       const timeOfDay = hour >= 19 || hour < 6 ? "nighttime/bedtime" : hour >= 17 ? "evening" : hour >= 12 ? "afternoon" : "morning";
 
       const voiceKeys = Object.keys(VOICE_MAP);
@@ -656,20 +394,20 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
         thinkingBudget: 0,
       });
 
-      console.log(`[Suggest] Generated by ${aiResponse.provider} (${aiResponse.model})`);
+      req.log?.info({ provider: aiResponse.provider, model: aiResponse.model }, 'suggestion generated');
 
       let text = aiResponse.text?.trim() || "";
       text = text.replace(/```json\s*/g, "").replace(/```\s*/g, "");
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        console.error("AI suggest-settings: no JSON in response");
+        req.log?.error('suggest-settings: no JSON in AI response');
         return res.status(500).json({ error: "Invalid AI response" });
       }
 
       const suggestion = JSON.parse(jsonMatch[0]);
 
-      if (!VALID_MODES.includes(suggestion.mode)) suggestion.mode = "classic";
-      if (!VALID_DURATIONS.includes(suggestion.duration)) suggestion.duration = "medium";
+      if (!(VALID_MODES as readonly string[]).includes(suggestion.mode)) suggestion.mode = "classic";
+      if (!(VALID_DURATIONS as readonly string[]).includes(suggestion.duration)) suggestion.duration = "medium";
       if (!["gentle", "medium", "normal"].includes(suggestion.speed)) suggestion.speed = "medium";
       if (!voiceKeys.includes(suggestion.voice)) suggestion.voice = MODE_DEFAULT_VOICES[suggestion.mode] || "moonbeam";
       if (typeof suggestion.tip !== "string") suggestion.tip = "A great story awaits!";
@@ -677,8 +415,9 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
 
       res.json(suggestion);
     } catch (error: unknown) {
-      console.error("Suggest settings error:", error instanceof Error ? error.message : String(error));
-      res.status(500).json({ error: "Failed to generate suggestion" });
+      req.log?.error({ err: error }, 'suggest settings failed');
+      const kind = classifyError(error);
+      res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to generate suggestion', kind));
     }
   });
 
@@ -696,24 +435,29 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
   });
 
   app.get("/api/video-available", (_req, res) => {
+    if (!isFeatureEnabled('videoEnabled')) {
+      return res.json({ available: false });
+    }
     res.json({ available: isVideoAvailable() });
   });
 
   app.post("/api/generate-video", async (req, res) => {
+    if (!isFeatureEnabled('videoEnabled')) {
+      return res.status(404).json({ error: "Video generation is not available" });
+    }
     const clientIp = req.user?.uid || req.ip || req.socket.remoteAddress || "unknown";
     if (!checkRateLimit(clientIp)) {
       return res.status(429).json({ error: "Too many requests. Please wait a moment." });
     }
 
+    const parsed = VideoRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
+    }
+
+    const { sceneText, heroName, heroDescription } = parsed.data;
+
     try {
-      const sceneText = sanitizeString(req.body.sceneText, 2000);
-      const heroName = sanitizeString(req.body.heroName, MAX_INPUT_STRING_LENGTH);
-      const heroDescription = sanitizeString(req.body.heroDescription, MAX_INPUT_STRING_LENGTH);
-
-      if (!sceneText) {
-        return res.status(400).json({ error: "Scene text is required" });
-      }
-
       const result = await createVideoJob(sceneText, heroName, heroDescription);
       if ("error" in result) {
         return res.status(503).json({ error: result.error });
@@ -721,8 +465,9 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
 
       res.json({ jobId: result.jobId });
     } catch (error: unknown) {
-      console.error("Video generation error:", error instanceof Error ? error.message : String(error));
-      res.status(500).json({ error: "Failed to start video generation" });
+      req.log?.error({ err: error }, 'video generation failed');
+      const kind = classifyError(error);
+      res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to start video generation', kind));
     }
   });
 
@@ -790,15 +535,22 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
 
       res.json({ audioUrl: `/api/tts-audio/${fileName}` });
     } catch (error: unknown) {
-      console.error("TTS preview error:", error instanceof Error ? error.message : String(error));
-      res.status(500).json({ error: "Failed to generate preview" });
+      req.log?.error({ err: error }, 'TTS preview failed');
+      const kind = classifyError(error);
+      res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to generate preview', kind));
     }
   });
 
   // Register voice chat & conversation routes (replit_integrations)
-  if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.DATABASE_URL) {
+  if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.DATABASE_URL && isFeatureEnabled('voiceChatEnabled')) {
     registerAudioRoutes(app);
-    console.log("[Routes] Voice chat & conversation routes registered");
+    logger.info('voice chat & conversation routes registered');
+  }
+
+  // Register Gemini direct image generation route (replit_integrations)
+  if (process.env.AI_INTEGRATIONS_GEMINI_API_KEY) {
+    registerImageRoutes(app);
+    console.log("[Routes] Gemini image generation route registered");
   }
 
   const httpServer = createServer(app);

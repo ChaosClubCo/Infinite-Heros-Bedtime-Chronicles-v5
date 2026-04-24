@@ -1,10 +1,14 @@
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { isAuthEnabled } from "./auth";
+import { logger, createRequestId } from "./logger";
+import { recordRequest } from "./metrics";
+import { createLoadSheddingMiddleware } from "./load-shedding";
 import * as fs from "fs";
 import * as path from "path";
 
-const log = console.log;
+const log = logger.info.bind(logger);
 
 function validateEnvironment() {
   const providerPairs: [string, string, string][] = [
@@ -47,12 +51,23 @@ function validateEnvironment() {
     log("[Env] WARNING: No image AI providers configured — avatar/scene generation will fail");
   }
 
+  if (!isAuthEnabled()) {
+    log("[Env] WARNING: FIREBASE_SERVICE_ACCOUNT_KEY not set — authentication is DISABLED (dev mode)");
+  }
+
   log(`[Env] Environment validation complete (${textProviders} text providers, ${imageProviders} image providers)`);
+
+  // Auth validation
+  if (process.env.NODE_ENV === 'production' && !process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    log("[Env] CRITICAL: FIREBASE_SERVICE_ACCOUNT_KEY is not set in production! Authentication will reject all requests.");
+  }
 }
 
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
+    requestId?: string;
+    log?: import('pino').Logger;
   }
 }
 
@@ -61,9 +76,10 @@ function setupSecurityHeaders(app: express.Application) {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader("X-XSS-Protection", "1; mode=block");
-    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; font-src 'self' https:;");
+    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; font-src 'self' https://fonts.gstatic.com https:;");
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(self), geolocation=()");
+    res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
     next();
   });
 }
@@ -105,8 +121,8 @@ function setupCors(app: express.Application) {
       }
     })();
 
-    // Allow Vercel preview URLs (*.vercel.app)
-    const isVercelPreview = origin ? /\.vercel\.app$/.test(new URL(origin).hostname) : false;
+    // Allow Vercel preview URLs — restricted to our project prefix
+    const isVercelPreview = origin ? /^infinite-hero.*\.vercel\.app$/.test(new URL(origin).hostname) : false;
 
     if (origin && (origins.has(origin) || isLocalhost || isVercelPreview)) {
       res.header("Access-Control-Allow-Origin", origin);
@@ -141,31 +157,20 @@ function setupBodyParsing(app: express.Application) {
 
 function setupRequestLogging(app: express.Application) {
   app.use((req, res, next) => {
-    const start = Date.now();
-    const path = req.path;
-    let capturedJsonResponse: Record<string, unknown> | undefined = undefined;
+    const requestId = (req.headers['x-request-id'] as string) || createRequestId();
+    req.requestId = requestId;
+    req.log = logger.child({ requestId });
+    res.setHeader('x-request-id', requestId);
 
-    const originalResJson = res.json;
-    res.json = function (bodyJson, ...args) {
-      capturedJsonResponse = bodyJson;
-      return originalResJson.apply(res, [bodyJson, ...args]);
-    };
+    const start = Date.now();
+    const reqPath = req.path;
 
     res.on("finish", () => {
-      if (!path.startsWith("/api")) return;
+      if (!reqPath.startsWith("/api")) return;
 
       const duration = Date.now() - start;
-
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+      req.log!.info({ method: req.method, path: reqPath, status: res.statusCode, duration }, 'request completed');
+      recordRequest(res.statusCode);
     });
 
     next();
@@ -224,8 +229,7 @@ function serveLandingPage({
   const expsUrl = `${host}`;
 
   if (process.env.NODE_ENV !== "production") {
-    log(`baseUrl`, baseUrl);
-    log(`expsUrl`, expsUrl);
+    logger.info({ baseUrl, expsUrl }, 'serving landing page');
   }
 
   const html = landingPageTemplate
@@ -237,6 +241,21 @@ function serveLandingPage({
   res.status(200).send(html);
 }
 
+/** Minimal fallback rendered when the full landing-page.html template is absent. */
+const FALLBACK_LANDING_HTML = [
+  '<!doctype html><html lang="en"><head>',
+  '<meta charset="utf-8">',
+  '<meta name="viewport" content="width=device-width,initial-scale=1">',
+  '<title>APP_NAME_PLACEHOLDER</title>',
+  '<style>body{margin:0;background:#020215;color:#f1f5f9;font-family:sans-serif;',
+  'display:flex;align-items:center;justify-content:center;min-height:100vh;',
+  'text-align:center;padding:24px}</style>',
+  '</head><body>',
+  '<h1>APP_NAME_PLACEHOLDER</h1>',
+  '<p>AI-powered bedtime stories for children.</p>',
+  '</body></html>',
+].join('');
+
 function configureExpoAndLanding(app: express.Application) {
   const templatePath = path.resolve(
     process.cwd(),
@@ -244,7 +263,15 @@ function configureExpoAndLanding(app: express.Application) {
     "templates",
     "landing-page.html",
   );
-  const landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
+
+  let landingPageTemplate: string;
+  try {
+    landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
+  } catch {
+    // Fallback minimal landing page if the template file is not bundled
+    log("[Landing] Template file not found; using minimal fallback page");
+    landingPageTemplate = FALLBACK_LANDING_HTML;
+  }
   const appName = getAppName();
 
   log("Serving static Expo files with dynamic manifest routing");
@@ -300,7 +327,7 @@ function setupErrorHandler(app: express.Application) {
 
     const message = sanitizeErrorMessage(err);
 
-    console.error("Internal Server Error:", err);
+    logger.error({ err, status }, 'unhandled server error');
 
     if (res.headersSent) {
       return next(err);
@@ -318,6 +345,7 @@ export async function createApp(): Promise<express.Application> {
   setupCors(app);
   setupBodyParsing(app);
   setupRequestLogging(app);
+  app.use(createLoadSheddingMiddleware());
 
   configureExpoAndLanding(app);
 
