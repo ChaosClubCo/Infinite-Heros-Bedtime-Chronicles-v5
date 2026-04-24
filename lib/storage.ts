@@ -22,6 +22,20 @@ const ACTIVE_PROFILE_KEY = '@infinity_heroes_active_profile';
 const BADGES_KEY = '@infinity_heroes_badges';
 const STREAKS_KEY = '@infinity_heroes_streaks';
 const PARENT_CONTROLS_KEY = '@infinity_heroes_parent_controls';
+const ONBOARDING_KEY = '@infinity_heroes_onboarding_complete';
+
+export async function getOnboardingComplete(): Promise<boolean> {
+  try {
+    const data = await AsyncStorage.getItem(ONBOARDING_KEY);
+    return data === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function setOnboardingComplete(): Promise<void> {
+  await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+}
 
 export async function getFavorites(): Promise<string[]> {
   try {

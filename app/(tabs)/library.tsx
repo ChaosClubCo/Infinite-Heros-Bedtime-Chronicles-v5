@@ -140,7 +140,7 @@ export default function LibraryScreen() {
               <Image source={{ uri: sceneImage }} style={styles.storyImage} resizeMode="cover" />
             ) : (
               <LinearGradient colors={hero?.gradient || ["#1e1b4b", "#312e81"]} style={styles.storyImage}>
-                <Ionicons name={(hero?.iconName || "book") as any} size={36} color="rgba(255,255,255,0.3)" />
+                <Ionicons name={(hero?.iconName || "book") as React.ComponentProps<typeof Ionicons>["name"]} size={36} color="rgba(255,255,255,0.3)" />
               </LinearGradient>
             )}
             <LinearGradient

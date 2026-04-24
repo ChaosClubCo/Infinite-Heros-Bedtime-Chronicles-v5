@@ -120,7 +120,7 @@ export default function SavedScreen() {
               <Image source={{ uri: sceneImage }} style={styles.thumbImage} resizeMode="cover" />
             ) : (
               <LinearGradient colors={hero?.gradient || ["#1e1b4b", "#312e81"]} style={styles.thumbImage}>
-                <Ionicons name={(hero?.iconName || "book") as any} size={22} color="rgba(255,255,255,0.4)" />
+                <Ionicons name={(hero?.iconName || "book") as React.ComponentProps<typeof Ionicons>["name"]} size={22} color="rgba(255,255,255,0.4)" />
               </LinearGradient>
             )}
           </View>

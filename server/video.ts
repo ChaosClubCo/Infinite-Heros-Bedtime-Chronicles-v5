@@ -102,9 +102,10 @@ export async function createVideoJob(
     pollVideoStatus(client, job);
 
     return { jobId };
-  } catch (err: any) {
-    console.error("[Video] Creation error:", err?.message || err);
-    return { error: err?.message || "Failed to create video" };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[Video] Creation error:", message);
+    return { error: message || "Failed to create video" };
   }
 }
 
@@ -118,12 +119,15 @@ async function pollVideoStatus(client: OpenAI, job: VideoJob) {
 
     try {
       const video = await client.videos.retrieve(job.openaiVideoId);
+      // intentional: Sora preview SDK response has `progress` and `output_url` fields
+      // that aren't declared on the typed `Video` shape. Cast to a local extension.
+      const soraVideo = video as typeof video & { progress?: number; output_url?: string };
       job.status = video.status as VideoJob["status"];
-      job.progress = (video as any).progress || Math.min(polls * 5, 95);
+      job.progress = soraVideo.progress || Math.min(polls * 5, 95);
 
       if (video.status === "completed") {
         try {
-          const outputUrl = (video as any).output_url;
+          const outputUrl = soraVideo.output_url;
           if (!outputUrl) {
             job.status = "failed";
             job.error = "No output URL in completed video";
@@ -141,8 +145,8 @@ async function pollVideoStatus(client: OpenAI, job: VideoJob) {
           job.videoPath = filePath;
           job.status = "completed";
           job.progress = 100;
-        } catch (dlErr: any) {
-          console.error("[Video] Download error:", dlErr?.message);
+        } catch (dlErr: unknown) {
+          console.error("[Video] Download error:", dlErr instanceof Error ? dlErr.message : String(dlErr));
           job.status = "failed";
           job.error = "Video generated but download failed";
         }
@@ -154,8 +158,8 @@ async function pollVideoStatus(client: OpenAI, job: VideoJob) {
         job.error = "Video generation failed";
         return;
       }
-    } catch (err: any) {
-      console.error("[Video] Poll error:", err?.message);
+    } catch (err: unknown) {
+      console.error("[Video] Poll error:", err instanceof Error ? err.message : String(err));
       if (polls >= maxPolls) {
         job.status = "failed";
         job.error = "Video generation timed out";

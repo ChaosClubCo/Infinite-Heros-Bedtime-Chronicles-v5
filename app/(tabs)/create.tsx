@@ -165,6 +165,7 @@ export default function CreateScreen() {
 
   const [heroAvatarUri, setHeroAvatarUri] = useState<Record<string, string>>({});
   const [avatarLoading, setAvatarLoading] = useState<Record<string, boolean>>({});
+  const fetchedAvatarIdsRef = useRef<Set<string>>(new Set());
   const avatarShimmerOpacity = useSharedValue(0.3);
 
   useEffect(() => {
@@ -181,7 +182,9 @@ export default function CreateScreen() {
 
   useEffect(() => {
     const h = HEROES[heroIndex];
-    if (heroAvatarUri[h.id] || avatarLoading[h.id]) return;
+    // Ref guard avoids re-reading state and keeps the dep array tight.
+    if (fetchedAvatarIdsRef.current.has(h.id)) return;
+    fetchedAvatarIdsRef.current.add(h.id);
 
     setAvatarLoading((prev) => ({ ...prev, [h.id]: true }));
 
@@ -199,6 +202,7 @@ export default function CreateScreen() {
       })
       .catch((e) => {
         if (__DEV__) console.log("Avatar fetch failed:", e);
+        fetchedAvatarIdsRef.current.delete(h.id);
       })
       .finally(() => {
         setAvatarLoading((prev) => ({ ...prev, [h.id]: false }));

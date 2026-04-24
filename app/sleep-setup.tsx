@@ -119,7 +119,8 @@ export default function SleepSetupScreen() {
                   testID={`sound-${s.id}`}
                 >
                   <Ionicons
-                    name={s.icon as any}
+                    // intentional: icon names come from inline data, not the typed Ionicons union
+                    name={s.icon as React.ComponentProps<typeof Ionicons>["name"]}
                     size={28}
                     color={isActive ? PURPLE : "rgba(255,255,255,0.4)"}
                   />
@@ -267,7 +268,8 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   soundCard: {
-    width: "30.5%" as any,
+    // intentional: RN StyleSheet types reject fractional percentage strings; runtime accepts them
+    width: "30.5%" as unknown as number,
     aspectRatio: 1,
     backgroundColor: PURPLE_BG,
     borderRadius: 16,
