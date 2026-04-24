@@ -1,0 +1,127 @@
+name: Branch Cleanup
+
+on:
+  pull_request:
+    types: [closed]
+  # Also allow manual runs to clean up old stale branches
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (list branches that would be deleted without deleting)'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  # Branches that must never be deleted automatically
+  PROTECTED_BRANCHES: "main,master,develop,staging,production"
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  delete-merged-branch:
+    name: Delete branch after PR merge
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+
+    steps:
+      - name: Delete merged branch
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const branchName = context.payload.pull_request.head.ref;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const protectedBranches = process.env.PROTECTED_BRANCHES.split(',');
+            if (protectedBranches.includes(branchName)) {
+              console.log(`Skipping deletion of protected branch: ${branchName}`);
+              return;
+            }
+
+            try {
+              await github.rest.git.deleteRef({
+                owner,
+                repo,
+                ref: `heads/${branchName}`,
+              });
+              console.log(`✅ Deleted branch: ${branchName}`);
+            } catch (error) {
+              if (error.status === 422) {
+                console.log(`Branch ${branchName} already deleted.`);
+              } else {
+                console.error(`Failed to delete branch ${branchName}:`, error.message);
+              }
+            }
+
+  prune-stale-branches:
+    name: Prune stale unmerged branches (manual)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: List / prune stale branches
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const dryRun = ${{ github.event.inputs.dry_run || 'true' }};
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const protectedBranches = process.env.PROTECTED_BRANCHES.split(',');
+
+            // Branches with no activity for > 90 days
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - 90);
+
+            const { data: branches } = await github.rest.repos.listBranches({
+              owner,
+              repo,
+              per_page: 100,
+            });
+
+            const staleBranches = [];
+            for (const branch of branches) {
+              if (protectedBranches.includes(branch.name)) continue;
+              const { data: commit } = await github.rest.repos.getCommit({
+                owner,
+                repo,
+                ref: branch.commit.sha,
+              });
+              const lastCommitDate = new Date(commit.commit.committer.date);
+              if (lastCommitDate < cutoffDate) {
+                staleBranches.push({ name: branch.name, lastCommit: lastCommitDate.toISOString() });
+              }
+            }
+
+            if (staleBranches.length === 0) {
+              console.log('✅ No stale branches found.');
+              return;
+            }
+
+            console.log(`Found ${staleBranches.length} stale branch(es):`);
+            for (const b of staleBranches) {
+              console.log(`  - ${b.name} (last commit: ${b.lastCommit})`);
+            }
+
+            if (dryRun) {
+              console.log('\n🔍 Dry run — no branches deleted. Set dry_run=false to delete.');
+            } else {
+              for (const b of staleBranches) {
+                try {
+                  await github.rest.git.deleteRef({ owner, repo, ref: `heads/${b.name}` });
+                  console.log(`🗑️ Deleted: ${b.name}`);
+                } catch (err) {
+                  console.error(`Failed to delete ${b.name}: ${err.message}`);
+                }
+              }
+            }
+

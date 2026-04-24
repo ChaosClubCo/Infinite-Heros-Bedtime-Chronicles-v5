@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "generatedAt": "2026-04-16T00:09:49.209Z",
+  "agents": [
+    {
+      "name": "security-agent",
+      "type": "SECURITY_AGENT",
+      "enabled": true,
+      "definition": "agents/security/agent.definition.json",
+      "config": "agents/security/.agentrc.json",
+      "entrypoint": "agents/security/index.js",
+      "workflow": ".github/workflows/agent-security.yml",
+      "documentation": "docs/agents/security.md"
+    },
+    {
+      "name": "pr-review-agent",
+      "type": "PR_REVIEW_AGENT",
+      "enabled": true,
+      "definition": "agents/pr-review/agent.definition.json",
+      "config": "agents/pr-review/.agentrc.json",
+      "entrypoint": "agents/pr-review/index.js",
+      "workflow": ".github/workflows/agent-pr-review.yml",
+      "documentation": "docs/agents/pr-review.md"
+    }
+  ]
+}

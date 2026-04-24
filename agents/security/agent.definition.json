@@ -1,0 +1,30 @@
+{
+  "name": "security-agent",
+  "type": "SECURITY_AGENT",
+  "purpose": "Run CodeQL plus dependency and secret checks to catch security issues early.",
+  "triggers": [
+    "pull_request",
+    "push(main,develop)",
+    "schedule(0 5 * * 1)",
+    "workflow_dispatch"
+  ],
+  "inputs": [
+    "repository source",
+    "GitHub event metadata"
+  ],
+  "outputs": [
+    "agents/security/security-report.json",
+    "CodeQL SARIF results"
+  ],
+  "riskLevel": "high",
+  "dependencies": [
+    "node",
+    "npm",
+    "github/codeql-action"
+  ],
+  "successCriteria": [
+    "No high-or-greater npm vulnerabilities",
+    "No hardcoded-secret matches from configured patterns",
+    "CodeQL job completes"
+  ]
+}

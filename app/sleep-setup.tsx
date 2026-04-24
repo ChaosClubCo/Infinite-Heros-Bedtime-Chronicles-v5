@@ -7,6 +7,7 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -95,7 +96,7 @@ export default function SleepSetupScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollViewCompat
         contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset + 120 }]}
         showsVerticalScrollIndicator={false}
       >
@@ -118,7 +119,8 @@ export default function SleepSetupScreen() {
                   testID={`sound-${s.id}`}
                 >
                   <Ionicons
-                    name={s.icon as any}
+                    // intentional: icon names come from inline data, not the typed Ionicons union
+                    name={s.icon as React.ComponentProps<typeof Ionicons>["name"]}
                     size={28}
                     color={isActive ? PURPLE : "rgba(255,255,255,0.4)"}
                   />
@@ -165,7 +167,7 @@ export default function SleepSetupScreen() {
         <Animated.View entering={FadeInDown.duration(500).delay(300)}>
           <View style={styles.heroCard}>
             <View style={styles.heroCardContent}>
-              <Text style={styles.heroCardLabel}>TONIGHT'S HERO</Text>
+              <Text style={styles.heroCardLabel}>TONIGHT&apos;S HERO</Text>
               <Text style={styles.heroCardName}>{hero.name}</Text>
             </View>
             <View style={styles.heroCardIconWrap}>
@@ -173,7 +175,7 @@ export default function SleepSetupScreen() {
             </View>
           </View>
         </Animated.View>
-      </ScrollView>
+      </KeyboardAwareScrollViewCompat>
 
       <Animated.View
         entering={FadeInDown.duration(500).delay(400)}
@@ -266,7 +268,8 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   soundCard: {
-    width: "30.5%" as any,
+    // intentional: RN StyleSheet types reject fractional percentage strings; runtime accepts them
+    width: "30.5%" as unknown as number,
     aspectRatio: 1,
     backgroundColor: PURPLE_BG,
     borderRadius: 16,

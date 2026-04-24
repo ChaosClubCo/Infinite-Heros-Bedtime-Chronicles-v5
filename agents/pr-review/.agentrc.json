@@ -1,0 +1,16 @@
+{
+  "highRiskPaths": [
+    "server/routes.ts",
+    "server/index.ts",
+    "shared/schema.ts",
+    ".github/workflows/",
+    "patches/",
+    "package.json",
+    "package-lock.json"
+  ],
+  "largePrThreshold": {
+    "files": 20,
+    "changedLines": 800
+  },
+  "commentMarker": "<!-- pr-review-agent -->"
+}

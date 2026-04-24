@@ -49,12 +49,9 @@ npm install
 cp .env.example .env
 # Edit .env with your API keys
 
-# Start development server (Expo + Express)
-npm run dev
-
-# Or start components separately:
-npm run server    # Express backend on port 5000
-npx expo start   # Expo dev server
+# Start backend and frontend separately (no single "dev" command):
+npm run server:dev   # Express backend on port 5000
+npx expo start       # Expo dev server (use npm run expo:dev inside Replit)
 ```
 
 ## Project Structure
@@ -138,6 +135,7 @@ See [docs/API.md](docs/API.md) for full reference.
 - [Roadmap](docs/ROADMAP.md) — Prioritized development roadmap
 - [Changelog](docs/CHANGELOG.md) — Version history
 - [Dead Code Triage](docs/DEAD-CODE-TRIAGE.md) — Code audit report
+- [GitHub Custom Agents](docs/GITHUB-CUSTOM-AGENTS.md) — Repository-scoped agent catalog and best practices
 
 ## License
 
