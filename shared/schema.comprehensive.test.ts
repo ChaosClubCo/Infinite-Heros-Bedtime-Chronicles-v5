@@ -295,7 +295,7 @@ describe('CachedStory shape validation', () => {
     mode: z.string(),
     profileId: z.string().optional(),
     avatar: z.string().optional(),
-    scenes: z.record(z.string()).optional(),
+    scenes: z.record(z.string(), z.string()).optional(),
     feedback: z.object({
       rating: z.number(),
       text: z.string(),

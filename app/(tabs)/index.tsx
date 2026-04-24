@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   recentOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 16,
   },
   recentInfo: {
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   storyImageOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   storyBadge: {
     position: "absolute",

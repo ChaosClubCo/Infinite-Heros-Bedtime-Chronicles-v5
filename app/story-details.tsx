@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   heroImageOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   backBtn: {
     position: "absolute",
@@ -688,7 +688,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   bottomCTAGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     height: 120,
   },
   ctaButton: {

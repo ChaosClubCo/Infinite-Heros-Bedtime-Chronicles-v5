@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  HEALTH_CHECK_URL: "https://bedtime-chronicles.com/api/health"
+
 jobs:
   trigger-vercel-deploy:
     name: Trigger Vercel Deployment
@@ -17,3 +20,17 @@ jobs:
       
       - name: Notify deployment triggered
         run: echo "✅ Vercel deployment triggered successfully"
+
+      - name: Wait for deployment and health check
+        run: |
+          echo "⏳ Waiting 60 seconds for deployment to complete..."
+          sleep 60
+          echo "🔍 Running health check against $HEALTH_CHECK_URL..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_CHECK_URL" || echo "000")
+          echo "Health check status: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Health check passed"
+          else
+            echo "❌ Health check failed with status $STATUS"
+            exit 1
+          fi

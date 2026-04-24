@@ -17,6 +17,18 @@ This is the single source of truth for how all AI coding agents interact with th
 
 All three files share the same underlying rules. Agent-specific files are formatted for each agent's instruction parsing style.
 
+### GitHub Repository Custom Agents
+
+Repository-scoped GitHub custom agents are defined in `.github/agents/` for task-oriented workflows:
+- `api-backend.md`
+- `safety-reviewer.md`
+- `story-engineer.md`
+- `ui-designer.md`
+- `test-writer.md`
+- `devops.md`
+
+See [`docs/GITHUB-CUSTOM-AGENTS.md`](./docs/GITHUB-CUSTOM-AGENTS.md) for scope, routing, and best-practice usage guidance.
+
 ### Specialized Domain Expert Agents
 
 12 specialized agent instruction files cover cross-domain expertise areas. Select the appropriate agent when working in a specific domain. See [`docs/agents/README.md`](./docs/agents/README.md) for the full selection guide.

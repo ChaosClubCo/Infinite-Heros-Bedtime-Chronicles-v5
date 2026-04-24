@@ -46,6 +46,11 @@ declare global {
   }
 }
 
+/** Check at startup whether Firebase auth is configured. */
+export function isAuthEnabled(): boolean {
+  return !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+}
+
 /**
  * Middleware that requires a valid Firebase auth token.
  * If FIREBASE_SERVICE_ACCOUNT_KEY is not set, auth is disabled (dev mode).

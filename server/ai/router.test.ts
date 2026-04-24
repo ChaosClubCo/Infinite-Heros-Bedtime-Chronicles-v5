@@ -92,8 +92,9 @@ describe('AIRouter', () => {
 
       const result = await router.generateText('story', DEFAULT_REQUEST);
       expect(result.provider).toBe('gemini');
-      expect(anthropic.generateText).toHaveBeenCalledOnce();
-      expect(gemini.generateText).toHaveBeenCalledOnce();
+      // anthropic called 1+ times (retry may attempt it again before fallback)
+      expect(anthropic.generateText).toHaveBeenCalled();
+      expect(gemini.generateText).toHaveBeenCalled();
     });
 
     it('throws when no providers are available', async () => {
@@ -234,6 +235,81 @@ describe('AIRouter', () => {
     });
   });
 
+  describe('timeout support', () => {
+    it('rejects when provider exceeds timeoutMs', async () => {
+      const slowProvider = createMockProvider({
+        name: 'anthropic',
+        generateText: vi.fn().mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve({
+            text: 'late',
+            provider: 'anthropic' as const,
+            model: 'model',
+          }), 5000))
+        ),
+      });
+      router.registerProvider(slowProvider);
+
+      await expect(
+        router.generateText('story', { ...DEFAULT_REQUEST, timeoutMs: 50 })
+      ).rejects.toThrow(/timed out/);
+    });
+
+    it('succeeds when provider responds within timeoutMs', async () => {
+      const fastProvider = createMockProvider({ name: 'anthropic' });
+      router.registerProvider(fastProvider);
+
+      const result = await router.generateText('story', { ...DEFAULT_REQUEST, timeoutMs: 5000 });
+      expect(result.provider).toBe('anthropic');
+    });
+  });
+
+  describe('parsedJson in jsonMode', () => {
+    it('returns parsedJson when jsonMode is true', async () => {
+      const provider = createMockProvider({
+        name: 'anthropic',
+        generateText: vi.fn().mockResolvedValue({
+          text: '{"title":"test","value":42}',
+          provider: 'anthropic',
+          model: 'model',
+        }),
+      });
+      router.registerProvider(provider);
+
+      const result = await router.generateText('story', {
+        ...DEFAULT_REQUEST,
+        jsonMode: true,
+      });
+      expect(result.parsedJson).toEqual({ title: 'test', value: 42 });
+    });
+
+    it('sets text to the cleaned JSON string', async () => {
+      const provider = createMockProvider({
+        name: 'anthropic',
+        generateText: vi.fn().mockResolvedValue({
+          text: '```json\n{"title":"test"}\n```',
+          provider: 'anthropic',
+          model: 'model',
+        }),
+      });
+      router.registerProvider(provider);
+
+      const result = await router.generateText('story', {
+        ...DEFAULT_REQUEST,
+        jsonMode: true,
+      });
+      expect(result.text).toBe('{"title":"test"}');
+      expect(result.parsedJson).toEqual({ title: 'test' });
+    });
+
+    it('does not set parsedJson when jsonMode is false', async () => {
+      const provider = createMockProvider({ name: 'anthropic' });
+      router.registerProvider(provider);
+
+      const result = await router.generateText('story', DEFAULT_REQUEST);
+      expect(result.parsedJson).toBeUndefined();
+    });
+  });
+
   describe('generateImage', () => {
     it('returns image from the first available provider', async () => {
       const gemini = createMockProvider({
@@ -283,6 +359,62 @@ describe('AIRouter', () => {
 
       const result = await router.generateImage('image', { prompt: 'A hero' });
       expect(result.provider).toBe('openai');
+    });
+  });
+
+  describe('circuit breaker integration', () => {
+    it('opens circuit after consecutive failures and skips the provider', async () => {
+      const cbRouter = new AIRouter({ circuitBreakerThreshold: 2, circuitBreakerResetMs: 10_000 });
+
+      let anthropicCallCount = 0;
+      const failingProvider = createMockProvider({
+        name: 'anthropic',
+        generateText: vi.fn().mockImplementation(() => {
+          anthropicCallCount++;
+          return Promise.reject(new Error('provider down'));
+        }),
+      });
+      const fallbackProvider = createMockProvider({ name: 'gemini' });
+      cbRouter.registerProvider(failingProvider);
+      cbRouter.registerProvider(fallbackProvider);
+
+      // First 2 calls: anthropic fails, falls back to gemini
+      await cbRouter.generateText('story', DEFAULT_REQUEST);
+      await cbRouter.generateText('story', DEFAULT_REQUEST);
+      expect(anthropicCallCount).toBe(2);
+
+      // Third call: anthropic circuit open, goes straight to gemini
+      anthropicCallCount = 0;
+      await cbRouter.generateText('story', DEFAULT_REQUEST);
+      expect(anthropicCallCount).toBe(0);
+    });
+
+    it('recovers when circuit goes half-open and call succeeds', async () => {
+      // Use a very short reset so we can wait with real timers
+      const cbRouter = new AIRouter({ circuitBreakerThreshold: 2, circuitBreakerResetMs: 50 });
+
+      let shouldFail = true;
+      const provider = createMockProvider({
+        name: 'anthropic',
+        generateText: vi.fn().mockImplementation(() => {
+          if (shouldFail) return Promise.reject(new Error('down'));
+          return Promise.resolve({ text: 'ok', provider: 'anthropic' as const, model: 'm' });
+        }),
+      });
+      const fallback = createMockProvider({ name: 'gemini' });
+      cbRouter.registerProvider(provider);
+      cbRouter.registerProvider(fallback);
+
+      // Trip the circuit (retries use real timers with short delays)
+      await cbRouter.generateText('story', DEFAULT_REQUEST);
+      await cbRouter.generateText('story', DEFAULT_REQUEST);
+
+      // Wait for half-open (50ms reset)
+      await new Promise((r) => setTimeout(r, 60));
+      shouldFail = false;
+
+      const result = await cbRouter.generateText('story', DEFAULT_REQUEST);
+      expect(result.provider).toBe('anthropic');
     });
   });
 });

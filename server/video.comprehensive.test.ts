@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ══════════════════════════════════════════════════════════════════
 // Video Generation (Sora 2) Tests
@@ -223,4 +223,3 @@ describe('video job expiry', () => {
   });
 });
 
-import { beforeEach } from 'vitest';

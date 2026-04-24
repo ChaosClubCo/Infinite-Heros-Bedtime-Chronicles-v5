@@ -81,3 +81,5 @@ Badges, streaks, or children's UX?
 ## Parent Coordination Document
 
 See [`AGENTS.md`](../../AGENTS.md) for the full agent coordination framework, shared rules, and escalation policy.
+
+For GitHub repository custom agents and usage best practices, see [`docs/GITHUB-CUSTOM-AGENTS.md`](../GITHUB-CUSTOM-AGENTS.md).

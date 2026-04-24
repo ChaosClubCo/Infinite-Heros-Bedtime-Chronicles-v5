@@ -20,7 +20,7 @@ import { StarField } from "@/components/StarField";
 import { useProfile } from "@/lib/ProfileContext";
 import { HEROES } from "@/constants/heroes";
 import { CachedStory } from "@/constants/types";
-import { getStoriesForProfile, getAllStories, deleteStory, getFavorites, toggleFavorite, getReadStories } from "@/lib/storage";
+import { getStoriesForProfile, getAllStories, deleteStory, getFavorites, toggleFavorite, getReadStories, markStoryRead } from "@/lib/storage";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   storyOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   topLeftBadges: {
     position: "absolute",

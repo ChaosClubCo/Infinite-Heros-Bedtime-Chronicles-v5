@@ -33,6 +33,7 @@ import Animated, {
 import Colors from "@/constants/colors";
 import { HEROES, Hero } from "@/constants/heroes";
 import { StarField } from "@/components/StarField";
+import { HeroCard } from "@/components/HeroCard";
 import { PulsingOrb } from "@/components/PulsingOrb";
 import { MemoryJar } from "@/components/MemoryJar";
 import { SettingsModal } from "@/components/SettingsModal";
@@ -512,39 +513,28 @@ export default function CreateScreen() {
             <Text style={s.sectionLabel}>CHOOSE YOUR HERO</Text>
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.heroChipScroll}
-          >
+          <View style={s.heroCardGrid}>
             {HEROES.map((h, i) => {
               const isActive = i === heroIndex;
               return (
-                <Pressable
+                <View
                   key={h.id}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setHeroIndex(i);
-                  }}
-                  style={[
-                    s.heroChip,
-                    isActive && { backgroundColor: `${theme.accent}20`, borderColor: theme.accent },
-                  ]}
+                  style={[s.heroCardWrapper, isActive && { borderColor: theme.accent }]}
                   testID={`hero-${h.id}`}
                   accessibilityLabel={`Select hero: ${h.name}`}
                   accessibilityRole="button"
                 >
-                  <View style={[s.heroChipIcon, isActive && { backgroundColor: theme.accent }]}>
-                    <Ionicons name={h.iconName} size={18} color={isActive ? "#FFF" : h.color} />
-                  </View>
-                  <View>
-                    <Text style={[s.heroChipName, isActive && { color: "#FFF" }]}>{h.name}</Text>
-                    <Text style={[s.heroChipTitle, isActive && { color: theme.accentLight }]}>{h.title}</Text>
-                  </View>
-                </Pressable>
+                  <HeroCard
+                    hero={h}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setHeroIndex(i);
+                    }}
+                  />
+                </View>
               );
             })}
-          </ScrollView>
+          </View>
 
           <View style={s.heroDetailCard}>
             <View style={s.glassCard}>
@@ -885,40 +875,17 @@ const s = StyleSheet.create({
     marginLeft: "auto",
     letterSpacing: 0.5,
   },
-  heroChipScroll: {
-    paddingHorizontal: 20,
-    gap: 8,
-    paddingBottom: 4,
-  },
-  heroChip: {
+  heroCardGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    backgroundColor: Colors.cardBg,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    flexWrap: "wrap",
+    gap: 12,
+    paddingHorizontal: 20,
   },
-  heroChipIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroChipName: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.7)",
-  },
-  heroChipTitle: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 10,
-    color: "rgba(255,255,255,0.35)",
-    marginTop: 1,
+  heroCardWrapper: {
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: "transparent",
+    overflow: "hidden",
   },
   heroDetailCard: {
     paddingHorizontal: 20,

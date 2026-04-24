@@ -30,7 +30,7 @@ import Colors from "@/constants/colors";
 import { HEROES } from "@/constants/heroes";
 import { StarField } from "@/components/StarField";
 import { StoryFull, EarnedBadge } from "@/constants/types";
-import { saveStory, saveStoryWithProfile, saveStoryScene, updateStreak, checkAndAwardBadges, markStoryRead } from "@/lib/storage";
+import { saveStory, saveStoryWithProfile, saveStoryScene, updateStreak, checkAndAwardBadges, markStoryRead, updateFeedback } from "@/lib/storage";
 import { useProfile } from "@/lib/ProfileContext";
 
 const MODE_THEMES = {
@@ -150,6 +150,8 @@ export default function CompletionScreen() {
   const [saved, setSaved] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [newBadges, setNewBadges] = useState<EarnedBadge[]>([]);
+  const [savedStoryId, setSavedStoryId] = useState<string>("");
+  const [feedbackRating, setFeedbackRating] = useState<number | null>(null);
   const { activeProfile } = useProfile();
 
   let storyData: StoryFull | null = null;
@@ -170,6 +172,7 @@ export default function CompletionScreen() {
         let storyId = `story_${Date.now()}`;
         if (storyData) {
           storyId = await saveStoryWithProfile(storyData, hero.id, mode || "classic", activeProfile.id);
+          setSavedStoryId(storyId);
           if (scenesJson) {
             try {
               const scenes: Record<string, string> = JSON.parse(scenesJson);
@@ -365,6 +368,37 @@ export default function CompletionScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInUp.duration(600).delay(800)} style={styles.actionsArea}>
+          {savedStoryId ? (
+            <View style={styles.feedbackArea}>
+              <Text style={styles.feedbackLabel}>How was this story?</Text>
+              <View style={styles.feedbackRow}>
+                {([
+                  { emoji: "😍", label: "Loved it!", rating: 5 },
+                  { emoji: "😊", label: "Good", rating: 4 },
+                  { emoji: "🤔", label: "Just OK", rating: 3 },
+                ] as const).map(({ emoji, label, rating }) => (
+                  <Pressable
+                    key={rating}
+                    onPress={async () => {
+                      if (feedbackRating !== null) return;
+                      Haptics.selectionAsync();
+                      setFeedbackRating(rating);
+                      await updateFeedback(savedStoryId, rating, emoji);
+                    }}
+                    style={[
+                      styles.feedbackBtn,
+                      feedbackRating === rating && { borderColor: theme.accent, backgroundColor: `${theme.accent}15` },
+                      feedbackRating !== null && feedbackRating !== rating && styles.feedbackBtnDim,
+                    ]}
+                    testID={`feedback-${rating}`}
+                  >
+                    <Text style={styles.feedbackEmoji}>{emoji}</Text>
+                    <Text style={styles.feedbackBtnLabel}>{label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : null}
           <Pressable
             onPress={handleSaveToJar}
             disabled={saved}
@@ -501,6 +535,48 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 18, color: "#FFF" },
   linkText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 16 },
+  feedbackArea: {
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+  },
+  feedbackLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.45)",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 12,
+  },
+  feedbackRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  feedbackBtn: {
+    flex: 1,
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  feedbackBtnDim: {
+    opacity: 0.35,
+  },
+  feedbackEmoji: {
+    fontSize: 24,
+  },
+  feedbackBtnLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.5)",
+  },
   newBadgesArea: {
     alignItems: "center", marginBottom: 20,
     paddingVertical: 16, paddingHorizontal: 20,

@@ -135,6 +135,7 @@ See [docs/API.md](docs/API.md) for full reference.
 - [Roadmap](docs/ROADMAP.md) — Prioritized development roadmap
 - [Changelog](docs/CHANGELOG.md) — Version history
 - [Dead Code Triage](docs/DEAD-CODE-TRIAGE.md) — Code audit report
+- [GitHub Custom Agents](docs/GITHUB-CUSTOM-AGENTS.md) — Repository-scoped agent catalog and best practices
 
 ## License
 
