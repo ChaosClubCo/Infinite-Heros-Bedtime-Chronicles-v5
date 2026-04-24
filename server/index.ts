@@ -58,9 +58,8 @@ function validateEnvironment() {
   log(`[Env] Environment validation complete (${textProviders} text providers, ${imageProviders} image providers)`);
 
   // Auth validation
-  if (process.env.NODE_ENV === 'production' && !process.env.FIREBASE_SERVICE_ACCOUNT_KEY && !process.env.AUTH_DISABLED) {
+  if (process.env.NODE_ENV === 'production' && !process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
     log("[Env] CRITICAL: FIREBASE_SERVICE_ACCOUNT_KEY is not set in production! Authentication will reject all requests.");
-    log("[Env] Set AUTH_DISABLED=true to explicitly allow unauthenticated access (NOT recommended for production).");
   }
 }
 

@@ -350,8 +350,7 @@ describe('production mode (Firebase configured)', () => {
 
 Test these auth scenarios:
 
-- Production mode blocks when Firebase key is missing
-- `AUTH_DISABLED` env var overrides the production guard
+- Production mode blocks when Firebase key is missing (no env-var opt-out exists)
 - Dev mode assigns anonymous user with IP as uid
 - Missing, malformed, and valid Bearer tokens
 - Error responses never leak internal details (no Firebase, token, or stack references)

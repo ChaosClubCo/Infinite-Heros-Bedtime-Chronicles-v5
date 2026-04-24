@@ -151,21 +151,19 @@ describe('auth production guard', () => {
   describe('production mode behavior', () => {
     it('blocks requests when Firebase key missing in production', () => {
       const NODE_ENV = 'production';
-      const FIREBASE_KEY = undefined;
-      const AUTH_DISABLED = undefined;
       const auth = null; // Firebase not initialized
 
-      const shouldBlock = !auth && NODE_ENV === 'production' && !AUTH_DISABLED;
+      const shouldBlock = !auth && NODE_ENV === 'production';
       expect(shouldBlock).toBe(true);
     });
 
-    it('allows requests when AUTH_DISABLED is set in production', () => {
+    it('still blocks in production even if a legacy AUTH_DISABLED env var is set (no opt-out)', () => {
       const NODE_ENV = 'production';
-      const AUTH_DISABLED = 'true';
+      // AUTH_DISABLED env var removed — must be ignored by the guard
       const auth = null;
 
-      const shouldBlock = !auth && NODE_ENV === 'production' && !AUTH_DISABLED;
-      expect(shouldBlock).toBe(false);
+      const shouldBlock = !auth && NODE_ENV === 'production';
+      expect(shouldBlock).toBe(true);
     });
 
     it('allows requests when Firebase key is present', () => {

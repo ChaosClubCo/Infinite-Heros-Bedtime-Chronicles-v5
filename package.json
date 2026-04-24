@@ -71,7 +71,7 @@
     "expo-web-browser": "~55.0.13",
     "express": "^5.0.1",
     "firebase": "^12.11.0",
-    "firebase-admin": "^13.7.0",
+    "firebase-admin": "^13.8.0",
     "http-proxy-middleware": "^3.0.5",
     "openai": "^6.33.0",
     "p-limit": "4.0.0",

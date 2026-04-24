@@ -44,12 +44,12 @@ req.user = {
 
 ### Production Guard
 
-In production, if `FIREBASE_SERVICE_ACCOUNT_KEY` is not configured, **all requests are rejected** with a 503 unless `AUTH_DISABLED` is explicitly set:
+In production, if `FIREBASE_SERVICE_ACCOUNT_KEY` is not configured, **all requests are rejected** with a 503. There is no opt-out — the prior `AUTH_DISABLED` escape hatch was removed in the 2026-04 audit because it made silent production misconfiguration too easy.
 
 ```typescript
 // server/auth.ts — Production safety net
 if (!auth) {
-  if (process.env.NODE_ENV === 'production' && !process.env.AUTH_DISABLED) {
+  if (process.env.NODE_ENV === 'production') {
     console.error('[Auth] CRITICAL: FIREBASE_SERVICE_ACCOUNT_KEY is not set in production. Rejecting request.');
     return res.status(503).json({ error: 'Service temporarily unavailable' });
   }
@@ -85,7 +85,6 @@ app.post("/api/conversations/:id/messages", requireAuth, audioBodyParser, async 
 | Always include `requireAuth` on new endpoints that mutate data | Skip auth on any POST endpoint |
 | Use `req.user?.uid` for user identification | Trust client-supplied user IDs |
 | Set `FIREBASE_SERVICE_ACCOUNT_KEY` in production | Deploy production without auth configured |
-| Use `AUTH_DISABLED=true` only for explicit dev bypass | Leave auth silently disabled in production |
 
 ---
 
@@ -719,8 +718,7 @@ app.post("/api/new-feature", async (req, res) => {
 
 | Variable | Purpose | Required in Production |
 |----------|---------|----------------------|
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | Firebase Admin SDK auth | Yes (or set `AUTH_DISABLED`) |
-| `AUTH_DISABLED` | Explicitly bypass auth (NOT recommended for production) | No |
+| `FIREBASE_SERVICE_ACCOUNT_KEY` | Firebase Admin SDK auth | Yes |
 | `NODE_ENV` | Controls production guard behavior | Yes (`production`) |
 | `OPENAI_API_KEY` | OpenAI API access (server-side only) | Optional |
 | `ELEVENLABS_API_KEY` | ElevenLabs TTS (server-side only) | Optional |

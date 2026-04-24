@@ -58,9 +58,9 @@ export function isAuthEnabled(): boolean {
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const auth = await getAdminAuth();
 
-  // SECURITY: Block unauthenticated access in production
+  // SECURITY: Block unauthenticated access in production — no opt-out
   if (!auth) {
-    if (process.env.NODE_ENV === 'production' && !process.env.AUTH_DISABLED) {
+    if (process.env.NODE_ENV === 'production') {
       console.error('[Auth] CRITICAL: FIREBASE_SERVICE_ACCOUNT_KEY is not set in production. Rejecting request.');
       return res.status(503).json({ error: 'Service temporarily unavailable' });
     }
