@@ -112,13 +112,15 @@ export default function SavedScreen() {
           }}
           onLongPress={() => handleUnfavorite(item.id, item.story.title)}
           testID={`saved-story-${item.id}`}
+          accessibilityLabel={`Open story: ${item.story.title}`}
+          accessibilityRole="button"
         >
           <View style={styles.storyThumb}>
             {sceneImage ? (
               <Image source={{ uri: sceneImage }} style={styles.thumbImage} resizeMode="cover" />
             ) : (
               <LinearGradient colors={hero?.gradient || ["#1e1b4b", "#312e81"]} style={styles.thumbImage}>
-                <Ionicons name={(hero?.iconName || "book") as any} size={22} color="rgba(255,255,255,0.4)" />
+                <Ionicons name={(hero?.iconName || "book") as React.ComponentProps<typeof Ionicons>["name"]} size={22} color="rgba(255,255,255,0.4)" />
               </LinearGradient>
             )}
           </View>
@@ -139,6 +141,8 @@ export default function SavedScreen() {
             onPress={() => handleUnfavorite(item.id, item.story.title)}
             hitSlop={12}
             testID={`unsave-${item.id}`}
+            accessibilityLabel="Remove from favorites"
+            accessibilityRole="button"
           >
             <Ionicons name="heart" size={20} color="#f43f5e" />
           </Pressable>

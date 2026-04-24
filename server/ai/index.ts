@@ -4,6 +4,7 @@ import { openaiProvider } from "./providers/openai";
 import { anthropicProvider } from "./providers/anthropic";
 import { xaiProvider, mistralProvider, cohereProvider, metaLlamaProvider } from "./providers/openrouter";
 import type { ProviderStatus } from "./types";
+import { logger } from "../logger";
 
 export { AIRouter } from "./router";
 export type { AITaskType, ProviderName, TextGenerationRequest, TextGenerationResponse, ImageGenerationRequest, ImageGenerationResponse, StreamingTextChunk, ProviderStatus } from "./types";
@@ -45,17 +46,12 @@ export function logProviderStatus(): void {
   const available = statuses.filter((s) => s.available);
   const unavailable = statuses.filter((s) => !s.available);
 
-  console.log(`[AI] ${available.length}/${statuses.length} providers available:`);
-  for (const s of available) {
-    const caps = [];
-    if (s.capabilities.text) caps.push("text");
-    if (s.capabilities.image) caps.push("image");
-    if (s.capabilities.streaming) caps.push("streaming");
-    console.log(`  ✓ ${s.displayName} [${caps.join(", ")}]`);
-  }
-  if (unavailable.length > 0) {
-    for (const s of unavailable) {
-      console.log(`  ✗ ${s.displayName} (not configured)`);
-    }
-  }
+  logger.info({
+    available: available.map((s) => ({
+      name: s.displayName,
+      capabilities: Object.entries(s.capabilities).filter(([, v]) => v).map(([k]) => k),
+    })),
+    unavailable: unavailable.map((s) => s.displayName),
+    total: statuses.length,
+  }, `${available.length}/${statuses.length} AI providers available`);
 }

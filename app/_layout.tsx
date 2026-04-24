@@ -4,9 +4,10 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { queryClient } from "@/lib/query-client";
+import { getOnboardingComplete } from "@/lib/storage";
+import { queryClient, setAuthTokenGetter } from "@/lib/query-client";
+import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { ProfileProvider } from "@/lib/ProfileContext";
 import { SettingsProvider } from "@/lib/SettingsContext";
 import { StatusBar } from "expo-status-bar";
@@ -27,8 +28,6 @@ import {
   PlusJakartaSans_800ExtraBold,
 } from "@expo-google-fonts/plus-jakarta-sans";
 import Colors from "@/constants/colors";
-
-const ONBOARDING_KEY = "@infinity_heroes_onboarding_complete";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -106,7 +105,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
-      AsyncStorage.getItem(ONBOARDING_KEY)
+      getOnboardingComplete()
         .then((done) => {
           if (!done) {
             router.replace("/welcome");
@@ -120,18 +119,29 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <ProfileProvider>
-          <SettingsProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <KeyboardProvider>
-                <StatusBar style="light" />
-                <RootLayoutNav />
-              </KeyboardProvider>
-            </GestureHandlerRootView>
-          </SettingsProvider>
-        </ProfileProvider>
-      </QueryClientProvider>
+      <AuthProvider>
+        <AuthBridge />
+        <QueryClientProvider client={queryClient}>
+          <ProfileProvider>
+            <SettingsProvider>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <KeyboardProvider>
+                  <StatusBar style="light" />
+                  <RootLayoutNav />
+                </KeyboardProvider>
+              </GestureHandlerRootView>
+            </SettingsProvider>
+          </ProfileProvider>
+        </QueryClientProvider>
+      </AuthProvider>
     </ErrorBoundary>
   );
+}
+
+function AuthBridge() {
+  const { getIdToken } = useAuth();
+  useEffect(() => {
+    setAuthTokenGetter(getIdToken);
+  }, [getIdToken]);
+  return null;
 }
