@@ -5,12 +5,26 @@ import { openai, speechToText, ensureCompatibleFormat } from "./client";
 // Body parser with 50MB limit for audio payloads
 const audioBodyParser = express.json({ limit: "50mb" });
 
+const MAX_TITLE_LENGTH = 200;
+const MAX_AUDIO_SIZE_BYTES = 25 * 1024 * 1024; // 25MB
+const VALID_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"] as const;
+
+function parseIdParam(raw: string | string[]): number | null {
+  const str = Array.isArray(raw) ? raw[0] : raw;
+  if (!str) return null;
+  const id = parseInt(str, 10);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
 export function registerAudioRoutes(app: Express): void {
-  // Get all conversations
+  // Get all conversations (with optional pagination)
   app.get("/api/conversations", async (req: Request, res: Response) => {
     try {
+      const limit = Math.min(Math.max(parseInt(String(req.query.limit), 10) || 50, 1), 200);
+      const offset = Math.max(parseInt(String(req.query.offset), 10) || 0, 0);
       const conversations = await chatStorage.getAllConversations();
-      res.json(conversations);
+      const paginated = conversations.slice(offset, offset + limit);
+      res.json({ data: paginated, total: conversations.length, limit, offset });
     } catch (error) {
       console.error("Error fetching conversations:", error);
       res.status(500).json({ error: "Failed to fetch conversations" });
@@ -20,8 +34,10 @@ export function registerAudioRoutes(app: Express): void {
   // Get single conversation with messages
   app.get("/api/conversations/:id", async (req: Request, res: Response) => {
     try {
-      const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      const id = parseInt(idParam);
+      const id = parseIdParam(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
       const conversation = await chatStorage.getConversation(id);
       if (!conversation) {
         return res.status(404).json({ error: "Conversation not found" });
@@ -38,7 +54,10 @@ export function registerAudioRoutes(app: Express): void {
   app.post("/api/conversations", async (req: Request, res: Response) => {
     try {
       const { title } = req.body;
-      const conversation = await chatStorage.createConversation(title || "New Chat");
+      const sanitizedTitle = typeof title === "string"
+        ? title.trim().slice(0, MAX_TITLE_LENGTH) || "New Chat"
+        : "New Chat";
+      const conversation = await chatStorage.createConversation(sanitizedTitle);
       res.status(201).json(conversation);
     } catch (error) {
       console.error("Error creating conversation:", error);
@@ -49,8 +68,10 @@ export function registerAudioRoutes(app: Express): void {
   // Delete conversation
   app.delete("/api/conversations/:id", async (req: Request, res: Response) => {
     try {
-      const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      const id = parseInt(idParam);
+      const id = parseIdParam(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
       await chatStorage.deleteConversation(id);
       res.status(204).send();
     } catch (error) {
@@ -61,15 +82,26 @@ export function registerAudioRoutes(app: Express): void {
 
   // Send voice message and get streaming audio response
   // Auto-detects audio format and converts WebM/MP4/OGG to WAV
-  // Uses gpt-4o-mini-transcribe for STT, gpt-4o-audio-preview for voice response
+  // Uses gpt-4o-mini-transcribe for STT, gpt-audio for voice response
   app.post("/api/conversations/:id/messages", audioBodyParser, async (req: Request, res: Response) => {
     try {
-      const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      const conversationId = parseInt(idParam);
+      const conversationId = parseIdParam(req.params.id);
+      if (conversationId === null) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
       const { audio, voice = "alloy" } = req.body;
 
-      if (!audio) {
-        return res.status(400).json({ error: "Audio data (base64) is required" });
+      if (!audio || typeof audio !== "string") {
+        return res.status(400).json({ error: "Audio data (base64 string) is required" });
+      }
+
+      // Validate voice parameter against allowed values
+      const validatedVoice = VALID_VOICES.includes(voice) ? voice : "alloy";
+
+      // Validate audio size before decoding
+      const estimatedSize = Math.ceil(audio.length * 0.75);
+      if (estimatedSize > MAX_AUDIO_SIZE_BYTES) {
+        return res.status(400).json({ error: "Audio data too large. Maximum 25MB." });
       }
 
       // 1. Auto-detect format and convert to OpenAI-compatible format
@@ -96,11 +128,11 @@ export function registerAudioRoutes(app: Express): void {
 
       res.write(`data: ${JSON.stringify({ type: "user_transcript", data: userTranscript })}\n\n`);
 
-      // 6. Stream audio response from gpt-4o-audio-preview
+      // 6. Stream audio response from gpt-audio
       const stream = await openai.chat.completions.create({
-        model: "gpt-4o-audio-preview",
+        model: "gpt-audio",
         modalities: ["text", "audio"],
-        audio: { voice, format: "pcm16" },
+        audio: { voice: validatedVoice, format: "pcm16" },
         messages: chatHistory,
         stream: true,
       });

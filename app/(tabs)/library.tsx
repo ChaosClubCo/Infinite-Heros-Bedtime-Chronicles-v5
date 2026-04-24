@@ -20,7 +20,7 @@ import { StarField } from "@/components/StarField";
 import { useProfile } from "@/lib/ProfileContext";
 import { HEROES } from "@/constants/heroes";
 import { CachedStory } from "@/constants/types";
-import { getStoriesForProfile, getAllStories, deleteStory, getFavorites, toggleFavorite, getReadStories } from "@/lib/storage";
+import { getStoriesForProfile, getAllStories, deleteStory, getFavorites, toggleFavorite, getReadStories, markStoryRead } from "@/lib/storage";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
@@ -106,6 +106,18 @@ export default function LibraryScreen() {
         <Pressable
           style={styles.storyCard}
           onPress={() => {
+            if (isUnread) {
+              void markStoryRead(item.id).catch((error) => {
+                // Non-fatal: log storage failure instead of causing an unhandled rejection
+                console.error("Failed to mark story as read:", error);
+              });
+              setReadStories((prev) => {
+                if (prev.includes(item.id)) {
+                  return prev;
+                }
+                return [...prev, item.id];
+              });
+            }
             router.push({
               pathname: "/story",
               params: {
@@ -120,6 +132,8 @@ export default function LibraryScreen() {
           }}
           onLongPress={() => handleDelete(item.id, item.story.title)}
           testID={`library-story-${item.id}`}
+          accessibilityLabel={`Open story: ${item.story.title}`}
+          accessibilityRole="button"
         >
           <View style={styles.storyImageWrap}>
             {sceneImage ? (
@@ -140,11 +154,18 @@ export default function LibraryScreen() {
               </View>
               {isUnread && <View style={styles.unreadDot} />}
             </View>
+            {isUnread && (
+              <View style={styles.unreadBadge} testID={`unread-${item.id}`}>
+                <Text style={styles.unreadBadgeText}>NEW</Text>
+              </View>
+            )}
             <Pressable
               style={styles.favBtn}
               onPress={() => handleFavorite(item.id)}
               hitSlop={12}
               testID={`fav-${item.id}`}
+              accessibilityLabel={isFav ? "Remove from favorites" : "Add to favorites"}
+              accessibilityRole="button"
             >
               <Ionicons name={isFav ? "heart" : "heart-outline"} size={18} color={isFav ? "#f43f5e" : "rgba(255,255,255,0.6)"} />
             </Pressable>
@@ -240,7 +261,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   storyOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   topLeftBadges: {
     position: "absolute",
@@ -315,5 +336,20 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.4)",
     textAlign: "center",
     lineHeight: 20,
+  },
+  unreadBadge: {
+    position: "absolute",
+    top: 34,
+    left: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: Colors.success,
+  },
+  unreadBadgeText: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 8,
+    color: Colors.textPrimary,
+    letterSpacing: 1,
   },
 });

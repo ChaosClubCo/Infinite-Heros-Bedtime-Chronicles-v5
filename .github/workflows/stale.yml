@@ -1,0 +1,55 @@
+name: Stale Issue and PR Management
+
+on:
+  schedule:
+    # Run daily at 02:00 UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    name: Mark and close stale issues and PRs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Mark stale issues
+        uses: actions/stale@v10
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+          # Issues
+          days-before-issue-stale: 30
+          days-before-issue-close: 14
+          stale-issue-label: 'stale'
+          close-issue-label: 'auto-closed'
+          stale-issue-message: >
+            👋 This issue has been inactive for 30 days. It will be closed in 14 days
+            unless there is new activity. If this issue is still relevant, please
+            add a comment to keep it open (maintainers can also remove the `stale` label).
+          close-issue-message: >
+            🔒 This issue was automatically closed after 14 days of inactivity.
+            Feel free to re-open it if it becomes relevant again.
+
+          # Pull requests
+          days-before-pr-stale: 14
+          days-before-pr-close: 7
+          stale-pr-label: 'stale'
+          close-pr-label: 'auto-closed'
+          stale-pr-message: >
+            👋 This pull request has been inactive for 14 days. It will be closed in
+            7 days unless there is new activity. If this PR is still in progress,
+            please add a comment or push new commits to keep it open.
+          close-pr-message: >
+            🔒 This pull request was automatically closed after 7 days of inactivity.
+            Feel free to re-open it if you resume work on it.
+
+          # Never mark items with these labels as stale
+          exempt-issue-labels: 'pinned,security,in-progress,blocked'
+          exempt-pr-labels: 'pinned,security,in-progress,blocked,dependencies'
+
+          # Limit operations per run to avoid rate limiting
+          operations-per-run: 100

@@ -6,23 +6,32 @@ on:
   pull_request:
     branches: [main, develop]
 
+# Minimal permissions — this workflow only reads code and uploads artifacts.
+permissions:
+  contents: read
+
 jobs:
   lint-and-test:
     name: Lint and Test
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Run preflight checks
+        run: npm run preflight
+        # Only validates Node version and patch consistency in CI (no env vars required).
+        # The env-var section warns but does not fail when keys are absent.
 
       - name: Run ESLint
         run: npm run lint
@@ -33,33 +42,63 @@ jobs:
         env:
           CI: true
 
+      - name: Security audit
+        # Fail on critical vulnerabilities only; high-severity issues in transitive
+        # deps (drizzle-orm, firebase-admin chain) require breaking-change upgrades
+        # and are tracked separately in Dependabot.
+        run: npm audit --audit-level=critical
+
       - name: Type check
-        run: npx tsc --noEmit
+        run: npm run typecheck
+
+  # Smoke-test that production install (omitting devDependencies, as Vercel does
+  # when NODE_ENV=production) succeeds.  This job would have caught the
+  # patch-package-not-found failure before it reached Vercel.
+  production-install-smoke:
+    name: Production Install Smoke Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Simulate Vercel production install (omit devDependencies)
+        run: npm install --omit=dev
+
+      - name: Verify postinstall did not fail
+        run: echo "Production install succeeded — postinstall is safe to run without devDependencies"
 
   build-server:
     name: Build Server
     runs-on: ubuntu-latest
     needs: lint-and-test
-    
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
       - name: Build server
-        run: npm run build:server
+        run: npm run server:build
 
       - name: Upload server build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: server-build
           path: server_dist/
           retention-days: 7
+
