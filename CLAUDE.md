@@ -10,7 +10,7 @@ AI-powered interactive bedtime story app for children ages 3-9. Kids create cust
 
 ## Tech Stack
 
-- **Frontend:** Expo SDK 54, React Native 0.81 (New Architecture), Expo Router v6 (file-based routing)
+- **Frontend:** Expo SDK 55, React Native 0.85 (New Architecture), Expo Router v6 (file-based routing)
 - **State:** TanStack React Query v5 (server state) + React Context (app settings, profiles)
 - **Local Storage:** AsyncStorage for stories, profiles, badges, streaks, parent controls
 - **Styling:** React Native StyleSheet + react-native-reanimated v4 for animations
@@ -201,6 +201,17 @@ npm run db:push             # Drizzle schema migration (needs DATABASE_URL)
 - `DELETE /api/conversations/:id` — Delete conversation
 - `POST /api/conversations/:id/messages` — Send voice message in a conversation
 
+**Replit Integrations (conditional — registered by `server/replit_integrations/*`):**
+- `/api/audio/*` — audio pipeline routes (registered by `registerAudioRoutes()`)
+- `/api/image/*` — image pipeline routes (registered by `registerImageRoutes()`)
+
+## Authentication
+
+- The server uses Firebase Admin (`server/auth.ts`) for token verification. Clients hit Firebase anonymous-auth on the web side (`lib/AuthContext.tsx`) and send the resulting ID token as a `Bearer` header.
+- `requireAuth` middleware attaches `req.user = { uid, isAnonymous }` and 401s on a missing or invalid token.
+- **Production guard:** when `NODE_ENV=production` and `FIREBASE_SERVICE_ACCOUNT_KEY` is unset, every auth-gated route returns 503. There is no `AUTH_DISABLED` opt-out — it was removed in the 2026-04 audit.
+- In dev (no `NODE_ENV=production`), auth is skipped and an anonymous `req.user` is assigned from the client IP.
+
 ## Code Conventions
 
 ### Naming
@@ -310,6 +321,13 @@ OPENAI_API_KEY=              # Direct key for video generation
 ELEVENLABS_API_KEY=          # Optional: if set, used directly; otherwise falls back to Replit ElevenLabs connector
 DATABASE_URL=                # PostgreSQL (required for voice chat only)
 
+# Auth (Firebase Admin — server-side)
+FIREBASE_SERVICE_ACCOUNT_KEY= # JSON service account key. REQUIRED in production; if unset, all auth-gated routes return 503 (no opt-out).
+EXPO_PUBLIC_FIREBASE_API_KEY= # Client-side Firebase web config (safe to expose; prefix enforces public scope)
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=
+EXPO_PUBLIC_FIREBASE_APP_ID=
+
 # Server Config (optional)
 PORT=5000                    # Default 5000
 NODE_ENV=                    # development | production
@@ -323,7 +341,7 @@ REPLIT_DOMAINS=              # Production domains (comma-separated)
 EXPO_PUBLIC_DOMAIN=          # Client API domain (set by dev script)
 ```
 
-Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: OpenAI, Anthropic, ElevenLabs, DATABASE_URL.
+Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: OpenAI, Anthropic, ElevenLabs, DATABASE_URL. Production deployments also require `FIREBASE_SERVICE_ACCOUNT_KEY`.
 
 ## Story Response Schema (AI must return)
 ```json
@@ -351,6 +369,7 @@ Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: 
 - `@infinity_heroes_onboarding_complete` — Onboarding flag
 - `@infinity_heroes_preferences` — Legacy key (auto-migrates to app_settings)
 - `@infinity_heroes_settings_migrated` — Migration flag for legacy → new settings
+- `@infinity_heroes_storage_version` — Storage-schema version tracked by `lib/storage-migration.ts`
 
 ## App Settings (defaults)
 ```typescript
@@ -422,7 +441,17 @@ npm run test:coverage   # vitest run --coverage
 ## Development Notes
 
 - **Testing:** Vitest v4 configured with coverage via @vitest/coverage-v8
-- **CI/CD:** GitHub Actions (`.github/workflows/ci.yml` — lint, test, typecheck, build on push/PR to main/develop; `eas-build.yml` — Expo EAS builds; `vercel-deploy.yml` — Vercel deployment; `publish.yml` — release publishing). Also supports Replit push-to-deploy
+- **CI/CD:** GitHub Actions under `.github/workflows/`:
+  - `ci.yml` — lint, test, typecheck, build on push/PR to main/develop
+  - `eas-build.yml` — Expo EAS builds
+  - `vercel-deploy.yml` — Vercel deployment
+  - `publish.yml` — release publishing
+  - `agent-pr-review.yml` — Claude-powered PR review on incoming PRs
+  - `agent-security.yml` — Claude-powered security scan on a schedule
+  - `auto-merge.yml` — auto-merges PRs once checks pass
+  - `branch-cleanup.yml` — prunes merged branches
+  - `stale.yml` — marks stale issues/PRs
+  - Also supports Replit push-to-deploy
 - **Vercel deployment:** `api/server.mjs` serverless handler wraps `server_dist/index.js` via `createApp()`. Config in `vercel.json` (60s max duration, all routes rewrite to `/api/server`)
 - **React Compiler** enabled via app.json experiments
 - **New Architecture** (React Native) enabled
@@ -441,7 +470,7 @@ npm run test:coverage   # vitest run --coverage
 - `app/story.tsx` is the most complex screen (~49KB) — story playback with audio/image integration
 - **`npm run dev` does not exist** — use `npm run server:dev` + `npm run expo:dev` separately
 - **`expo:dev` requires Replit env vars** — outside Replit, use `npx expo start` directly
-- **`patches/expo-asset+12.0.12.patch`** — patch-package fix for Expo dev server HTTPS; removed when SDK 55+
+- **`patches/` folder removed** — the Expo SDK 54 `expo-asset` HTTPS patch is no longer needed on SDK 55; `postinstall` still runs `patch-package || true` so reintroducing patches is painless
 - AI router automatically falls back through providers if one fails — check `server/ai/router.ts`
 - ElevenLabs voices are hardcoded in `server/elevenlabs.ts` with specific voice IDs
 - Expo Router v6 file-based routing — screen paths map to file paths in `app/`
@@ -457,7 +486,7 @@ npm run test:coverage   # vitest run --coverage
 
 ## Files/Directories — Do Not Modify Without Explicit Approval
 
-- `patches/` — patch-package fixes; modifying breaks the postinstall step
+- `patches/` (if present) — patch-package fixes; modifying breaks the postinstall step. Folder was removed after the SDK 55 upgrade but may return for future patches
 - `server/replit_integrations/` — Replit-provided integration boilerplate; upstream updates may overwrite changes
 - `shared/schema.ts` — database schema changes require coordinated migration; do not modify alone
 - `.replit` — Replit workspace config; changes affect the dev environment for all contributors

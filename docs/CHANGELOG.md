@@ -2,6 +2,78 @@
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
 
+## [Unreleased] — 2026-04-24 — Thorough audit + remediation
+
+Three-way audit (code quality, security, docs-vs-code accuracy) followed by a
+four-tranche fix pass. Core child-safety, rate-limiting, CORS, input
+sanitization, and AI-routing constraints all passed; fixes below address the
+gaps the audit found.
+
+### Fixed
+- **Critical: protobufjs RCE (GHSA-xq3m-2v4x-88gg)** — upgraded `firebase-admin`
+  13.7 → 13.8 and ran `npm audit fix`, dropping us from 1 critical / 1 high to
+  0 critical / 0 high. Remaining moderate advisories are locked inside
+  `firebase-admin`'s and `drizzle-kit`'s transitive trees and need upstream
+  fixes; we're on the latest release of each.
+- **High: xmldom DoS / XML injection** — patched by the same audit-fix pass.
+- **Auth production bypass** — removed the `AUTH_DISABLED` env-var opt-out in
+  `server/auth.ts` and the startup warning in `server/index.ts`. Production
+  now unconditionally returns 503 when `FIREBASE_SERVICE_ACCOUNT_KEY` is
+  unset. The flag made silent production misconfiguration too easy.
+- **Architectural-constraint violations** — three direct-AsyncStorage call
+  sites (`app/_layout.tsx`, `app/welcome.tsx`, `app/completion.tsx`) now use
+  new helpers in `lib/storage.ts` per the CLAUDE.md rule that all
+  AsyncStorage access goes through `lib/storage.ts`.
+- **Stale-closure risk in `app/(tabs)/create.tsx`** — the avatar-fetch effect
+  read `heroAvatarUri` / `avatarLoading` inside its callback but only
+  depended on `heroIndex`. Rewritten to track in-flight fetches with a
+  `useRef<Set<string>>`, so the dep array stays tight and no stale state is
+  read.
+- **Untyped `any` casts without `// intentional:` comments** — annotated or
+  narrowed: `server/video.ts` Sora response fields now use a local type
+  extension and catch blocks use `unknown` + `instanceof Error`; Ionicons
+  icon-name casts in five app screens now use
+  `React.ComponentProps<typeof Ionicons>["name"]`. `server/replit_integrations/*`
+  was left alone per its "do not modify" rule in CLAUDE.md.
+
+### Added
+- `lib/storage.ts` exports `getOnboardingComplete()` and
+  `setOnboardingComplete()` helpers.
+- `supertest` + `@types/supertest` installed as devDependencies. The existing
+  integration suite `__tests__/integration/api-routes.test.ts` imports
+  `supertest` but the package was never installed, so the whole suite
+  (24 tests) was being skipped. It now runs, taking the total from **895 →
+  919 tests passing**.
+
+### Changed
+- **Expo SDK 54 → 55** (`expo` 54.0.33 → 55.0.17). Also bumped the
+  far-behind expo-* modules flagged by the audit (`expo-image`
+  3.0.11 → 55.0.9, `expo-crypto` 15.0.8 → 55.0.14, `expo-symbols`
+  1.0.8 → 55.0.7) so every expo-* module is now on the SDK-55 line. Server
+  build, tests, lint, and typecheck all clean after the bump.
+- **CLAUDE.md refreshed** to match reality: Expo SDK version, CI workflow
+  list (4 → 9 workflows), `Replit Integrations (conditional)` endpoints,
+  new `Authentication` section describing the Firebase anonymous-auth flow
+  and production guard, missing `@infinity_heroes_storage_version`
+  AsyncStorage key, `FIREBASE_SERVICE_ACCOUNT_KEY` and the
+  `EXPO_PUBLIC_FIREBASE_*` client config in Environment Variables.
+- `docs/best-practices/SECURITY.md`, `docs/best-practices/TESTING.md`, and
+  `.env.example` updated to remove the now-dead `AUTH_DISABLED` flag.
+
+### Audit findings deferred (not remediated this pass)
+- **Monolithic files** — `server/routes.ts` (558 lines) and `app/story.tsx`
+  (1627 lines) remain unsplit. No regression since the last audit; a
+  follow-up refactor is out of scope.
+- **Test coverage gaps** — `routes.ts` is at 51% statement / 30% branch
+  coverage. Providers (`anthropic`, `gemini`, `openai`, `openrouter`),
+  `video.ts`, `suno.ts`, and `db.ts` show 0% because their existing tests
+  mock the whole module. AI router is already at 97% stmt / 84% branch.
+- **Firebase-admin transitive moderate CVEs** — `@tootallnate/once`, `uuid`,
+  `follow-redirects`, `@google-cloud/*` chain. Fixable only by upstream
+  firebase-admin dep updates.
+
+---
+
 ## [Unreleased] — 2026-03-25
 
 ### Fixed
