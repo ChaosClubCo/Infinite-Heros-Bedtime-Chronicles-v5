@@ -41,7 +41,7 @@ Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 
 |----------|------|----------|---------------|-----------------|-----------------|----------|------|--------|-------------|
 | 8 | Resolve remaining npm audit vulnerabilities | Security | M | M | M | S | 5.0 | blocked | 14 remaining vulns (8 low, 4 moderate, 2 high); highs are in firebase-admin/expo-asset deep deps — blocked on upstream |
 | 9 | Add `npm audit` to CI | Security | M | M | H | S | 8.0 | ready | Adds automatic dependency vulnerability scanning to every push |
-| 10 | Add markdown link checker to CI | Documentation | S | S | S | S | 4.5 | ready | Prevents broken internal doc links from going unnoticed; `lychee` or `markdown-link-check` |
+| 10 | Add markdown link checker to CI | Documentation | S | S | S | S | 4.5 | complete | `lycheeverse/lychee-action` workflow at `.github/workflows/markdown-link-check.yml`; runs on PR, push, and weekly cron; ignore patterns in `.lycheeignore` |
 | 11 | Add persistent rate limiting (Redis) | Infrastructure | M | S | M | L | 5.0 | low-priority | Current in-memory rate limiter resets on server restart; acceptable for single-instance deploy |
 
 ### Low Priority

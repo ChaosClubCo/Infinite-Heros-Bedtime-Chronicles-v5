@@ -1,0 +1,8 @@
+# Local dev URLs referenced in setup docs
+^https?://localhost(:\d+)?(/.*)?$
+^https?://127\.0\.0\.1(:\d+)?(/.*)?$
+^https?://0\.0\.0\.0(:\d+)?(/.*)?$
+
+# Placeholder example URLs in env/config docs
+^https?://your-api\.example\.com(/.*)?$
+^https?://([a-z0-9-]+\.)?example\.com(/.*)?$

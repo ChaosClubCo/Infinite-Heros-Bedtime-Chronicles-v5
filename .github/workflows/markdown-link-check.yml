@@ -1,0 +1,42 @@
+name: Markdown Link Check
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - '**.md'
+      - '.lycheeignore'
+      - '.github/workflows/markdown-link-check.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - '**.md'
+      - '.lycheeignore'
+      - '.github/workflows/markdown-link-check.yml'
+  schedule:
+    # Weekly run catches link rot in docs that aren't actively edited.
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  link-check:
+    name: Lychee
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Run lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --cache
+            --max-cache-age 7d
+            --exclude-path attached_assets
+            --exclude-path node_modules
+            --exclude-path server_dist
+            './**/*.md'
+          fail: true
