@@ -1,6 +1,6 @@
 # Development Roadmap
 
-**Last Updated:** 2026-04-17
+**Last Updated:** 2026-04-25
 
 Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Time Criticality + Risk Reduction) / Job Size`
 
@@ -22,6 +22,7 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 | Wire story feedback/rating UI | Feature | 2026-04-07 |
 | Reuse HeroCard.tsx in hero selection | Feature | 2026-04-07 |
 | Add npm audit to CI | Security | 2026-04-07 |
+| Add markdown link checker to CI | Docs | 2026-04-25 |
 | Fix audio pipeline (model name + ffmpeg) | Bug Fix | 2026-03-25 |
 | Model audit (rolling aliases, dead refs) | Maintenance | 2026-03-25 |
 | Wire Gemini image integration route | Feature | 2026-03-25 |
@@ -43,9 +44,7 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 2 | Use HeroCard.tsx in quick-create | 3 | 2 | 1 | 2 | 3.0 | Reuse orphaned component |
-| 3 | Build voice chat UI screen | 8 | 3 | 2 | 5 | 2.6 | Backend routes ready; needs Expo screen + audio recording |
-| 4 | Build story feedback/rating UI | 3 | 2 | 1 | 3 | 2.0 | Storage function exists (updateFeedback); no call sites yet |
+| 2 | Build voice chat UI screen | 8 | 3 | 2 | 5 | 2.6 | Backend routes ready; needs Expo screen + audio recording |
 
 ### Low Priority
 
