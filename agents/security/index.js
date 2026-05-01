@@ -19,7 +19,7 @@ const parsedMaxSize = Number.parseInt(String(config.maxFileSizeBytes ?? 1048576)
 const maxFileSizeBytes = Number.isFinite(parsedMaxSize) && parsedMaxSize > 0 ? parsedMaxSize : 1048576;
 const patterns = (config.secretPatterns || []).map((pattern) => ({
   id: pattern.id,
-  regex: new RegExp(pattern.regex, 'g'),
+  regex: new RegExp(pattern.regex, 'gi'),
 }));
 const ignoreExtensions = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.mp3', '.mp4', '.ico']);
 const ignoreGlobs = config.ignoreGlobs || [];

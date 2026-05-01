@@ -30,7 +30,7 @@
     },
     {
       "id": "api-key-assignment",
-      "regex": "(?i)(api[_-]?key|token|secret)\\s*[:=]\\s*['\"][A-Za-z0-9_\\-]{16,}['\"]"
+      "regex": "(api[_-]?key|token|secret)\\s*[:=]\\s*['\"][A-Za-z0-9_\\-]{16,}['\"]"
     }
   ]
 }
