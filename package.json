@@ -74,7 +74,7 @@
     "firebase-admin": "^13.8.0",
     "http-proxy-middleware": "^3.0.5",
     "openai": "^6.35.0",
-    "p-limit": "4.0.0",
+    "p-limit": "7.3.0",
     "p-retry": "8.0.0",
     "pg": "^8.20.0",
     "pino": "^10.3.1",
