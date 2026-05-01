@@ -41,6 +41,7 @@ yarn-error.*
 # build artifacts
 static-build/
 server_dist/
+tmp/
 
 .env
 
