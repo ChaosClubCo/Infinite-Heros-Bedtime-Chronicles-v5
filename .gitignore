@@ -48,3 +48,14 @@ server_dist/
 google-services-key.json
 *.keystore
 coverage/
+
+# Local extracted copies / archives
+/Infinite-Heros-Bedtime-Chronicles-v5/
+/Infinite-Heros-Bedtime-Chronicles-v5-main/
+
+# Local outputs / session logs
+/outputs/
+
+# Firebase debug
+firebase-debug.log
+firebase-debug.*.log
