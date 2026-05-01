@@ -80,7 +80,7 @@
     "pino": "^10.3.1",
     "react": "19.2.5",
     "react-dom": "19.2.5",
-    "react-native": "0.85.1",
+    "react-native": "0.85.2",
     "react-native-gesture-handler": "~2.31.0",
     "react-native-keyboard-controller": "1.21.6",
     "react-native-reanimated": "~4.3.0",
