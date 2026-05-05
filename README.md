@@ -1,13 +1,15 @@
 # Infinity Heroes: Bedtime Chronicles
 
-An AI-powered interactive bedtime story app for children ages 3-9. Kids create their own superhero and embark on magical, personalized adventures with AI-generated stories, illustrations, and narration.
+<!-- Last verified: 2026-05-05 -->
+
+An AI-powered interactive bedtime story app for children ages 3–9. Kids create their own superhero and embark on magical, personalized adventures with AI-generated stories, illustrations, and narration.
 
 ## Features
 
 - **3 Story Modes:** Classic (adventure), Mad Libs (silly/funny), Sleep (calming/meditative)
-- **AI Story Generation:** Multi-provider AI routing (Gemini, OpenAI, Anthropic, OpenRouter) with automatic fallback
+- **AI Story Generation:** Multi-provider AI routing with automatic fallback (Anthropic → Gemini → OpenAI → OpenRouter)
 - **AI Scene Illustrations:** Unique art for each story scene in randomized styles (watercolor, cel-shaded, collage, etc.)
-- **Text-to-Speech Narration:** 8 unique narrator voices via ElevenLabs with per-mode voice matching
+- **Text-to-Speech Narration:** 9 unique narrator voices via ElevenLabs with per-mode voice matching
 - **Hero Creator:** Create custom superheroes with name, title, power, and AI-generated avatar
 - **Child Profiles:** Multi-child support with per-profile story history, badges, and streaks
 - **Gamification:** 12 achievement badges, reading streaks, vocabulary words, and story completion rewards
@@ -19,87 +21,159 @@ An AI-powered interactive bedtime story app for children ages 3-9. Kids create t
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Mobile Framework | Expo SDK 54 (React Native) |
-| Router | Expo Router (file-based) |
-| Backend | Express.js (Node.js) |
-| AI Providers | Google Gemini, OpenAI, Anthropic Claude, OpenRouter (xAI, Mistral, Cohere, Meta Llama) |
-| TTS | ElevenLabs |
-| Database | PostgreSQL + Drizzle ORM (for voice chat) |
-| Client Storage | AsyncStorage (stories, profiles, settings, badges) |
-| Styling | React Native StyleSheet + Reanimated |
-| Animations | react-native-reanimated |
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Mobile Framework | Expo (React Native) | SDK 55 / RN 0.85.2 |
+| Router | Expo Router (file-based) | v6 |
+| Backend | Express.js (Node.js) | v5 |
+| Language | TypeScript | 6.0 (strict) |
+| AI Text | Anthropic Claude, Gemini, OpenAI, OpenRouter | fallback chain |
+| AI Images | Gemini 2.5-flash-image, gpt-image-1 | fallback chain |
+| TTS | ElevenLabs | eleven_multilingual_v2 |
+| Database | PostgreSQL + Drizzle ORM | voice chat only |
+| Client Storage | AsyncStorage | stories, profiles, settings, badges |
+| Animations | react-native-reanimated | v4 |
+| Server State | TanStack React Query | v5 |
+| Testing | Vitest | v4 |
+| CI/CD | GitHub Actions + EAS Build | — |
 
 ## Prerequisites
 
-- Node.js 18+
-- Expo CLI (`npx expo`)
-- At least one AI provider API key (Gemini recommended as primary)
-- ElevenLabs API key (for narration)
-- PostgreSQL database (optional, for voice chat feature)
+- **Node.js 20 or 22** (npm ≥ 10) — see `.nvmrc`
+- At least one AI provider API key — `AI_INTEGRATIONS_GEMINI_API_KEY` recommended
+- ElevenLabs API key — for TTS narration (optional, app works without it)
+- PostgreSQL database — optional, required only for voice chat
 
 ## Quick Start
 
 ```bash
-# Install dependencies
+# 1. Install dependencies (patch-package runs automatically in postinstall)
 npm install
 
-# Copy environment variables
+# 2. Copy and configure environment variables
 cp .env.example .env
-# Edit .env with your API keys
+# Edit .env — set at minimum AI_INTEGRATIONS_GEMINI_API_KEY
 
-# Start backend and frontend separately (no single "dev" command):
-npm run server:dev   # Express backend on port 5000
-npx expo start       # Expo dev server (use npm run expo:dev inside Replit)
+# 3. Start backend (Express on port 5000) and frontend in separate terminals
+npm run server:dev
+npx expo start          # or: npm run expo:dev (inside Replit)
+```
+
+## Environment Variables
+
+See [`.env.example`](./.env.example) for all variables with inline descriptions.
+
+| Variable | Required | Description |
+|----------|---------|-------------|
+| `AI_INTEGRATIONS_GEMINI_API_KEY` | Yes (min 1 AI key) | Primary AI provider (Gemini 2.5-flash) |
+| `AI_INTEGRATIONS_OPENAI_API_KEY` | Recommended | AI fallback + voice chat |
+| `AI_INTEGRATIONS_ANTHROPIC_API_KEY` | Recommended | AI story generation (priority 1) |
+| `AI_INTEGRATIONS_OPENROUTER_API_KEY` | Optional | xAI / Mistral / Cohere / Meta Llama fallbacks |
+| `ELEVENLABS_API_KEY` | Optional | TTS narration |
+| `DATABASE_URL` | Optional | PostgreSQL — required for voice chat |
+| `FIREBASE_SERVICE_ACCOUNT_KEY` | Optional (prod required) | Firebase Admin; omit to bypass auth in dev |
+| `EXPO_PUBLIC_FIREBASE_API_KEY` | Optional | Client Firebase config |
+| `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` | Optional | Client Firebase config |
+| `EXPO_PUBLIC_FIREBASE_PROJECT_ID` | Optional | Client Firebase config |
+| `EXPO_PUBLIC_FIREBASE_APP_ID` | Optional | Client Firebase config |
+| `EXPO_PUBLIC_API_URL` | Optional | Override API server base URL |
+| `PORT` | Optional | Server port (default: 5000) |
+| `RATE_LIMIT_MAX` | Optional | Requests per window (default: 10) |
+| `RATE_LIMIT_WINDOW_MS` | Optional | Rate limit window in ms (default: 60000) |
+| `OPENAI_API_KEY` | Optional | Direct key for Sora video generation |
+
+**Never** put real secret values in `.env.example` or commit `.env`. For EAS builds, set all vars as EAS secrets.
+
+## Running Tests
+
+```bash
+npm test                  # Single run (919 tests across 15 files)
+npm run test:watch        # Watch mode
+npm run test:coverage     # Coverage report (≥80% branch target for server utilities)
+```
+
+## Code Quality
+
+```bash
+npm run typecheck         # Zero TypeScript errors required
+npm run lint              # ESLint (expo config)
+npm run lint:fix          # Auto-fix lint issues
+npm run preflight         # typecheck + lint + test in one command
+```
+
+## Deployment
+
+- **Replit (primary):** Click **Deploy** in the Replit workspace. See [`docs/runbooks/deploy.md`](docs/runbooks/deploy.md) for the full procedure.
+- **Vercel:** `api/server.mjs` is the serverless entry point. Config in `vercel.json`.
+- **Android (Play Store):** Use EAS Build — see [`docs/operations/PLAY_STORE_DEPLOYMENT.md`](docs/operations/PLAY_STORE_DEPLOYMENT.md).
+
+Build commands:
+```bash
+npm run server:build         # Bundle server → server_dist/index.js (esbuild)
+npm run expo:static:build    # Build Expo web bundle → web-build/
+npm run server:prod          # Run production server bundle
 ```
 
 ## Project Structure
 
 ```
-app/                    # Expo Router screens
-  (tabs)/               # Tab navigation (home, create, library, profile)
-  story.tsx             # Story reading/playback screen
+app/                    # Expo Router screens (file path = route)
+  (tabs)/               # Tab navigation: index, create, library, saved, profile
+  story.tsx             # Story reading/playback screen (~1600 lines)
   completion.tsx        # Story completion + badge awarding
-  settings.tsx          # App settings screen
-  story-details.tsx     # Story customization (classic mode)
+  story-details.tsx     # Story customization wizard (Classic mode)
+  madlibs.tsx           # Mad Libs mode wizard
+  sleep-setup.tsx       # Sleep mode setup
   quick-create.tsx      # Onboarding hero creation
-components/             # Reusable React Native components
-  SettingsModal.tsx     # Settings modal (voice, accessibility)
-  HeroCard.tsx          # Hero selection card (reserved for reuse)
-constants/              # Types, colors, hero definitions
-  types.ts              # TypeScript interfaces
-  heroes.ts             # Hero definitions
-  colors.ts             # Color palette
-lib/                    # Client utilities
-  SettingsContext.tsx    # Unified settings (React Context)
-  storage.ts            # AsyncStorage helpers (stories, profiles, badges)
+  settings.tsx          # App settings screen
+  trophies.tsx          # Badge collection view
+  welcome.tsx           # Onboarding splash
+components/             # Reusable React Native components (PascalCase.tsx)
+constants/              # Static data and configuration
+  types.ts              # TypeScript interfaces (canonical type definitions)
+  heroes.ts             # 8 pre-defined hero templates
+  colors.ts             # Cosmic theme color palette
+  timing.ts             # Animation/transition duration constants
+lib/                    # Client utilities and state management
+  SettingsContext.tsx   # App settings (React Context — canonical settings source)
+  ProfileContext.tsx    # Child profile context
+  AuthContext.tsx       # Firebase authentication context
+  storage.ts            # AsyncStorage helpers (stories, profiles, badges, streaks)
+  query-client.ts       # TanStack React Query config
 server/                 # Express backend
-  index.ts              # Server bootstrap, CORS, security headers
-  routes.ts             # API route registration
-  ai/                   # Multi-provider AI router
-    index.ts            # Router with fallback chain
-    providers/          # Gemini, OpenAI, Anthropic, OpenRouter providers
-  elevenlabs.ts         # TTS voice definitions + speech generation
+  index.ts              # Server bootstrap, security middleware, CORS, shutdown
+  routes.ts             # All API route registrations
+  prompts.ts            # Story system/user prompt builders + CHILD_SAFETY_RULES
+  validation.ts         # Zod schemas + sanitizeString()
+  auth.ts               # Firebase Admin bearer-token middleware
+  rate-limit.ts         # Per-IP sliding-window rate limiter
+  ai/                   # Multi-provider AI abstraction layer
+    router.ts           # AIRouter: fallback chains, circuit breakers, retry
+    index.ts            # Provider registration + status
+    providers/          # gemini.ts, openai.ts, anthropic.ts, openrouter.ts
+  elevenlabs.ts         # TTS voice definitions + audio generation
   suno.ts               # Background music file serving
-  video.ts              # Video generation via OpenAI Sora
-  db.ts                 # Drizzle database client
-  replit_integrations/  # Voice chat & conversation modules
-    audio/              # Voice messaging (STT + GPT-audio + format conversion)
-    chat/               # Text chat with conversation history (PostgreSQL)
-    image/              # Gemini image generation (standalone)
-    batch/              # Rate-limit-aware batch processing utilities
-shared/                 # Shared between client & server
-  schema.ts             # Drizzle ORM schema (users, conversations, messages)
-  models/chat.ts        # Chat table definitions
-docs/                   # Project documentation
-  DEAD-CODE-TRIAGE.md   # Dead code audit report
-  ARCHITECTURE.md       # System architecture
-  API.md                # API endpoint reference
-  SECURITY.md           # Security posture
-  ROADMAP.md            # Prioritized roadmap
-  CHANGELOG.md          # Change history
-patches/                # Expo patch-package fixes
+  video.ts              # OpenAI Sora video generation
+  db.ts                 # Drizzle ORM + PostgreSQL client
+  replit_integrations/  # Replit-provided voice chat modules (do not modify)
+shared/                 # Shared between client and server
+  schema.ts             # Drizzle ORM table definitions
+  models/chat.ts        # conversations + messages tables
+docs/                   # All project documentation
+  ARCHITECTURE.md       # System design and data flow
+  API.md                # API endpoint reference (40+ endpoints)
+  SECURITY.md           # Security policy and OWASP assessment
+  ROADMAP.md            # Prioritized development roadmap
+  CHANGELOG.md          # Version history
+  adr/                  # Architecture Decision Records (ADR-0001 – ADR-0005)
+  agents/               # 12 specialized AI agent instruction files
+  best-practices/       # Accessibility, performance, security, testing guides
+  operations/           # PLAY_STORE_DEPLOYMENT.md
+  runbooks/             # deploy, rollback, incident-response, provider-outage
+api/                    # Vercel serverless entry point
+  server.mjs            # Wraps server_dist/index.js for Vercel
+scripts/                # Build helpers
+patches/                # patch-package patches (do not modify without approval)
 ```
 
 ## API Endpoints
@@ -122,21 +196,31 @@ See [docs/API.md](docs/API.md) for full reference.
 | POST | `/api/suggest-settings` | AI-powered story setting suggestions |
 | POST | `/api/generate-video` | Start video generation job |
 | GET | `/api/video-status/:id` | Check video generation progress |
-| GET | `/api/video/:id` | Serve generated video |
 | GET | `/api/conversations` | List voice chat conversations |
 | POST | `/api/conversations` | Create new conversation |
 | POST | `/api/conversations/:id/messages` | Send voice message (SSE response) |
 
 ## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md) — System design and data flow
-- [API Reference](docs/API.md) — All endpoints with request/response schemas
-- [Security](docs/SECURITY.md) — Security posture and OWASP assessment
-- [Roadmap](docs/ROADMAP.md) — Prioritized development roadmap
-- [Changelog](docs/CHANGELOG.md) — Version history
-- [Dead Code Triage](docs/DEAD-CODE-TRIAGE.md) — Code audit report
-- [GitHub Custom Agents](docs/GITHUB-CUSTOM-AGENTS.md) — Repository-scoped agent catalog and best practices
+| Document | Purpose |
+|----------|---------|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and data flow |
+| [API.md](docs/API.md) | All endpoints with request/response schemas |
+| [SECURITY.md](docs/SECURITY.md) | Security policy, OWASP assessment, and vulnerability reporting |
+| [ROADMAP.md](docs/ROADMAP.md) | Prioritized development roadmap |
+| [CHANGELOG.md](docs/CHANGELOG.md) | Version history |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Branch conventions, PR process, testing requirements |
+| [CONVENTIONS.md](CONVENTIONS.md) | Code standards: naming, styling, error handling, APIs |
+| [GLOSSARY.md](GLOSSARY.md) | Domain vocabulary reference |
+| [AGENTS.md](AGENTS.md) | AI agent configuration index |
+| [TODO.md](TODO.md) | WSJF-prioritized backlog |
+| [docs/agents/README.md](docs/agents/README.md) | Specialized AI agent catalog |
+| [docs/best-practices/](docs/best-practices/) | Accessibility, performance, security, testing guides |
+| [docs/runbooks/](docs/runbooks/) | Operational runbooks (deploy, rollback, incident response) |
+| [docs/adr/](docs/adr/) | Architecture Decision Records |
+| [docs/operations/PLAY_STORE_DEPLOYMENT.md](docs/operations/PLAY_STORE_DEPLOYMENT.md) | EAS Build + Play Store deployment guide |
 
 ## License
 
-Private project. All rights reserved.
+<!-- HUMAN INPUT REQUIRED: No LICENSE file exists. Select and add a license (e.g., MIT, Apache 2.0, or a proprietary license) before publishing to any app store or making the repository public. -->
+Private project — no license file has been added yet. All rights reserved until a license is selected and committed.

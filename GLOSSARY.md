@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-21 -->
+<!-- Last verified: 2026-05-05 -->
 # GLOSSARY.md — Domain Vocabulary
 
 Alphabetical reference for all domain-specific terms, abbreviations, and internal jargon used in this codebase, commit messages, and documentation.
@@ -31,7 +31,9 @@ Alphabetical reference for all domain-specific terms, abbreviations, and interna
 
 **Child Profile** — A named profile representing a child user. Stores name, age, favorite hero ID, avatar emoji, and creation timestamp. Multiple profiles supported. Defined as `ChildProfile` in `constants/types.ts`.
 
-**Child Safety Rules** — A system prompt constant (`CHILD_SAFETY_RULES`) injected into every story generation request. Enforces age-appropriate content (no violence, no scary content, positive values). Located in `server/routes.ts`.
+**Child Safety Rules** — A system prompt constant (`CHILD_SAFETY_RULES`) injected into every story generation request. Enforces age-appropriate content (no violence, no scary content, positive values). Located in `server/prompts.ts`.
+
+**Circuit Breaker** — A resilience pattern wrapping each AI provider in `server/circuit-breaker.ts`. Opens after 5 consecutive provider failures and resets after 60 seconds, preventing the AI router from repeatedly calling a failing provider.
 
 **Classic Mode** — One of three story modes. Generates a traditional adventure story with 3–5 parts and branching choices. Identified as `"classic"` in the `mode` field.
 
@@ -55,7 +57,7 @@ Alphabetical reference for all domain-specific terms, abbreviations, and interna
 
 **ElevenLabs** — Third-party text-to-speech service. Generates natural-sounding narration audio from story text using the `eleven_multilingual_v2` model. Integrated via `server/elevenlabs.ts`. API key injected via Replit Connectors or `ELEVENLABS_API_KEY` env var.
 
-**Expo** — The React Native framework and toolchain used for this app. Provides the SDK, build tools, file-based routing (Expo Router), and access to native APIs. Version: SDK 54.
+**Expo** — The React Native framework and toolchain used for this app. Provides the SDK, build tools, file-based routing (Expo Router), and access to native APIs. Version: SDK 55.
 
 **Expo Router** — Expo's file-based routing library (v6). Screen files in `app/` are automatically registered as routes. Tab screens are under `app/(tabs)/`.
 
@@ -63,15 +65,17 @@ Alphabetical reference for all domain-specific terms, abbreviations, and interna
 
 ## F
 
-**Fallback Chain** — The ordered list of AI providers tried in sequence if the primary fails: Gemini → OpenAI → Anthropic → OpenRouter. Implemented in `server/ai/index.ts`.
+**Fallback Chain** — The ordered list of AI providers tried in sequence if the primary fails. Story chain: Anthropic → Gemini → OpenAI → Meta Llama → xAI → Mistral → Cohere. Image chain: Gemini → OpenAI. Implemented in `server/ai/router.ts`.
 
 **Favorites** — Stories the user has starred. Stored as an array of story IDs in AsyncStorage under `@infinity_heroes_favorites`.
+
+**Firebase** — Google's mobile/web platform used for anonymous authentication. The server validates Firebase ID tokens via Firebase Admin SDK (`server/auth.ts`). The client initializes anonymous sign-in via `lib/AuthContext.tsx`.
 
 ---
 
 ## G
 
-**Gemini** — Google's AI model family. The primary provider for text generation (`gemini-2.5-flash`) and image generation (`gemini-2.5-flash-image`) in this app.
+**Gemini** — Google's AI model family. Used for image generation (`gemini-2.5-flash-image`) and as a fallback text provider (`gemini-2.5-flash`). Anthropic Claude is the primary story text provider.
 
 **Glassmorphism** — The visual design style used in this app: semi-transparent cards with frosted-glass blur effects on a dark midnight/indigo/purple background.
 
@@ -79,13 +83,15 @@ Alphabetical reference for all domain-specific terms, abbreviations, and interna
 
 ## H
 
-**Hero** — A pre-defined or custom superhero character. Pre-defined heroes are listed in `constants/heroes.ts` (Nova, Coral, Zephyr, etc.). Custom heroes can have a user-provided name, title, and AI-generated avatar.
+**Hero** — A pre-defined or custom superhero character. Pre-defined heroes are listed in `constants/heroes.ts`: Nova (Guardian of Light), Coral (Heart of the Ocean), Orion (Star of Friendship), Luna (Dream Weaver), Nimbus (Brave Cloud), Bloom (Garden Keeper), Whistle (Night Train Conductor), Shade (Shadow Friend). Custom heroes can have a user-provided name, title, and AI-generated avatar.
 
-**HeroCard** — A React Native component (`components/HeroCard.tsx`) for displaying a hero in a card layout. Currently exists but is not rendered anywhere — preserved for future use.
+**HeroCard** — A React Native component (`components/HeroCard.tsx`) for displaying a hero in a card layout. Used in the hero selection grid on the Create screen.
 
 ---
 
 ## I
+
+**Idempotency Cache** — A server-side cache (`server/idempotency.ts`) that deduplicates expensive POST requests within a 5-minute TTL window using a hash of the request body as the key. Prevents duplicate AI story generation calls from network retries.
 
 **Infinity Heroes** — The app name. The full title is "Infinity Heroes: Bedtime Chronicles".
 
@@ -96,6 +102,8 @@ Alphabetical reference for all domain-specific terms, abbreviations, and interna
 **Landing Page** — A branded HTML page served at `GET /` from the Express server. Targets parents/visitors discovering the app. Source: `server/templates/landing-page.html`.
 
 **Library** — The tab screen (`app/(tabs)/library.tsx`) that shows saved stories. Supports sorting, filtering by favorites, and browsing story history.
+
+**Load Shedding** — A server middleware (`server/load-shedding.ts`) that rejects incoming requests with 503 when the active-request count exceeds a configured ceiling. Prevents the server from becoming overwhelmed under spike traffic.
 
 ---
 
@@ -123,11 +131,11 @@ Alphabetical reference for all domain-specific terms, abbreviations, and interna
 
 ## P
 
-**Parent Controls** — Settings accessible via PIN that restrict story content: max story length, bedtime scheduling, theme filtering. Stored as `ParentControls` in AsyncStorage under `@infinity_heroes_parent_controls`.
+**Parent Controls** — Settings accessible via PIN (SHA-256 + salt hashed via expo-crypto; 5-attempt lockout) that restrict story content: max story length, bedtime scheduling, theme filtering. Stored as `ParentControls` in AsyncStorage under `@infinity_heroes_parent_controls`.
 
 **Part** — A single segment of a story. A story contains 3–5 parts (depending on duration). Each part has text, optional branching choices, and an optional scene illustration. Defined as `StoryPart` in `constants/types.ts`.
 
-**Patch-package** — npm package that applies patches to `node_modules` after installation. Used for `patches/expo-asset+12.0.12.patch` (a temporary Expo dev server fix).
+**Pino** — Structured JSON logging library used by the Express server (`server/logger.ts`). All server log events are pino-formatted with timestamp, log level, and context fields.
 
 **Profile** — See *Child Profile*.
 
@@ -141,7 +149,7 @@ Alphabetical reference for all domain-specific terms, abbreviations, and interna
 
 ## R
 
-**Rate Limiter** — Server-side per-IP request throttle. Sliding window algorithm, 10 requests/60 seconds by default. Configurable via `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_MS` env vars.
+**Rate Limiter** — Server-side per-user request throttle. Sliding window algorithm, 10 requests/60 seconds by default. Keyed on Firebase UID when auth is active, falls back to client IP. Configurable via `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_MS` env vars.
 
 **Reading View** — The screen where a story is read and played back (`app/story.tsx`). Handles part progression, TTS playback, and scene image display.
 
@@ -155,7 +163,7 @@ Alphabetical reference for all domain-specific terms, abbreviations, and interna
 
 ## S
 
-**Sanitization** — The process of cleaning and truncating user-provided string inputs before use in AI prompts. Handled by `sanitizeString()` in `server/routes.ts`.
+**Sanitization** — The process of cleaning and truncating user-provided string inputs before use in AI prompts. Handled by `sanitizeString()` in `server/validation.ts`.
 
 **Scene** — An AI-generated illustration for a story part. Generated as a data URI image. Stored in `CachedStory.scenes` as a map of `partIndex → dataURI`.
 
@@ -183,7 +191,7 @@ Alphabetical reference for all domain-specific terms, abbreviations, and interna
 
 **Vocab Word** — An age-appropriate vocabulary word introduced in each story. Part of the `StoryFull` interface (`vocabWord.word` + `vocabWord.definition`). Shown in the completion screen.
 
-**Voice** — A TTS voice character. 8 voices available, curated by story mode (sleep, classic, fun). Defined in `server/elevenlabs.ts` as `VoiceConfig` objects in a `VOICE_MAP`.
+**Voice** — A TTS voice character. 9 voices available, curated by story mode (sleep, classic, fun). Defined in `server/elevenlabs.ts` as `VoiceConfig` objects in a `VOICE_MAP`.
 
 **Voice Chat** — A feature allowing the child to speak to their hero via audio messages. Backend routes are functional in `server/replit_integrations/audio/`; mobile UI screen not yet built.
 

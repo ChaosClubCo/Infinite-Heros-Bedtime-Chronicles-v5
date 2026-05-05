@@ -1,12 +1,24 @@
 # Runbook: Deploy
 
-This runbook covers deploying Infinity Heroes: Bedtime Chronicles to production on Replit.
+<!-- Last verified: 2026-05-05 -->
 
-**Last Updated:** 2026-03-16
+This runbook covers deploying Infinity Heroes: Bedtime Chronicles to production.
+
+**Last Updated:** 2026-05-05
 
 ---
 
-## Overview
+## Deployment Targets
+
+| Target | Entry Point | Notes |
+|--------|------------|-------|
+| Replit Cloud Run | `npm run server:prod` | Primary deployment; serves API + Expo web static bundle |
+| Vercel | `api/server.mjs` | Serverless; config in `vercel.json`; 60s max duration |
+| Android (Play Store) | EAS Build → `.aab` | See [`docs/operations/PLAY_STORE_DEPLOYMENT.md`](../operations/PLAY_STORE_DEPLOYMENT.md) |
+
+---
+
+## Overview (Replit)
 
 The app is deployed on **Replit** using Google Cloud Run (`deploymentTarget = "cloudrun"`) as the infrastructure provider.
 
@@ -24,10 +36,12 @@ The app is deployed on **Replit** using Google Cloud Run (`deploymentTarget = "c
 Before deploying, ensure:
 - [ ] All environment variables are set in Replit Secrets (Settings → Secrets)
 - [ ] `DATABASE_URL` is configured if voice chat is enabled
-- [ ] At least one AI provider key (`AI_INTEGRATIONS_GEMINI_API_KEY`) is configured
+- [ ] At least one AI provider key (`AI_INTEGRATIONS_GEMINI_API_KEY` or `AI_INTEGRATIONS_ANTHROPIC_API_KEY`) is configured
 - [ ] ElevenLabs is connected via Replit Connectors (Settings → Connectors) or `ELEVENLABS_API_KEY` is set
+- [ ] Firebase vars set if auth is required in production: `FIREBASE_SERVICE_ACCOUNT_KEY`, `EXPO_PUBLIC_FIREBASE_API_KEY`, `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`, `EXPO_PUBLIC_FIREBASE_PROJECT_ID`, `EXPO_PUBLIC_FIREBASE_APP_ID`
 - [ ] `npm run typecheck` passes: zero TypeScript errors
 - [ ] `npm run lint` passes: zero lint errors
+- [ ] `npm test` passes: all tests passing
 - [ ] Manual smoke test complete (story generation, TTS, image generation)
 
 ---
