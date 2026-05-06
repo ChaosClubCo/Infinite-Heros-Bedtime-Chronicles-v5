@@ -7,7 +7,6 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Image,
   Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,7 +14,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { Audio, Video, ResizeMode, AVPlaybackStatus } from "expo-av";
+import { Audio } from "expo-av";
 import Animated, {
   FadeIn,
   FadeInDown,
@@ -31,13 +30,14 @@ import Animated, {
 import Colors from "@/constants/colors";
 import { HEROES } from "@/constants/heroes";
 import { StarField } from "@/components/StarField";
-import { LoadingOrb } from "@/components/PulsingOrb";
 import { getApiUrl } from "@/lib/query-client";
 import { fetch } from "expo/fetch";
 import { StoryFull } from "@/constants/types";
 import { getParentControls, saveStoryScene } from "@/lib/storage";
-import { MS_PER_WORD, MIN_READING_TIME_MS, LOADING_MESSAGE_INTERVAL_MS, VIDEO_POLL_INTERVAL_MS } from "@/constants/timing";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { MS_PER_WORD, MIN_READING_TIME_MS, LOADING_MESSAGE_INTERVAL_MS } from "@/constants/timing";
+import { StoryGeneratingView } from "@/components/StoryGeneratingView";
+import { StorySceneDisplay } from "@/components/StorySceneDisplay";
+import { StoryPlayerControls } from "@/components/StoryPlayerControls";
 
 type StoryState = "generating" | "ready" | "error";
 
@@ -150,131 +150,6 @@ function FloatingParticle({ delay, accent }: { delay: number; accent: string }) 
         animStyle,
       ]}
     />
-  );
-}
-
-function LoadingDot({ delay, color }: { delay: number; color: string }) {
-  const opacity = useSharedValue(0.2);
-
-  useEffect(() => {
-    opacity.value = withDelay(
-      delay,
-      withRepeat(
-        withSequence(
-          withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.2, { duration: 600, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        false
-      )
-    );
-  }, []);
-
-  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-
-  return (
-    <Animated.View
-      style={[
-        {
-          width: 8,
-          height: 8,
-          borderRadius: 4,
-          backgroundColor: color,
-        },
-        animStyle,
-      ]}
-    />
-  );
-}
-
-function SceneVideoPlayer({
-  jobId,
-  accent,
-}: {
-  jobId: string;
-  accent: string;
-}) {
-  const [status, setStatus] = useState<"queued" | "in_progress" | "completed" | "failed">("queued");
-  const [progress, setProgress] = useState(0);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const videoRef = useRef<Video>(null);
-
-  useEffect(() => {
-    const baseUrl = getApiUrl();
-
-    pollRef.current = setInterval(async () => {
-      try {
-        const res = await globalThis.fetch(
-          new URL(`/api/video-status/${jobId}`, baseUrl).toString()
-        );
-        if (!res.ok) return;
-        const data = await res.json();
-        setStatus(data.status);
-        setProgress(data.progress || 0);
-
-        if (data.status === "completed" && data.videoUrl) {
-          setVideoUrl(new URL(data.videoUrl, baseUrl).toString());
-          if (pollRef.current) clearInterval(pollRef.current);
-        }
-        if (data.status === "failed") {
-          setError(data.error || "Video generation failed");
-          if (pollRef.current) clearInterval(pollRef.current);
-        }
-      } catch (e) {
-        console.error("Video polling error:", e);
-        setError("Failed to check video status");
-        if (pollRef.current) clearInterval(pollRef.current);
-      }
-    }, VIDEO_POLL_INTERVAL_MS);
-
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [jobId]);
-
-  if (error || status === "failed") {
-    return null;
-  }
-
-  if (!videoUrl) {
-    return (
-      <Animated.View entering={FadeIn.duration(400)} style={styles.videoLoadingWrap}>
-        <View style={styles.videoLoadingRow}>
-          <ActivityIndicator size="small" color={accent} />
-          <Text style={styles.videoLoadingText}>
-            {status === "queued" ? "Preparing video..." : `Creating scene video... ${progress}%`}
-          </Text>
-        </View>
-        <View style={styles.videoProgressBg}>
-          <View style={[styles.videoProgressFill, { width: `${Math.max(progress, 5)}%`, backgroundColor: accent }]} />
-        </View>
-      </Animated.View>
-    );
-  }
-
-  return (
-    <Animated.View entering={FadeIn.duration(600)} style={styles.videoPlayerWrap}>
-      <Video
-        ref={videoRef}
-        source={{ uri: videoUrl }}
-        style={styles.videoPlayer}
-        resizeMode={ResizeMode.COVER}
-        shouldPlay
-        isLooping
-        isMuted={false}
-        volume={0.5}
-      />
-      <LinearGradient
-        colors={["transparent", "rgba(0,0,0,0.3)"]}
-        style={styles.sceneImageOverlay}
-      />
-      <View style={styles.videoTag}>
-        <Ionicons name="videocam" size={10} color="rgba(255,255,255,0.7)" />
-        <Text style={styles.videoTagText}>AI Scene</Text>
-      </View>
-    </Animated.View>
   );
 }
 
@@ -925,36 +800,15 @@ export default function StoryScreen() {
         </Animated.View>
       )}
 
-      {storyState === "generating" ? (
-        <Animated.View entering={FadeIn.duration(600)} style={styles.loadingContainer}>
-          <LoadingOrb color={theme.orbColor} />
-          <View style={[styles.loadingIconWrap, { borderColor: `${theme.accent}30` }]}>
-            <Ionicons name={hero.iconName} size={44} color={hero.color} />
-          </View>
-
-          <Text style={styles.loadingTitle}>
-            {messages[loadingMsg]}
-          </Text>
-          <Text style={styles.loadingSubtitle}>
-            {hero.name} is preparing tonight&apos;s story
-          </Text>
-
-          <View style={styles.loadingDotsRow}>
-            <LoadingDot delay={0} color={theme.accent} />
-            <LoadingDot delay={200} color={theme.accent} />
-            <LoadingDot delay={400} color={theme.accent} />
-          </View>
-        </Animated.View>
-      ) : storyState === "error" ? (
-        <Animated.View entering={FadeIn.duration(600)} style={styles.loadingContainer}>
-          <Ionicons name="cloud-offline-outline" size={56} color={Colors.textMuted} />
-          <Text style={styles.loadingTitle}>Something went wrong</Text>
-          <Text style={styles.loadingSubtitle}>Could not generate the story. Please try again.</Text>
-          <Pressable onPress={generateStory} style={[styles.retryButton, { backgroundColor: theme.accent }]}>
-            <Ionicons name="refresh" size={18} color="#FFF" />
-            <Text style={styles.retryText}>Try Again</Text>
-          </Pressable>
-        </Animated.View>
+      {storyState === "generating" || storyState === "error" ? (
+        <StoryGeneratingView
+          storyState={storyState}
+          hero={hero}
+          theme={theme}
+          loadingMsg={loadingMsg}
+          messages={messages}
+          onRetry={generateStory}
+        />
       ) : (
         <>
           <ScrollView
@@ -962,59 +816,15 @@ export default function StoryScreen() {
             contentContainerStyle={[styles.storyScrollContent, { paddingBottom: bottomInset + 160 }]}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.sceneHeroWrap}>
-              {sceneImage && !sceneLoading ? (
-                <Animated.View entering={FadeIn.duration(600)} style={StyleSheet.absoluteFill}>
-                  <Image source={{ uri: sceneImage }} style={styles.sceneHeroImage} resizeMode="cover" />
-                </Animated.View>
-              ) : sceneLoading ? (
-                <View style={styles.sceneHeroPlaceholder}>
-                  <ActivityIndicator size="small" color={theme.accent} />
-                  <Text style={styles.sceneLoadingText}>Painting the scene...</Text>
-                </View>
-              ) : sceneError ? (
-                <View style={styles.sceneHeroPlaceholder}>
-                  <Ionicons name="image-outline" size={32} color="rgba(255,255,255,0.15)" />
-                  <Pressable
-                    onPress={() => { if (currentPart) loadSceneImage(currentPart.text, currentPartIndex); }}
-                    style={[styles.sceneRetryBtn, { borderColor: `${theme.accent}40` }]}
-                  >
-                    <Ionicons name="refresh" size={14} color={theme.accent} />
-                    <Text style={[styles.sceneRetryText, { color: theme.accent }]}>Retry</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <Pressable
-                  style={styles.sceneHeroPlaceholder}
-                  onPress={() => { if (currentPart) loadSceneImage(currentPart.text, currentPartIndex); }}
-                >
-                  <Ionicons name="image-outline" size={28} color={`${theme.accent}30`} />
-                  <Text style={[styles.sceneGenerateText, { color: `${theme.accent}70` }]}>
-                    Tap to illustrate
-                  </Text>
-                </Pressable>
-              )}
-              <LinearGradient
-                colors={["rgba(5,5,30,0.2)", "rgba(5,5,30,0.6)", theme.gradient[0]]}
-                locations={[0, 0.6, 1]}
-                style={styles.sceneHeroOverlay}
-              />
-            </View>
-
-            {videoEnabled && videoJobId && (
-              <ErrorBoundary FallbackComponent={({ resetError }) => (
-                <View style={styles.sceneErrorWrap}>
-                  <Ionicons name="videocam-off-outline" size={28} color="rgba(255,255,255,0.2)" />
-                  <Text style={styles.sceneErrorText}>Video unavailable</Text>
-                  <Pressable onPress={resetError} style={[styles.sceneRetryBtn, { borderColor: `${theme.accent}40` }]}>
-                    <Ionicons name="refresh" size={14} color={theme.accent} />
-                    <Text style={[styles.sceneRetryText, { color: theme.accent }]}>Retry</Text>
-                  </Pressable>
-                </View>
-              )}>
-                <SceneVideoPlayer jobId={videoJobId} accent={theme.accent} />
-              </ErrorBoundary>
-            )}
+            <StorySceneDisplay
+              sceneImage={sceneImage}
+              sceneLoading={sceneLoading}
+              sceneError={sceneError}
+              theme={theme}
+              videoEnabled={videoEnabled}
+              videoJobId={videoJobId}
+              onLoadScene={() => { if (currentPart) loadSceneImage(currentPart.text, currentPartIndex); }}
+            />
 
             <View style={styles.textSection}>
               {paragraphs.map((paragraph, index) => (
@@ -1071,120 +881,30 @@ export default function StoryScreen() {
           </ScrollView>
 
           {storyState === "ready" && storyData && (
-            <Animated.View
-              entering={FadeInUp.duration(400)}
-              style={[styles.bottomControlBar, { paddingBottom: bottomInset + 12 }]}
-            >
-              {isSpeaking && audioDuration > 0 && (
-                <View style={styles.seekBarWrap}>
-                  <View style={styles.seekBarTrack}>
-                    <View
-                      style={[
-                        styles.seekBarFill,
-                        {
-                          width: `${audioDuration > 0 ? (audioPosition / audioDuration) * 100 : 0}%`,
-                          backgroundColor: theme.accent,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <View style={styles.seekBarTimes}>
-                    <Text style={styles.seekBarTime}>
-                      {Math.floor(audioPosition / 60000)}:{String(Math.floor((audioPosition % 60000) / 1000)).padStart(2, "0")}
-                    </Text>
-                    <Text style={styles.seekBarTime}>
-                      {Math.floor(audioDuration / 60000)}:{String(Math.floor((audioDuration % 60000) / 1000)).padStart(2, "0")}
-                    </Text>
-                  </View>
-                </View>
-              )}
-              <View style={styles.controlBar}>
-                <Pressable onPress={cycleSpeed} hitSlop={8} style={styles.controlBarBtn} testID="speed-cycle-btn">
-                  <Text style={[styles.controlAaText, { color: theme.accent }]}>
-                    {SPEED_LABELS[playbackSpeed]}
-                  </Text>
-                </Pressable>
-
-                <Pressable onPress={cycleVoice} hitSlop={8} style={styles.controlBarBtn} testID="voice-cycle-btn">
-                  <Ionicons name="mic-outline" size={16} color={theme.accent} />
-                  <Text style={[styles.controlVoiceText, { color: theme.accent }]}>
-                    {modeVoices.find((v) => v.id === currentVoice)?.accent === "British" ? "GB" : "US"}
-                  </Text>
-                </Pressable>
-
-                <Pressable onPress={handlePrevPart} hitSlop={8} style={styles.controlBarBtn} disabled={currentPartIndex === 0}>
-                  <Ionicons name="play-back" size={20} color={currentPartIndex === 0 ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.6)"} />
-                </Pressable>
-
-                <Pressable
-                  onPress={speakCurrentPart}
-                  hitSlop={8}
-                  style={[styles.controlPlayBtn, { backgroundColor: theme.accent }]}
-                  disabled={audioLoading}
-                >
-                  {audioLoading ? (
-                    <ActivityIndicator size="small" color="#FFF" />
-                  ) : (
-                    <Ionicons
-                      name={isSpeaking ? "pause" : "play"}
-                      size={24}
-                      color="#FFF"
-                      style={!isSpeaking ? { marginLeft: 2 } : undefined}
-                    />
-                  )}
-                </Pressable>
-
-                <Pressable onPress={handleNextPart} hitSlop={8} style={styles.controlBarBtn} disabled={isLastPart}>
-                  <Ionicons name="play-forward" size={20} color={isLastPart ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.6)"} />
-                </Pressable>
-
-                <Pressable onPress={speakCurrentPart} hitSlop={8} style={styles.controlBarBtn}>
-                  <Ionicons name="headset-outline" size={20} color={isSpeaking ? theme.accent : "rgba(255,255,255,0.5)"} />
-                </Pressable>
-
-                <Pressable
-                  onPress={toggleBgMusic}
-                  hitSlop={8}
-                  style={styles.controlBarBtn}
-                  disabled={musicLoading}
-                >
-                  {musicLoading ? (
-                    <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
-                  ) : (
-                    <View style={styles.musicBtnWrap}>
-                      <Ionicons
-                        name={musicMuted ? "musical-note-outline" : "musical-notes"}
-                        size={20}
-                        color={musicMuted ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.6)"}
-                      />
-                      {musicPlaying && !musicMuted && (
-                        <View style={styles.musicDot} />
-                      )}
-                    </View>
-                  )}
-                </Pressable>
-              </View>
-              {isLastPart && (
-                <Pressable
-                  onPress={handleStoryComplete}
-                  style={({ pressed }) => [
-                    styles.finishButton,
-                    { transform: [{ scale: pressed ? 0.95 : 1 }], marginTop: 8 },
-                  ]}
-                  testID="finish-story-button"
-                >
-                  <LinearGradient
-                    colors={[theme.accent, theme.choiceColors[0][1]]}
-                    style={styles.finishButtonGradient}
-                  >
-                    <Ionicons name="sparkles" size={20} color="#FFF" />
-                    <Text style={styles.finishButtonText}>
-                      {isSleep ? "Sweet Dreams" : storyMode === "madlibs" ? "That Was Hilarious!" : "Complete Story"}
-                    </Text>
-                  </LinearGradient>
-                </Pressable>
-              )}
-            </Animated.View>
+            <StoryPlayerControls
+              isSpeaking={isSpeaking}
+              audioLoading={audioLoading}
+              audioDuration={audioDuration}
+              audioPosition={audioPosition}
+              playbackSpeed={playbackSpeed}
+              currentVoice={currentVoice}
+              modeVoices={modeVoices}
+              currentPartIndex={currentPartIndex}
+              isLastPart={isLastPart}
+              storyMode={storyMode}
+              theme={theme}
+              musicMuted={musicMuted}
+              musicLoading={musicLoading}
+              musicPlaying={musicPlaying}
+              bottomInset={bottomInset}
+              onSpeedCycle={cycleSpeed}
+              onVoiceCycle={cycleVoice}
+              onPrevPart={handlePrevPart}
+              onNextPart={handleNextPart}
+              onSpeakToggle={speakCurrentPart}
+              onToggleMusic={toggleBgMusic}
+              onComplete={handleStoryComplete}
+            />
           )}
         </>
       )}
@@ -1248,71 +968,8 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 40,
-    gap: 12,
-  },
-  loadingIconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: Colors.cardBg,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-    borderWidth: 2,
-  },
-  loadingTitle: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 20,
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  loadingSubtitle: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: "center",
-  },
-  loadingDotsRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 16,
-  },
   storyScrollContent: {
     paddingTop: 0,
-  },
-  sceneHeroWrap: {
-    width: "100%",
-    height: 280,
-    backgroundColor: "rgba(5,5,30,0.8)",
-    position: "relative",
-    overflow: "hidden",
-  },
-  sceneHeroImage: {
-    width: "100%",
-    height: "100%",
-  },
-  sceneHeroPlaceholder: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  sceneHeroOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: "70%",
-  },
-  sceneLoadingText: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 12,
-    color: Colors.textMuted,
   },
   textSection: {
     paddingHorizontal: 24,
@@ -1396,96 +1053,6 @@ const styles = StyleSheet.create({
     color: "#FFF",
     flex: 1,
   },
-  bottomControlBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    backgroundColor: "rgba(10, 10, 30, 0.95)",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.06)",
-    zIndex: 50,
-  },
-  controlBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-  },
-  controlBarBtn: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  controlAaText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 14,
-  },
-  controlVoiceText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 10,
-    marginTop: 1,
-  },
-  controlPlayBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 6,
-    shadowColor: "#6366f1",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-  },
-  musicBtnWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  musicDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: "#22C55E",
-    marginTop: 2,
-  },
-  finishButton: {
-    borderRadius: 28,
-    overflow: "hidden",
-    elevation: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-  },
-  finishButtonGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 18,
-  },
-  finishButtonText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 18,
-    color: "#FFF",
-  },
-  retryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 24,
-    marginTop: 12,
-  },
-  retryText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 16,
-    color: "#FFF",
-  },
   errorText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 18,
@@ -1496,132 +1063,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.accent,
     marginTop: 16,
-  },
-  videoLoadingWrap: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    gap: 10,
-  },
-  videoLoadingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  videoLoadingText: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 12,
-    color: Colors.textMuted,
-  },
-  videoProgressBg: {
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "rgba(255,255,255,0.08)",
-  },
-  videoProgressFill: {
-    height: 3,
-    borderRadius: 2,
-  },
-  videoPlayerWrap: {
-    borderRadius: 20,
-    overflow: "hidden",
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    position: "relative",
-  },
-  videoPlayer: {
-    width: "100%",
-    height: 200,
-    borderRadius: 20,
-    backgroundColor: "#000",
-  },
-  videoTag: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  videoTagText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 9,
-    color: "rgba(255,255,255,0.7)",
-    letterSpacing: 0.3,
-  },
-  sceneImageOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 60,
-  },
-  sceneErrorWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: Colors.cardBg,
-    borderRadius: 20,
-    paddingVertical: 24,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  sceneErrorText: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.3)",
-  },
-  sceneRetryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginTop: 4,
-  },
-  sceneRetryText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12,
-  },
-  sceneGenerateText: {
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 12,
-    marginTop: 4,
-  },
-  seekBarWrap: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  seekBarTrack: {
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    overflow: "hidden",
-  },
-  seekBarFill: {
-    height: "100%",
-    borderRadius: 2,
-  },
-  seekBarTimes: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 4,
-  },
-  seekBarTime: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 10,
-    color: "rgba(255,255,255,0.3)",
   },
 });

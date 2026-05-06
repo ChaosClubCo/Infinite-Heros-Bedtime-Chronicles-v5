@@ -115,7 +115,14 @@ function setupCors(app: express.Application) {
     })();
 
     // Allow Vercel preview URLs — restricted to our project prefix
-    const isVercelPreview = origin ? /^infinite-hero.*\.vercel\.app$/.test(new URL(origin).hostname) : false;
+    const isVercelPreview = (() => {
+      if (!origin) return false;
+      try {
+        return /^infinite-hero.*\.vercel\.app$/.test(new URL(origin).hostname);
+      } catch {
+        return false;
+      }
+    })();
 
     if (origin && (origins.has(origin) || isLocalhost || isVercelPreview)) {
       res.header("Access-Control-Allow-Origin", origin);

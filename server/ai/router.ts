@@ -12,6 +12,26 @@ import type {
 import { CircuitBreaker } from "../circuit-breaker";
 import { retryWithJitter } from "../retry";
 
+/**
+ * Extract the first complete, balanced JSON object from a string.
+ * More reliable than a greedy regex when a response contains multiple
+ * JSON-like blocks (e.g. a <think> preamble followed by the actual JSON).
+ */
+function extractFirstJson(text: string): string | null {
+  let depth = 0;
+  let start = -1;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (text[i] === '}') {
+      depth--;
+      if (depth === 0 && start !== -1) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 const DEFAULT_CHAINS: FallbackChain[] = [
   { taskType: "story", providers: ["anthropic", "gemini", "openai", "meta-llama", "xai", "mistral", "cohere"] },
   { taskType: "suggestion", providers: ["gemini", "mistral", "anthropic", "meta-llama", "xai", "cohere"] },
@@ -109,15 +129,15 @@ export class AIRouter {
         if (req.jsonMode) {
           let cleaned = response.text.trim();
           cleaned = cleaned.replace(/```json\s*/g, "").replace(/```\s*/g, "");
-          const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-          if (!jsonMatch) {
+          const jsonStr = extractFirstJson(cleaned);
+          if (!jsonStr) {
             console.error(`[AI Router] ${provider.displayName} returned non-JSON for ${taskType}, trying next provider`);
             lastError = new Error(`${provider.displayName} returned invalid JSON`);
             continue;
           }
           try {
-            response.parsedJson = JSON.parse(jsonMatch[0]);
-            response.text = jsonMatch[0];
+            response.parsedJson = JSON.parse(jsonStr);
+            response.text = jsonStr;
           } catch {
             console.error(`[AI Router] ${provider.displayName} returned unparseable JSON for ${taskType}, trying next provider`);
             lastError = new Error(`${provider.displayName} returned malformed JSON`);
