@@ -2,27 +2,31 @@
 
 ## Current State
 
-**The codebase has zero automated tests.** There are no test files, no test framework configured, and no test script in `package.json`. The project relies solely on TypeScript strict mode and ESLint for code quality.
+**The codebase has a substantial and growing test suite.** Vitest v4 is fully configured (`vitest.config.ts`) with `@vitest/coverage-v8`. As of the 2026-04-24 audit, **919 tests pass** across 30+ test files. The `npm test` / `npm run test:coverage` scripts work.
 
-**Codebase scope:** ~55 production TypeScript/TSX files across frontend screens (15), components (10), client libraries (4), server modules (6), AI provider layer (7), shared schemas (2), and Replit integrations (11).
+**Test file inventory:**
 
-## Recommended Test Framework Setup
+| Location | Files |
+|----------|-------|
+| `__tests__/integration/` | `api-routes.test.ts` |
+| `__tests__/unit/` | `ai-router.test.ts`, `badges-and-streaks.test.ts`, `elevenlabs.test.ts`, `parent-controls.test.ts`, `routes-utils.test.ts`, `settings-migration.test.ts`, `storage-crud.test.ts`, `video.test.ts` |
+| `server/` | `circuit-breaker.test.ts`, `feature-flags.test.ts`, `idempotency.test.ts`, `load-shedding.test.ts`, `logger.test.ts`, `metrics.test.ts`, `prompts.test.ts`, `rate-limit.test.ts`, `retry.test.ts`, `routes.test.ts`, `security-fixes.test.ts`, `utils.test.ts`, `validation.test.ts` |
+| `server/` (comprehensive) | `auth.comprehensive.test.ts`, `elevenlabs.comprehensive.test.ts`, `routes.comprehensive.test.ts`, `storage.comprehensive.test.ts`, `video.comprehensive.test.ts` |
+| `server/ai/` | `router.test.ts`, `router.comprehensive.test.ts` |
+| `lib/` | `query-client.test.ts`, `storage.test.ts`, `storage-migration.test.ts`, `storage.comprehensive.test.ts` |
+| `shared/` | `schema.comprehensive.test.ts` |
 
-Install **Vitest** (fast, TypeScript-native, compatible with the existing ESBuild toolchain):
+**Coverage summary (as of 2026-04-24):**
 
-```bash
-npm install -D vitest @testing-library/react-native @testing-library/jest-native supertest
-```
+| Module | Statement | Branch |
+|--------|-----------|--------|
+| `server/ai/router.ts` | ~97% | ~84% |
+| `server/routes.ts` | ~51% | ~30% |
+| `server/elevenlabs.ts`, `video.ts`, `suno.ts`, `db.ts` | ~0% (mocked at module level) | — |
 
-Add to `package.json`:
-```json
-"scripts": {
-  "test": "vitest run",
-  "test:watch": "vitest"
-}
-```
+**Known coverage gap:** `supertest` was installed in the 2026-04-24 pass, enabling the 24-test integration suite in `__tests__/integration/api-routes.test.ts` to run (it was previously silently skipped).
 
-Note: The project uses `@/*` path aliases via `tsconfig.json` — the Vitest config must resolve these.
+**Codebase scope:** ~60 production TypeScript/TSX files across frontend screens (15), components (11), client libraries (5), server modules (17+), AI provider layer (7), shared schemas (2), and Replit integrations (11).
 
 ---
 

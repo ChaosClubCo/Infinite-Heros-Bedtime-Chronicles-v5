@@ -79,7 +79,7 @@ This component is not broken — it was never connected. It is a useful utility 
 - `image/` overlaps with the existing AI router's image generation. The replit_integrations version uses Gemini only; the AI router version has multi-provider fallback. The AI router version is superior.  
 - `batch/` utilities are generic rate-limit helpers that could be useful but are currently redundant with the inline rate-limiting in routes.ts.  
 
-**Decision:** WIRED_UP (2026-03-13) — Audio routes (which include conversation management) are now registered in `server/routes.ts` via `registerAudioRoutes()`. They are gated behind `AI_INTEGRATIONS_OPENAI_API_KEY` and `DATABASE_URL` environment variables. The image module was NOT registered because the existing AI router has superior multi-provider fallback. The batch utilities remain available as imports for future use.
+**Decision:** WIRED_UP (2026-03-13, updated 2026-05-06) — Audio routes (which include conversation management) are registered in `server/routes.ts` via `registerAudioRoutes()`, gated behind `AI_INTEGRATIONS_OPENAI_API_KEY` and `DATABASE_URL` environment variables. The image module (`POST /api/generate-image` via Gemini) is also now registered via `registerImageRoutes(app)` at `server/routes.ts:552`, complementing the main AI router's multi-provider image endpoints. The batch utilities remain available as imports for future use.
 
 ---
 
@@ -140,12 +140,34 @@ This component is not broken — it was never connected. It is a useful utility 
 | 1 | `server/storage.ts:1-38` | Orphaned export | KEEP_CURRENT | None — never imported |
 | 2 | `components/HeroCard.tsx:1-103` | ✅ WIRED_UP | Used in quick-create hero preview (2026-03-25) |
 | 3 | `components/KeyboardAwareScrollViewCompat.tsx:1-30` | ✅ WIRED_UP | Used in story-details + quick-create (2026-03-25) |
-| 4 | `server/replit_integrations/` (all) | ✅ WIRED_UP | Audio/chat routes registered in routes.ts |
+| 4 | `server/replit_integrations/` (all) | ✅ WIRED_UP | Audio + image routes registered in routes.ts |
 | 5a | `lib/storage.ts:47` `getReadStories` | ✅ WIRED_UP | Used in library read/unread indicators (2026-03-25) |
 | 5b | `lib/storage.ts:56` `markStoryRead` | ✅ WIRED_UP | Used in library read/unread indicators (2026-03-25) |
 | 5c | `lib/storage.ts:101` `saveStoryScene` | ✅ RESTORED | Scene images now persist through story cache |
 | 5d | `lib/storage.ts:114` `updateFeedback` | ✅ WIRED_UP | Used in completion screen feedback UI (2026-03-25) |
 | 6 | `components/SettingsModal.tsx` vs `lib/SettingsContext.tsx` | ✅ MERGED | Settings unified under SettingsContext |
+| 7 | `components/OfflineBanner.tsx` | Orphaned export | KEEP_CURRENT | None — never imported |
+| 8 | `lib/useNetworkStatus.ts` | Orphaned export | KEEP_CURRENT | None — never imported |
+
+---
+
+### 7. `components/OfflineBanner.tsx`
+
+**Type:** Orphaned export  
+**Audit date:** 2026-05-06  
+**What it does:** A fully-implemented React Native banner component that displays an offline warning ("You're offline — saved stories are still available") with a cloud-offline icon. Uses `@expo/vector-icons` and `constants/colors`.  
+**Current usage:** None — the component is never imported anywhere in the app. `lib/useNetworkStatus.ts` (the companion hook) is also not imported anywhere.  
+**Recommendation:** KEEP_CURRENT — represents an unfinished offline-awareness feature. The infrastructure exists and would be straightforward to wire into the app layout or library screen. No regression risk to keeping it dormant.
+
+---
+
+### 8. `lib/useNetworkStatus.ts`
+
+**Type:** Orphaned export  
+**Audit date:** 2026-05-06  
+**What it does:** A React hook wrapping `@react-native-community/netinfo` that subscribes to network state changes and returns `{ isConnected, isInternetReachable }`. Intended to feed `OfflineBanner` or gate story-generation API calls.  
+**Current usage:** None — the hook is never imported anywhere in the app.  
+**Recommendation:** KEEP_CURRENT — companion to `OfflineBanner.tsx`. When offline UX is implemented, this hook provides the signal. No regression risk to keeping it dormant.
 
 ---
 

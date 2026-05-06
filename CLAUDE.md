@@ -47,6 +47,7 @@ components/             # Reusable React Native components
   HeroCard.tsx          # Hero template card (used in hero selection grid)
   KeyboardAwareScrollViewCompat.tsx  # Cross-platform keyboard-aware scroll
   MemoryJar.tsx         # Story memory display
+  OfflineBanner.tsx     # Offline state banner (orphaned — not yet wired into app layout)
   ParentControlsModal.tsx  # Parent controls (PIN-protected)
   ProfileModal.tsx      # Child profile management
   SettingsModal.tsx     # Settings overlay
@@ -63,8 +64,12 @@ lib/                    # Client utilities
   AuthContext.tsx        # Authentication context
   storage.ts            # AsyncStorage helpers
   storage.test.ts       # Storage unit tests
+  storage.comprehensive.test.ts  # Extended storage test suite
+  storage-migration.ts  # Versioned AsyncStorage migration runner (see Known Gotchas)
+  storage-migration.test.ts      # Storage migration tests
   query-client.ts       # TanStack React Query config (staleTime: Infinity, retry: false)
   query-client.test.ts  # Query client unit tests
+  useNetworkStatus.ts   # NetInfo hook returning { isConnected, isInternetReachable } (orphaned — not yet used)
 server/                 # Express.js backend
   index.ts              # Server bootstrap, security middleware, CORS, graceful shutdown
   routes.ts             # All API endpoints (~18KB / ~550 lines, 30+ endpoints; post-extraction refactor)
@@ -105,18 +110,38 @@ docs/                   # Project documentation
   DEAD-CODE-TRIAGE.md   # Code audit report
   COPPA-COMPLIANCE.md   # COPPA audit and privacy analysis
   BETA_TESTING.md       # Beta testing plan
-  TEST-COVERAGE-ANALYSIS.md  # Test coverage gap analysis + known bugs
+  TEST-COVERAGE-ANALYSIS.md  # Test coverage status + known bugs
+  GITHUB-CUSTOM-AGENTS.md    # GitHub Copilot custom agent configurations
+  AUDIT-SECURITY-2026-03-27.md      # Security audit findings (2026-03-27)
+  COMPREHENSIVE-AUDIT-2026-03-27.md # Full codebase audit (2026-03-27)
+  SECURITY-FIXES-2026-03-27.md      # Security fixes applied (2026-03-27)
   adr/                  # Architecture Decision Records (5 ADRs)
-  agents/               # 12 specialized AI agent instruction files
+  agents/               # 15 files: 12 agent spec files + README + pr-review.md + security.md
+  best-practices/       # Best-practice guides (ACCESSIBILITY, PERFORMANCE, SECURITY, TESTING)
   operations/           # PLAY_STORE_DEPLOYMENT.md
-  runbooks/             # deploy, incident-response, provider-outage, rollback
+  runbooks/             # deploy, incident-response, database-migrations, provider-outage, rollback
+  superpowers/plans/    # Maturity & hardening plans (2026-04-08)
 api/                    # Vercel serverless entry point
   server.mjs            # Handler that imports createApp from server_dist
 patches/                # patch-package fixes for dependencies
 scripts/                # Build scripts
   build.js              # Expo static build script
   build-android.sh      # Android build script
+  preflight.js          # Pre-build environment / dependency checks
 ```
+
+**Root-level docs and config** (not part of the app source tree):
+- `AGENTS.md` — agent framework conventions
+- `CONTRIBUTING.md` — contribution guidelines
+- `CONVENTIONS.md` — code conventions reference
+- `GEMINI.md` — Gemini-specific agent instructions
+- `GLOSSARY.md` — project terminology
+- `MEMORY.md` — persistent agent memory/context
+- `TODO.md` — tracked work items
+- `replit.md` — Replit-specific setup notes
+- `agent-registry.json` — registered agent definitions
+- `skills-lock.json` — locked agent skill versions
+- `CLAUDE.md` — this file (primary AI agent instructions)
 
 ## Common Commands
 
@@ -290,7 +315,7 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 - All server responses must use `sanitizeErrorMessage()` — never return raw error objects
 - TTS filename serving: only files matching `/^[a-f0-9]+\.mp3$/` are served — do not relax this regex
 - Video ID validation: only IDs matching `/^[a-f0-9]+$/` are accepted
-- CORS is restricted to Replit domains + localhost — do not add wildcards
+- CORS allowed origins: Replit dev/prod domains, localhost (ports 5000/8081/19000-19006), `https://bedtime-chronicles.com`, `https://www.bedtime-chronicles.com`, Vercel preview URLs matching `infinite-hero*.vercel.app`, and `VERCEL_URL` env var — do not add wildcards
 - Input truncation via `sanitizeString()` is mandatory before any prompt inclusion
 - PIN storage: parent-controls PIN is currently stored plaintext in AsyncStorage (see `docs/COPPA-COMPLIANCE.md` §6). Hashing is a known pre-store-submission TODO.
 
@@ -305,14 +330,12 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 ### Server Middleware Order
 1. Environment validation (warns on missing providers)
 2. Security headers (X-Content-Type-Options, X-Frame-Options, etc.)
-3. CORS (Replit domains + localhost, methods: GET/POST/PUT/DELETE/OPTIONS)
+3. CORS (see allowed origins above, methods: GET/POST/PUT/DELETE/OPTIONS)
 4. Body parsing (JSON + URL-encoded, 100KB limit)
 5. Request logging (pino)
 6. Load shedding (rejects if active-request ceiling exceeded)
-7. Auth middleware (Firebase Admin, POSTs only; skipped if not configured)
-8. Expo manifest routing
-9. Static file serving
-10. Route registration (rate limit + idempotency applied per-route)
+7. Expo manifest routing + static file serving
+8. Route registration (`requireAuth` applied per-route to POSTs; rate limit + idempotency also per-route)
 11. Error handler (sanitizes messages)
 
 ## Common Tasks
@@ -477,7 +500,7 @@ npm run test:coverage   # vitest run --coverage
 ## Development Notes
 
 - **Testing:** Vitest v4 configured with coverage via @vitest/coverage-v8
-- **CI/CD:** GitHub Actions (`.github/workflows/ci.yml` — lint, test, typecheck, build on push/PR to main/develop; `eas-build.yml` — Expo EAS builds; `vercel-deploy.yml` — Vercel deployment; `publish.yml` — release publishing; `auto-merge.yml`, `branch-cleanup.yml`, `stale.yml` — repo hygiene). Also supports Replit push-to-deploy.
+- **CI/CD:** GitHub Actions (`.github/workflows/ci.yml` — lint, test, typecheck, build on push/PR to main/develop; `eas-build.yml` — Expo EAS builds; `vercel-deploy.yml` — Vercel deployment; `publish.yml` — release publishing; `auto-merge.yml`, `branch-cleanup.yml`, `stale.yml` — repo hygiene; `agent-pr-review.yml`, `agent-security.yml` — automated AI agent PR review and security scanning; `markdown-link-check.yml` — broken-link checker). Also supports Replit push-to-deploy.
 - **Vercel deployment:** `api/server.mjs` serverless handler wraps `server_dist/index.js` via `createApp()`. Config in `vercel.json` (60s max duration, all routes rewrite to `/api/server`)
 - **React Compiler** enabled via app.json experiments
 - **New Architecture** (React Native) enabled
