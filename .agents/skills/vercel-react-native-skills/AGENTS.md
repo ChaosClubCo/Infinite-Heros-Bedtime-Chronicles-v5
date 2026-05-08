@@ -758,7 +758,7 @@ into separate recycling pools so a message component never gets recycled into an
 
 image component.
 
-[LegendList getItemType](https://legendapp.com/open-source/list/api/props/#getitemtype-v2)
+[LegendList getItemType](https://legendapp.com/open-source/list/api/legend-list/#getitemtype)
 
 **Incorrect: single component with conditionals**
 

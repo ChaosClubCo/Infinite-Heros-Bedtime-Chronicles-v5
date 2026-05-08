@@ -1,6 +1,6 @@
 # ADR-NNNN — [Short Title]
 
-**Status:** proposed | accepted | deprecated | superseded by [ADR-NNNN](./NNNN-title.md)
+**Status:** proposed | accepted | deprecated | superseded by `ADR-NNNN (./NNNN-title.md)`
 **Date:** YYYY-MM-DD
 **Deciders:** <!-- HUMAN INPUT REQUIRED: List names or roles of decision-makers -->
 

@@ -254,7 +254,7 @@ This is the most significant COPPA gap. See Section 6 for recommendations.
 - FTC COPPA Guidance for App Developers: https://www.ftc.gov/tips-advice/business-center/guidance/complying-coppa-frequently-asked-questions
 - 16 C.F.R. Part 312 (full rule text): https://www.ecfr.gov/current/title-16/chapter-I/subchapter-C/part-312
 - Google Firebase Data Processing Terms: https://firebase.google.com/terms/data-processing-terms
-- OpenAI Data Processing Addendum: https://openai.com/policies/data-processing-addendum
+- OpenAI Business Terms (including DPA): https://openai.com/policies/business-terms/
 - Anthropic Usage Policies and DPA: https://www.anthropic.com/legal/commercial-terms
 - ElevenLabs Terms of Service: https://elevenlabs.io/terms-of-use
 
