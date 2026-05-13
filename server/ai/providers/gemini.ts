@@ -10,7 +10,6 @@ function getClient(): GoogleGenAI {
       apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
       httpOptions: baseUrl
         ? {
-            apiVersion: "",
             baseUrl,
           }
         : undefined,
