@@ -4,8 +4,8 @@ import type { AIProvider, TextGenerationRequest, TextGenerationResponse, Streami
 function getClient(): Anthropic | null {
   const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
   const baseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
-  if (!apiKey || !baseURL) return null;
-  return new Anthropic({ apiKey, baseURL });
+  if (!apiKey) return null;
+  return new Anthropic({ apiKey, baseURL: baseURL || undefined });
 }
 
 export const anthropicProvider: AIProvider = {
@@ -14,7 +14,7 @@ export const anthropicProvider: AIProvider = {
   capabilities: { text: true, image: false, streaming: true },
 
   isAvailable(): boolean {
-    return !!(process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL);
+    return !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
   },
 
   async generateText(req: TextGenerationRequest): Promise<TextGenerationResponse> {

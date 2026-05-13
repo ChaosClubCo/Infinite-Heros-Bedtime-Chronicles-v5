@@ -4,8 +4,8 @@ import type { AIProvider, ProviderName, TextGenerationRequest, TextGenerationRes
 function getClient(): OpenAI | null {
   const apiKey = process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY;
   const baseURL = process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL;
-  if (!apiKey || !baseURL) return null;
-  return new OpenAI({ apiKey, baseURL });
+  if (!apiKey) return null;
+  return new OpenAI({ apiKey, baseURL: baseURL || undefined });
 }
 
 const PROVIDER_MODELS: Record<string, { model: string; providerName: ProviderName; displayName: string }> = {
@@ -41,7 +41,7 @@ function createOpenRouterProvider(providerKey: string): AIProvider {
     capabilities: { text: true, image: false, streaming: true },
 
     isAvailable(): boolean {
-      return !!(process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY && process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL);
+      return !!process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY;
     },
 
     async generateText(req: TextGenerationRequest): Promise<TextGenerationResponse> {

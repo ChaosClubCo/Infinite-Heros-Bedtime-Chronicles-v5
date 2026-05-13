@@ -11,24 +11,27 @@ import * as path from "path";
 const log = logger.info.bind(logger);
 
 function validateEnvironment() {
-  const providerPairs: [string, string, string][] = [
-    ["AI_INTEGRATIONS_GEMINI_API_KEY", "AI_INTEGRATIONS_GEMINI_BASE_URL", "Gemini"],
-    ["AI_INTEGRATIONS_OPENAI_API_KEY", "AI_INTEGRATIONS_OPENAI_BASE_URL", "OpenAI (integrations)"],
-    ["AI_INTEGRATIONS_ANTHROPIC_API_KEY", "AI_INTEGRATIONS_ANTHROPIC_BASE_URL", "Anthropic Claude"],
-    ["AI_INTEGRATIONS_OPENROUTER_API_KEY", "AI_INTEGRATIONS_OPENROUTER_BASE_URL", "OpenRouter (xAI, Mistral, Cohere, Meta Llama)"],
+  const providerConfigs: [string, string, string, boolean][] = [
+    ["AI_INTEGRATIONS_GEMINI_API_KEY", "AI_INTEGRATIONS_GEMINI_BASE_URL", "Gemini", true],
+    ["AI_INTEGRATIONS_OPENAI_API_KEY", "AI_INTEGRATIONS_OPENAI_BASE_URL", "OpenAI (integrations)", true],
+    ["AI_INTEGRATIONS_ANTHROPIC_API_KEY", "AI_INTEGRATIONS_ANTHROPIC_BASE_URL", "Anthropic Claude", false],
+    ["AI_INTEGRATIONS_OPENROUTER_API_KEY", "AI_INTEGRATIONS_OPENROUTER_BASE_URL", "OpenRouter (xAI, Mistral, Cohere, Meta Llama)", false],
   ];
 
   let textProviders = 0;
   let imageProviders = 0;
 
-  for (const [keyVar, urlVar, name] of providerPairs) {
+  for (const [keyVar, urlVar, name, supportsImage] of providerConfigs) {
     const hasKey = !!process.env[keyVar];
     const hasUrl = !!process.env[urlVar];
-    if (hasKey && hasUrl) {
+    if (hasKey) {
       textProviders++;
-      if (name === "Gemini" || name === "OpenAI (integrations)") imageProviders++;
-    } else if (hasKey || hasUrl) {
-      log(`[Env] WARNING: ${name} partially configured (missing ${!hasKey ? keyVar : urlVar})`);
+      if (supportsImage) imageProviders++;
+      if (hasUrl) {
+        log(`[Env] INFO: ${name} custom base URL configured (${urlVar})`);
+      }
+    } else if (hasUrl) {
+      log(`[Env] WARNING: ${name} base URL is set but ${keyVar} is missing`);
     }
   }
 

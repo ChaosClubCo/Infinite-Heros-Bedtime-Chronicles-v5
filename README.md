@@ -66,9 +66,13 @@ See [`.env.example`](./.env.example) for all variables with inline descriptions.
 | Variable | Required | Description |
 |----------|---------|-------------|
 | `AI_INTEGRATIONS_GEMINI_API_KEY` | Yes (min 1 AI key) | Primary AI provider (Gemini 2.5-flash) |
+| `AI_INTEGRATIONS_GEMINI_BASE_URL` | Optional | Custom/proxy base URL override for Gemini API |
 | `AI_INTEGRATIONS_OPENAI_API_KEY` | Recommended | AI fallback + voice chat |
+| `AI_INTEGRATIONS_OPENAI_BASE_URL` | Optional | Custom/proxy base URL override for OpenAI API |
 | `AI_INTEGRATIONS_ANTHROPIC_API_KEY` | Recommended | AI story generation (priority 1) |
+| `AI_INTEGRATIONS_ANTHROPIC_BASE_URL` | Optional | Custom/proxy base URL override for Anthropic API |
 | `AI_INTEGRATIONS_OPENROUTER_API_KEY` | Optional | xAI / Mistral / Cohere / Meta Llama fallbacks |
+| `AI_INTEGRATIONS_OPENROUTER_BASE_URL` | Optional | Custom/proxy base URL override for OpenRouter API |
 | `ELEVENLABS_API_KEY` | Optional | TTS narration |
 | `DATABASE_URL` | Optional | PostgreSQL — required for voice chat |
 | `FIREBASE_SERVICE_ACCOUNT_KEY` | Optional (prod required) | Firebase Admin; omit to bypass auth in dev |

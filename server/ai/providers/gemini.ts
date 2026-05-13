@@ -5,12 +5,15 @@ let client: GoogleGenAI | null = null;
 
 function getClient(): GoogleGenAI {
   if (!client) {
+    const baseUrl = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL;
     client = new GoogleGenAI({
       apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-      httpOptions: {
-        apiVersion: "",
-        baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-      },
+      httpOptions: baseUrl
+        ? {
+            apiVersion: "",
+            baseUrl,
+          }
+        : undefined,
     });
   }
   return client;
@@ -22,7 +25,7 @@ export const geminiProvider: AIProvider = {
   capabilities: { text: true, image: true, streaming: true },
 
   isAvailable(): boolean {
-    return !!(process.env.AI_INTEGRATIONS_GEMINI_API_KEY && process.env.AI_INTEGRATIONS_GEMINI_BASE_URL);
+    return !!process.env.AI_INTEGRATIONS_GEMINI_API_KEY;
   },
 
   async generateText(req: TextGenerationRequest): Promise<TextGenerationResponse> {

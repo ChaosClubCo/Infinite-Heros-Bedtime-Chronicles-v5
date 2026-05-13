@@ -4,8 +4,8 @@ import type { AIProvider, TextGenerationRequest, TextGenerationResponse, ImageGe
 function getIntegrationsClient(): OpenAI | null {
   const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
   const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
-  if (!apiKey || !baseURL) return null;
-  return new OpenAI({ apiKey, baseURL });
+  if (!apiKey) return null;
+  return new OpenAI({ apiKey, baseURL: baseURL || undefined });
 }
 
 function getDirectClient(): OpenAI | null {
@@ -21,7 +21,7 @@ export const openaiProvider: AIProvider = {
 
   isAvailable(): boolean {
     return !!(
-      (process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) ||
+      process.env.AI_INTEGRATIONS_OPENAI_API_KEY ||
       process.env.OPENAI_API_KEY
     );
   },

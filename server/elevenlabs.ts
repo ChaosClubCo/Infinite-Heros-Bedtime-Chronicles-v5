@@ -1,37 +1,11 @@
 import { ElevenLabsClient } from 'elevenlabs';
 
 async function getCredentials(): Promise<string> {
-  // Priority 1: Direct API key (most reliable, survives re-wires)
-  if (process.env.ELEVENLABS_API_KEY) {
-    return process.env.ELEVENLABS_API_KEY;
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  if (!apiKey) {
+    throw new Error('ElevenLabs not configured: set ELEVENLABS_API_KEY');
   }
-
-  // Priority 2: Replit Connectors (dynamic, but fragile)
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY
-    ? 'repl ' + process.env.REPL_IDENTITY
-    : process.env.WEB_REPL_RENEWAL
-    ? 'depl ' + process.env.WEB_REPL_RENEWAL
-    : null;
-
-  if (!hostname || !xReplitToken) {
-    throw new Error('ElevenLabs not configured: set ELEVENLABS_API_KEY or connect via Replit Connectors');
-  }
-
-  const connectionSettings = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=elevenlabs',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X_REPLIT_TOKEN': xReplitToken
-      }
-    }
-  ).then(res => res.json()).then(data => data.items?.[0]);
-
-  if (!connectionSettings?.settings?.api_key) {
-    throw new Error('ElevenLabs connector not available — reconnect in Replit Settings → Connectors');
-  }
-  return connectionSettings.settings.api_key;
+  return apiKey;
 }
 
 export async function getElevenLabsClient() {
