@@ -7,6 +7,7 @@ on:
 
 env:
   HEALTH_CHECK_URL: "https://bedtime-chronicles.com/api/health"
+  VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
 
 jobs:
   trigger-vercel-deploy:
@@ -16,7 +17,11 @@ jobs:
     steps:
       - name: Trigger Vercel Deploy Hook
         run: |
-          curl -X POST "https://api.vercel.com/v1/integrations/deploy/prj_myNZG165UNikhCELMHP8gsTLCnf4/LzEiHWlfqI"
+          if [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            echo "❌ Missing VERCEL_DEPLOY_HOOK_URL secret"
+            exit 1
+          fi
+          curl -fsS -X POST "$VERCEL_DEPLOY_HOOK_URL"
       
       - name: Notify deployment triggered
         run: echo "✅ Vercel deployment triggered successfully"
