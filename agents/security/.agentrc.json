@@ -1,5 +1,5 @@
 {
-  "auditLevel": "high",
+  "auditLevel": "critical",
   "maxFileSizeBytes": 1048576,
   "ignoreDirectories": [
     ".git",
