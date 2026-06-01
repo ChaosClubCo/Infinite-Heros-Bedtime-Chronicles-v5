@@ -108,7 +108,7 @@ npm run preflight         # typecheck + lint + test in one command
 ## Deployment
 
 - **Replit (primary):** Click **Deploy** in the Replit workspace. See [`docs/runbooks/deploy.md`](docs/runbooks/deploy.md) for the full procedure.
-- **Vercel:** `api/server.mjs` is the serverless entry point. Config in `vercel.json`.
+- **Vercel:** `api/server.mjs` is the serverless entry point. Config in `vercel.json`. **Production deploys must currently be triggered via the Vercel CLI** — see [`DEPLOY.md`](DEPLOY.md) for the reason (Hobby plan + private repo commit-author check) and the exact commands.
 - **Android (Play Store):** Use EAS Build — see [`docs/operations/PLAY_STORE_DEPLOYMENT.md`](docs/operations/PLAY_STORE_DEPLOYMENT.md).
 
 Build commands:
