@@ -56,7 +56,7 @@
     "expo-crypto": "^55.0.15",
     "expo-font": "~55.0.6",
     "expo-glass-effect": "~55.0.11",
-    "expo-haptics": "~55.0.14",
+    "expo-haptics": "~56.0.3",
     "expo-image": "~56.0.9",
     "expo-image-picker": "~55.0.20",
     "expo-linear-gradient": "~55.0.14",
