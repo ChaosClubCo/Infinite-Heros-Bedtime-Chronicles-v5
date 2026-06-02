@@ -97,6 +97,8 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@expo/ngrok": "^4.1.0",
+    "@react-native/metro-babel-transformer": "^0.85.3",
+    "@react-native/metro-config": "^0.85.3",
     "@types/express": "^5.0.0",
     "@types/pg": "^8.20.0",
     "@types/react": "~19.2.14",
