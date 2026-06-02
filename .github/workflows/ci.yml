@@ -25,6 +25,16 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
+      - name: Verify package-lock.json is in sync with package.json
+        # Lockfile drift has broken `npm ci` twice. This catches it early with a
+        # readable diff instead of npm ci's cryptic EUSAGE: regenerate the lock
+        # from package.json metadata only (no install, no scripts) and fail if it
+        # would change. If this step fails, run `npm install` locally and commit
+        # the regenerated package-lock.json.
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          git diff --exit-code package-lock.json
+
       - name: Install dependencies
         run: npm ci
 

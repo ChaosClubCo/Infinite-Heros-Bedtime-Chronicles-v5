@@ -49,6 +49,14 @@ jobs:
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
+    # The analyze step calls the Actions API (run telemetry + scanning the
+    # workflow files themselves), which requires actions:read. A job-level
+    # permissions block overrides the workflow default and sets every unlisted
+    # scope to none, so the scopes CodeQL needs are restated here explicitly.
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
 
     steps:
       - name: Checkout
