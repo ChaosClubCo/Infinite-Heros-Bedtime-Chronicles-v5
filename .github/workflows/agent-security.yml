@@ -49,6 +49,10 @@ jobs:
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
+    # continue-on-error: GitHub Code Scanning must be enabled in repo Settings →
+    # Security → Code scanning before results can upload. Until then the upload
+    # step returns a configuration error; we allow it so it doesn't gate merges.
+    continue-on-error: true
     # The analyze step calls the Actions API (run telemetry + scanning the
     # workflow files themselves), which requires actions:read. A job-level
     # permissions block overrides the workflow default and sets every unlisted
