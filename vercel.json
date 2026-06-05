@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "nodejs": "22.x",
   "installCommand": "npm ci --include=dev",
   "buildCommand": "npm run server:build",
   "outputDirectory": ".",
