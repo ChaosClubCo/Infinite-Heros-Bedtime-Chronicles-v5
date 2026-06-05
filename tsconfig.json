@@ -26,6 +26,7 @@
     "attached_assets",
     "server_dist",
     "static-build",
-    "**/*.test.ts"
+    "**/*.test.ts",
+    ".agents/**"
   ]
 }
