@@ -5,6 +5,8 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { OfflineBanner } from "@/components/OfflineBanner";
+import { useNetworkStatus } from "@/lib/useNetworkStatus";
 import { getOnboardingComplete } from "@/lib/storage";
 import { queryClient, setAuthTokenGetter } from "@/lib/query-client";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
@@ -30,6 +32,12 @@ import {
 import Colors from "@/constants/colors";
 
 SplashScreen.preventAutoHideAsync();
+
+function OfflineIndicator() {
+  const { isConnected } = useNetworkStatus();
+  if (isConnected) return null;
+  return <OfflineBanner />;
+}
 
 function RootLayoutNav() {
   return (
@@ -83,6 +91,10 @@ function RootLayoutNav() {
         name="trophies"
         options={{ animation: "slide_from_right" }}
       />
+      <Stack.Screen
+        name="voice-chat"
+        options={{ animation: "slide_from_right" }}
+      />
     </Stack>
   );
 }
@@ -127,6 +139,7 @@ export default function RootLayout() {
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
                   <StatusBar style="light" />
+                  <OfflineIndicator />
                   <RootLayoutNav />
                 </KeyboardProvider>
               </GestureHandlerRootView>

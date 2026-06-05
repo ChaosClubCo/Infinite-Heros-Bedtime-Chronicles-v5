@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   VOICE_MAP,
   MODE_DEFAULT_VOICES,
@@ -113,6 +113,34 @@ describe("getVoicesForMode", () => {
   it("returns all voices for empty mode", () => {
     const voices = getVoicesForMode("");
     expect(voices).toHaveLength(Object.keys(VOICE_MAP).length);
+  });
+});
+
+describe("generateSpeech error handling", () => {
+  const originalEnv = process.env.ELEVENLABS_API_KEY;
+
+  afterEach(() => {
+    process.env.ELEVENLABS_API_KEY = originalEnv;
+    vi.restoreAllMocks();
+  });
+
+  it("throws an Error (not a raw exception) when ElevenLabs is not configured", async () => {
+    delete process.env.ELEVENLABS_API_KEY;
+    const { generateSpeech } = await import("../../server/elevenlabs");
+    await expect(generateSpeech("hello", "moonbeam")).rejects.toThrow(Error);
+  });
+
+  it("wraps API failures in a descriptive Error", async () => {
+    process.env.ELEVENLABS_API_KEY = "test-key";
+    const { getElevenLabsClient } = await import("../../server/elevenlabs");
+    vi.spyOn(await import("../../server/elevenlabs"), "getElevenLabsClient").mockResolvedValue({
+      textToSpeech: {
+        convert: vi.fn().mockRejectedValue(new Error("API rate limit exceeded")),
+      },
+    } as unknown as Awaited<ReturnType<typeof getElevenLabsClient>>);
+
+    const { generateSpeech } = await import("../../server/elevenlabs");
+    await expect(generateSpeech("hello", "moonbeam")).rejects.toThrow("TTS generation failed");
   });
 });
 

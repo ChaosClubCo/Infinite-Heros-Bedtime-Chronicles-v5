@@ -310,6 +310,9 @@ export async function checkAndAwardBadges(
   const totalStories = stories.length;
   const modeCount = (m: string) => stories.filter((s) => s.mode === m).length;
   const uniqueHeroes = new Set(stories.map((s) => s.heroId));
+  const vocabWordsLearned = new Set(
+    stories.filter((s) => s.story?.vocabWord?.word).map((s) => s.story.vocabWord.word)
+  ).size;
 
   for (const def of BADGE_DEFINITIONS) {
     if (existingIds.has(def.id)) continue;
@@ -319,7 +322,7 @@ export async function checkAndAwardBadges(
       case 'first_story': earned = totalStories >= 1; break;
       case 'night_story': earned = hour >= 20; break;
       case 'morning_story': earned = hour >= 5 && hour < 10; break;
-      case 'all_heroes': earned = uniqueHeroes.size >= HEROES.length; break;
+      case 'all_heroes': earned = HEROES.every((h) => uniqueHeroes.has(h.id)); break;
       case 'madlibs_3': earned = modeCount('madlibs') >= 3; break;
       case 'sleep_3': earned = modeCount('sleep') >= 3; break;
       case 'classic_5': earned = modeCount('classic') >= 5; break;
@@ -327,7 +330,7 @@ export async function checkAndAwardBadges(
       case 'streak_7': earned = streak.currentStreak >= 7; break;
       case 'total_10': earned = totalStories >= 10; break;
       case 'total_25': earned = totalStories >= 25; break;
-      case 'vocab_5': earned = totalStories >= 5; break;
+      case 'vocab_5': earned = vocabWordsLearned >= 5; break;
     }
 
     if (earned) {

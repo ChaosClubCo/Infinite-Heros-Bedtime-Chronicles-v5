@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 
 export const conversations = pgTable("conversations", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().default("anonymous"),
   title: text("title").notNull(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
@@ -20,6 +21,7 @@ export const messages = pgTable("messages", {
 export const insertConversationSchema = createInsertSchema(conversations).omit({
   id: true,
   createdAt: true,
+  userId: true,
 });
 
 export const insertMessageSchema = createInsertSchema(messages).omit({

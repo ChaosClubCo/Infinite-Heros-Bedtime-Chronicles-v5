@@ -155,27 +155,31 @@ export function getVoicesForMode(mode: string): string[] {
 }
 
 export async function generateSpeech(text: string, voiceKey: string, modeOverride?: string): Promise<Buffer> {
-  const client = await getElevenLabsClient();
-  const voiceInfo = VOICE_MAP[voiceKey.toLowerCase()] || VOICE_MAP["moonbeam"];
+  try {
+    const client = await getElevenLabsClient();
+    const voiceInfo = VOICE_MAP[voiceKey.toLowerCase()] || VOICE_MAP["moonbeam"];
 
-  let settings = { ...voiceInfo.settings };
+    let settings = { ...voiceInfo.settings };
 
-  if (modeOverride === "sleep" && voiceInfo.category !== "sleep") {
-    settings.stability = Math.min(settings.stability + 0.15, 0.95);
-    settings.style = Math.max(settings.style - 0.10, 0.0);
-    settings.use_speaker_boost = false;
+    if (modeOverride === "sleep" && voiceInfo.category !== "sleep") {
+      settings.stability = Math.min(settings.stability + 0.15, 0.95);
+      settings.style = Math.max(settings.style - 0.10, 0.0);
+      settings.use_speaker_boost = false;
+    }
+
+    const audioStream = await client.textToSpeech.convert(voiceInfo.id, {
+      text,
+      model_id: "eleven_multilingual_v2",
+      output_format: "mp3_44100_128",
+      voice_settings: settings,
+    });
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of audioStream) {
+      chunks.push(Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  } catch (err) {
+    throw new Error(`TTS generation failed: ${err instanceof Error ? err.message : String(err)}`);
   }
-
-  const audioStream = await client.textToSpeech.convert(voiceInfo.id, {
-    text,
-    model_id: "eleven_multilingual_v2",
-    output_format: "mp3_44100_128",
-    voice_settings: settings,
-  });
-
-  const chunks: Buffer[] = [];
-  for await (const chunk of audioStream) {
-    chunks.push(Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks);
 }

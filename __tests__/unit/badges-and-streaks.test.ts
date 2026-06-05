@@ -306,6 +306,41 @@ describe("checkAndAwardBadges", () => {
     expect(allHeroes).toBeDefined();
   });
 
+  it("does NOT award 'all-heroes' when only custom hero IDs used (not all templates)", async () => {
+    // 8 custom heroes with non-template IDs — should not satisfy "use every hero template"
+    const stories = Array.from({ length: 8 }, (_, i) =>
+      makeStory({ heroId: `custom-hero-${i}` })
+    );
+    await mockAsyncStorage.setItem("@infinity_heroes_stories", JSON.stringify(stories));
+
+    const newBadges = await checkAndAwardBadges(PROFILE_ID, "s-1", "classic", "custom-hero-0");
+    const allHeroes = newBadges.find((b) => b.id === "all-heroes");
+    expect(allHeroes).toBeUndefined();
+  });
+
+  it("awards 'vocabulary-star' when 5 distinct vocab words learned", async () => {
+    const words = ["brave", "curious", "gentle", "radiant", "swift"];
+    const stories = words.map((word) =>
+      makeStory({ story: { title: "T", parts: [{ text: "...", partIndex: 0 }], vocabWord: { word, definition: `def of ${word}` }, joke: "ha", lesson: "be kind", tomorrowHook: "next", rewardBadge: { emoji: "x", title: "x", description: "x" } } })
+    );
+    await mockAsyncStorage.setItem("@infinity_heroes_stories", JSON.stringify(stories));
+
+    const newBadges = await checkAndAwardBadges(PROFILE_ID, "s-1", "classic", "hero-1");
+    const vocabBadge = newBadges.find((b) => b.id === "vocabulary-star");
+    expect(vocabBadge).toBeDefined();
+  });
+
+  it("does NOT award 'vocabulary-star' when 5 stories share the same vocab word", async () => {
+    const stories = Array.from({ length: 5 }, () =>
+      makeStory() // all use word: "test" by default
+    );
+    await mockAsyncStorage.setItem("@infinity_heroes_stories", JSON.stringify(stories));
+
+    const newBadges = await checkAndAwardBadges(PROFILE_ID, "s-1", "classic", "hero-1");
+    const vocabBadge = newBadges.find((b) => b.id === "vocabulary-star");
+    expect(vocabBadge).toBeUndefined();
+  });
+
   it("awards streak badges when streak data qualifies", async () => {
     const stories = [makeStory()];
     await mockAsyncStorage.setItem("@infinity_heroes_stories", JSON.stringify(stories));

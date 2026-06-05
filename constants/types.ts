@@ -114,7 +114,7 @@ export const BADGE_DEFINITIONS = [
   { id: 'story-streak-7', emoji: '💎', title: 'Diamond Reader', description: '7-day story streak', condition: 'streak_7' },
   { id: 'bookworm', emoji: '📚', title: 'Bookworm', description: 'Completed 10 stories total', condition: 'total_10' },
   { id: 'legend', emoji: '👑', title: 'Story Legend', description: 'Completed 25 stories total', condition: 'total_25' },
-  { id: 'vocabulary-star', emoji: '📖', title: 'Story Apprentice', description: 'Completed 5 stories on your journey!', condition: 'vocab_5' },
+  { id: 'vocabulary-star', emoji: '📖', title: 'Word Wizard', description: 'Learned 5 vocabulary words on your adventures!', condition: 'vocab_5' },
 ] as const;
 
 export const CONTENT_THEMES = [

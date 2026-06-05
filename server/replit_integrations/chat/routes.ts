@@ -18,12 +18,13 @@ function parseIdParam(raw: string | string[]): number | null {
 }
 
 export function registerChatRoutes(app: Express): void {
-  // Get all conversations (with optional pagination)
+  // Get all conversations (with optional pagination) — scoped to the requesting user
   app.get("/api/conversations", async (req: Request, res: Response) => {
     try {
+      const userId = req.user?.uid ?? "anonymous";
       const limit = Math.min(Math.max(parseInt(String(req.query.limit), 10) || 50, 1), 200);
       const offset = Math.max(parseInt(String(req.query.offset), 10) || 0, 0);
-      const conversations = await chatStorage.getAllConversations();
+      const conversations = await chatStorage.getAllConversations(userId);
       const paginated = conversations.slice(offset, offset + limit);
       res.json({ data: paginated, total: conversations.length, limit, offset });
     } catch (error) {
@@ -32,14 +33,15 @@ export function registerChatRoutes(app: Express): void {
     }
   });
 
-  // Get single conversation with messages
+  // Get single conversation with messages — returns 404 if not owned by requester
   app.get("/api/conversations/:id", async (req: Request, res: Response) => {
     try {
       const id = parseIdParam(req.params.id);
       if (id === null) {
         return res.status(400).json({ error: "Invalid conversation ID" });
       }
-      const conversation = await chatStorage.getConversation(id);
+      const userId = req.user?.uid ?? "anonymous";
+      const conversation = await chatStorage.getConversation(id, userId);
       if (!conversation) {
         return res.status(404).json({ error: "Conversation not found" });
       }
@@ -54,11 +56,12 @@ export function registerChatRoutes(app: Express): void {
   // Create new conversation
   app.post("/api/conversations", async (req: Request, res: Response) => {
     try {
+      const userId = req.user?.uid ?? "anonymous";
       const { title } = req.body;
       const sanitizedTitle = typeof title === "string"
         ? title.trim().slice(0, MAX_TITLE_LENGTH) || "New Chat"
         : "New Chat";
-      const conversation = await chatStorage.createConversation(sanitizedTitle);
+      const conversation = await chatStorage.createConversation(sanitizedTitle, userId);
       res.status(201).json(conversation);
     } catch (error) {
       console.error("Error creating conversation:", error);
@@ -66,14 +69,15 @@ export function registerChatRoutes(app: Express): void {
     }
   });
 
-  // Delete conversation
+  // Delete conversation — silently ignores if not owned by requester
   app.delete("/api/conversations/:id", async (req: Request, res: Response) => {
     try {
       const id = parseIdParam(req.params.id);
       if (id === null) {
         return res.status(400).json({ error: "Invalid conversation ID" });
       }
-      await chatStorage.deleteConversation(id);
+      const userId = req.user?.uid ?? "anonymous";
+      await chatStorage.deleteConversation(id, userId);
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting conversation:", error);
