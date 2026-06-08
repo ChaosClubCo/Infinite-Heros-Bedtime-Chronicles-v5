@@ -66,7 +66,7 @@
     "expo-speech": "^56.0.3",
     "expo-splash-screen": "~55.0.21",
     "expo-status-bar": "~56.0.4",
-    "expo-symbols": "~55.0.7",
+    "expo-symbols": "~56.0.6",
     "expo-system-ui": "~56.0.5",
     "expo-web-browser": "~56.0.5",
     "express": "^5.0.1",
