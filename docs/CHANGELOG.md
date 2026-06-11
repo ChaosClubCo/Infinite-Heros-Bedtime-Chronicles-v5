@@ -2,6 +2,37 @@
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
 
+## [Unreleased] — 2026-06-11 — Ground-truth pass: doc/code reconciliation + bug fixes
+
+Phase 1 of the launch-readiness plan: reconcile documentation with the actual
+codebase and fix the genuine defects that reconciliation surfaced.
+
+### Fixed
+- **`all_heroes` ("Hero Collector") badge excluded custom heroes** — the check
+  required every built-in hero (`lib/storage.ts`), so children who only play
+  with custom heroes could never earn it. Now counts distinct heroes used
+  (built-in or custom) against the roster size, so the bar is unchanged for
+  built-in users and custom heroes count toward it. Badge description updated.
+- **AI router streaming reported the wrong `model`** — streaming chunks emitted
+  `provider.name` (e.g. `"gemini"`) instead of the real model ID. Added an
+  optional `textModel` to each provider and the `AIProvider` interface;
+  `server/ai/router.ts` now reports `provider.textModel ?? provider.name`.
+- **`/api/suggest-settings` re-parsed AI JSON with a greedy regex** — switched
+  the endpoint to `jsonMode: true` and now consumes `response.parsedJson`
+  (parsed once by the router via `extractFirstJson`), removing the duplicate
+  `\{[\s\S]*\}` parse in `server/routes.ts`.
+
+### Docs
+- Corrected stale `CLAUDE.md` claims now contradicted by the code: OfflineBanner
+  and `useNetworkStatus` are wired into `app/_layout.tsx`; the voice chat UI
+  exists at `app/voice-chat.tsx`; the parent PIN is SHA-256 + salt (not
+  plaintext); the AI-router JSON extraction uses `extractFirstJson()` (not a
+  greedy regex).
+- Documented three implemented-but-undocumented endpoints in `docs/API.md`:
+  `GET /api/metrics`, `GET /privacy`, `GET /api/music-info/:mode`.
+- Marked the three 2026-03-27 audit docs as historical snapshots with a
+  remediation pointer to this changelog.
+
 ## [Unreleased] — 2026-04-24 — Thorough audit + remediation
 
 Three-way audit (code quality, security, docs-vs-code accuracy) followed by a

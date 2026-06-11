@@ -36,6 +36,27 @@ Returns availability status of all configured AI providers.
 { "providers": { "gemini": true, "openai": true, "anthropic": false, "openrouter": true } }
 ```
 
+### `GET /api/metrics`
+Returns in-process metrics (request counters, AI call counts/failures, error rate, token usage, and latency percentiles by provider). Intended for monitoring; not client-facing.
+
+**Response:**
+```json
+{
+  "requests": { "total": 0, "byStatus": {} },
+  "ai": {
+    "calls": 0,
+    "failures": 0,
+    "errorRate": "0%",
+    "totalTokens": {},
+    "latency": { "p50": 0, "p95": 0, "p99": 0 },
+    "byProvider": {}
+  }
+}
+```
+
+### `GET /privacy`
+Serves the static privacy-policy HTML page (`server/templates/privacy-policy.html`). Returns `text/html`, or `404 { "error": "Privacy policy not found" }` if the template is missing. Not a JSON API endpoint.
+
 ---
 
 ## Story Generation
@@ -217,6 +238,14 @@ Lists all available narrator voices with metadata.
 Serves background music for a story mode (`classic`, `madlibs`, or `sleep`).
 
 **Response:** `audio/mpeg` binary
+
+### `GET /api/music-info/:mode`
+Returns metadata about the available music tracks for a story mode. Validates `:mode` against the allowed modes (`400 { "error": "Invalid mode" }` otherwise).
+
+**Response:**
+```json
+{ "trackCount": 3 }
+```
 
 ---
 

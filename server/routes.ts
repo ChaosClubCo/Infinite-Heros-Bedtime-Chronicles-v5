@@ -392,26 +392,27 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
         temperature: 0.7,
         maxTokens: 2048,
         thinkingBudget: 0,
+        jsonMode: true,
       });
 
       req.log?.info({ provider: aiResponse.provider, model: aiResponse.model }, 'suggestion generated');
 
-      let text = aiResponse.text?.trim() || "";
-      text = text.replace(/```json\s*/g, "").replace(/```\s*/g, "");
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
+      // The router parses + validates JSON (via extractFirstJson) when jsonMode is set,
+      // so consume parsedJson directly rather than re-parsing the raw text here.
+      if (!aiResponse.parsedJson || typeof aiResponse.parsedJson !== "object") {
         req.log?.error('suggest-settings: no JSON in AI response');
         return res.status(500).json({ error: "Invalid AI response" });
       }
 
-      const suggestion = JSON.parse(jsonMatch[0]);
+      const raw = aiResponse.parsedJson as Record<string, unknown>;
 
-      if (!(VALID_MODES as readonly string[]).includes(suggestion.mode)) suggestion.mode = "classic";
-      if (!(VALID_DURATIONS as readonly string[]).includes(suggestion.duration)) suggestion.duration = "medium";
-      if (!["gentle", "medium", "normal"].includes(suggestion.speed)) suggestion.speed = "medium";
-      if (!voiceKeys.includes(suggestion.voice)) suggestion.voice = MODE_DEFAULT_VOICES[suggestion.mode] || "moonbeam";
-      if (typeof suggestion.tip !== "string") suggestion.tip = "A great story awaits!";
-      suggestion.tip = suggestion.tip.slice(0, 120);
+      const mode = (VALID_MODES as readonly string[]).includes(raw.mode as string) ? (raw.mode as string) : "classic";
+      const duration = (VALID_DURATIONS as readonly string[]).includes(raw.duration as string) ? (raw.duration as string) : "medium";
+      const speed = ["gentle", "medium", "normal"].includes(raw.speed as string) ? (raw.speed as string) : "medium";
+      const voice = voiceKeys.includes(raw.voice as string) ? (raw.voice as string) : (MODE_DEFAULT_VOICES[mode] || "moonbeam");
+      const tip = (typeof raw.tip === "string" ? raw.tip : "A great story awaits!").slice(0, 120);
+
+      const suggestion = { mode, duration, speed, voice, tip };
 
       res.json(suggestion);
     } catch (error: unknown) {

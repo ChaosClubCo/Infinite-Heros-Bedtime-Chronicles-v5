@@ -1,5 +1,7 @@
 # Security Audit Report — Infinity Heroes: Bedtime Chronicles v5
 
+> **Status: historical snapshot — findings remediated.** The issues in this report were addressed in subsequent work; see `docs/CHANGELOG.md` and `docs/SECURITY-FIXES-2026-03-27.md` for what was fixed.
+
 **Date:** 2026-03-27 | **Auditor:** Security Engineer (AI Agent)
 
 ---

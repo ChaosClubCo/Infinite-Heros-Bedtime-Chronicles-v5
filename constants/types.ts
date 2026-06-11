@@ -106,7 +106,7 @@ export const BADGE_DEFINITIONS = [
   { id: 'first-adventure', emoji: '🌟', title: 'First Adventure', description: 'Completed your very first story!', condition: 'first_story' },
   { id: 'night-owl', emoji: '🦉', title: 'Night Owl', description: 'Listened to a story after 8 PM', condition: 'night_story' },
   { id: 'early-bird', emoji: '🐦', title: 'Early Bird', description: 'Started a story in the morning', condition: 'morning_story' },
-  { id: 'all-heroes', emoji: '🏆', title: 'Hero Collector', description: 'Used every hero at least once', condition: 'all_heroes' },
+  { id: 'all-heroes', emoji: '🏆', title: 'Hero Collector', description: 'Played with 8 different heroes!', condition: 'all_heroes' },
   { id: 'mad-libs-master', emoji: '🤪', title: 'Silly Storyteller', description: 'Completed 3 Mad Libs stories', condition: 'madlibs_3' },
   { id: 'dream-weaver', emoji: '🌙', title: 'Dream Weaver', description: 'Completed 3 Sleep mode stories', condition: 'sleep_3' },
   { id: 'classic-champion', emoji: '⚔️', title: 'Classic Champion', description: 'Completed 5 Classic stories', condition: 'classic_5' },

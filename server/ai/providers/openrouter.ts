@@ -38,6 +38,7 @@ function createOpenRouterProvider(providerKey: string): AIProvider {
   return {
     name: info.providerName,
     displayName: info.displayName,
+    textModel: info.model,
     capabilities: { text: true, image: false, streaming: true },
 
     isAvailable(): boolean {

@@ -322,7 +322,11 @@ export async function checkAndAwardBadges(
       case 'first_story': earned = totalStories >= 1; break;
       case 'night_story': earned = hour >= 20; break;
       case 'morning_story': earned = hour >= 5 && hour < 10; break;
-      case 'all_heroes': earned = HEROES.every((h) => uniqueHeroes.has(h.id)); break;
+      // "Hero Collector": count distinct heroes used (built-in OR custom). The old
+      // check required every built-in hero, so children who play only with custom
+      // heroes could never earn it. Threshold = roster size, so the bar is unchanged
+      // for built-in users while custom heroes now count toward it.
+      case 'all_heroes': earned = uniqueHeroes.size >= HEROES.length; break;
       case 'madlibs_3': earned = modeCount('madlibs') >= 3; break;
       case 'sleep_3': earned = modeCount('sleep') >= 3; break;
       case 'classic_5': earned = modeCount('classic') >= 5; break;
