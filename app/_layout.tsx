@@ -7,7 +7,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { useNetworkStatus } from "@/lib/useNetworkStatus";
-import { getOnboardingComplete } from "@/lib/storage";
+import { getOnboardingComplete, getConsentGiven } from "@/lib/storage";
 import { queryClient, setAuthTokenGetter } from "@/lib/query-client";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { ProfileProvider } from "@/lib/ProfileContext";
@@ -50,8 +50,16 @@ function RootLayoutNav() {
     >
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
+        name="parental-consent"
+        options={{ animation: "fade", gestureEnabled: false }}
+      />
+      <Stack.Screen
         name="welcome"
         options={{ animation: "fade", gestureEnabled: false }}
+      />
+      <Stack.Screen
+        name="privacy"
+        options={{ animation: "slide_from_right" }}
       />
       <Stack.Screen
         name="quick-create"
@@ -117,9 +125,13 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
-      getOnboardingComplete()
-        .then((done) => {
-          if (!done) {
+      // COPPA gate: verifiable parental consent must come before any
+      // data-collecting / AI feature, so it takes precedence over onboarding.
+      Promise.all([getConsentGiven(), getOnboardingComplete()])
+        .then(([consented, onboarded]) => {
+          if (!consented) {
+            router.replace("/parental-consent");
+          } else if (!onboarded) {
             router.replace("/welcome");
           }
         })

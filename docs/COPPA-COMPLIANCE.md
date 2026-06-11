@@ -149,29 +149,54 @@ The following fields from user input are transmitted to whichever AI provider is
 
 ## 5. Parental Consent Mechanism
 
-**Current status: No parental consent flow exists.**
+**Current status: Parental consent gate implemented (2026-06-11).**
 
-COPPA requires verifiable parental consent before collecting personal information from children under 13. The app currently:
+The app now blocks all data-collecting / AI features behind a one-time parental
+consent gate:
 
-- Has no age gate
-- Has no parental consent screen or flow
-- Collects child name and age (optional, but still collected) without parental consent verification
-- Has no privacy notice displayed to parents at first launch
+- `app/parental-consent.tsx` — shown at first launch before onboarding and before
+  any story creation. It uses a **parent gate** (an arithmetic challenge a young
+  child is unlikely to pass) followed by an explicit consent affirmation.
+- The screen discloses, in plain language, what is collected and where it goes
+  (device-only profile, story inputs sent to AI partners, optional Voice Chat
+  audio) and links to the full Privacy Policy (`app/privacy.tsx`).
+- Consent is persisted in `@infinity_heroes_parent_consent` with a timestamp and
+  a `CONSENT_VERSION` (`lib/storage.ts` `setParentConsent` / `getConsentGiven`).
+  Bumping `CONSENT_VERSION` (in `constants/types.ts`) re-prompts existing installs
+  when privacy practices materially change.
+- Routing enforcement lives in `app/_layout.tsx`: `getConsentGiven()` is checked
+  before `getOnboardingComplete()`, so an un-consented install is always sent to
+  the consent screen first.
 
-This is the most significant COPPA gap. See Section 6 for recommendations.
+**Note on consent strength:** the parent gate is a reasonable in-app barrier but
+is not, on its own, one of the FTC's enumerated "verifiable parental consent"
+methods (e.g. credit-card transaction, signed form). It is appropriate when the
+app does not transmit children's personal information to third parties; the
+strongest posture is to combine it with the client-side personalization approach
+in GAP 1/GAP 2 so that name/age never leave the device. See Section 6.
 
 ---
 
 ## 6. Gaps and Recommendations
 
-### GAP 1 — No Verifiable Parental Consent (Critical)
+### GAP 1 — Verifiable Parental Consent ⚠️ Partially Addressed
 
 **Risk:** High. COPPA requires verifiable parental consent before collecting personal information from children under 13. Child name and child age are personal information under 16 C.F.R. § 312.2.
 
-**Recommendation:**
-1. Add an age gate at first launch: if the app is used by a child under 13, require parental consent before any profile with a child name or age is created.
-2. Acceptable consent methods under the FTC's 2013 Rule include: credit card transaction, signed consent form returned by email/mail, or knowledge-based authentication for the parent.
-3. A simpler approach permitted by COPPA's "internal operations" exception: if child name and age are never transmitted off-device and are used solely for personalization within the app (i.e., never sent to AI providers), no consent is required. To use this exception, the `childName` and `childAge` fields must be stripped from all server API calls, with personalization done client-side only using the stored profile.
+**Implemented (2026-06-11):** A first-launch parental consent gate
+(`app/parental-consent.tsx`) with a parent gate + explicit consent affirmation,
+persisted via `CONSENT_VERSION` (see Section 5). This blocks story creation and
+Voice Chat until a parent consents and is the primary in-app notice.
+
+**Still recommended (to reach full "verifiable" consent):**
+1. The parent gate is a barrier, not one of the FTC's enumerated verifiable
+   methods (credit-card transaction, signed form, knowledge-based authentication).
+   Add one of those if children's personal information continues to be sent to
+   third parties.
+2. Preferred: rely on COPPA's "internal operations" path by stripping `childName`
+   and `childAge` from all server API calls and personalizing client-side only
+   (see GAP 2). With no children's PI leaving the device, the implemented
+   consent gate plus notice is a defensible posture.
 
 ### GAP 2 — Child Name and Age Sent to AI Providers Without DPA Coverage (High)
 
@@ -190,13 +215,22 @@ This is the most significant COPPA gap. See Section 6 for recommendations.
 1. Review and execute a DPA with ElevenLabs that covers COPPA.
 2. Or implement the client-side personalization approach from GAP 2 so that the child name never appears in server-side text.
 
-### GAP 4 — No Privacy Policy or Parental Notice (High)
+### GAP 4 — Privacy Policy & Parental Notice ✅ Addressed
 
 **Risk:** High. COPPA requires a clear and prominent privacy notice on the service and a separate, more detailed notice sent directly to parents.
 
-**Recommendation:**
-1. Create a publicly accessible Privacy Policy covering: what information is collected, how it is used, whether it is shared, and parental rights (access, deletion, refusal of further collection).
-2. Display a link to the Privacy Policy at first launch, in the app settings, and in the App Store / Play Store listing.
+**Implemented (2026-06-11):**
+1. A Privacy Policy is served at `GET /privacy` (`server/templates/privacy-policy.html`)
+   and is also available in-app, offline, at `app/privacy.tsx` covering what is
+   collected, how it is used, third-party sharing, retention, and parental rights.
+   The prior self-contradiction ("we don't collect personal information" vs. name/age
+   being sent to AI) has been corrected, and Voice Chat audio is now disclosed.
+2. The policy is linked at first launch (the consent screen), and from
+   **Settings → Legal → Privacy Policy**.
+
+**Remaining:** add the Privacy Policy URL to the Play Store / App Store listing
+during submission (Phase 3/5), and confirm the contact email
+(`privacy@bedtime-chronicles.com`) is monitored before launch.
 
 ### GAP 5 — Parent PIN Code Hashing ✅ Resolved
 

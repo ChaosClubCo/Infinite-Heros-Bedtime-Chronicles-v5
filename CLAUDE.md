@@ -41,6 +41,8 @@ app/                    # Expo Router screens (file-based routing)
   settings.tsx          # App settings (slide from right)
   trophies.tsx          # Badge collection view (slide from right)
   voice-chat.tsx        # Voice chat UI (conversation list + hold-to-speak; reached from profile tab)
+  parental-consent.tsx  # COPPA parental-consent gate (parent gate + consent; first-launch, before onboarding)
+  privacy.tsx           # In-app Privacy Policy screen (native, offline; linked from consent + settings)
   welcome.tsx           # Onboarding splash (fade animation)
 components/             # Reusable React Native components
   ErrorBoundary.tsx     # Error boundary wrapper
@@ -424,6 +426,7 @@ Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: 
 - `@infinity_heroes_parent_controls` — Parent controls (PIN stored as SHA-256 hash + salt, see Security Rules)
 - `@infinity_heroes_favorites` — Favorite stories
 - `@infinity_heroes_onboarding_complete` — Onboarding flag
+- `@infinity_heroes_parent_consent` — COPPA parental-consent record (`{ consented, consentedAt, version }`; gated on `CONSENT_VERSION`)
 - `@infinity_heroes_preferences` — Legacy key (auto-migrates to app_settings)
 - `@infinity_heroes_settings_migrated` — Migration flag for legacy → new settings
 - `@infinity_heroes_storage_version` — Storage-schema version tracked by `lib/storage-migration.ts`
@@ -535,6 +538,7 @@ npm run test:coverage   # vitest run --coverage
 - **`getReadStories` / `markStoryRead`** — wired into library screen (unread dot indicator) and completion screen (marks story read on completion)
 - **`server/replit_integrations/`** — backend routes are functional and the voice chat UI exists at `app/voice-chat.tsx` (reachable from the profile tab)
 - **Firebase auth is optional** — if `FIREBASE_SERVICE_ACCOUNT_KEY` is unset, all POSTs are treated as anonymous with IP-based rate-limit identity
+- **COPPA consent gate** — `app/_layout.tsx` checks `getConsentGiven()` before `getOnboardingComplete()`; an un-consented install is routed to `app/parental-consent.tsx` first. Consent is keyed by `CONSENT_VERSION` (`constants/types.ts`) — bump it to re-prompt existing installs when privacy practices change
 - **AI router JSON extraction** — `router.ts` uses `extractFirstJson()` (balanced-brace scan that skips string literals), not a greedy regex; callers consume `response.parsedJson` when `jsonMode` is set
 - **Streaming model field** — `router.ts` reports the provider's `textModel` (the concrete model ID) on streaming chunks, falling back to `provider.name` only when `textModel` is unset
 

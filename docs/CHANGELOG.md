@@ -2,6 +2,32 @@
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
 
+## [Unreleased] — 2026-06-11 — COPPA parental-consent gate + in-app privacy policy
+
+Phase 2 of the launch-readiness plan: make the app COPPA-defensible before any
+data-collecting or AI feature runs.
+
+### Added
+- **Parental consent gate** (`app/parental-consent.tsx`) — shown at first launch
+  before onboarding. A parent gate (arithmetic challenge) followed by an explicit
+  consent affirmation, with plain-language disclosure of what's collected and a
+  link to the full Privacy Policy. Consent is persisted in
+  `@infinity_heroes_parent_consent` keyed by `CONSENT_VERSION`
+  (`getConsentGiven` / `setParentConsent` in `lib/storage.ts`).
+- **In-app Privacy Policy screen** (`app/privacy.tsx`) — native, works offline,
+  linked from the consent screen and from **Settings → Legal**.
+- Routing enforcement in `app/_layout.tsx`: consent is checked before onboarding,
+  so an un-consented install always lands on the consent screen first.
+- Voice Chat now shows a short data-use note above the record button (it was
+  already behind the global consent gate).
+
+### Changed
+- Corrected the served Privacy Policy (`server/templates/privacy-policy.html`):
+  removed the "we don't collect personal information" vs. name/age-to-AI
+  contradiction, disclosed Voice Chat audio, and noted parental consent is required.
+- Updated `docs/COPPA-COMPLIANCE.md` §5 and GAP 1 / GAP 4 to reflect the
+  implemented consent gate and in-app privacy surface.
+
 ## [Unreleased] — 2026-06-11 — Ground-truth pass: doc/code reconciliation + bug fixes
 
 Phase 1 of the launch-readiness plan: reconcile documentation with the actual
