@@ -76,13 +76,6 @@ lib/                    # Client utilities
   query-client.ts       # TanStack React Query config (staleTime: Infinity, retry: false)
   query-client.test.ts  # Query client unit tests
   useNetworkStatus.ts   # NetInfo hook returning { isConnected, isInternetReachable } (used by app/_layout.tsx to gate OfflineBanner)
-  useStoryAudio.ts      # TTS narration playback hook (speak/stop, speed + voice cycling)
-  useBackgroundMusic.ts # Looping story-mode music hook
-  useSceneGeneration.ts # Scene illustration hook (per-part cache + retry backoff)
-  useVideoGeneration.ts # Scene video hook (parent-controls gated)
-  useSleepTimer.ts      # Sleep-mode countdown hook
-  useAutoAdvance.ts     # Sleep-mode auto-advance hook
-  useLoadingMessages.ts # Rotating generation-screen messages hook
 server/                 # Express.js backend
   index.ts              # Server bootstrap, security middleware, CORS, graceful shutdown
   routes.ts             # Route composer: auth gate + registers domain modules, returns HTTP server (~50 lines)
