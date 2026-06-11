@@ -2,6 +2,43 @@
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
 
+## [Unreleased] — 2026-06-11 — Code quality: story screen + routes refactor, provider tests
+
+Phase 4 of the launch-readiness plan (executed ahead of the deferred Phase 3 CI
+work; see `docs/superpowers/plans/2026-06-11-launch-readiness-phases.md`).
+**No functional changes** — behavior-preserving refactors plus new tests.
+
+### Changed
+- **`app/story.tsx` refactored from a 1067-line monolith to a ~386-line composition
+  shell.** Logic moved into `lib/` hooks (`useStoryAudio`, `useBackgroundMusic`,
+  `useSceneGeneration`, `useVideoGeneration`, `useSleepTimer`, `useAutoAdvance`,
+  `useLoadingMessages`); presentational pieces into `components/` (`StoryTopBar`,
+  `SleepTimerBar`, `StoryTextDisplay`, `StoryProgressBar`, `StoryChoices`,
+  `ChoiceButton`, `FloatingParticle`); mode themes/voices/loading messages/speed
+  rates into `constants/story-theme.ts`. The completion handoff
+  (`storyJson`/`scenesJson` params) is unchanged.
+- **`server/routes.ts` (558 lines) split into domain modules** under
+  `server/routes/` (health, story, images, tts, music, suggest, video), each
+  exporting `registerXxxRoutes(app)`. `routes.ts` remains a ~50-line composer
+  preserving the `registerRoutes(app): Promise<Server>` contract, so
+  `server/index.ts`, the Vercel bundle, and the integration suite are untouched.
+  Shared singletons live in `server/routes/context.ts`; the duplicated rate-limit
+  check, client-IP/uid extraction, error-response block, and TTS cache-path
+  construction were deduplicated into `server/routes/helpers.ts`.
+
+### Added
+- Unit tests for all four AI provider modules
+  (`server/ai/providers/*.test.ts`, 73 tests) and for `server/suno.ts` music
+  selection (8 tests). Suite: 929 → **1010 tests**; overall branch coverage
+  45.65% → 55.18%.
+- `docs/superpowers/plans/2026-06-11-launch-readiness-phases.md` — the 5-phase
+  launch-readiness plan, committed so it survives AI-session context loss.
+
+### Removed
+- Dead code in the story screen: unreferenced `seekAudio` callback, the local
+  `SPEED_LABELS`/`SPEED_ICONS` copies, and an unused `saveStoryScene` import
+  (see `docs/DEAD-CODE-TRIAGE.md`).
+
 ## [Unreleased] — 2026-06-11 — COPPA parental-consent gate + in-app privacy policy
 
 Phase 2 of the launch-readiness plan: make the app COPPA-defensible before any

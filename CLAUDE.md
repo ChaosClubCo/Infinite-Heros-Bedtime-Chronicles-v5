@@ -32,7 +32,7 @@ app/                    # Expo Router screens (file-based routing)
   _layout.tsx           # Root layout — providers: ErrorBoundary → QueryClient → Profile → Settings → Gesture → Keyboard
   (tabs)/               # Tab navigation (home, create, library, saved, profile)
     _layout.tsx          # Tab bar layout (5 tabs, 60px height + bottom inset)
-  story.tsx             # Story reading/playback (largest screen ~60KB / 1627 lines, fullScreen fade modal)
+  story.tsx             # Story reading/playback composition shell (~386 lines; logic in lib/use* hooks, UI in components/Story*, fullScreen fade modal)
   story-details.tsx     # Story customization wizard (slide from right)
   completion.tsx        # Post-story celebration + badge awarding (fullScreen fade modal)
   quick-create.tsx      # Fast onboarding hero creation (modal from bottom)
@@ -56,11 +56,14 @@ components/             # Reusable React Native components
   SettingsModal.tsx     # Settings overlay
   PulsingOrb.tsx        # Animated orb effect
   StarField.tsx         # Background star animation
+  StoryGeneratingView.tsx / StorySceneDisplay.tsx / StoryPlayerControls.tsx  # Story screen: generation view, scene image/video, player bar
+  StoryTopBar.tsx / SleepTimerBar.tsx / StoryTextDisplay.tsx / StoryProgressBar.tsx / StoryChoices.tsx / ChoiceButton.tsx / FloatingParticle.tsx  # Story screen presentational pieces
 constants/              # Types, hero templates, colors, timing
   types.ts              # Core TypeScript interfaces
   heroes.ts             # 8 pre-defined hero templates
   colors.ts             # Cosmic theme palette
   timing.ts             # Animation timing constants
+  story-theme.ts        # Story-mode themes, voices, loading messages, speed rates + StoryMode/StoryState/StoryTheme types
 lib/                    # Client utilities
   SettingsContext.tsx    # Unified settings provider (React Context)
   ProfileContext.tsx     # Child profile context
@@ -73,9 +76,17 @@ lib/                    # Client utilities
   query-client.ts       # TanStack React Query config (staleTime: Infinity, retry: false)
   query-client.test.ts  # Query client unit tests
   useNetworkStatus.ts   # NetInfo hook returning { isConnected, isInternetReachable } (used by app/_layout.tsx to gate OfflineBanner)
+  useStoryAudio.ts      # TTS narration playback hook (speak/stop, speed + voice cycling)
+  useBackgroundMusic.ts # Looping story-mode music hook
+  useSceneGeneration.ts # Scene illustration hook (per-part cache + retry backoff)
+  useVideoGeneration.ts # Scene video hook (parent-controls gated)
+  useSleepTimer.ts      # Sleep-mode countdown hook
+  useAutoAdvance.ts     # Sleep-mode auto-advance hook
+  useLoadingMessages.ts # Rotating generation-screen messages hook
 server/                 # Express.js backend
   index.ts              # Server bootstrap, security middleware, CORS, graceful shutdown
-  routes.ts             # All API endpoints (~18KB / ~550 lines, 30+ endpoints; post-extraction refactor)
+  routes.ts             # Route composer: auth gate + registers domain modules, returns HTTP server (~50 lines)
+  routes/               # Domain route modules (health, story, images, tts, music, suggest, video) + context.ts (singletons) + helpers.ts (rate-limit middleware, error/IP/cache-path helpers)
   auth.ts               # Firebase Admin bearer-token middleware (optional, lazy-init)
   validation.ts         # Zod request schemas + sanitizeString
   prompts.ts            # Story system/user prompt builders + CHILD_SAFETY_RULES
@@ -344,9 +355,9 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 ## Common Tasks
 
 ### Add a new API endpoint
-1. Add the route handler in `server/routes.ts` (or a new file under `server/`)
-2. Follow the existing pattern: validate input with a Zod schema in `server/validation.ts`, call logic, return JSON
-3. Apply `checkRateLimit` if the endpoint calls external APIs
+1. Add the route handler in the matching `server/routes/<domain>.ts` module (or create a new module exporting `registerXxxRoutes(app)` and call it from `server/routes.ts`)
+2. Follow the existing pattern: validate input with a Zod schema in `server/validation.ts`, call logic, return JSON; use `sendRouteError` from `server/routes/helpers.ts` in catch blocks
+3. Apply the `rateLimited()` middleware (`server/routes/helpers.ts`) if the endpoint calls external APIs
 4. Consider idempotency for expensive writes (use `IdempotencyCache.keyFromBody`)
 5. Document in `docs/API.md`
 6. Update `README.md` endpoint table if it's a primary endpoint
@@ -520,8 +531,8 @@ npm run test:coverage   # vitest run --coverage
 
 ## Known Gotchas
 
-- `app/story.tsx` is the most complex screen (~60KB / 1627 lines) — story playback with audio/image/video integration; top refactor candidate
-- `server/routes.ts` (~18KB / ~550 lines) was extracted; validation, prompts, rate-limit now live in their own files
+- `app/story.tsx` is a ~386-line composition shell — playback/music/scene/video/timer logic lives in `lib/use*.ts` hooks and presentational pieces in `components/Story*`; mode constants in `constants/story-theme.ts`
+- `server/routes.ts` is a ~50-line composer — handlers live in `server/routes/<domain>.ts` modules; shared singletons in `server/routes/context.ts`, request plumbing in `server/routes/helpers.ts`
 - **`npm run dev` does not exist** — use `npm run server:dev` + `npm run expo:dev` separately
 - **`expo:dev` requires Replit env vars** — outside Replit, use `npx expo start` directly
 - **`patches/expo-asset+12.0.12.patch`** — patch-package fix for Expo dev server HTTPS; removed when SDK 55+

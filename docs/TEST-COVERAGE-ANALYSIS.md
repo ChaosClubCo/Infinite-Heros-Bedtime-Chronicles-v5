@@ -2,7 +2,7 @@
 
 ## Current State
 
-**The codebase has a substantial and growing test suite.** Vitest v4 is fully configured (`vitest.config.ts`) with `@vitest/coverage-v8`. As of the 2026-04-24 audit, **919 tests pass** across 30+ test files. The `npm test` / `npm run test:coverage` scripts work.
+**The codebase has a substantial and growing test suite.** Vitest v4 is fully configured (`vitest.config.ts`) with `@vitest/coverage-v8`. As of the 2026-06-11 code-quality pass, **1010 tests pass** across 41 test files. The `npm test` / `npm run test:coverage` scripts work.
 
 **Test file inventory:**
 
@@ -10,21 +10,29 @@
 |----------|-------|
 | `__tests__/integration/` | `api-routes.test.ts` |
 | `__tests__/unit/` | `ai-router.test.ts`, `badges-and-streaks.test.ts`, `elevenlabs.test.ts`, `parent-controls.test.ts`, `routes-utils.test.ts`, `settings-migration.test.ts`, `storage-crud.test.ts`, `video.test.ts` |
-| `server/` | `circuit-breaker.test.ts`, `feature-flags.test.ts`, `idempotency.test.ts`, `load-shedding.test.ts`, `logger.test.ts`, `metrics.test.ts`, `prompts.test.ts`, `rate-limit.test.ts`, `retry.test.ts`, `routes.test.ts`, `security-fixes.test.ts`, `utils.test.ts`, `validation.test.ts` |
+| `server/` | `circuit-breaker.test.ts`, `feature-flags.test.ts`, `idempotency.test.ts`, `load-shedding.test.ts`, `logger.test.ts`, `metrics.test.ts`, `prompts.test.ts`, `rate-limit.test.ts`, `retry.test.ts`, `routes.test.ts`, `security-fixes.test.ts`, `suno.test.ts`, `utils.test.ts`, `validation.test.ts` |
 | `server/` (comprehensive) | `auth.comprehensive.test.ts`, `elevenlabs.comprehensive.test.ts`, `routes.comprehensive.test.ts`, `storage.comprehensive.test.ts`, `video.comprehensive.test.ts` |
 | `server/ai/` | `router.test.ts`, `router.comprehensive.test.ts` |
+| `server/ai/providers/` | `anthropic.test.ts`, `gemini.test.ts`, `openai.test.ts`, `openrouter.test.ts` |
 | `lib/` | `query-client.test.ts`, `storage.test.ts`, `storage-migration.test.ts`, `storage.comprehensive.test.ts` |
 | `shared/` | `schema.comprehensive.test.ts` |
 
-**Coverage summary (as of 2026-04-24):**
+**Coverage summary (as of 2026-06-11):**
 
 | Module | Statement | Branch |
 |--------|-----------|--------|
 | `server/ai/router.ts` | ~97% | ~84% |
-| `server/routes.ts` | ~51% | ~30% |
-| `server/elevenlabs.ts`, `video.ts`, `suno.ts`, `db.ts` | ~0% (mocked at module level) | — |
+| `server/ai/providers/*` | ~98% | ~95% |
+| `server/suno.ts` | 100% | ~93% |
+| `server/routes.ts` (composer) + `server/routes/*` | ~50% | ~33% |
+| `server/elevenlabs.ts`, `video.ts`, `db.ts` | ~0% (mocked at module level) | — |
+| **All files (`server/**` + `lib/**`)** | ~59% | ~55% |
 
-**Known coverage gap:** `supertest` was installed in the 2026-04-24 pass, enabling the 24-test integration suite in `__tests__/integration/api-routes.test.ts` to run (it was previously silently skipped).
+**Threshold note:** `vitest.config.ts` declares an 80% branch threshold, so `npm run test:coverage` exits non-zero. This pre-dates the 2026-06-11 pass (baseline was 45.65% branches; the pass raised it to 55.18%). The threshold is aspirational until elevenlabs/video module-level mocks are replaced with real unit tests.
+
+**Untested by design:** the story-screen hooks extracted to `lib/use*.ts` (useStoryAudio, useBackgroundMusic, useSceneGeneration, useVideoGeneration, useSleepTimer, useAutoAdvance, useLoadingMessages) import Expo native modules (expo-av, expo-haptics) and cannot load in the node test environment; there is no React Native testing infrastructure (no jest-expo / @testing-library/react-native). They count as 0% in coverage.
+
+**Known coverage gap:** `supertest` was installed in the 2026-04-24 pass, enabling the 24-test integration suite in `__tests__/integration/api-routes.test.ts` to run (it was previously silently skipped). The 2026-06-11 routes split (`server/routes.ts` → composer + `server/routes/*` domain modules) kept the `registerRoutes` import path, so the integration suite runs unchanged.
 
 **Codebase scope:** ~60 production TypeScript/TSX files across frontend screens (15), components (11), client libraries (5), server modules (17+), AI provider layer (7), shared schemas (2), and Replit integrations (11).
 
@@ -257,20 +265,21 @@ End-to-end tests for Express routes with mocked AI providers.
 
 ---
 
-### 12. AI Provider Implementations (`server/ai/providers/*.ts`) — MEDIUM
+### 12. AI Provider Implementations (`server/ai/providers/*.ts`) — ✅ DONE (2026-06-11)
 
-Four provider files implementing the `AIProvider` interface.
+Four provider files implementing the `AIProvider` interface. Covered by colocated
+`anthropic.test.ts`, `gemini.test.ts`, `openai.test.ts`, `openrouter.test.ts` (73 tests):
 
-**What to test:**
-- Each provider's `isAvailable()` returns true only when required env vars are set
-- Each provider's `capabilities` object is accurate (text, image, streaming flags)
-- Gemini: JSON mode sets `responseMimeType: "application/json"`
-- Gemini: thinking budget passed as `thinkingConfig`
-- OpenAI: prefers integrations client for text, direct client for images
-- OpenAI: handles both `b64_json` and `url` image response formats
-- Anthropic: extracts first "text" content block, returns "" if none
-- OpenRouter: factory creates 4 providers with correct model IDs (grok-3-mini, mistral-small-3.1, command-a, llama-4-scout)
-- All providers throw descriptive errors when not configured
+- Each provider's `isAvailable()` returns true only when required env vars are set ✅
+- Each provider's `capabilities` object is accurate (text, image, streaming flags) ✅
+- Gemini: JSON mode sets `responseMimeType: "application/json"` ✅
+- Gemini: thinking budget passed as `thinkingConfig` ✅
+- OpenAI: prefers integrations client for text, direct client for images ✅
+- OpenAI: handles both `b64_json` and `url` image response formats ✅
+- Anthropic: extracts first "text" content block, returns "" if none ✅
+- OpenRouter: factory creates 4 providers with correct model IDs (grok-3-mini, mistral-small-3.1, command-a, llama-4-scout) ✅
+- All providers throw descriptive errors when not configured ✅ — except Gemini, whose
+  module-level client cache never validates the key (documented quirk, locked by a test)
 
 ---
 
