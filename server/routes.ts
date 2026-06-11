@@ -3,46 +3,22 @@ import { createServer, type Server } from "node:http";
 import { generateSpeech, VOICE_MAP, MODE_DEFAULT_VOICES, getVoicesForMode } from "./elevenlabs";
 import { getMusicFilePath, getMusicTrackCount } from "./suno";
 import { createVideoJob, getVideoJob, getVideoFilePath, isVideoAvailable } from "./video";
-import { getAIRouter, getProviderStatuses, logProviderStatus } from "./ai";
+import { getProviderStatuses, logProviderStatus } from "./ai";
 import { registerAudioRoutes } from "./replit_integrations/audio";
 import { requireAuth } from "./auth";
 import { sanitizeString, StoryRequestSchema, AvatarRequestSchema, SceneRequestSchema, TtsRequestSchema, VideoRequestSchema, SuggestSettingsRequestSchema, VALID_MODES, VALID_DURATIONS } from "./validation";
 import { getStorySystemPrompt, getStoryUserPrompt, getPartCount, getWordCount, getRandomStyle, STORY_RESPONSE_SCHEMA } from "./prompts";
-import { checkRateLimit, cleanupExpiredEntries } from "./rate-limit";
-import { toErrorMessage, classifyError, createErrorResponse } from "./utils";
+import { classifyError, createErrorResponse } from "./utils";
 import { getFeatureFlags, isFeatureEnabled } from "./feature-flags";
 import { logger } from "./logger";
 import { getMetrics } from "./metrics";
 import { getActiveRequests } from "./load-shedding";
 import { IdempotencyCache } from "./idempotency";
-import { TtsCacheManager } from "./tts-cache";
 import { registerImageRoutes } from "./replit_integrations/image";
-import crypto from "node:crypto";
+import { aiRouter, idempotencyCache, TTS_CACHE_DIR } from "./routes/context";
+import { rateLimited, sendRouteError, ttsCachePathFor } from "./routes/helpers";
 import fs from "node:fs";
 import path from "node:path";
-
-const ttsCacheManager = new TtsCacheManager({
-  cacheDir: path.resolve("/tmp/tts-cache"),
-  maxAgeMs: parseInt(process.env.TTS_CACHE_MAX_AGE_MS || String(24 * 60 * 60 * 1000), 10),
-  maxSizeBytes: parseInt(process.env.TTS_CACHE_MAX_SIZE_BYTES || String(500 * 1024 * 1024), 10),
-});
-ttsCacheManager.ensureDir();
-
-const TTS_CACHE_DIR = ttsCacheManager.cacheDir;
-
-setInterval(async () => {
-  const { removedCount, freedBytes } = await ttsCacheManager.cleanup();
-  if (removedCount > 0) {
-    logger.info({ removedCount, freedBytes }, 'TTS cache cleanup');
-  }
-}, 60 * 60 * 1000);
-ttsCacheManager.cleanup();
-
-// Rate limit cleanup runs every 5 minutes
-setInterval(cleanupExpiredEntries, 5 * 60 * 1000);
-
-const aiRouter = getAIRouter();
-const idempotencyCache = new IdempotencyCache({ ttlMs: 5 * 60 * 1000, maxEntries: 200 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   logProviderStatus();
@@ -85,12 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ providers: getProviderStatuses() });
   });
 
-  app.post("/api/generate-story", async (req, res) => {
-    const clientIp = req.user?.uid || req.ip || req.socket.remoteAddress || "unknown";
-    if (!checkRateLimit(clientIp)) {
-      return res.status(429).json({ error: "Too many requests. Please wait a moment." });
-    }
-
+  app.post("/api/generate-story", rateLimited(), async (req, res) => {
     const parsed = StoryRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
@@ -156,18 +127,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(story);
     } catch (error: unknown) {
       idempotencyCache.delete(idempotencyKey);
-      req.log?.error({ err: error }, 'story generation failed');
-      const kind = classifyError(error);
-      res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to generate story', kind));
+      sendRouteError(req, res, error, 'story generation failed', 'Failed to generate story');
     }
   });
 
-  app.post("/api/generate-story-stream", async (req, res) => {
-    const clientIp = req.user?.uid || req.ip || req.socket.remoteAddress || "unknown";
-    if (!checkRateLimit(clientIp)) {
-      return res.status(429).json({ error: "Too many requests. Please wait a moment." });
-    }
-
+  app.post("/api/generate-story-stream", rateLimited(), async (req, res) => {
     const parsed = StoryRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
@@ -220,12 +184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/generate-avatar", async (req, res) => {
-    const clientIp = req.user?.uid || req.ip || req.socket.remoteAddress || "unknown";
-    if (!checkRateLimit(clientIp)) {
-      return res.status(429).json({ error: "Too many requests. Please wait a moment." });
-    }
-
+  app.post("/api/generate-avatar", rateLimited(), async (req, res) => {
     const parsed = AvatarRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
@@ -242,18 +201,11 @@ Style: ${artStyle}. Close-up friendly portrait, expressive eyes, child-safe cont
       req.log?.info({ provider: result.provider, model: result.model }, 'avatar generated');
       return res.json({ image: result.imageDataUri });
     } catch (error: unknown) {
-      req.log?.error({ err: error }, 'avatar generation failed');
-      const kind = classifyError(error);
-      res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to generate avatar', kind));
+      sendRouteError(req, res, error, 'avatar generation failed', 'Failed to generate avatar');
     }
   });
 
-  app.post("/api/generate-scene", async (req, res) => {
-    const clientIp = req.user?.uid || req.ip || req.socket.remoteAddress || "unknown";
-    if (!checkRateLimit(clientIp)) {
-      return res.status(429).json({ error: "Too many requests. Please wait a moment." });
-    }
-
+  app.post("/api/generate-scene", rateLimited(), async (req, res) => {
     const parsed = SceneRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
@@ -272,18 +224,11 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
       req.log?.info({ provider: result.provider, model: result.model }, 'scene generated');
       return res.json({ image: result.imageDataUri });
     } catch (error: unknown) {
-      req.log?.error({ err: error }, 'scene generation failed');
-      const kind = classifyError(error);
-      res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to generate scene', kind));
+      sendRouteError(req, res, error, 'scene generation failed', 'Failed to generate scene');
     }
   });
 
-  app.post("/api/tts", async (req, res) => {
-    const clientIp = req.user?.uid || req.ip || req.socket.remoteAddress || "unknown";
-    if (!checkRateLimit(clientIp)) {
-      return res.status(429).json({ error: "Too many requests. Please wait a moment." });
-    }
-
+  app.post("/api/tts", rateLimited(), async (req, res) => {
     const parsed = TtsRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
@@ -292,9 +237,7 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
     const { text, voice: voiceKey, mode: storyMode } = parsed.data;
 
     try {
-      const hash = crypto.createHash("md5").update(`${voiceKey}:${storyMode || ""}:${text}`).digest("hex");
-      const fileName = `${hash}.mp3`;
-      const filePath = path.join(TTS_CACHE_DIR, fileName);
+      const { fileName, filePath } = ttsCachePathFor(`${voiceKey}:${storyMode || ""}:${text}`);
 
       if (!fs.existsSync(filePath)) {
         const audioBuffer = await generateSpeech(text, voiceKey, storyMode);
@@ -303,9 +246,7 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
 
       res.json({ audioUrl: `/api/tts-audio/${fileName}` });
     } catch (error: unknown) {
-      req.log?.error({ err: error }, 'TTS generation failed');
-      const kind = classifyError(error);
-      res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to generate speech', kind));
+      sendRouteError(req, res, error, 'TTS generation failed', 'Failed to generate speech');
     }
   });
 
@@ -360,12 +301,7 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
     res.json({ trackCount: getMusicTrackCount(mode) });
   });
 
-  app.post("/api/suggest-settings", async (req, res) => {
-    const clientIp = req.user?.uid || req.ip || "unknown";
-    if (!checkRateLimit(clientIp)) {
-      return res.status(429).json({ error: "Too many requests" });
-    }
-
+  app.post("/api/suggest-settings", rateLimited("Too many requests"), async (req, res) => {
     const parsed = SuggestSettingsRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
@@ -416,9 +352,7 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
 
       res.json(suggestion);
     } catch (error: unknown) {
-      req.log?.error({ err: error }, 'suggest settings failed');
-      const kind = classifyError(error);
-      res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to generate suggestion', kind));
+      sendRouteError(req, res, error, 'suggest settings failed', 'Failed to generate suggestion');
     }
   });
 
@@ -442,15 +376,12 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
     res.json({ available: isVideoAvailable() });
   });
 
-  app.post("/api/generate-video", async (req, res) => {
+  app.post("/api/generate-video", async (req, res, next) => {
     if (!isFeatureEnabled('videoEnabled')) {
       return res.status(404).json({ error: "Video generation is not available" });
     }
-    const clientIp = req.user?.uid || req.ip || req.socket.remoteAddress || "unknown";
-    if (!checkRateLimit(clientIp)) {
-      return res.status(429).json({ error: "Too many requests. Please wait a moment." });
-    }
-
+    return rateLimited()(req, res, next);
+  }, async (req, res) => {
     const parsed = VideoRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
@@ -466,9 +397,7 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
 
       res.json({ jobId: result.jobId });
     } catch (error: unknown) {
-      req.log?.error({ err: error }, 'video generation failed');
-      const kind = classifyError(error);
-      res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to start video generation', kind));
+      sendRouteError(req, res, error, 'video generation failed', 'Failed to start video generation');
     }
   });
 
@@ -511,12 +440,7 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
     });
   });
 
-  app.post("/api/tts-preview", async (req, res) => {
-    const clientIp = req.user?.uid || req.ip || req.socket.remoteAddress || "unknown";
-    if (!checkRateLimit(clientIp)) {
-      return res.status(429).json({ error: "Too many requests" });
-    }
-
+  app.post("/api/tts-preview", rateLimited("Too many requests"), async (req, res) => {
     try {
       const voiceKey = sanitizeString(req.body.voice || "moonbeam", 20).toLowerCase();
       const voiceInfo = VOICE_MAP[voiceKey];
@@ -525,9 +449,7 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
       }
 
       const previewText = voiceInfo.previewText;
-      const hash = crypto.createHash("md5").update(`preview:${voiceKey}:${previewText}`).digest("hex");
-      const fileName = `${hash}.mp3`;
-      const filePath = path.join(TTS_CACHE_DIR, fileName);
+      const { fileName, filePath } = ttsCachePathFor(`preview:${voiceKey}:${previewText}`);
 
       if (!fs.existsSync(filePath)) {
         const audioBuffer = await generateSpeech(previewText, voiceKey);
@@ -536,9 +458,7 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
 
       res.json({ audioUrl: `/api/tts-audio/${fileName}` });
     } catch (error: unknown) {
-      req.log?.error({ err: error }, 'TTS preview failed');
-      const kind = classifyError(error);
-      res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to generate preview', kind));
+      sendRouteError(req, res, error, 'TTS preview failed', 'Failed to generate preview');
     }
   });
 
