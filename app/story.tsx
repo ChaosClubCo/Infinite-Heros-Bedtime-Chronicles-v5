@@ -11,16 +11,20 @@ import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { Audio } from "expo-av";
 import Colors from "@/constants/colors";
 import { HEROES } from "@/constants/heroes";
 import { StarField } from "@/components/StarField";
 import { getApiUrl } from "@/lib/query-client";
 import { fetch } from "expo/fetch";
 import { StoryFull } from "@/constants/types";
-import { getParentControls } from "@/lib/storage";
-import { MS_PER_WORD, MIN_READING_TIME_MS, LOADING_MESSAGE_INTERVAL_MS } from "@/constants/timing";
-import { LOADING_MESSAGES, MODE_THEME, MODE_VOICES, SPEED_RATES, type StoryState } from "@/constants/story-theme";
+import { MODE_THEME, MODE_VOICES, type StoryState } from "@/constants/story-theme";
+import { useLoadingMessages } from "@/lib/useLoadingMessages";
+import { useBackgroundMusic } from "@/lib/useBackgroundMusic";
+import { useStoryAudio } from "@/lib/useStoryAudio";
+import { useSceneGeneration } from "@/lib/useSceneGeneration";
+import { useVideoGeneration } from "@/lib/useVideoGeneration";
+import { useSleepTimer } from "@/lib/useSleepTimer";
+import { useAutoAdvance } from "@/lib/useAutoAdvance";
 import { FloatingParticle } from "@/components/FloatingParticle";
 import { StoryGeneratingView } from "@/components/StoryGeneratingView";
 import { StorySceneDisplay } from "@/components/StorySceneDisplay";
@@ -64,161 +68,64 @@ export default function StoryScreen() {
   const [storyData, setStoryData] = useState<StoryFull | null>(null);
   const [storyState, setStoryState] = useState<StoryState>("generating");
   const [currentPartIndex, setCurrentPartIndex] = useState(0);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [audioLoading, setAudioLoading] = useState(false);
-  const [audioPosition, setAudioPosition] = useState(0);
-  const [audioDuration, setAudioDuration] = useState(0);
-  const [playbackSpeed, setPlaybackSpeed] = useState(defaultSpeed);
-  const [currentVoice, setCurrentVoice] = useState(defaultVoice);
-  const [sceneImage, setSceneImage] = useState<string | null>(null);
-  const [sceneLoading, setSceneLoading] = useState(false);
-  const [sceneError, setSceneError] = useState(false);
-  const [timerRemaining, setTimerRemaining] = useState<number | null>(null);
-  const [loadingMsg, setLoadingMsg] = useState(0);
-  const [musicMuted, setMusicMuted] = useState(false);
-  const [musicLoading, setMusicLoading] = useState(false);
-  const [musicPlaying, setMusicPlaying] = useState(false);
-  const [videoEnabled, setVideoEnabled] = useState(false);
-  const [videoJobId, setVideoJobId] = useState<string | null>(null);
-  // Large-range modulo so the ?t= cache-buster varies across many consecutive plays.
-  // The actual track selection on the server is random; this value only busts HTTP cache.
-  const MUSIC_TRACK_INDEX_RANGE = 1000;
-  const musicTrackIndexRef = useRef(Math.floor(Math.random() * MUSIC_TRACK_INDEX_RANGE));
   const scrollRef = useRef<ScrollView>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const loadingMsgRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
-  const bgMusicRef = useRef<Audio.Sound | null>(null);
-  const sceneCacheRef = useRef<Record<number, string>>({});
-  const sceneRetryCountRef = useRef(0);
-
-  const MUSIC_VOLUME = storyMode === "sleep" ? 0.12 : 0.15;
-
-  const stopBgMusic = useCallback(async () => {
-    if (bgMusicRef.current) {
-      try {
-        await bgMusicRef.current.stopAsync();
-        await bgMusicRef.current.unloadAsync();
-      } catch {}
-      bgMusicRef.current = null;
-    }
-    setMusicPlaying(false);
-  }, []);
-
-  const startBgMusic = useCallback(async () => {
-    setMusicLoading(true);
-    try {
-      const baseUrl = getApiUrl();
-      // Use a random track index so each story session can get a different track when
-      // multiple variants exist (e.g. classic.mp3, classic_2.mp3, …).
-      // The ?t= param also busts HTTP caches so the server may select a new random file.
-      const trackIndex = musicTrackIndexRef.current;
-      const musicUrl = new URL(`/api/music/${storyMode}?t=${trackIndex}`, baseUrl).toString();
-
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-      });
-
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: musicUrl },
-        { shouldPlay: true, volume: MUSIC_VOLUME, isLooping: false }
-      );
-
-      sound.setOnPlaybackStatusUpdate(async (status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          // Advance track index so the next load requests a different cache-busted URL,
-          // enabling variety when multiple track variants exist for this mode.
-          musicTrackIndexRef.current = (musicTrackIndexRef.current + 1) % MUSIC_TRACK_INDEX_RANGE;
-          try {
-            await sound.unloadAsync();
-          } catch {}
-          bgMusicRef.current = null;
-          setMusicPlaying(false);
-          // Brief pause before reloading to prevent rapid back-to-back network requests
-          // in case the track is very short or the server returns an error.
-          const MUSIC_RELOAD_DELAY_MS = 500;
-          setTimeout(() => {
-            setMusicPlaying((prev) => {
-              if (!prev) startBgMusic();
-              return prev;
-            });
-          }, MUSIC_RELOAD_DELAY_MS);
-        }
-      });
-
-      bgMusicRef.current = sound;
-      setMusicPlaying(true);
-      setMusicLoading(false);
-    } catch (err) {
-      if (__DEV__) console.log("Background music failed:", err);
-      setMusicLoading(false);
-    }
-  }, [storyMode, MUSIC_VOLUME]);
-
-  const toggleBgMusic = useCallback(async () => {
-    if (!bgMusicRef.current) return;
-    try {
-      if (musicMuted) {
-        await bgMusicRef.current.setVolumeAsync(MUSIC_VOLUME);
-        setMusicMuted(false);
-      } else {
-        await bgMusicRef.current.setVolumeAsync(0);
-        setMusicMuted(true);
-      }
-    } catch {}
-  }, [musicMuted, MUSIC_VOLUME]);
-
-  const stopAudio = useCallback(async () => {
-    if (soundRef.current) {
-      try {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
-      } catch {}
-      soundRef.current = null;
-    }
-    setIsSpeaking(false);
-    setAudioPosition(0);
-    setAudioDuration(0);
-  }, []);
 
   const hero = HEROES.find((h) => h.id === heroId);
 
-  useEffect(() => {
-    const messages = LOADING_MESSAGES[storyMode] || LOADING_MESSAGES.classic;
-    loadingMsgRef.current = setInterval(() => {
-      setLoadingMsg((prev) => (prev + 1) % messages.length);
-    }, LOADING_MESSAGE_INTERVAL_MS);
-    return () => {
-      if (loadingMsgRef.current) clearInterval(loadingMsgRef.current);
-    };
-  }, [storyMode]);
+  const currentPart = storyData?.parts[currentPartIndex];
+  const isLastPart = storyData ? currentPartIndex >= storyData.parts.length - 1 : false;
+  const hasChoices = currentPart?.choices && currentPart.choices.length > 0 && !isLastPart;
 
-  const startSleepTimer = useCallback(() => {
-    if (!sleepTimer || sleepTimer === "none") return;
-    const minutes = parseInt(sleepTimer, 10);
-    if (isNaN(minutes)) return;
-    let remaining = minutes * 60;
-    setTimerRemaining(remaining);
-    timerRef.current = setInterval(() => {
-      remaining -= 1;
-      setTimerRemaining(remaining);
-      if (remaining <= 0) {
-        if (timerRef.current) clearInterval(timerRef.current);
-        stopAudio();
-        stopBgMusic();
-        setTimerRemaining(null);
-      }
-    }, 1000);
-  }, [sleepTimer]);
+  const { loadingMsg, messages } = useLoadingMessages(storyMode);
+
+  const { musicMuted, musicLoading, musicPlaying, startBgMusic, stopBgMusic, toggleBgMusic } =
+    useBackgroundMusic(storyMode);
+
+  const {
+    isSpeaking,
+    audioLoading,
+    audioPosition,
+    audioDuration,
+    playbackSpeed,
+    currentVoice,
+    speakCurrentPart,
+    stopAudio,
+    cycleSpeed,
+    cycleVoice,
+  } = useStoryAudio({ currentPart, storyMode, initialVoice: defaultVoice, initialSpeed: defaultSpeed, modeVoices });
+
+  const { sceneImage, sceneLoading, sceneError, loadSceneImage, clearSceneImage, sceneCacheRef } =
+    useSceneGeneration({ hero, storyData, storyState, currentPartIndex });
+
+  const { videoEnabled, videoJobId } = useVideoGeneration({ hero, storyData, storyState, currentPartIndex });
+
+  const { timerRemaining, clearSleepTimer } = useSleepTimer({
+    sleepTimerParam: sleepTimer,
+    storyState,
+    storyMode,
+    onExpire: () => {
+      stopAudio();
+      stopBgMusic();
+    },
+  });
+
+  const { cancelAutoAdvance } = useAutoAdvance({
+    storyState,
+    storyMode,
+    storyData,
+    currentPartIndex,
+    onAdvance: () => {
+      setCurrentPartIndex((prev) => prev + 1);
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    },
+  });
 
   const generateStory = useCallback(async () => {
     if (!hero) return;
     setStoryState("generating");
     setStoryData(null);
     setCurrentPartIndex(0);
-    setSceneImage(null);
+    clearSceneImage();
 
     try {
       const baseUrl = getApiUrl();
@@ -263,40 +170,7 @@ export default function StoryScreen() {
     }
   }, [hero, duration, storyMode, madlibWords]);
 
-  const loadSceneImage = useCallback(async (partText: string, partIndex: number) => {
-    if (!hero) return;
-    setSceneLoading(true);
-    setSceneImage(null);
-    setSceneError(false);
-    try {
-      const baseUrl = getApiUrl();
-      const url = new URL("/api/generate-scene", baseUrl);
-      const res = await fetch(url.toString(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          heroName: hero.name,
-          sceneText: partText,
-          heroDescription: hero.description,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSceneImage(data.image);
-        sceneCacheRef.current[partIndex] = data.image;
-      } else {
-        setSceneError(true);
-      }
-    } catch (e) {
-      console.error("Scene generation failed:", e);
-      setSceneError(true);
-    }
-    setSceneLoading(false);
-  }, [hero]);
-
   useEffect(() => {
-    getParentControls().then((pc) => setVideoEnabled(pc.videoEnabled)).catch((e) => console.error("Failed to load parent controls:", e));
-
     if (replayJson) {
       try {
         const replayed = JSON.parse(replayJson) as StoryFull;
@@ -313,180 +187,8 @@ export default function StoryScreen() {
     return () => {
       stopAudio();
       stopBgMusic();
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
     };
   }, []);
-
-  useEffect(() => {
-    if (storyState === "ready" && storyMode === "sleep" && sleepTimer && sleepTimer !== "none") {
-      startSleepTimer();
-    }
-  }, [storyState]);
-
-  const triggerVideoGeneration = useCallback(async (partText: string) => {
-    if (!hero || !videoEnabled) return;
-    setVideoJobId(null);
-    try {
-      const baseUrl = getApiUrl();
-      const res = await globalThis.fetch(
-        new URL("/api/generate-video", baseUrl).toString(),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sceneText: partText,
-            heroName: hero.name,
-            heroDescription: hero.description,
-          }),
-        }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        if (data.jobId) setVideoJobId(data.jobId);
-      }
-    } catch (e) {
-      if (__DEV__) console.log("Video generation request failed:", e);
-    }
-  }, [hero, videoEnabled]);
-
-  useEffect(() => {
-    sceneRetryCountRef.current = 0;
-    if (storyState === "ready" && storyData && storyData.parts[currentPartIndex]) {
-      const partText = storyData.parts[currentPartIndex].text;
-      if (sceneCacheRef.current[currentPartIndex]) {
-        setSceneImage(sceneCacheRef.current[currentPartIndex]);
-        setSceneLoading(false);
-        setSceneError(false);
-      } else {
-        loadSceneImage(partText, currentPartIndex);
-      }
-      if (videoEnabled) {
-        triggerVideoGeneration(partText);
-      }
-    }
-  }, [currentPartIndex, storyState]);
-
-  useEffect(() => {
-    if (sceneError && storyData && storyData.parts[currentPartIndex] && sceneRetryCountRef.current < 2) {
-      const retryDelay = (sceneRetryCountRef.current + 1) * 4000;
-      const timeout = setTimeout(() => {
-        sceneRetryCountRef.current += 1;
-        loadSceneImage(storyData.parts[currentPartIndex].text, currentPartIndex);
-      }, retryDelay);
-      return () => clearTimeout(timeout);
-    }
-  }, [sceneError, currentPartIndex]);
-
-  useEffect(() => {
-    if (storyState === "ready" && storyMode === "sleep" && storyData) {
-      const currentPart = storyData.parts[currentPartIndex];
-      if (currentPart && currentPartIndex < storyData.parts.length - 1) {
-        const wordCount = currentPart.text.split(/\s+/).length;
-        const readingTimeMs = Math.max(wordCount * MS_PER_WORD, MIN_READING_TIME_MS);
-        autoAdvanceRef.current = setTimeout(() => {
-          setCurrentPartIndex((prev) => prev + 1);
-          scrollRef.current?.scrollTo({ y: 0, animated: true });
-        }, readingTimeMs);
-        return () => {
-          if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
-        };
-      }
-    }
-  }, [currentPartIndex, storyState, storyMode]);
-
-  const currentPart = storyData?.parts[currentPartIndex];
-  const isLastPart = storyData ? currentPartIndex >= storyData.parts.length - 1 : false;
-  const hasChoices = currentPart?.choices && currentPart.choices.length > 0 && !isLastPart;
-
-  const speakCurrentPart = useCallback(async () => {
-    if (!currentPart) return;
-    if (isSpeaking || audioLoading) {
-      await stopAudio();
-      return;
-    }
-
-    setAudioLoading(true);
-    try {
-      const baseUrl = getApiUrl();
-      const ttsUrl = new URL("/api/tts", baseUrl);
-
-      const response = await fetch(ttsUrl.toString(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: currentPart.text,
-          voice: currentVoice,
-          mode: storyMode,
-        }),
-      });
-
-      if (!response.ok) throw new Error("TTS request failed");
-
-      const data = await response.json();
-      if (!data.audioUrl) throw new Error("No audio URL returned");
-
-      const audioFileUrl = new URL(data.audioUrl, baseUrl).toString();
-
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-      });
-
-      const rate = SPEED_RATES[playbackSpeed] || 0.9;
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: audioFileUrl },
-        { shouldPlay: false, rate, shouldCorrectPitch: true }
-      );
-      soundRef.current = sound;
-
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded) {
-          setAudioPosition(status.positionMillis || 0);
-          setAudioDuration(status.durationMillis || 0);
-          if (status.didJustFinish) {
-            sound.unloadAsync();
-            soundRef.current = null;
-            setIsSpeaking(false);
-            setAudioPosition(0);
-            setAudioDuration(0);
-          }
-        }
-      });
-
-      await sound.playAsync();
-      setIsSpeaking(true);
-      setAudioLoading(false);
-    } catch (err) {
-      if (__DEV__) console.log("TTS error:", err);
-      setAudioLoading(false);
-      setIsSpeaking(false);
-    }
-  }, [currentPart, isSpeaking, audioLoading, storyMode, currentVoice, stopAudio, playbackSpeed]);
-
-  const cycleSpeed = useCallback(async () => {
-    const keys = ["gentle", "medium", "normal"];
-    const idx = keys.indexOf(playbackSpeed);
-    const next = keys[(idx + 1) % keys.length];
-    setPlaybackSpeed(next);
-    Haptics.selectionAsync();
-    if (soundRef.current) {
-      try {
-        await soundRef.current.setRateAsync(SPEED_RATES[next], true);
-      } catch {}
-    }
-  }, [playbackSpeed]);
-
-  const cycleVoice = useCallback(async () => {
-    const voices = modeVoices;
-    const idx = voices.findIndex((v) => v.id === currentVoice);
-    const next = voices[(idx + 1) % voices.length];
-    setCurrentVoice(next.id);
-    Haptics.selectionAsync();
-    if (isSpeaking || audioLoading) {
-      await stopAudio();
-    }
-  }, [currentVoice, modeVoices, isSpeaking, audioLoading, stopAudio]);
 
   const handleChoiceSelect = (choiceIndex: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -499,8 +201,8 @@ export default function StoryScreen() {
     if (!hero || !storyData) return;
     stopAudio();
     stopBgMusic();
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
+    clearSleepTimer();
+    cancelAutoAdvance();
     router.push({
       pathname: "/completion",
       params: {
@@ -515,8 +217,8 @@ export default function StoryScreen() {
   const handleClose = () => {
     stopAudio();
     stopBgMusic();
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
+    clearSleepTimer();
+    cancelAutoAdvance();
     router.dismissAll();
   };
 
@@ -550,7 +252,6 @@ export default function StoryScreen() {
   }
 
   const isSleep = storyMode === "sleep";
-  const messages = LOADING_MESSAGES[storyMode] || LOADING_MESSAGES.classic;
 
   const progressPct = storyData
     ? ((currentPartIndex + 1) / storyData.parts.length) * 100
