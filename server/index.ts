@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
@@ -7,6 +8,16 @@ import { recordRequest } from "./metrics";
 import { createLoadSheddingMiddleware } from "./load-shedding";
 import * as fs from "fs";
 import * as path from "path";
+
+// Initialize Sentry before creating the app so it can instrument Express.
+// No-ops gracefully when SENTRY_DSN is unset.
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV ?? "development",
+    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  });
+}
 
 const log = logger.info.bind(logger);
 
@@ -320,6 +331,11 @@ function sanitizeErrorMessage(err: unknown): string {
 }
 
 function setupErrorHandler(app: express.Application) {
+  // Sentry must capture errors before the generic handler sanitizes them.
+  if (process.env.SENTRY_DSN) {
+    Sentry.setupExpressErrorHandler(app as Parameters<typeof Sentry.setupExpressErrorHandler>[0]);
+  }
+
   app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
     const status =
       err != null && typeof err === 'object' && 'status' in err
