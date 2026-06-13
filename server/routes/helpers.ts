@@ -15,7 +15,9 @@ export function getClientIp(req: Request): string {
  */
 export function rateLimited(message = "Too many requests. Please wait a moment.") {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (!checkRateLimit(getClientIp(req))) {
+    const key = getClientIp(req);
+    if (!checkRateLimit(key)) {
+      req.log?.warn({ event: 'rate_limit_exceeded', key, path: req.path, method: req.method }, 'rate limit exceeded');
       return res.status(429).json({ error: message });
     }
     next();
