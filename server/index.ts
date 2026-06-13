@@ -320,11 +320,6 @@ function sanitizeErrorMessage(err: unknown): string {
 }
 
 function setupErrorHandler(app: express.Application) {
-  // Sentry must capture errors before the generic handler sanitizes them.
-  if (process.env.SENTRY_DSN) {
-    Sentry.setupExpressErrorHandler(app as Parameters<typeof Sentry.setupExpressErrorHandler>[0]);
-  }
-
   app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
     const status =
       err != null && typeof err === 'object' && 'status' in err
