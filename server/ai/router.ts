@@ -179,8 +179,9 @@ export class AIRouter {
       }
       try {
         const stream = provider.generateTextStream(req);
+        const model = provider.textModel ?? provider.name;
         for await (const chunk of stream) {
-          yield { ...chunk, provider: provider.name, model: provider.name };
+          yield { ...chunk, provider: provider.name, model };
         }
         return;
       } catch (err) {

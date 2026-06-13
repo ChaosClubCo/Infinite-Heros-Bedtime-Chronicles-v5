@@ -6,3 +6,15 @@
 # Placeholder example URLs in env/config docs
 ^https?://your-api\.example\.com(/.*)?$
 ^https?://([a-z0-9-]+\.)?example\.com(/.*)?$
+
+# Vendored third-party skill docs (.agents/skills/**) with upstream link rot (404).
+# These are not docs we maintain; tracked here so the check reflects our own docs.
+https://inference\.sh/blog/skills/skills-overview
+https://docs\.squirrelscan\.com/rules/.*
+https://nextjs\.org/docs/app/building-your-application/upgrading/from-webpack-to-turbopack
+https://supabase\.com/docs/guides/database/pagination
+https://supabase\.com/docs/guides/database/database-size.*
+https://legendapp\.com/open-source/.*
+
+# Returns 403 to automated checkers (bot-blocked); the link is valid in a browser.
+https://openai\.com/policies/business-terms/

@@ -152,6 +152,8 @@ Key vars:
 
 | Date | Change |
 |------|--------|
+| 2026-06-11 | Phase 2: COPPA parental-consent gate (`app/parental-consent.tsx`) + in-app Privacy Policy (`app/privacy.tsx`); consent keyed by `CONSENT_VERSION`; routing gate in `_layout.tsx`; privacy HTML contradiction fixed; 929 tests |
+| 2026-06-11 | Phase 1: doc/code reconciliation + bug fixes (all_heroes badge counts custom heroes, streaming model id, suggest-settings parsedJson); CLAUDE.md/API.md corrected |
 | 2026-04-24 | Thorough 3-way audit + remediation: protobufjs CVE fixed, AUTH_DISABLED removed, AsyncStorage violations fixed, stale-closure fix in create.tsx, supertest added, 895 → 919 tests |
 | 2026-04-24 | Expo SDK 54 → 55 (expo 55.0.17; expo-image, expo-crypto, expo-symbols bumped to SDK-55 line) |
 | 2026-03-27 | Firebase auth production guard added; parent PIN hashing (SHA-256 + salt); dual-layer rate limiting |

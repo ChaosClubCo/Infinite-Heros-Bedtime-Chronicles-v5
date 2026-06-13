@@ -32,7 +32,7 @@ app/                    # Expo Router screens (file-based routing)
   _layout.tsx           # Root layout — providers: ErrorBoundary → QueryClient → Profile → Settings → Gesture → Keyboard
   (tabs)/               # Tab navigation (home, create, library, saved, profile)
     _layout.tsx          # Tab bar layout (5 tabs, 60px height + bottom inset)
-  story.tsx             # Story reading/playback (largest screen ~60KB / 1627 lines, fullScreen fade modal)
+  story.tsx             # Story reading/playback composition shell (~386 lines; logic in lib/use* hooks, UI in components/Story*, fullScreen fade modal)
   story-details.tsx     # Story customization wizard (slide from right)
   completion.tsx        # Post-story celebration + badge awarding (fullScreen fade modal)
   quick-create.tsx      # Fast onboarding hero creation (modal from bottom)
@@ -40,6 +40,9 @@ app/                    # Expo Router screens (file-based routing)
   sleep-setup.tsx       # Sleep mode setup (slide from right)
   settings.tsx          # App settings (slide from right)
   trophies.tsx          # Badge collection view (slide from right)
+  voice-chat.tsx        # Voice chat UI (conversation list + hold-to-speak; reached from profile tab)
+  parental-consent.tsx  # COPPA parental-consent gate (parent gate + consent; first-launch, before onboarding)
+  privacy.tsx           # In-app Privacy Policy screen (native, offline; linked from consent + settings)
   welcome.tsx           # Onboarding splash (fade animation)
 components/             # Reusable React Native components
   ErrorBoundary.tsx     # Error boundary wrapper
@@ -47,17 +50,20 @@ components/             # Reusable React Native components
   HeroCard.tsx          # Hero template card (used in hero selection grid)
   KeyboardAwareScrollViewCompat.tsx  # Cross-platform keyboard-aware scroll
   MemoryJar.tsx         # Story memory display
-  OfflineBanner.tsx     # Offline state banner (orphaned — not yet wired into app layout)
+  OfflineBanner.tsx     # Offline state banner (wired into app/_layout.tsx via useNetworkStatus)
   ParentControlsModal.tsx  # Parent controls (PIN-protected)
   ProfileModal.tsx      # Child profile management
   SettingsModal.tsx     # Settings overlay
   PulsingOrb.tsx        # Animated orb effect
   StarField.tsx         # Background star animation
+  StoryGeneratingView.tsx / StorySceneDisplay.tsx / StoryPlayerControls.tsx  # Story screen: generation view, scene image/video, player bar
+  StoryTopBar.tsx / SleepTimerBar.tsx / StoryTextDisplay.tsx / StoryProgressBar.tsx / StoryChoices.tsx / ChoiceButton.tsx / FloatingParticle.tsx  # Story screen presentational pieces
 constants/              # Types, hero templates, colors, timing
   types.ts              # Core TypeScript interfaces
   heroes.ts             # 8 pre-defined hero templates
   colors.ts             # Cosmic theme palette
   timing.ts             # Animation timing constants
+  story-theme.ts        # Story-mode themes, voices, loading messages, speed rates + StoryMode/StoryState/StoryTheme types
 lib/                    # Client utilities
   SettingsContext.tsx    # Unified settings provider (React Context)
   ProfileContext.tsx     # Child profile context
@@ -69,10 +75,11 @@ lib/                    # Client utilities
   storage-migration.test.ts      # Storage migration tests
   query-client.ts       # TanStack React Query config (staleTime: Infinity, retry: false)
   query-client.test.ts  # Query client unit tests
-  useNetworkStatus.ts   # NetInfo hook returning { isConnected, isInternetReachable } (orphaned — not yet used)
+  useNetworkStatus.ts   # NetInfo hook returning { isConnected, isInternetReachable } (used by app/_layout.tsx to gate OfflineBanner)
 server/                 # Express.js backend
   index.ts              # Server bootstrap, security middleware, CORS, graceful shutdown
-  routes.ts             # All API endpoints (~18KB / ~550 lines, 30+ endpoints; post-extraction refactor)
+  routes.ts             # Route composer: auth gate + registers domain modules, returns HTTP server (~50 lines)
+  routes/               # Domain route modules (health, story, images, tts, music, suggest, video) + context.ts (singletons) + helpers.ts (rate-limit middleware, error/IP/cache-path helpers)
   auth.ts               # Firebase Admin bearer-token middleware (optional, lazy-init)
   validation.ts         # Zod request schemas + sanitizeString
   prompts.ts            # Story system/user prompt builders + CHILD_SAFETY_RULES
@@ -317,7 +324,7 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 - Video ID validation: only IDs matching `/^[a-f0-9]+$/` are accepted
 - CORS allowed origins: Replit dev/prod domains, localhost (ports 5000/8081/19000-19006), `https://bedtime-chronicles.com`, `https://www.bedtime-chronicles.com`, Vercel preview URLs matching `infinite-hero*.vercel.app`, and `VERCEL_URL` env var — do not add wildcards
 - Input truncation via `sanitizeString()` is mandatory before any prompt inclusion
-- PIN storage: parent-controls PIN is currently stored plaintext in AsyncStorage (see `docs/COPPA-COMPLIANCE.md` §6). Hashing is a known pre-store-submission TODO.
+- PIN storage: parent-controls PIN is stored as a SHA-256 hash with a per-install salt (`hashPin` / `generatePinSalt` in `lib/storage.ts`); the plaintext PIN is never persisted. See `docs/COPPA-COMPLIANCE.md` §6.
 
 ### Child Safety Rules (enforced in AI prompts)
 - No violence, weapons, fighting, scary/horror elements
@@ -341,9 +348,9 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 ## Common Tasks
 
 ### Add a new API endpoint
-1. Add the route handler in `server/routes.ts` (or a new file under `server/`)
-2. Follow the existing pattern: validate input with a Zod schema in `server/validation.ts`, call logic, return JSON
-3. Apply `checkRateLimit` if the endpoint calls external APIs
+1. Add the route handler in the matching `server/routes/<domain>.ts` module (or create a new module exporting `registerXxxRoutes(app)` and call it from `server/routes.ts`)
+2. Follow the existing pattern: validate input with a Zod schema in `server/validation.ts`, call logic, return JSON; use `sendRouteError` from `server/routes/helpers.ts` in catch blocks
+3. Apply the `rateLimited()` middleware (`server/routes/helpers.ts`) if the endpoint calls external APIs
 4. Consider idempotency for expensive writes (use `IdempotencyCache.keyFromBody`)
 5. Document in `docs/API.md`
 6. Update `README.md` endpoint table if it's a primary endpoint
@@ -420,9 +427,10 @@ Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: 
 - `@infinity_heroes_read` — Read story tracking
 - `@infinity_heroes_badges` — Earned badges
 - `@infinity_heroes_streaks` — Reading streaks
-- `@infinity_heroes_parent_controls` — Parent controls (includes PIN — plaintext today, see Security Rules)
+- `@infinity_heroes_parent_controls` — Parent controls (PIN stored as SHA-256 hash + salt, see Security Rules)
 - `@infinity_heroes_favorites` — Favorite stories
 - `@infinity_heroes_onboarding_complete` — Onboarding flag
+- `@infinity_heroes_parent_consent` — COPPA parental-consent record (`{ consented, consentedAt, version }`; gated on `CONSENT_VERSION`)
 - `@infinity_heroes_preferences` — Legacy key (auto-migrates to app_settings)
 - `@infinity_heroes_settings_migrated` — Migration flag for legacy → new settings
 - `@infinity_heroes_storage_version` — Storage-schema version tracked by `lib/storage-migration.ts`
@@ -516,8 +524,8 @@ npm run test:coverage   # vitest run --coverage
 
 ## Known Gotchas
 
-- `app/story.tsx` is the most complex screen (~60KB / 1627 lines) — story playback with audio/image/video integration; top refactor candidate
-- `server/routes.ts` (~18KB / ~550 lines) was extracted; validation, prompts, rate-limit now live in their own files
+- `app/story.tsx` is a ~386-line composition shell — playback/music/scene/video/timer logic lives in `lib/use*.ts` hooks and presentational pieces in `components/Story*`; mode constants in `constants/story-theme.ts`
+- `server/routes.ts` is a ~50-line composer — handlers live in `server/routes/<domain>.ts` modules; shared singletons in `server/routes/context.ts`, request plumbing in `server/routes/helpers.ts`
 - **`npm run dev` does not exist** — use `npm run server:dev` + `npm run expo:dev` separately
 - **`expo:dev` requires Replit env vars** — outside Replit, use `npx expo start` directly
 - **`patches/expo-asset+12.0.12.patch`** — patch-package fix for Expo dev server HTTPS; removed when SDK 55+
@@ -532,10 +540,11 @@ npm run test:coverage   # vitest run --coverage
 - **`lib/storage.ts` vs `server/storage.ts`** — client-side AsyncStorage helpers vs server-side in-memory story cache
 - **`shared/schema.ts` vs `shared/models/chat.ts`** — schema.ts re-exports from models/chat.ts; both in drizzle.config.ts
 - **`getReadStories` / `markStoryRead`** — wired into library screen (unread dot indicator) and completion screen (marks story read on completion)
-- **`server/replit_integrations/`** — wired up but voice chat UI screen doesn't exist yet; backend routes are functional
+- **`server/replit_integrations/`** — backend routes are functional and the voice chat UI exists at `app/voice-chat.tsx` (reachable from the profile tab)
 - **Firebase auth is optional** — if `FIREBASE_SERVICE_ACCOUNT_KEY` is unset, all POSTs are treated as anonymous with IP-based rate-limit identity
-- **AI router greedy-JSON regex bug** — see `docs/TEST-COVERAGE-ANALYSIS.md`; `router.ts` uses `\{[\s\S]*\}` which can grab across multiple JSON objects
-- **Streaming model field** — `router.ts` reports `provider.name` as `model` in streaming chunks (should be actual model ID)
+- **COPPA consent gate** — `app/_layout.tsx` checks `getConsentGiven()` before `getOnboardingComplete()`; an un-consented install is routed to `app/parental-consent.tsx` first. Consent is keyed by `CONSENT_VERSION` (`constants/types.ts`) — bump it to re-prompt existing installs when privacy practices change
+- **AI router JSON extraction** — `router.ts` uses `extractFirstJson()` (balanced-brace scan that skips string literals), not a greedy regex; callers consume `response.parsedJson` when `jsonMode` is set
+- **Streaming model field** — `router.ts` reports the provider's `textModel` (the concrete model ID) on streaming chunks, falling back to `provider.name` only when `textModel` is unset
 
 ## Files/Directories — Do Not Modify Without Explicit Approval
 

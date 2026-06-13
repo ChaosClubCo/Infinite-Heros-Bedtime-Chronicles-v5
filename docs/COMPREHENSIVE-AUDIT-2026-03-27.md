@@ -1,5 +1,7 @@
 # Comprehensive Project Audit — Infinity Heroes: Bedtime Chronicles v5
 
+> **Status: historical snapshot — findings remediated.** The issues in this report were addressed in subsequent work; see `docs/CHANGELOG.md` and `docs/SECURITY-FIXES-2026-03-27.md`.
+
 **Date:** 2026-03-27
 **Auditor:** Claude Opus 4.6 (5-persona audit team)
 **Branch:** `copilot/fix-package-lock-mismatch`

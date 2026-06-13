@@ -21,6 +21,7 @@ function getClient(): GoogleGenAI {
 export const geminiProvider: AIProvider = {
   name: "gemini",
   displayName: "Google Gemini",
+  textModel: "gemini-2.5-flash",
   capabilities: { text: true, image: true, streaming: true },
 
   isAvailable(): boolean {

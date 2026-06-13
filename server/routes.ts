@@ -1,53 +1,24 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
-import { generateSpeech, VOICE_MAP, MODE_DEFAULT_VOICES, getVoicesForMode } from "./elevenlabs";
-import { getMusicFilePath, getMusicTrackCount } from "./suno";
-import { createVideoJob, getVideoJob, getVideoFilePath, isVideoAvailable } from "./video";
-import { getAIRouter, getProviderStatuses, logProviderStatus } from "./ai";
-import { registerAudioRoutes } from "./replit_integrations/audio";
+import { logProviderStatus } from "./ai";
 import { requireAuth } from "./auth";
-import { sanitizeString, StoryRequestSchema, AvatarRequestSchema, SceneRequestSchema, TtsRequestSchema, VideoRequestSchema, SuggestSettingsRequestSchema, VALID_MODES, VALID_DURATIONS } from "./validation";
-import { getStorySystemPrompt, getStoryUserPrompt, getPartCount, getWordCount, getRandomStyle, STORY_RESPONSE_SCHEMA } from "./prompts";
-import { checkRateLimit, cleanupExpiredEntries } from "./rate-limit";
-import { toErrorMessage, classifyError, createErrorResponse } from "./utils";
-import { getFeatureFlags, isFeatureEnabled } from "./feature-flags";
+import { isFeatureEnabled } from "./feature-flags";
 import { logger } from "./logger";
-import { getMetrics } from "./metrics";
-import { getActiveRequests } from "./load-shedding";
-import { IdempotencyCache } from "./idempotency";
-import { TtsCacheManager } from "./tts-cache";
+import { registerAudioRoutes } from "./replit_integrations/audio";
 import { registerImageRoutes } from "./replit_integrations/image";
-import crypto from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
-
-const ttsCacheManager = new TtsCacheManager({
-  cacheDir: path.resolve("/tmp/tts-cache"),
-  maxAgeMs: parseInt(process.env.TTS_CACHE_MAX_AGE_MS || String(24 * 60 * 60 * 1000), 10),
-  maxSizeBytes: parseInt(process.env.TTS_CACHE_MAX_SIZE_BYTES || String(500 * 1024 * 1024), 10),
-});
-ttsCacheManager.ensureDir();
-
-const TTS_CACHE_DIR = ttsCacheManager.cacheDir;
-
-setInterval(async () => {
-  const { removedCount, freedBytes } = await ttsCacheManager.cleanup();
-  if (removedCount > 0) {
-    logger.info({ removedCount, freedBytes }, 'TTS cache cleanup');
-  }
-}, 60 * 60 * 1000);
-ttsCacheManager.cleanup();
-
-// Rate limit cleanup runs every 5 minutes
-setInterval(cleanupExpiredEntries, 5 * 60 * 1000);
-
-const aiRouter = getAIRouter();
-const idempotencyCache = new IdempotencyCache({ ttlMs: 5 * 60 * 1000, maxEntries: 200 });
+import { registerHealthRoutes } from "./routes/health";
+import { registerStoryRoutes } from "./routes/story";
+import { registerImageGenRoutes } from "./routes/images";
+import { registerTtsRoutes } from "./routes/tts";
+import { registerMusicRoutes } from "./routes/music";
+import { registerSuggestRoutes } from "./routes/suggest";
+import { registerVideoRoutes } from "./routes/video";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   logProviderStatus();
 
-  // Apply auth middleware to all POST /api/* endpoints
+  // Apply auth middleware to all POST /api/* endpoints.
+  // Must be registered before any domain routes.
   app.use('/api', async (req, res, next) => {
     // Skip auth for GET endpoints (health, voices, etc.)
     if (req.method === 'GET') return next();
@@ -392,26 +363,27 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
         temperature: 0.7,
         maxTokens: 2048,
         thinkingBudget: 0,
+        jsonMode: true,
       });
 
       req.log?.info({ provider: aiResponse.provider, model: aiResponse.model }, 'suggestion generated');
 
-      let text = aiResponse.text?.trim() || "";
-      text = text.replace(/```json\s*/g, "").replace(/```\s*/g, "");
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
+      // The router parses + validates JSON (via extractFirstJson) when jsonMode is set,
+      // so consume parsedJson directly rather than re-parsing the raw text here.
+      if (!aiResponse.parsedJson || typeof aiResponse.parsedJson !== "object") {
         req.log?.error('suggest-settings: no JSON in AI response');
         return res.status(500).json({ error: "Invalid AI response" });
       }
 
-      const suggestion = JSON.parse(jsonMatch[0]);
+      const raw = aiResponse.parsedJson as Record<string, unknown>;
 
-      if (!(VALID_MODES as readonly string[]).includes(suggestion.mode)) suggestion.mode = "classic";
-      if (!(VALID_DURATIONS as readonly string[]).includes(suggestion.duration)) suggestion.duration = "medium";
-      if (!["gentle", "medium", "normal"].includes(suggestion.speed)) suggestion.speed = "medium";
-      if (!voiceKeys.includes(suggestion.voice)) suggestion.voice = MODE_DEFAULT_VOICES[suggestion.mode] || "moonbeam";
-      if (typeof suggestion.tip !== "string") suggestion.tip = "A great story awaits!";
-      suggestion.tip = suggestion.tip.slice(0, 120);
+      const mode = (VALID_MODES as readonly string[]).includes(raw.mode as string) ? (raw.mode as string) : "classic";
+      const duration = (VALID_DURATIONS as readonly string[]).includes(raw.duration as string) ? (raw.duration as string) : "medium";
+      const speed = ["gentle", "medium", "normal"].includes(raw.speed as string) ? (raw.speed as string) : "medium";
+      const voice = voiceKeys.includes(raw.voice as string) ? (raw.voice as string) : (MODE_DEFAULT_VOICES[mode] || "moonbeam");
+      const tip = (typeof raw.tip === "string" ? raw.tip : "A great story awaits!").slice(0, 120);
+
+      const suggestion = { mode, duration, speed, voice, tip };
 
       res.json(suggestion);
     } catch (error: unknown) {
