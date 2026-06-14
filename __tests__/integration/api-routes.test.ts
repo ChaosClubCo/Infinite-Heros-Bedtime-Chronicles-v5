@@ -274,8 +274,10 @@ describe("POST /api/suggest-settings", () => {
     const { getAIRouter } = await import("../../server/ai");
     const mockRouter = getAIRouter() as any;
     const originalFn = mockRouter.generateText;
+    const suggestionPayload = { mode: "classic", duration: "medium", speed: "medium", voice: "moonbeam", tip: "Great time for a story!" };
     mockRouter.generateText = vi.fn(async () => ({
-      text: JSON.stringify({ mode: "classic", duration: "medium", speed: "medium", voice: "moonbeam", tip: "Great time for a story!" }),
+      text: JSON.stringify(suggestionPayload),
+      parsedJson: suggestionPayload,
       provider: "gemini",
       model: "gemini-test",
     }));

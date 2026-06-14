@@ -11,6 +11,7 @@ function getClient(): Anthropic | null {
 export const anthropicProvider: AIProvider = {
   name: "anthropic",
   displayName: "Anthropic Claude",
+  textModel: "claude-sonnet-4-6",
   capabilities: { text: true, image: false, streaming: true },
 
   isAvailable(): boolean {

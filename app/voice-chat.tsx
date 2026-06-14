@@ -476,6 +476,9 @@ export default function VoiceChatScreen() {
           onPressIn={startRecording}
           onPressOut={stopRecordingAndSend}
         />
+        <Text style={styles.privacyNote}>
+          Voice is sent to our AI partner to reply and isn’t stored by us.
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -628,6 +631,14 @@ const styles = StyleSheet.create({
     borderTopColor: "rgba(255,255,255,0.08)",
     backgroundColor: "rgba(0,0,0,0.2)",
   },
+  privacyNote: {
+    marginTop: 12,
+    paddingHorizontal: 32,
+    fontSize: 11,
+    textAlign: "center",
+    color: "rgba(255,255,255,0.4)",
+  },
+
   recordBtnOuter: {
     alignItems: "center",
     gap: 10,

@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-05-05 -->
+<!-- Last verified: 2026-06-13 -->
 <!-- Generated from codebase scan + docs/ROADMAP.md. Re-run scan to refresh TODO signals. -->
 
 # TODO.md — Prioritized Backlog
@@ -9,30 +9,21 @@ Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 
 
 ---
 
-## In Progress
-
-| Priority | Item | Category | Business Value | Time Criticality | Risk/Opportunity | Job Size | WSJF | Status | Issue/Notes |
-|----------|------|----------|---------------|-----------------|-----------------|----------|------|--------|-------------|
-| 1 | Build voice chat mobile UI screen | Feature | H | M | M | L | 8.0 | in-progress | Backend routes in `server/replit_integrations/audio` are complete; needs Expo screen + expo-av recording |
-
----
-
 ## Ready (Backlog — Prioritized)
 
-### Security / Infrastructure
+### High Priority
 
 | Priority | Item | Category | Business Value | Time Criticality | Risk/Opportunity | Job Size | WSJF | Status | Issue/Notes |
 |----------|------|----------|---------------|-----------------|-----------------|----------|------|--------|-------------|
-| 2 | Add `npm audit` to CI | Security | M | M | H | S | 8.0 | ready | Adds automatic dependency vulnerability scanning to every push |
-| 3 | Resolve remaining npm audit vulnerabilities | Security | M | M | M | S | 5.0 | blocked | 14 remaining vulns (8 low, 4 moderate, 2 high); highs are in firebase-admin/expo-asset deep deps — blocked on upstream |
-| 4 | Add persistent rate limiting (Redis) | Infrastructure | M | S | M | L | 5.0 | low-priority | Current in-memory rate limiter resets on server restart; acceptable for single-instance deploy |
+| 1 | EAS build & Play Store submission | Deployment | H | H | H | M | 4.8 | ready | eas.json + build-android.sh + PLAY_STORE_DEPLOYMENT.md all set; needs EAS secrets + AAB build |
+| 2 | Resolve remaining npm audit vulnerabilities | Security | M | M | M | S | 5.0 | blocked | 2 high in firebase-admin transitive chain (blocked on upstream); CI at --audit-level=critical |
 
 ### Low Priority
 
 | Priority | Item | Category | Business Value | Time Criticality | Risk/Opportunity | Job Size | WSJF | Status | Issue/Notes |
 |----------|------|----------|---------------|-----------------|-----------------|----------|------|--------|-------------|
-| 5 | Add authentication (anonymous sessions) | Feature | M | S | M | H | 1.6 | low-priority | Only needed if API cost abuse becomes a concern; significant architecture change |
-| 6 | Encrypt client-side AsyncStorage | Security | S | S | S | L | 9.0 | low-priority | Stored data is non-sensitive (story text, badges); not a current risk |
+| 3 | Add authentication (anonymous sessions) | Feature | M | S | M | H | 1.6 | low-priority | Only needed if API cost abuse becomes a concern; significant architecture change |
+| 4 | Encrypt client-side AsyncStorage | Security | S | S | S | L | 9.0 | low-priority | Stored data is non-sensitive (story text, badges); not a current risk |
 
 ---
 
@@ -40,35 +31,37 @@ Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 
 
 | Item | Category | Completed | Notes |
 |------|----------|-----------|-------|
-| Upgrade to Expo SDK 55 | Tech Debt | 2026-04-24 | expo 54 → 55.0.17; expo-image/expo-crypto/expo-symbols all on SDK-55 line; removed need for `patches/expo-asset+12.0.12.patch` |
-| Add supertest + @types/supertest as devDependencies | Tech Debt | 2026-04-24 | Enables integration suite; test count 895 → 919 |
-| Three-way codebase audit + remediation pass | Security/Quality | 2026-04-24 | protobufjs CVE fixed, AUTH_DISABLED removed, AsyncStorage violations fixed, stale-closure fix in create.tsx |
-| Fix TypeScript errors (8 errors: markStoryRead import, pRetry.AbortError, req.params types, drizzle-kit defineConfig) | Bug Fix | 2026-04-07 | `npm run typecheck` now exits clean |
-| Upgrade drizzle-kit to v0.31.10 | Security/Tech Debt | 2026-04-07 | Fixes moderate esbuild vulnerability; resolves TS `defineConfig` error |
-| Apply non-breaking npm audit fixes | Security | 2026-04-07 | 18 → 14 vulns; remaining require breaking upstream upgrades |
-| Add Vitest test suite (142 tests) | Tech Debt | 2026-04-07 | 5 test files: lib/storage, lib/query-client, server/routes, server/ai/router, server/elevenlabs |
-| Add markdown link checker to CI | Documentation | 2026-04-07 | `lycheeverse/lychee-action` at `.github/workflows/markdown-link-check.yml`; `.lycheeignore` configured |
+| Complete server/routes.ts migration | Code Quality | 2026-06-13 | Removed all inline handlers; routes.ts is now ~43-line pure composer; all logic in server/routes/*.ts domain modules |
+| Provision Supabase production database | Infrastructure | 2026-06-13 | Project aeraxfupuvwiskmfjliq (us-east-1); conversations + messages tables migrated |
+| Add Sentry error tracking | Observability | 2026-06-13 | @sentry/node (server) + @sentry/react-native (client); graceful no-op when DSN unset |
+| Add Cloudflare KV persistent rate limiting | Infrastructure | 2026-06-13 | Namespace ed09afa77f9243bbb08f3dbe34df1e70; checkRateLimitAsync() used by middleware; falls back to in-memory |
+| Build voice chat mobile UI screen | Feature | 2026-06-11 | app/voice-chat.tsx (672 lines); expo-av recording; SSE streaming; reached from profile tab |
+| Refactor app/story.tsx | Code Quality | 2026-06-11 | 386-line composition shell; logic in lib/use*.ts hooks; presentational pieces in components/Story* |
+| Add AI provider test coverage | Testing | 2026-06-11 | server/ai/providers/*.test.ts for all 4 providers |
+| COPPA parental-consent gate + privacy policy | Compliance | 2026-06-11 | app/parental-consent.tsx + app/privacy.tsx; routing gate in _layout.tsx |
+| Fix CI lint toolchain (ESLint 10 → 9) | CI | 2026-06-11 | eslint pinned to ^9.39.4; lint now runs clean |
+| Patch shell-quote critical CVE | Security | 2026-06-11 | Added package.json overrides; clears only critical advisory |
+| Fix all_heroes badge | Bug Fix | 2026-06-11 | Now counts custom heroes toward Hero Collector badge |
+| Fix AI streaming model field | Bug Fix | 2026-06-11 | Reports textModel instead of provider.name |
+| Fix suggest-settings JSON re-parse | Bug Fix | 2026-06-11 | Uses parsedJson from router instead of re-parsing |
+| Upgrade to Expo SDK 55 | Tech Debt | 2026-04-24 | expo 55.0.17; removed expo-asset patch requirement |
+| Add supertest + integration tests | Tech Debt | 2026-04-24 | 895 → 1010 tests |
+| Fix TypeScript errors | Bug Fix | 2026-04-07 | `npm run typecheck` exits clean |
+| Upgrade drizzle-kit to v0.31.10 | Security/Tech Debt | 2026-04-07 | Fixes moderate esbuild vulnerability |
+| Apply non-breaking npm audit fixes | Security | 2026-04-07 | 18 → 14 vulns |
+| Add Vitest test suite | Tech Debt | 2026-04-07 | Now 1010 tests across 41 files |
+| Add markdown link checker to CI | Documentation | 2026-04-07 | lycheeverse/lychee-action |
 | Complete documentation suite | Documentation | 2026-03-27 | CONTRIBUTING/CLAUDE/GEMINI/AGENTS/MEMORY/CONVENTIONS/GLOSSARY/ADRs/runbooks |
-| Wire read/unread story indicators into UI | Feature | 2026-03-25 | `getReadStories`/`markStoryRead` wired into library screen + completion screen |
-| Wire story feedback/rating UI | Feature | 2026-03-25 | Emoji reactions added to completion screen; calls `updateFeedback` in `lib/storage.ts` |
-| Reuse `HeroCard.tsx` in hero selection | Feature | 2026-03-25 | `HeroCard` grid in `app/(tabs)/create.tsx` |
-| Add `KeyboardAwareScrollView` to input forms | Feature | 2026-03-25 | Wired in `story-details.tsx`, `sleep-setup.tsx`, `quick-create.tsx` |
+| Wire read/unread story indicators into UI | Feature | 2026-03-25 | getReadStories/markStoryRead wired into library + completion screens |
+| Wire story feedback/rating UI | Feature | 2026-03-25 | Emoji reactions on completion screen; calls updateFeedback |
+| Reuse HeroCard.tsx in hero selection | Feature | 2026-03-25 | HeroCard grid in app/(tabs)/create.tsx |
+| Add KeyboardAwareScrollView to input forms | Feature | 2026-03-25 | Wired in story-details.tsx, sleep-setup.tsx, quick-create.tsx |
 | Unify dual settings systems | Bug Fix | 2026-03-13 | SettingsModal now uses SettingsContext |
 | Add security headers | Security | 2026-03-13 | X-Content-Type-Options, X-Frame-Options, etc. |
-| Wire up voice chat routes | Feature | 2026-03-13 | Backend functional; UI pending |
-| Resolve dead code triage | Maintenance | 2026-03-13 | HeroCard kept, settings merged, replit_integrations wired |
-| Restore `saveStoryScene` persistence | Bug Fix | 2026-03-13 | Was orphaned; now called on completion |
-| Fix storyId mismatch in completion screen | Bug Fix | 2026-03-13 | — |
-| Create comprehensive documentation suite | Documentation | 2026-03-13 | README, ARCHITECTURE, API, SECURITY, ROADMAP, CHANGELOG |
-| Update `.env.example` | Documentation | 2026-03-13 | All env vars documented |
-| Add onboarding flow (welcome → quick-create) | Feature | 2026-03-12 | — |
-| Add app settings screen + SettingsContext | Feature | 2026-03-12 | — |
-| Redesign story reading experience | UX | 2026-03-12 | — |
-| Add story library | Feature | 2026-03-11 | — |
-| Add tabbed navigation (5 tabs) | Architecture | 2026-03-11 | Home, Library, Create, Saved, Profile |
+| Wire up voice chat routes | Feature | 2026-03-13 | Backend functional |
 
 ---
 
 ## TODOs Found in Code
 
-No open `// TODO` comments found in source files as of last scan (2026-05-05).
+No open `// TODO` comments found in source files as of last scan (2026-06-13).

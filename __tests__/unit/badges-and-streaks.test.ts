@@ -306,14 +306,27 @@ describe("checkAndAwardBadges", () => {
     expect(allHeroes).toBeDefined();
   });
 
-  it("does NOT award 'all-heroes' when only custom hero IDs used (not all templates)", async () => {
-    // 8 custom heroes with non-template IDs — should not satisfy "use every hero template"
+  it("awards 'all-heroes' when 8 distinct custom heroes used (custom heroes count)", async () => {
+    // 8 custom heroes with non-template IDs — the badge counts distinct heroes used,
+    // so a child who only plays with custom heroes can still earn Hero Collector.
     const stories = Array.from({ length: 8 }, (_, i) =>
       makeStory({ heroId: `custom-hero-${i}` })
     );
     await mockAsyncStorage.setItem("@infinity_heroes_stories", JSON.stringify(stories));
 
     const newBadges = await checkAndAwardBadges(PROFILE_ID, "s-1", "classic", "custom-hero-0");
+    const allHeroes = newBadges.find((b) => b.id === "all-heroes");
+    expect(allHeroes).toBeDefined();
+  });
+
+  it("does NOT award 'all-heroes' with fewer than 8 distinct heroes", async () => {
+    // 10 stories but only 3 distinct heroes — below the roster-size threshold.
+    const stories = Array.from({ length: 10 }, (_, i) =>
+      makeStory({ heroId: `hero-${(i % 3) + 1}` })
+    );
+    await mockAsyncStorage.setItem("@infinity_heroes_stories", JSON.stringify(stories));
+
+    const newBadges = await checkAndAwardBadges(PROFILE_ID, "s-1", "classic", "hero-1");
     const allHeroes = newBadges.find((b) => b.id === "all-heroes");
     expect(allHeroes).toBeUndefined();
   });

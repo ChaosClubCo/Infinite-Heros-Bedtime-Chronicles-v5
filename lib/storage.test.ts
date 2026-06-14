@@ -35,6 +35,8 @@ vi.mock('@/constants/types', () => ({
     pinCode: '',
     videoEnabled: false,
   },
+  DEFAULT_PARENT_CONSENT: { consented: false, consentedAt: 0, version: 0 },
+  CONSENT_VERSION: 1,
   BADGE_DEFINITIONS: [
     { id: 'first-adventure', emoji: '🌟', title: 'First Adventure', description: 'Completed your very first story!', condition: 'first_story' },
   ],
@@ -61,6 +63,9 @@ import {
   setActiveProfileId,
   getParentControls,
   saveParentControls,
+  getParentConsent,
+  getConsentGiven,
+  setParentConsent,
   getBadges,
   awardBadge,
   getStreak,
@@ -381,6 +386,32 @@ describe('parent controls', () => {
     expect(result.bedtimeEnabled).toBe(true);
     expect(result.pinCode).toBe('1234');
     expect(result.bedtimeHour).toBe(19);
+  });
+});
+
+describe('parental consent', () => {
+  it('reports no consent by default', async () => {
+    const consent = await getParentConsent();
+    expect(consent.consented).toBe(false);
+    expect(await getConsentGiven()).toBe(false);
+  });
+
+  it('records consent for the current version', async () => {
+    await setParentConsent();
+    const consent = await getParentConsent();
+    expect(consent.consented).toBe(true);
+    expect(consent.version).toBe(1);
+    expect(consent.consentedAt).toBeGreaterThan(0);
+    expect(await getConsentGiven()).toBe(true);
+  });
+
+  it('treats a stale consent version as not consented', async () => {
+    mockStorage['@infinity_heroes_parent_consent'] = JSON.stringify({
+      consented: true,
+      consentedAt: 123,
+      version: 0,
+    });
+    expect(await getConsentGiven()).toBe(false);
   });
 });
 
