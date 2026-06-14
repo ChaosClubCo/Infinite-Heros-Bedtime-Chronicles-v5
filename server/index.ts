@@ -121,7 +121,7 @@ function setupCors(app: express.Application) {
     const isVercelPreview = (() => {
       if (!origin) return false;
       try {
-        return /^infinite-hero.*\.vercel\.app$/.test(new URL(origin).hostname);
+        return /^infinite-hero[a-z0-9-]*\.vercel\.app$/.test(new URL(origin).hostname);
       } catch {
         return false;
       }
@@ -342,6 +342,10 @@ function setupErrorHandler(app: express.Application) {
 
 export async function createApp(): Promise<express.Application> {
   const app = express();
+
+  // Trust the single platform proxy (Vercel/Replit) so req.ip reflects the real
+  // client for rate-limiting instead of the proxy address.
+  app.set('trust proxy', 1);
 
   validateEnvironment();
   setupSecurityHeaders(app);

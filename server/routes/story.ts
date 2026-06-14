@@ -15,7 +15,9 @@ export function registerStoryRoutes(app: Express): void {
 
     const { heroName, heroTitle, heroPower, heroDescription, duration, mode, madlibWords, soundscape, setting, tone, childName, sidekick, problem } = parsed.data;
 
-    const idempotencyKey = IdempotencyCache.keyFromBody(parsed.data);
+    // Bind the idempotency key to the caller so identical bodies from different
+    // users never collide on a shared cached generation.
+    const idempotencyKey = IdempotencyCache.keyFromBody({ ...parsed.data, _uid: req.user?.uid ?? 'anon' });
     const cached = idempotencyCache.get(idempotencyKey);
     if (cached) {
       req.log?.info('story request deduplicated (idempotency hit)');

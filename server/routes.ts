@@ -14,6 +14,11 @@ import { registerMusicRoutes } from "./routes/music";
 import { registerSuggestRoutes } from "./routes/suggest";
 import { registerVideoRoutes } from "./routes/video";
 
+/**
+ * Route composer. Installs the auth gate, then registers each domain module.
+ * Handlers live in server/routes/<domain>.ts; shared singletons in
+ * server/routes/context.ts; per-route plumbing in server/routes/helpers.ts.
+ */
 export async function registerRoutes(app: Express): Promise<Server> {
   logProviderStatus();
 

@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import { logger } from './logger';
 
 /**
  * Firebase Admin auth middleware.
@@ -75,6 +76,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
+    logger.warn({ event: 'auth_failure', reason: 'missing_bearer', path: req.path, method: req.method }, 'authentication failure');
     return res.status(401).json({ error: 'Authentication required' });
   }
 
@@ -87,6 +89,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     };
     next();
   } catch {
+    logger.warn({ event: 'auth_failure', reason: 'invalid_token', path: req.path, method: req.method }, 'authentication failure');
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
