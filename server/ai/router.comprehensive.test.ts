@@ -28,6 +28,7 @@ function createMockProvider(
   return {
     name: name as any,
     displayName: `Mock ${name}`,
+    textModel: `${name}-model`,
     isAvailable: () => available,
     capabilities: { text, image, streaming },
     generateText: shouldFail
@@ -347,13 +348,25 @@ describe('AIRouter', () => {
       expect(chunks[1].text).toBe('chunk2');
     });
 
-    it('adds provider and model to each chunk', async () => {
+    it('adds provider name and the real model id to each chunk', async () => {
       router.registerProvider(createMockProvider('gemini', { streaming: true }));
       const chunks: any[] = [];
       for await (const chunk of router.generateTextStream('story', baseReq)) {
         chunks.push(chunk);
       }
       expect(chunks[0].provider).toBe('gemini');
+      // model must be the concrete model id (textModel), not the provider name
+      expect(chunks[0].model).toBe('gemini-model');
+    });
+
+    it('falls back to provider name when textModel is unset', async () => {
+      const provider = createMockProvider('gemini', { streaming: true });
+      delete provider.textModel;
+      router.registerProvider(provider);
+      const chunks: any[] = [];
+      for await (const chunk of router.generateTextStream('story', baseReq)) {
+        chunks.push(chunk);
+      }
       expect(chunks[0].model).toBe('gemini');
     });
 

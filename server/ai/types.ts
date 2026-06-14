@@ -45,6 +45,12 @@ export interface StreamingTextChunk {
 export interface AIProvider {
   name: ProviderName;
   displayName: string;
+  /**
+   * The concrete text model ID this provider uses (e.g. "gemini-2.5-flash").
+   * Lets the router report the real model on streaming chunks, where the
+   * per-chunk payload (StreamingTextChunk) carries no model field.
+   */
+  textModel?: string;
   isAvailable(): boolean;
   capabilities: {
     text: boolean;

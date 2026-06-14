@@ -315,6 +315,31 @@ export default function SettingsScreen() {
           </SettingRow>
         </View>
 
+        <View style={styles.card}>
+          <SectionHeader title="Legal" icon="document-text-outline" />
+
+          <Pressable
+            onPress={() => router.push("/privacy")}
+            style={styles.settingRow}
+            accessibilityRole="button"
+            accessibilityLabel="Open the privacy policy"
+            testID="privacy-policy-link"
+          >
+            <Text style={styles.settingLabel}>Privacy Policy</Text>
+            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/parental-consent")}
+            style={[styles.settingRow, styles.settingRowLast]}
+            accessibilityRole="button"
+            accessibilityLabel="Review parental consent and data choices"
+          >
+            <Text style={styles.settingLabel}>Parental Consent</Text>
+            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
+          </Pressable>
+        </View>
+
         <Pressable
           onPress={handleReset}
           style={({ pressed }) => [
