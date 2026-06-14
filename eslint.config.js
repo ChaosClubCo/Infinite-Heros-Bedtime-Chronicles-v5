@@ -4,7 +4,11 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ["dist/*"],
+    // `.agents/**` holds vendored agent-skill documentation (e.g. Remotion
+    // skill assets that import the uninstalled `remotion` package). It is not
+    // part of the app build; mirror the `.agents/**` exclude in tsconfig.json
+    // so ESLint and tsc stay consistent and CI never walks these files.
+    ignores: ["dist/*", ".agents/**"],
   },
   {
     // TypeScript validates all imports at compile time, making these rules
