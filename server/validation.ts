@@ -10,6 +10,31 @@ export function sanitizeString(val: unknown, maxLen: number): string {
   return val.slice(0, maxLen).trim();
 }
 
+/**
+ * Sanitize a user-controlled string before interpolating it into an LLM prompt.
+ * Beyond truncation, this neutralizes prompt-injection vectors: it flattens the
+ * value to a single line (control chars/newlines -> spaces), collapses runs of
+ * whitespace, and defangs instruction-delimiter sequences and role markers that
+ * could be used to break out of the surrounding prompt context.
+ * The result is plain inline data — never multi-line, never delimiter-bearing.
+ */
+export function sanitizePromptInput(val: unknown, maxLen: number): string {
+  if (typeof val !== 'string') return '';
+  let s = val.slice(0, maxLen);
+  // Control characters (incl. newlines/tabs) -> space.
+  // eslint-disable-next-line no-control-regex
+  s = s.replace(/[\x00-\x1F\x7F]+/g, ' ');
+  // Defang code/quote fences.
+  s = s.replace(/`+/g, "'").replace(/"{3,}/g, '"').replace(/~{3,}/g, '');
+  // Strip role-injection markers (e.g. "system:", "assistant:").
+  s = s.replace(/\b(system|assistant|user)\s*:/gi, '$1');
+  // Remove markdown structural / quote / heading / rule markers.
+  s = s.replace(/(^|\s)[#>\-*_]{2,}/g, '$1');
+  // Collapse remaining whitespace.
+  s = s.replace(/\s{2,}/g, ' ').trim();
+  return s;
+}
+
 export function validateMadlibWords(input: unknown): Record<string, string> | undefined {
   if (input == null) return undefined;
   if (typeof input !== 'object' || Array.isArray(input)) return undefined;

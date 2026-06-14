@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import crypto from "node:crypto";
 import path from "node:path";
-import { checkRateLimit } from "../rate-limit";
+import { checkRateLimitAsync } from "../rate-limit";
 import { classifyError, createErrorResponse } from "../utils";
 import { TTS_CACHE_DIR } from "./context";
 
@@ -11,11 +11,12 @@ export function getClientIp(req: Request): string {
 
 /**
  * Per-route rate-limit middleware. Keys on the authenticated uid when present,
- * falling back to client IP (see getClientIp).
+ * falling back to client IP. Uses Cloudflare KV when configured (persistent
+ * across restarts), otherwise falls back to the in-memory sliding window.
  */
 export function rateLimited(message = "Too many requests. Please wait a moment.") {
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (!checkRateLimit(getClientIp(req))) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    if (!(await checkRateLimitAsync(getClientIp(req)))) {
       return res.status(429).json({ error: message });
     }
     next();
