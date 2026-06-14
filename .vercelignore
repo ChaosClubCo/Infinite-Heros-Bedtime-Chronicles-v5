@@ -1,0 +1,4 @@
+# Vendored agent-skill documentation — not part of the app build.
+# Mirrors the `.agents/**` exclude in tsconfig.json and eslint.config.js so
+# the directory is never uploaded into or processed by the Vercel build.
+.agents/

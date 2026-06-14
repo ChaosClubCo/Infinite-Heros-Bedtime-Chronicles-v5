@@ -9,6 +9,9 @@ import {
   StreakData,
   ParentControls,
   DEFAULT_PARENT_CONTROLS,
+  ParentConsent,
+  DEFAULT_PARENT_CONSENT,
+  CONSENT_VERSION,
   BADGE_DEFINITIONS,
 } from '@/constants/types';
 import { HEROES } from '@/constants/heroes';
@@ -23,6 +26,7 @@ const BADGES_KEY = '@infinity_heroes_badges';
 const STREAKS_KEY = '@infinity_heroes_streaks';
 const PARENT_CONTROLS_KEY = '@infinity_heroes_parent_controls';
 const ONBOARDING_KEY = '@infinity_heroes_onboarding_complete';
+const PARENT_CONSENT_KEY = '@infinity_heroes_parent_consent';
 
 export async function getOnboardingComplete(): Promise<boolean> {
   try {
@@ -35,6 +39,38 @@ export async function getOnboardingComplete(): Promise<boolean> {
 
 export async function setOnboardingComplete(): Promise<void> {
   await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+}
+
+/**
+ * Read the stored parental-consent record (COPPA). Returns the default
+ * (un-consented) record if nothing is stored or parsing fails.
+ */
+export async function getParentConsent(): Promise<ParentConsent> {
+  try {
+    const data = await AsyncStorage.getItem(PARENT_CONSENT_KEY);
+    return data ? JSON.parse(data) : DEFAULT_PARENT_CONSENT;
+  } catch {
+    return DEFAULT_PARENT_CONSENT;
+  }
+}
+
+/**
+ * True only when a parent has consented for the *current* CONSENT_VERSION.
+ * Used by the root layout to gate the app behind `app/parental-consent.tsx`.
+ */
+export async function getConsentGiven(): Promise<boolean> {
+  const consent = await getParentConsent();
+  return consent.consented && consent.version >= CONSENT_VERSION;
+}
+
+/** Record verifiable parental consent for the current CONSENT_VERSION. */
+export async function setParentConsent(): Promise<void> {
+  const record: ParentConsent = {
+    consented: true,
+    consentedAt: Date.now(),
+    version: CONSENT_VERSION,
+  };
+  await AsyncStorage.setItem(PARENT_CONSENT_KEY, JSON.stringify(record));
 }
 
 export async function getFavorites(): Promise<string[]> {
@@ -322,7 +358,11 @@ export async function checkAndAwardBadges(
       case 'first_story': earned = totalStories >= 1; break;
       case 'night_story': earned = hour >= 20; break;
       case 'morning_story': earned = hour >= 5 && hour < 10; break;
-      case 'all_heroes': earned = HEROES.every((h) => uniqueHeroes.has(h.id)); break;
+      // "Hero Collector": count distinct heroes used (built-in OR custom). The old
+      // check required every built-in hero, so children who play only with custom
+      // heroes could never earn it. Threshold = roster size, so the bar is unchanged
+      // for built-in users while custom heroes now count toward it.
+      case 'all_heroes': earned = uniqueHeroes.size >= HEROES.length; break;
       case 'madlibs_3': earned = modeCount('madlibs') >= 3; break;
       case 'sleep_3': earned = modeCount('sleep') >= 3; break;
       case 'classic_5': earned = modeCount('classic') >= 5; break;

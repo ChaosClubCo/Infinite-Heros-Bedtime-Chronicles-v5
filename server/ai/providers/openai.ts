@@ -17,6 +17,7 @@ function getDirectClient(): OpenAI | null {
 export const openaiProvider: AIProvider = {
   name: "openai",
   displayName: "OpenAI",
+  textModel: "gpt-4o-mini",
   capabilities: { text: true, image: true, streaming: true },
 
   isAvailable(): boolean {

@@ -166,8 +166,25 @@ This component is not broken — it was never connected. It is a useful utility 
 **Type:** Orphaned export  
 **Audit date:** 2026-05-06  
 **What it does:** A React hook wrapping `@react-native-community/netinfo` that subscribes to network state changes and returns `{ isConnected, isInternetReachable }`. Intended to feed `OfflineBanner` or gate story-generation API calls.  
-**Current usage:** None — the hook is never imported anywhere in the app.  
-**Recommendation:** KEEP_CURRENT — companion to `OfflineBanner.tsx`. When offline UX is implemented, this hook provides the signal. No regression risk to keeping it dormant.
+**Current usage:** Wired — `app/_layout.tsx` uses it to gate `OfflineBanner` (resolved after this audit; see CLAUDE.md).  
+**Recommendation:** RESOLVED — no longer orphaned.
+
+---
+
+## Completed Removals
+
+### Story-screen dead code ✅ Removed (2026-06-11)
+
+Removed during the story-screen refactor (logic verified unreferenced by grep
+before deletion):
+
+- `seekAudio` callback in `app/story.tsx` — defined but never wired to any UI
+  (no `onSeek` prop existed anywhere).
+- Local `SPEED_LABELS` / `SPEED_ICONS` constants in `app/story.tsx` — orphaned
+  after the earlier `StoryPlayerControls` extraction (that component owns its
+  own `SPEED_LABELS` copy).
+- Unused `saveStoryScene` import in `app/story.tsx` — the function itself is
+  alive and used by `app/completion.tsx`; only the stray import was removed.
 
 ---
 
