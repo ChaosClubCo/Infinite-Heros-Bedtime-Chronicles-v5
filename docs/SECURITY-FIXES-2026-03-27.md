@@ -1,5 +1,7 @@
 # Security Fixes Applied — 2026-03-27
 
+> **Status: historical snapshot.** Documents fixes applied on 2026-03-27; see `docs/CHANGELOG.md` for the consolidated history.
+
 **Branch:** `copilot/fix-package-lock-mismatch`
 **Fixes:** Top 5 Critical Findings from Comprehensive Audit
 

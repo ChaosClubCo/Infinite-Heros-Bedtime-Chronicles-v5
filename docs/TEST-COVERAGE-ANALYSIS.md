@@ -2,7 +2,7 @@
 
 ## Current State
 
-**The codebase has a substantial and growing test suite.** Vitest v4 is fully configured (`vitest.config.ts`) with `@vitest/coverage-v8`. As of the 2026-04-24 audit, **919 tests pass** across 30+ test files. The `npm test` / `npm run test:coverage` scripts work.
+**The codebase has a substantial and growing test suite.** Vitest v4 is fully configured (`vitest.config.ts`) with `@vitest/coverage-v8`. As of the 2026-06-11 code-quality pass, **1010 tests pass** across 41 test files. The `npm test` / `npm run test:coverage` scripts work.
 
 **Test file inventory:**
 
@@ -10,21 +10,29 @@
 |----------|-------|
 | `__tests__/integration/` | `api-routes.test.ts` |
 | `__tests__/unit/` | `ai-router.test.ts`, `badges-and-streaks.test.ts`, `elevenlabs.test.ts`, `parent-controls.test.ts`, `routes-utils.test.ts`, `settings-migration.test.ts`, `storage-crud.test.ts`, `video.test.ts` |
-| `server/` | `circuit-breaker.test.ts`, `feature-flags.test.ts`, `idempotency.test.ts`, `load-shedding.test.ts`, `logger.test.ts`, `metrics.test.ts`, `prompts.test.ts`, `rate-limit.test.ts`, `retry.test.ts`, `routes.test.ts`, `security-fixes.test.ts`, `utils.test.ts`, `validation.test.ts` |
+| `server/` | `circuit-breaker.test.ts`, `feature-flags.test.ts`, `idempotency.test.ts`, `load-shedding.test.ts`, `logger.test.ts`, `metrics.test.ts`, `prompts.test.ts`, `rate-limit.test.ts`, `retry.test.ts`, `routes.test.ts`, `security-fixes.test.ts`, `suno.test.ts`, `utils.test.ts`, `validation.test.ts` |
 | `server/` (comprehensive) | `auth.comprehensive.test.ts`, `elevenlabs.comprehensive.test.ts`, `routes.comprehensive.test.ts`, `storage.comprehensive.test.ts`, `video.comprehensive.test.ts` |
 | `server/ai/` | `router.test.ts`, `router.comprehensive.test.ts` |
+| `server/ai/providers/` | `anthropic.test.ts`, `gemini.test.ts`, `openai.test.ts`, `openrouter.test.ts` |
 | `lib/` | `query-client.test.ts`, `storage.test.ts`, `storage-migration.test.ts`, `storage.comprehensive.test.ts` |
 | `shared/` | `schema.comprehensive.test.ts` |
 
-**Coverage summary (as of 2026-04-24):**
+**Coverage summary (as of 2026-06-11):**
 
 | Module | Statement | Branch |
 |--------|-----------|--------|
 | `server/ai/router.ts` | ~97% | ~84% |
-| `server/routes.ts` | ~51% | ~30% |
-| `server/elevenlabs.ts`, `video.ts`, `suno.ts`, `db.ts` | ~0% (mocked at module level) | — |
+| `server/ai/providers/*` | ~98% | ~95% |
+| `server/suno.ts` | 100% | ~93% |
+| `server/routes.ts` (composer) + `server/routes/*` | ~50% | ~33% |
+| `server/elevenlabs.ts`, `video.ts`, `db.ts` | ~0% (mocked at module level) | — |
+| **All files (`server/**` + `lib/**`)** | ~59% | ~55% |
 
-**Known coverage gap:** `supertest` was installed in the 2026-04-24 pass, enabling the 24-test integration suite in `__tests__/integration/api-routes.test.ts` to run (it was previously silently skipped).
+**Threshold note:** `vitest.config.ts` declares an 80% branch threshold, so `npm run test:coverage` exits non-zero. This pre-dates the 2026-06-11 pass (baseline was 45.65% branches; the pass raised it to 55.18%). The threshold is aspirational until elevenlabs/video module-level mocks are replaced with real unit tests.
+
+**Untested by design:** the story-screen hooks extracted to `lib/use*.ts` (useStoryAudio, useBackgroundMusic, useSceneGeneration, useVideoGeneration, useSleepTimer, useAutoAdvance, useLoadingMessages) import Expo native modules (expo-av, expo-haptics) and cannot load in the node test environment; there is no React Native testing infrastructure (no jest-expo / @testing-library/react-native). They count as 0% in coverage.
+
+**Known coverage gap:** `supertest` was installed in the 2026-04-24 pass, enabling the 24-test integration suite in `__tests__/integration/api-routes.test.ts` to run (it was previously silently skipped). The 2026-06-11 routes split (`server/routes.ts` → composer + `server/routes/*` domain modules) kept the `registerRoutes` import path, so the integration suite runs unchanged.
 
 **Codebase scope:** ~60 production TypeScript/TSX files across frontend screens (15), components (11), client libraries (5), server modules (17+), AI provider layer (7), shared schemas (2), and Replit integrations (11).
 
@@ -50,8 +58,8 @@ The `checkAndAwardBadges()` function contains the core gamification logic with 1
 
 **Known bugs/risks found in audit:**
 - `updateStreak()` uses `new Date(streak.lastStoryDate)` — timezone-sensitive. A story at 11:59 PM could calculate as the same day or next day depending on locale.
-- `checkAndAwardBadges()` condition `vocab_5` checks `totalStories >= 5` rather than counting actual vocabulary words learned — this appears to be a logic error.
-- Badge `all_heroes` compares `uniqueHeroes.size >= HEROES.length` (8), but custom heroes aren't in the HEROES array, so using only custom heroes would never earn this badge.
+- ~~`checkAndAwardBadges()` condition `vocab_5` checks `totalStories >= 5` rather than counting actual vocabulary words learned.~~ **Not a bug (verified 2026-06-11):** the code counts distinct `vocabWord.word` values (`vocabWordsLearned >= 5`). Description corrected here.
+- ~~Badge `all_heroes` required every built-in hero, so children using only custom heroes could never earn it.~~ **Fixed 2026-06-11:** now `uniqueHeroes.size >= HEROES.length`, which counts distinct heroes used (built-in OR custom), so custom heroes count toward it. Covered by `__tests__/unit/badges-and-streaks.test.ts`.
 
 **Why it matters:** Badge logic is user-visible and gamification is a core product feature for children. Wrong badges or missing streaks directly degrade the child's experience.
 
@@ -73,10 +81,10 @@ The `AIRouter` class implements multi-provider fallback chains for text, streami
 - Image generation skips providers without `generateImage` method
 - Default chain fallback returns `["gemini", "openai"]` for unknown task types
 
-**Known bugs found in audit:**
-- **Greedy JSON regex** (line 71): `\{[\s\S]*\}` is greedy — if the AI response contains multiple JSON objects, it matches from the first `{` to the *last* `}`, potentially grabbing garbage between them. Should use `\{[\s\S]*?\}` or a proper JSON extractor.
-- **Parsed JSON discarded** (line 78): The router validates JSON by parsing it, then discards the result. The caller re-parses the raw text again in `routes.ts`, duplicating work and risking inconsistency.
-- **Streaming model name bug** (line 113): `model: provider.name` reports the provider name as the model, not the actual model ID (e.g., "gemini" instead of "gemini-2.5-flash").
+**Known bugs found in audit (all fixed):**
+- ~~**Greedy JSON regex**: `\{[\s\S]*\}` could grab across multiple JSON objects.~~ **Fixed:** the router uses `extractFirstJson()`, a balanced-brace scan that skips string literals.
+- ~~**Parsed JSON discarded**: the router parsed JSON then discarded it, and `routes.ts` re-parsed.~~ **Fixed 2026-06-11:** `/api/suggest-settings` now sets `jsonMode: true` and consumes `response.parsedJson`; the duplicate parse is gone.
+- ~~**Streaming model name bug**: `model: provider.name` reported the provider name, not the model ID.~~ **Fixed 2026-06-11:** providers expose `textModel`; the router emits `provider.textModel ?? provider.name`. Covered by `server/ai/router.comprehensive.test.ts`.
 
 ---
 
@@ -257,20 +265,21 @@ End-to-end tests for Express routes with mocked AI providers.
 
 ---
 
-### 12. AI Provider Implementations (`server/ai/providers/*.ts`) — MEDIUM
+### 12. AI Provider Implementations (`server/ai/providers/*.ts`) — ✅ DONE (2026-06-11)
 
-Four provider files implementing the `AIProvider` interface.
+Four provider files implementing the `AIProvider` interface. Covered by colocated
+`anthropic.test.ts`, `gemini.test.ts`, `openai.test.ts`, `openrouter.test.ts` (73 tests):
 
-**What to test:**
-- Each provider's `isAvailable()` returns true only when required env vars are set
-- Each provider's `capabilities` object is accurate (text, image, streaming flags)
-- Gemini: JSON mode sets `responseMimeType: "application/json"`
-- Gemini: thinking budget passed as `thinkingConfig`
-- OpenAI: prefers integrations client for text, direct client for images
-- OpenAI: handles both `b64_json` and `url` image response formats
-- Anthropic: extracts first "text" content block, returns "" if none
-- OpenRouter: factory creates 4 providers with correct model IDs (grok-3-mini, mistral-small-3.1, command-a, llama-4-scout)
-- All providers throw descriptive errors when not configured
+- Each provider's `isAvailable()` returns true only when required env vars are set ✅
+- Each provider's `capabilities` object is accurate (text, image, streaming flags) ✅
+- Gemini: JSON mode sets `responseMimeType: "application/json"` ✅
+- Gemini: thinking budget passed as `thinkingConfig` ✅
+- OpenAI: prefers integrations client for text, direct client for images ✅
+- OpenAI: handles both `b64_json` and `url` image response formats ✅
+- Anthropic: extracts first "text" content block, returns "" if none ✅
+- OpenRouter: factory creates 4 providers with correct model IDs (grok-3-mini, mistral-small-3.1, command-a, llama-4-scout) ✅
+- All providers throw descriptive errors when not configured ✅ — except Gemini, whose
+  module-level client cache never validates the key (documented quirk, locked by a test)
 
 ---
 
@@ -341,10 +350,10 @@ Complex state management in screen components that could be extracted and tested
 
 | Issue | Location | Severity | Description |
 |-------|----------|----------|-------------|
-| Wrong badge condition | `lib/storage.ts:316` | Medium | `vocab_5` checks `totalStories >= 5` instead of counting vocabulary words learned |
-| Greedy JSON regex | `server/ai/router.ts:71` | High | `\{[\s\S]*\}` matches first `{` to last `}` — could grab invalid JSON if response has multiple objects |
-| Parsed JSON discarded | `server/ai/router.ts:78` | Low | JSON is validated then thrown away; caller re-parses, wasting cycles and risking inconsistency |
-| Wrong model in stream | `server/ai/router.ts:113` | Low | Reports `provider.name` as model instead of actual model ID |
+| ~~Wrong badge condition~~ | `lib/storage.ts` | — | **Not a bug:** `vocab_5` already counts distinct vocab words. `all_heroes` now counts custom heroes too (Fixed 2026-06-11) |
+| ~~Greedy JSON regex~~ | `server/ai/router.ts` | — | **Fixed:** replaced by `extractFirstJson()` balanced-brace scanner |
+| ~~Parsed JSON discarded~~ | `server/ai/router.ts` | — | **Fixed 2026-06-11:** `/api/suggest-settings` consumes `parsedJson`; no re-parse |
+| ~~Wrong model in stream~~ | `server/ai/router.ts` | — | **Fixed 2026-06-11:** providers expose `textModel`; router emits real model ID |
 | No error handling in TTS | `server/elevenlabs.ts` | Medium | `generateSpeech()` has no try/catch — API failures propagate as unhandled errors |
 | Race condition in video | `server/video.ts:174` | Low | File existence check is non-atomic with `sendFile()` — cache cleanup could delete between check and serve |
 | Silent data loss | `lib/storage.ts`, `lib/SettingsContext.tsx` | Medium | All storage errors silently caught with empty catch blocks — users never know when data is lost |
