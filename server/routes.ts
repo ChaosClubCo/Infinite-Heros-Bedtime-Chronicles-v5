@@ -22,9 +22,8 @@ import { registerVideoRoutes } from "./routes/video";
 export async function registerRoutes(app: Express): Promise<Server> {
   logProviderStatus();
 
-  // Auth gate for all /api/* endpoints. GETs are skipped here so public reads
-  // (health, voices, music) stay open; data-bearing GETs (e.g. conversations)
-  // apply requireAuth at the route level inside their own module.
+  // Auth middleware applied before all domain routes — POST /api/* requires a valid token.
+  // GET endpoints (health, voices, music, etc.) skip auth.
   app.use('/api', async (req, res, next) => {
     if (req.method === 'GET') return next();
     return requireAuth(req, res, next);
@@ -38,16 +37,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerSuggestRoutes(app);
   registerVideoRoutes(app);
 
-  // Voice chat & conversation routes (require OpenAI connector + database).
   if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.DATABASE_URL && isFeatureEnabled('voiceChatEnabled')) {
     registerAudioRoutes(app);
     logger.info('voice chat & conversation routes registered');
   }
 
-  // Gemini direct image generation route.
   if (process.env.AI_INTEGRATIONS_GEMINI_API_KEY) {
     registerImageRoutes(app);
-    logger.info('gemini image generation route registered');
+    logger.info('Gemini image generation route registered');
   }
 
   return createServer(app);

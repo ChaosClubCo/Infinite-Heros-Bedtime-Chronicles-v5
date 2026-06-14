@@ -2,6 +2,37 @@
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
 
+## [Unreleased] — 2026-06-13 — Production infrastructure + Phase 4 completion
+
+Phase 4 completion (routes.ts migration) and Phase 5 prep (production infrastructure via
+Supabase, Sentry, and Cloudflare KV provisioned through MCP integrations).
+
+### Added
+- **Cloudflare KV persistent rate limiting** — `checkRateLimitAsync()` in `server/rate-limit.ts`
+  uses Cloudflare KV (namespace `infinity-heroes-rate-limit`, id `ed09afa77f9243bbb08f3dbe34df1e70`)
+  when `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_KV_NAMESPACE_ID`, and `CLOUDFLARE_API_TOKEN` are set.
+  Falls back to the existing in-memory sliding-window Map when env vars are absent — no change
+  in default behavior. Rate-limit middleware (`server/routes/helpers.ts`) now uses the async path.
+- **Sentry error tracking** — `@sentry/node` (server) and `@sentry/react-native` (client) installed.
+  Server init in `server/index.ts` before all middleware; Sentry Express error handler wired just
+  before the generic handler in `setupErrorHandler`. Client init in `app/_layout.tsx`. Both
+  gracefully no-op when `SENTRY_DSN` / `EXPO_PUBLIC_SENTRY_DSN` are unset.
+- **Supabase production database** — project `aeraxfupuvwiskmfjliq` (us-east-1) restored and
+  migrated with the Infinity Heroes schema: `users`, `conversations`, and `messages` tables with
+  proper indexes and FK cascade. Connection string documented in `.env.example`.
+- **EAS Secrets Checklist** (`docs/operations/EAS-SECRETS-CHECKLIST.md`) — all required EAS
+  secrets enumerated with descriptions and instructions for `eas secret:create`.
+
+### Changed
+- **`server/routes.ts` is now a ~43-line pure composer** — all inline route handlers removed and
+  replaced with calls to the domain module functions that already existed in `server/routes/`.
+  The domain modules (`health.ts`, `story.ts`, `images.ts`, `tts.ts`, `music.ts`, `suggest.ts`,
+  `video.ts`) were already fully implemented; `routes.ts` simply wasn't calling them. No behavior
+  change; all 1010 tests continue to pass.
+- `.env.example` updated with Supabase DATABASE_URL format, Cloudflare KV vars, and Sentry DSN vars.
+- `MEMORY.md`, `docs/ROADMAP.md`, `TODO.md` updated to reflect 2026-06-13 state (voice chat UI ✅,
+  story.tsx refactor ✅, AI provider tests ✅, new infrastructure ✅).
+
 ## [Unreleased] — 2026-06-11 — CI pipeline fixes (lint toolchain, audit, link check)
 
 Phase 3 (partial): get the CI gates green by fixing pre-existing infrastructure
