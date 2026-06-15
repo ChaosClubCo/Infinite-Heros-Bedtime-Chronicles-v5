@@ -108,7 +108,7 @@
     "@vitest/coverage-v8": "^4.1.8",
     "babel-plugin-react-compiler": "^19.0.0-beta-714736e-20250131",
     "drizzle-kit": "^0.31.10",
-    "esbuild": "^0.28.0",
+    "esbuild": "^0.28.1",
     "msw": "^2.14.6",
     "patch-package": "^8.0.0",
     "supertest": "^7.2.2",
