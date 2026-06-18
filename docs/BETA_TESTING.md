@@ -25,7 +25,7 @@ Please report any issues you encounter:
 - Audio playback problems
 - UI bugs or confusing navigation
 
-Report via: [TBD — add feedback channel]
+Report via: [GitHub Issues](https://github.com/chaosclubco/infinite-heros-bedtime-chronicles-v5/issues/new) — select the **"Bug Report"** template and include your Android version, a description of what happened, and steps to reproduce.
 
 ### Known Limitations (Beta)
 

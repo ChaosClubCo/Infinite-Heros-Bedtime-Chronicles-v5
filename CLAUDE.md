@@ -83,7 +83,7 @@ server/                 # Express.js backend
   auth.ts               # Firebase Admin bearer-token middleware (optional, lazy-init)
   validation.ts         # Zod request schemas + sanitizeString
   prompts.ts            # Story system/user prompt builders + CHILD_SAFETY_RULES
-  rate-limit.ts         # Per-IP sliding-window rate limiter (in-memory Map)
+  rate-limit.ts         # Per-IP sliding-window rate limiter (in-memory Map with optional Cloudflare KV persistence)
   circuit-breaker.ts    # Circuit breaker for AI providers
   retry.ts              # Retry with jitter
   load-shedding.ts      # Active-request ceiling middleware
@@ -125,9 +125,9 @@ docs/                   # Project documentation
   adr/                  # Architecture Decision Records (5 ADRs)
   agents/               # 15 files: 12 agent spec files + README + pr-review.md + security.md
   best-practices/       # Best-practice guides (ACCESSIBILITY, PERFORMANCE, SECURITY, TESTING)
-  operations/           # PLAY_STORE_DEPLOYMENT.md
-  runbooks/             # deploy, incident-response, database-migrations, provider-outage, rollback
-  superpowers/plans/    # Maturity & hardening plans (2026-04-08)
+  operations/           # PLAY_STORE_DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md, OBSERVABILITY.md, SECRETS-ROTATION.md, README.md
+  runbooks/             # deploy, incident-response, database-migrations, provider-outage, rollback, monitoring-alerting, README.md
+  superpowers/plans/    # Maturity & hardening plans (2026-04-08; historical planning docs)
 api/                    # Vercel serverless entry point
   server.mjs            # Handler that imports createApp from server_dist
 patches/                # patch-package fixes for dependencies
@@ -335,15 +335,17 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 - Focus on: courage, kindness, friendship, wonder, imagination, comfort
 
 ### Server Middleware Order
-1. Environment validation (warns on missing providers)
-2. Security headers (X-Content-Type-Options, X-Frame-Options, etc.)
-3. CORS (see allowed origins above, methods: GET/POST/PUT/DELETE/OPTIONS)
-4. Body parsing (JSON + URL-encoded, 100KB limit)
-5. Request logging (pino)
-6. Load shedding (rejects if active-request ceiling exceeded)
-7. Expo manifest routing + static file serving
-8. Route registration (`requireAuth` applied per-route to POSTs; rate limit + idempotency also per-route)
-11. Error handler (sanitizes messages)
+1. Sentry init (before all middleware — captures unhandled errors)
+2. Environment validation (warns on missing providers)
+3. Security headers (X-Content-Type-Options, X-Frame-Options, etc.)
+4. CORS (see allowed origins above, methods: GET/POST/PUT/DELETE/OPTIONS)
+5. Body parsing (JSON + URL-encoded, 100KB limit)
+6. Request logging (pino)
+7. Load shedding (rejects if active-request ceiling exceeded)
+8. Expo manifest routing + static file serving
+9. Route registration (`requireAuth` applied to all POST /api/*; rate limit + idempotency per domain module)
+10. Sentry error handler
+11. Global error handler (sanitizes messages)
 
 ## Common Tasks
 
@@ -398,13 +400,22 @@ RATE_LIMIT_MAX=10            # Default 10 requests
 TTS_CACHE_MAX_AGE_MS=86400000       # Default 24 hours
 TTS_CACHE_MAX_SIZE_BYTES=524288000  # Default 500 MB
 
+# Observability (optional — both gracefully no-op when unset)
+SENTRY_DSN=                  # Server-side Sentry error tracking
+EXPO_PUBLIC_SENTRY_DSN=      # Client-side Sentry (bundled into APK — not a secret)
+
+# Cloudflare KV persistent rate limiting (optional — falls back to in-memory when absent)
+CLOUDFLARE_ACCOUNT_ID=
+CLOUDFLARE_KV_NAMESPACE_ID=  # ed09afa77f9243bbb08f3dbe34df1e70
+CLOUDFLARE_API_TOKEN=
+
 # Replit-specific (auto-set)
 REPLIT_DEV_DOMAIN=           # Dev server domain
 REPLIT_DOMAINS=              # Production domains (comma-separated)
 EXPO_PUBLIC_DOMAIN=          # Client API domain (set by dev script)
 ```
 
-Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: OpenAI, Anthropic, ElevenLabs, DATABASE_URL, FIREBASE_SERVICE_ACCOUNT_KEY.
+Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: OpenAI, Anthropic, ElevenLabs, DATABASE_URL, FIREBASE_SERVICE_ACCOUNT_KEY, SENTRY_DSN, Cloudflare KV vars.
 
 ## Story Response Schema (AI must return)
 ```json

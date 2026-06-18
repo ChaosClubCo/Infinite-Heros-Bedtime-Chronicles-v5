@@ -1,6 +1,6 @@
 # Architecture
 
-<!-- Last verified: 2026-05-05 -->
+<!-- Last verified: 2026-06-18 -->
 
 See also: [ADRs](./adr/) for individual architectural decisions.
 
@@ -25,13 +25,15 @@ See also: [ADRs](./adr/) for individual architectural decisions.
 │  │  → Idempotency Cache → Request Logger             │   │
 │  └──────────────────────────────────────────────────┘   │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │              Route Handlers                        │   │
-│  │  /api/generate-story    → AI Router (story chain) │   │
-│  │  /api/generate-scene    → AI Router (image chain) │   │
-│  │  /api/tts               → ElevenLabs              │   │
-│  │  /api/suggest-settings  → AI Router (suggest)     │   │
-│  │  /api/generate-video    → OpenAI Sora             │   │
-│  │  /api/conversations/*   → Voice Chat Module       │   │
+│  │       Route Composer (server/routes.ts ~43 lines) │   │
+│  │  routes/health.ts  → /api/health, /api/metrics   │   │
+│  │  routes/story.ts   → /api/generate-story[-stream]│   │
+│  │  routes/images.ts  → /api/generate-avatar/scene  │   │
+│  │  routes/tts.ts     → /api/tts, /api/voices       │   │
+│  │  routes/music.ts   → /api/music/:mode             │   │
+│  │  routes/suggest.ts → /api/suggest-settings        │   │
+│  │  routes/video.ts   → /api/generate-video          │   │
+│  │  replit_integrations/audio → /api/conversations/* │   │
 │  └──────────────────────────────────────────────────┘   │
 │  ┌──────────────────────────────────────────────────┐   │
 │  │              AI Router (server/ai/)               │   │
@@ -112,13 +114,16 @@ SettingsContext (lib/SettingsContext.tsx)
 ## Server Architecture
 
 ### Middleware Stack (in order)
-1. **Security Headers** — CSP, HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, X-XSS-Protection, Permissions-Policy, X-Permitted-Cross-Domain-Policies
-2. **CORS** — Dynamic origin matching (Replit domains + localhost)
-3. **Body Parser** — JSON (100KB limit)
-4. **Auth Middleware** — Firebase JWT validation (skipped in dev mode)
-5. **Request Logger** — API request timing and response logging
-6. **Route Handlers** — All /api/* endpoints
-7. **Error Handler** — Sanitized error responses via `sanitizeErrorMessage()`
+1. **Sentry Init** — Error and performance instrumentation (no-ops when `SENTRY_DSN` unset)
+2. **Security Headers** — X-Content-Type-Options, X-Frame-Options, Referrer-Policy, X-XSS-Protection, Permissions-Policy, X-Permitted-Cross-Domain-Policies
+3. **CORS** — Dynamic origin matching (Replit domains, localhost, bedtime-chronicles.com, Vercel previews)
+4. **Body Parser** — JSON + URL-encoded (100KB limit)
+5. **Request Logger** — pino structured logging (method, path, status, duration)
+6. **Load Shedding** — Rejects requests when active-request ceiling is exceeded (503)
+7. **Expo Manifest Routing + Static File Serving** — Dev server integration
+8. **Route Registration** — Auth gate (POST /api/* requires Firebase token) + domain modules
+9. **Sentry Error Handler** — Captures unhandled errors with context
+10. **Global Error Handler** — Sanitized error responses via `sanitizeErrorMessage()`
 
 ### Rate Limiting
 - In-memory rate limiter, keyed by authenticated user UID (falls back to IP)
@@ -150,7 +155,9 @@ SettingsContext (lib/SettingsContext.tsx)
 | API serverless | Vercel | `api/server.mjs` entry point; 60s max duration; all routes rewrite to `/api/server` |
 | Mobile (Android) | EAS Build | `.aab` uploaded to Google Play Console; package `com.infinityheroes.bedtime` |
 | Mobile (iOS) | EAS Build | Configured but no App Store submission yet |
-| Database | Replit PostgreSQL | Required only for voice chat; provisioned via Replit Connectors |
+| Database | Supabase PostgreSQL | Project `aeraxfupuvwiskmfjliq` (us-east-1); required only for voice chat |
+| Rate limit state | Cloudflare KV | `infinity-heroes-rate-limit` namespace; optional — falls back to in-memory |
+| Error tracking | Sentry | `@sentry/node` (server) + `@sentry/react-native` (client); both no-op when DSN unset |
 | TTS cache | `/tmp/tts-cache/` | In-process on the server instance; not shared across instances |
 | AI providers | External APIs | Anthropic, Gemini, OpenAI, OpenRouter — no on-premises models |
 

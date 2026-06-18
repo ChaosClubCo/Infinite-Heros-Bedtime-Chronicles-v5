@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-26 -->
+<!-- Last verified: 2026-06-18 -->
 # docs/agents/ — Specialized Domain Expert Agents
 
 This directory contains 12 specialized AI agent instruction files, each covering a specific cross-domain expertise area of the Infinity Heroes: Bedtime Chronicles codebase.
@@ -18,12 +18,12 @@ Each agent file provides:
 | # | Agent File | Domain | Primary Files |
 |---|-----------|--------|--------------|
 | 1 | [FRONTEND-MOBILE-AGENT.md](./FRONTEND-MOBILE-AGENT.md) | Expo/React Native screens, navigation, animations | `app/`, `components/`, `constants/` |
-| 2 | [BACKEND-API-AGENT.md](./BACKEND-API-AGENT.md) | Express routes, middleware, server patterns | `server/index.ts`, `server/routes.ts` |
+| 2 | [BACKEND-API-AGENT.md](./BACKEND-API-AGENT.md) | Express routes, middleware, server patterns | `server/index.ts`, `server/routes.ts` (composer), `server/routes/*.ts` (handlers) |
 | 3 | [AI-INTEGRATION-AGENT.md](./AI-INTEGRATION-AGENT.md) | Multi-provider AI routing, prompt engineering | `server/ai/` |
 | 4 | [SECURITY-SAFETY-AGENT.md](./SECURITY-SAFETY-AGENT.md) | Child safety rules, sanitization, rate limiting | `CHILD_SAFETY_RULES`, `sanitizeString()` |
 | 5 | [DATABASE-AGENT.md](./DATABASE-AGENT.md) | Drizzle ORM, PostgreSQL, schema management | `shared/schema.ts`, `server/db.ts` |
 | 6 | [AUDIO-TTS-AGENT.md](./AUDIO-TTS-AGENT.md) | ElevenLabs TTS, voice chat, background music | `server/elevenlabs.ts`, `server/suno.ts` |
-| 7 | [STORY-GENERATION-AGENT.md](./STORY-GENERATION-AGENT.md) | Story content, AI prompts, story modes | `server/routes.ts` (story endpoints), `app/story.tsx` |
+| 7 | [STORY-GENERATION-AGENT.md](./STORY-GENERATION-AGENT.md) | Story content, AI prompts, story modes | `server/routes/story.ts`, `app/story.tsx` |
 | 8 | [DESIGN-SYSTEM-AGENT.md](./DESIGN-SYSTEM-AGENT.md) | Cosmic theme, StyleSheet, animations | `constants/colors.ts`, `constants/timing.ts` |
 | 9 | [TESTING-QA-AGENT.md](./TESTING-QA-AGENT.md) | Vitest tests, mocking, coverage targets | `*.test.ts`, `vitest.config.ts` |
 | 10 | [DEVOPS-DEPLOYMENT-AGENT.md](./DEVOPS-DEPLOYMENT-AGENT.md) | EAS builds, Replit deployment, CI/CD | `eas.json`, `scripts/`, `.github/workflows/` |
