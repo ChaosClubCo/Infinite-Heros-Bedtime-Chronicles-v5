@@ -104,7 +104,7 @@ Key rules:
 
 ## Testing Requirements
 
-The project uses **Vitest v4** with **585 passing tests** across 14 test files. See [docs/best-practices/TESTING.md](./docs/best-practices/TESTING.md) for the full testing guide.
+The project uses **Vitest v4** with **1010+ passing tests** across 41 test files. See [docs/best-practices/TESTING.md](./docs/best-practices/TESTING.md) for the full testing guide.
 
 ```bash
 npm test                    # Run all tests (single run)
@@ -132,12 +132,15 @@ Update documentation alongside code changes:
 | Change Type | Required Doc Update |
 |-------------|-------------------|
 | New API endpoint | `docs/API.md` — add method, path, request/response schema |
-| New environment variable | `.env.example` + `README.md` env table |
+| New domain route module | `docs/agents/BACKEND-API-AGENT.md` — add to domain scope |
+| New environment variable | `.env.example` + `README.md` env table + `docs/operations/SECRETS-ROTATION.md` if it is a secret |
 | Architecture change | `docs/ARCHITECTURE.md` |
-| New significant decision | `docs/adr/` — create a new ADR |
+| New significant decision | `docs/adr/` — create a new ADR from `docs/adr/template.md` |
 | New component or hook | Inline JSDoc comment on the export |
 | New AI provider | `docs/ARCHITECTURE.md` AI routing section + `README.md` tech stack table |
-| Security change | `docs/SECURITY.md` |
+| Security change | `docs/SECURITY.md` + `docs/best-practices/SECURITY.md` |
+| New observability integration | `docs/operations/OBSERVABILITY.md` |
+| Secrets added/rotated | `docs/operations/SECRETS-ROTATION.md` inventory + `docs/operations/EAS-SECRETS-CHECKLIST.md` |
 
 All changes go in `docs/CHANGELOG.md` under `[Unreleased]` before each release.
 
@@ -172,15 +175,30 @@ npm run expo:dev     # Expo dev server
 
 ## Release Process
 
-This project does not yet have a formal release pipeline. When one is established:
+### Version Numbering
 
-1. Update `docs/CHANGELOG.md` — move `[Unreleased]` items under a new version header `[x.y.z] — YYYY-MM-DD`
-2. Bump `version` in `package.json`
-3. Tag the commit: `git tag v<x.y.z>`
-4. Push the tag: `git push origin v<x.y.z>`
-5. Deploy per [docs/runbooks/deploy.md](./docs/runbooks/deploy.md)
+Follow [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
 
-Version numbers follow [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
 - **MAJOR** — breaking API change or major UX redesign
 - **MINOR** — new feature, backward-compatible
 - **PATCH** — bug fix, security patch, documentation
+
+### Release Steps
+
+1. **Changelog** — move all `[Unreleased]` sections in `docs/CHANGELOG.md` under a single new version header `[x.y.z] — YYYY-MM-DD`
+2. **Version bump** — update `version` in `package.json`
+3. **Tag** — `git tag v<x.y.z> && git push origin v<x.y.z>`
+4. **Server deploy** — follow `docs/runbooks/deploy.md` (Replit push-to-deploy or Vercel)
+5. **Mobile build** — `eas build --platform android --profile production` (see `docs/operations/PLAY_STORE_DEPLOYMENT.md`)
+6. **Play Store** — upload the `.aab` to the Google Play Console internal track, promote through alpha → beta → production
+
+### Pre-release Checklist
+
+- [ ] `npm test` — all tests pass
+- [ ] `npm run typecheck` — zero TS errors
+- [ ] `npm run lint` — zero lint errors
+- [ ] `npm audit --audit-level=critical` — zero critical vulnerabilities
+- [ ] `docs/CHANGELOG.md` updated
+- [ ] `package.json` version bumped
+- [ ] `.env.example` up to date with any new env vars
+- [ ] EAS secrets set for all required env vars (`docs/operations/EAS-SECRETS-CHECKLIST.md`)

@@ -265,20 +265,22 @@ during submission (Phase 3/5), and confirm the contact email
 
 ## 7. Summary Assessment
 
+*Table updated 2026-06-18 to reflect implementation status as of 2026-06-13.*
+
 | Category | Status |
 |---|---|
-| Analytics/tracking SDKs | Not present — Compliant |
-| Advertising | Not present — Compliant |
-| Email/account collection | Not present — Compliant |
-| Anonymous auth (Firebase) | Compliant with caveats (DPA needed) |
-| Child name collection | Optional; **requires parental consent or removal from server calls** |
-| Child age collection | Optional; **requires parental consent or removal from server calls** |
-| AI provider data processing | **Requires DPAs with each active provider** |
-| ElevenLabs data processing | **Requires DPA** |
-| Parental consent mechanism | **Not implemented — critical gap** |
-| Privacy policy / parental notice | **Not present — critical gap** |
-| PIN code security | ✅ SHA-256 hashed with per-user salt via expo-crypto (implemented) |
-| Data deletion rights | **No deletion mechanism** |
+| Analytics/tracking SDKs | Not present — ✅ Compliant |
+| Advertising | Not present — ✅ Compliant |
+| Email/account collection | Not present — ✅ Compliant |
+| Anonymous auth (Firebase) | ✅ Compliant with caveats (verify Firebase DPA in console — see GAP 8) |
+| Child name collection | Optional; ⚠️ **Requires DPAs with AI providers or removal from server calls (GAP 2)** |
+| Child age collection | Optional; ⚠️ **Requires DPAs with AI providers or removal from server calls (GAP 2)** |
+| AI provider data processing | ⚠️ **Requires signed DPAs with each active provider (Gemini, OpenAI, Anthropic, OpenRouter)** |
+| ElevenLabs data processing | ⚠️ **Requires DPA** |
+| Parental consent mechanism | ✅ Implemented (2026-06-11) — `app/parental-consent.tsx` with parent gate + consent affirmation |
+| Privacy policy / parental notice | ✅ Implemented (2026-06-11) — `app/privacy.tsx` (in-app, offline) + `GET /privacy` (server) |
+| PIN code security | ✅ SHA-256 hashed with per-user salt via expo-crypto |
+| Data deletion rights | ⚠️ **No in-app deletion UI yet (GAP 6)** — TTS cache auto-expires after 24 h; profile data stored on-device only |
 
 ---
 
