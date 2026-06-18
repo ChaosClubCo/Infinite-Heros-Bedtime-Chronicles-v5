@@ -8,7 +8,7 @@ import { logger } from './logger';
  */
 
 // Lazy-init firebase-admin to avoid import errors when not configured
-let adminAuth: import('firebase-admin').auth.Auth | null = null;
+let adminAuth: import('firebase-admin/auth').Auth | null = null;
 
 async function getAdminAuth() {
   if (adminAuth) return adminAuth;
@@ -19,16 +19,17 @@ async function getAdminAuth() {
   }
 
   try {
-    const admin = await import('firebase-admin');
+    const { getApps, initializeApp, cert } = await import('firebase-admin/app');
+    const { getAuth } = await import('firebase-admin/auth');
     const serviceAccount = JSON.parse(serviceAccountJson);
 
-    if (admin.apps.length === 0) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+    if (getApps().length === 0) {
+      initializeApp({
+        credential: cert(serviceAccount),
       });
     }
 
-    adminAuth = admin.auth();
+    adminAuth = getAuth();
     return adminAuth;
   } catch (err) {
     console.error('[Auth] Failed to initialize Firebase Admin:', err instanceof Error ? err.message : String(err));
