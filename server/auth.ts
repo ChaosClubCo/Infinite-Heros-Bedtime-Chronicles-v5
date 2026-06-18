@@ -19,7 +19,7 @@ async function getAdminAuth() {
   }
 
   try {
-    const { initializeApp, getApps, cert } = await import('firebase-admin/app');
+    const { getApps, initializeApp, cert } = await import('firebase-admin/app');
     const { getAuth } = await import('firebase-admin/auth');
     const serviceAccount = JSON.parse(serviceAccountJson);
 

@@ -27,6 +27,9 @@
     "server_dist",
     "static-build",
     "**/*.test.ts",
+    "**/*.test.tsx",
+    "jest.setup.ts",
+    "__tests__/**",
     ".agents/**"
   ]
 }

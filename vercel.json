@@ -1,12 +1,12 @@
 {
   "version": 2,
   "installCommand": "npm ci --include=dev",
-  "buildCommand": "npm run server:build",
+  "buildCommand": "npm run server:build && npx expo export --platform web --output-dir static-build",
   "outputDirectory": ".",
   "functions": {
     "api/server.mjs": {
       "maxDuration": 60,
-      "includeFiles": "server_dist/**,assets/**,server/templates/**,app.json"
+      "includeFiles": "server_dist/**,static-build/**,assets/**,server/templates/**,app.json"
     }
   },
   "rewrites": [
