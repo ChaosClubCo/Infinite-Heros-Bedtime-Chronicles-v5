@@ -39,8 +39,12 @@ export function registerSuggestRoutes(app: Express): void {
 
       // The router parses + validates JSON (via extractFirstJson) when jsonMode is set,
       // so consume parsedJson directly rather than re-parsing the raw text here.
-      if (!aiResponse.parsedJson || typeof aiResponse.parsedJson !== "object") {
-        req.log?.error('suggest-settings: no JSON in AI response');
+      if (
+        !aiResponse.parsedJson ||
+        typeof aiResponse.parsedJson !== "object" ||
+        Array.isArray(aiResponse.parsedJson)
+      ) {
+        req.log?.error('suggest-settings: no JSON object in AI response');
         return res.status(500).json({ error: "Invalid AI response" });
       }
 

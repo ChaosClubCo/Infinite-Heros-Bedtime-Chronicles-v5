@@ -49,6 +49,10 @@ function validateEnvironment() {
 
   if (textProviders === 0) {
     log("[Env] WARNING: No text AI providers configured — story generation will fail");
+    if (process.env.NODE_ENV === "production") {
+      log("[Env] FATAL: No text AI providers configured in production. Exiting.");
+      process.exit(1);
+    }
   }
   if (imageProviders === 0) {
     log("[Env] WARNING: No image AI providers configured — avatar/scene generation will fail");
@@ -74,7 +78,7 @@ function setupSecurityHeaders(app: express.Application) {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; font-src 'self' https://fonts.gstatic.com https:;");
+    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; font-src 'self' https://fonts.gstatic.com https:;");
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     next();
   });
@@ -305,6 +309,9 @@ function configureExpoAndLanding(app: express.Application) {
     next();
   });
 
+  // Serve extracted template assets (landing/privacy CSS+JS) so the CSP can
+  // drop 'unsafe-inline' for script-src/style-src.
+  app.use("/static", express.static(path.resolve(process.cwd(), "server", "templates")));
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
 

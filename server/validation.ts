@@ -21,6 +21,9 @@ export function sanitizeString(val: unknown, maxLen: number): string {
 export function sanitizePromptInput(val: unknown, maxLen: number): string {
   if (typeof val !== 'string') return '';
   let s = val.slice(0, maxLen);
+  // Neutralize percent-encoded control chars (e.g. %0A, %0D, %1B) before the
+  // raw control-char pass below, so encoded newlines can't smuggle role markers.
+  s = s.replace(/%[0-1][0-9a-fA-F]/gi, ' ');
   // Control characters (incl. newlines/tabs) -> space.
   // eslint-disable-next-line no-control-regex
   s = s.replace(/[\x00-\x1F\x7F]+/g, ' ');

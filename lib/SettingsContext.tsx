@@ -90,7 +90,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
         const data = await AsyncStorage.getItem(SETTINGS_KEY);
         if (data) {
-          try { merged = JSON.parse(data); } catch {}
+          try { merged = JSON.parse(data); } catch (e) {
+            console.warn('[SettingsContext] Failed to parse stored settings', e);
+          }
         }
 
         const migrated = await AsyncStorage.getItem(MIGRATION_DONE_KEY);
@@ -105,20 +107,24 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
               if (legacy.fontSize && !merged.fontSize) merged.fontSize = legacy.fontSize;
               if (legacy.narratorVoice && !merged.narratorVoice) merged.narratorVoice = legacy.narratorVoice;
               if (legacy.storyLength && !merged.storyLength) merged.storyLength = legacy.storyLength;
-            } catch {}
+            } catch (e) {
+              console.warn('[SettingsContext] Failed to parse stored settings', e);
+            }
           }
           await AsyncStorage.setItem(MIGRATION_DONE_KEY, "1");
         }
 
         dispatch({ type: "LOAD", payload: { ...DEFAULT_SETTINGS, ...merged } });
-      } catch {}
+      } catch (e) {
+        console.warn('[SettingsContext] Failed to parse stored settings', e);
+      }
       setIsLoaded(true);
     })();
   }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
-    AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)).catch(() => {});
+    AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)).catch(e => console.warn('[SettingsContext] Failed to persist settings', e));
   }, [settings, isLoaded]);
 
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
