@@ -18,3 +18,4 @@ https://legendapp\.com/open-source/.*
 
 # Returns 403 to automated checkers (bot-blocked); the link is valid in a browser.
 https://openai\.com/policies/business-terms/
+https://dash\.cloudflare\.com(/.*)?

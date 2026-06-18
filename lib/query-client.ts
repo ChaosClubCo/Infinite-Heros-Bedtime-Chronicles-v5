@@ -79,7 +79,8 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const baseUrl = getApiUrl();
-    const url = new URL(queryKey.join("/") as string, baseUrl);
+    const segments = (queryKey as unknown[]).map(k => encodeURIComponent(String(k)));
+    const url = new URL(segments.join("/"), baseUrl);
 
     const fetchHeaders: Record<string, string> = {};
     if (_getAuthToken) {

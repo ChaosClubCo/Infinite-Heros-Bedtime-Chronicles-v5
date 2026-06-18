@@ -6,6 +6,25 @@ import { sanitizeString, TtsRequestSchema } from "../validation";
 import { TTS_CACHE_DIR } from "./context";
 import { rateLimited, sendRouteError, ttsCachePathFor } from "./helpers";
 
+// De-duplicates concurrent writes to the same cache file. Without this, two
+// simultaneous requests for identical audio could both miss the existence
+// check and race to write the same path, truncating each other's output.
+const _ttsWriteLock = new Map<string, Promise<void>>();
+
+async function writeWithLock(filePath: string, data: Buffer): Promise<void> {
+  const inflight = _ttsWriteLock.get(filePath);
+  if (inflight) return inflight;
+  const p = fs.promises
+    .writeFile(filePath, data)
+    .finally(() => _ttsWriteLock.delete(filePath));
+  _ttsWriteLock.set(filePath, p);
+  return p;
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  return fs.promises.access(filePath).then(() => true).catch(() => false);
+}
+
 export function registerTtsRoutes(app: Express): void {
   app.post("/api/tts", rateLimited(), async (req, res) => {
     const parsed = TtsRequestSchema.safeParse(req.body);
@@ -18,9 +37,9 @@ export function registerTtsRoutes(app: Express): void {
     try {
       const { fileName, filePath } = ttsCachePathFor(`${voiceKey}:${storyMode || ""}:${text}`);
 
-      if (!fs.existsSync(filePath)) {
+      if (!(await fileExists(filePath))) {
         const audioBuffer = await generateSpeech(text, voiceKey, storyMode);
-        fs.writeFileSync(filePath, audioBuffer);
+        await writeWithLock(filePath, audioBuffer);
       }
 
       res.json({ audioUrl: `/api/tts-audio/${fileName}` });
@@ -60,9 +79,9 @@ export function registerTtsRoutes(app: Express): void {
       const previewText = voiceInfo.previewText;
       const { fileName, filePath } = ttsCachePathFor(`preview:${voiceKey}:${previewText}`);
 
-      if (!fs.existsSync(filePath)) {
+      if (!(await fileExists(filePath))) {
         const audioBuffer = await generateSpeech(previewText, voiceKey);
-        fs.writeFileSync(filePath, audioBuffer);
+        await writeWithLock(filePath, audioBuffer);
       }
 
       res.json({ audioUrl: `/api/tts-audio/${fileName}` });

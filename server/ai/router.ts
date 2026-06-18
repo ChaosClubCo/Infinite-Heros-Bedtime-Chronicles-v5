@@ -91,7 +91,14 @@ export class AIRouter {
     const available: AIProvider[] = [];
     for (const name of chain) {
       const provider = this.providers.get(name);
-      if (provider && provider.isAvailable() && provider.capabilities[capability]) {
+      // Pre-filter providers whose circuit is already open so an outage doesn't
+      // cost a wasted attempt on every request before falling through.
+      if (
+        provider &&
+        provider.isAvailable() &&
+        provider.capabilities?.[capability] &&
+        this.breakers.get(name)?.getState() !== "open"
+      ) {
         available.push(provider);
       }
     }
