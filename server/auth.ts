@@ -7,7 +7,8 @@ import { logger } from './logger';
  * Attaches decoded user info to req.user.
  */
 
-// Lazy-init firebase-admin to avoid import errors when not configured
+// Lazy-init firebase-admin to avoid import errors when not configured.
+// Uses the modular v14 subpath API (firebase-admin/app, firebase-admin/auth).
 let adminAuth: import('firebase-admin/auth').Auth | null = null;
 
 async function getAdminAuth() {
@@ -82,6 +83,12 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 
   const token = authHeader.slice(7);
+  // Reject implausibly long tokens before handing them to Firebase — a valid
+  // Firebase ID token is well under 4KB; anything larger is abuse/DoS.
+  if (token.length > 4096) {
+    logger.warn({ event: 'auth_failure', reason: 'token_too_long', path: req.path, method: req.method }, 'authentication failure');
+    return res.status(401).json({ error: 'Authentication required' });
+  }
   try {
     const decoded = await auth.verifyIdToken(token);
     req.user = {

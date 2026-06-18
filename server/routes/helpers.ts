@@ -6,7 +6,12 @@ import { classifyError, createErrorResponse } from "../utils";
 import { TTS_CACHE_DIR } from "./context";
 
 export function getClientIp(req: Request): string {
-  return req.user?.uid || req.ip || req.socket.remoteAddress || "unknown";
+  if (req.user?.uid) return req.user.uid;
+  // Strip IPv6 zone/scope suffix (e.g. "fe80::1%eth0") so the same client
+  // can't fragment into distinct rate-limit buckets. `trust proxy` is set in
+  // createApp(), so req.ip reflects the real client behind Replit/Vercel.
+  const raw = req.ip ?? req.socket?.remoteAddress ?? "unknown";
+  return raw.replace(/%.*$/, "");
 }
 
 /**

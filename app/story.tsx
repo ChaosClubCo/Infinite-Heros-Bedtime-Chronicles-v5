@@ -141,7 +141,11 @@ export default function StoryScreen() {
       };
 
       if (storyMode === "madlibs" && madlibWords) {
-        try { bodyData.madlibWords = JSON.parse(madlibWords); } catch {}
+        try {
+          bodyData.madlibWords = JSON.parse(madlibWords);
+        } catch (e) {
+          console.warn("[story] Failed to parse madlibWords, proceeding without them", e);
+        }
       }
 
       if (storyMode === "sleep" && soundscape) bodyData.soundscape = soundscape;

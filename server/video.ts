@@ -44,6 +44,11 @@ interface VideoJob {
   createdAt: number;
 }
 
+const VALID_VIDEO_STATUSES = new Set<string>(['queued', 'in_progress', 'completed', 'failed']);
+function toVideoStatus(s: string | undefined | null): VideoJob['status'] {
+  return (s && VALID_VIDEO_STATUSES.has(s)) ? (s as VideoJob['status']) : 'failed';
+}
+
 const activeJobs = new Map<string, VideoJob>();
 
 const JOB_EXPIRY_MS = 30 * 60 * 1000;
@@ -93,7 +98,7 @@ export async function createVideoJob(
     const job: VideoJob = {
       id: jobId,
       openaiVideoId: video.id,
-      status: video.status as VideoJob["status"],
+      status: toVideoStatus(video.status),
       progress: 0,
       createdAt: Date.now(),
     };
@@ -122,7 +127,7 @@ async function pollVideoStatus(client: OpenAI, job: VideoJob) {
       // intentional: Sora preview SDK response has `progress` and `output_url` fields
       // that aren't declared on the typed `Video` shape. Cast to a local extension.
       const soraVideo = video as typeof video & { progress?: number; output_url?: string };
-      job.status = video.status as VideoJob["status"];
+      job.status = toVideoStatus(video.status);
       job.progress = soraVideo.progress || Math.min(polls * 5, 95);
 
       if (video.status === "completed") {

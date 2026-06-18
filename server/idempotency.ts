@@ -21,7 +21,10 @@ export class IdempotencyCache {
   }
 
   static keyFromBody(body: unknown): string {
-    const json = JSON.stringify(body, Object.keys(body as Record<string, unknown>).sort());
+    const safeBody = (body !== null && typeof body === 'object' && !Array.isArray(body))
+      ? (body as Record<string, unknown>)
+      : {};
+    const json = JSON.stringify(safeBody, Object.keys(safeBody).sort());
     return crypto.createHash('sha256').update(json).digest('hex').slice(0, 32);
   }
 

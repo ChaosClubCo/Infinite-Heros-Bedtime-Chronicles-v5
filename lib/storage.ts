@@ -32,7 +32,8 @@ export async function getOnboardingComplete(): Promise<boolean> {
   try {
     const data = await AsyncStorage.getItem(ONBOARDING_KEY);
     return data === 'true';
-  } catch {
+  } catch (e) {
+    console.warn('[storage] Failed to read onboarding flag, returning default', e);
     return false;
   }
 }
@@ -49,7 +50,8 @@ export async function getParentConsent(): Promise<ParentConsent> {
   try {
     const data = await AsyncStorage.getItem(PARENT_CONSENT_KEY);
     return data ? JSON.parse(data) : DEFAULT_PARENT_CONSENT;
-  } catch {
+  } catch (e) {
+    console.warn('[storage] Failed to read/parse parent consent, returning default', e);
     return DEFAULT_PARENT_CONSENT;
   }
 }
@@ -77,7 +79,8 @@ export async function getFavorites(): Promise<string[]> {
   try {
     const data = await AsyncStorage.getItem(FAVORITES_KEY);
     return data ? JSON.parse(data) : [];
-  } catch {
+  } catch (e) {
+    console.warn('[storage] Failed to read/parse stored data, returning default', e);
     return [];
   }
 }
@@ -98,7 +101,8 @@ export async function getReadStories(): Promise<string[]> {
   try {
     const data = await AsyncStorage.getItem(READ_STORIES_KEY);
     return data ? JSON.parse(data) : [];
-  } catch {
+  } catch (e) {
+    console.warn('[storage] Failed to read/parse stored data, returning default', e);
     return [];
   }
 }
@@ -116,7 +120,8 @@ export async function getAllStories(): Promise<CachedStory[]> {
     const data = await AsyncStorage.getItem(STORIES_KEY);
     const stories: CachedStory[] = data ? JSON.parse(data) : [];
     return stories.sort((a, b) => b.timestamp - a.timestamp);
-  } catch {
+  } catch (e) {
+    console.warn('[storage] Failed to read/parse stored data, returning default', e);
     return [];
   }
 }
@@ -181,7 +186,8 @@ export async function getPreferences(): Promise<UserPreferences> {
   try {
     const data = await AsyncStorage.getItem(PREFERENCES_KEY);
     return data ? JSON.parse(data) : DEFAULT_PREFERENCES;
-  } catch {
+  } catch (e) {
+    console.warn('[storage] Failed to read/parse preferences, returning default', e);
     return DEFAULT_PREFERENCES;
   }
 }
@@ -190,7 +196,8 @@ export async function getProfiles(): Promise<ChildProfile[]> {
   try {
     const data = await AsyncStorage.getItem(PROFILES_KEY);
     return data ? JSON.parse(data) : [];
-  } catch {
+  } catch (e) {
+    console.warn('[storage] Failed to read/parse stored data, returning default', e);
     return [];
   }
 }
@@ -214,7 +221,8 @@ export async function deleteProfile(id: string): Promise<void> {
 export async function getActiveProfileId(): Promise<string | null> {
   try {
     return await AsyncStorage.getItem(ACTIVE_PROFILE_KEY);
-  } catch {
+  } catch (e) {
+    console.warn('[storage] Failed to read active profile id, returning null', e);
     return null;
   }
 }
@@ -260,7 +268,8 @@ export async function getBadges(profileId: string): Promise<EarnedBadge[]> {
     const data = await AsyncStorage.getItem(BADGES_KEY);
     const all: EarnedBadge[] = data ? JSON.parse(data) : [];
     return all.filter((b) => b.profileId === profileId);
-  } catch {
+  } catch (e) {
+    console.warn('[storage] Failed to read/parse stored data, returning default', e);
     return [];
   }
 }
@@ -269,7 +278,8 @@ export async function getAllBadges(): Promise<EarnedBadge[]> {
   try {
     const data = await AsyncStorage.getItem(BADGES_KEY);
     return data ? JSON.parse(data) : [];
-  } catch {
+  } catch (e) {
+    console.warn('[storage] Failed to read/parse stored data, returning default', e);
     return [];
   }
 }
@@ -294,7 +304,8 @@ export async function getStreak(profileId: string): Promise<StreakData> {
       longestStreak: 0,
       lastStoryDate: '',
     };
-  } catch {
+  } catch (e) {
+    console.warn('[storage] Failed to read/parse streak data, returning default', e);
     return { profileId, currentStreak: 0, longestStreak: 0, lastStoryDate: '' };
   }
 }
@@ -447,7 +458,8 @@ export async function getParentControls(): Promise<ParentControls> {
   try {
     const data = await AsyncStorage.getItem(PARENT_CONTROLS_KEY);
     return data ? JSON.parse(data) : DEFAULT_PARENT_CONTROLS;
-  } catch {
+  } catch (e) {
+    console.warn('[storage] Failed to read/parse parent controls, returning default', e);
     return DEFAULT_PARENT_CONTROLS;
   }
 }

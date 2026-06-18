@@ -8,9 +8,20 @@ async function getCredentials(): Promise<string> {
   return apiKey;
 }
 
-export async function getElevenLabsClient() {
-  const apiKey = await getCredentials();
-  return new ElevenLabsClient({ apiKey });
+let _elevenLabsClientPromise: Promise<ElevenLabsClient> | null = null;
+
+export async function getElevenLabsClient(): Promise<ElevenLabsClient> {
+  if (!_elevenLabsClientPromise) {
+    _elevenLabsClientPromise = getCredentials()
+      .then(apiKey => new ElevenLabsClient({ apiKey }))
+      .catch(err => {
+        // Don't cache a rejected promise — allow the next call to retry
+        // (e.g. once the env var is populated).
+        _elevenLabsClientPromise = null;
+        throw err;
+      });
+  }
+  return _elevenLabsClientPromise;
 }
 
 export type VoiceCategory = "sleep" | "classic" | "fun";

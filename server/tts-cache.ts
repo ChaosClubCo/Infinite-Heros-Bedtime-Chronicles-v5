@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { logger } from './logger';
 
 interface TtsCacheOptions {
   cacheDir: string;
@@ -90,12 +91,13 @@ export class TtsCacheManager {
           if (stat.isFile()) {
             files.push({ name, path: filePath, size: stat.size, mtimeMs: stat.mtimeMs });
           }
-        } catch {
-          // File may have been deleted between readdir and stat
+        } catch (err) {
+          logger.warn({ err, file: name }, 'tts-cache: stat failed, skipping file');
         }
       }
       return files;
-    } catch {
+    } catch (err) {
+      logger.error({ err }, 'tts-cache: readdir failed, returning empty list');
       return [];
     }
   }

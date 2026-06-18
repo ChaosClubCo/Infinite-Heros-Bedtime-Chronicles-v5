@@ -7,16 +7,18 @@ export type ErrorKind = 'transient' | 'permanent';
 
 const TRANSIENT_PATTERNS = [
   /timed?\s*out/i,
-  /429/,
+  /\b429\b/,
   /too many requests/i,
   /ECONNREFUSED/,
   /ECONNRESET/,
   /ETIMEDOUT/,
   /ENOTFOUND/,
+  /EHOSTUNREACH/,
+  /ENETUNREACH/,
   /fetch failed/i,
   /circuit is open/i,
   /socket hang up/i,
-  /5\d{2}\s/,
+  /\b5\d{2}\b/,
   /overloaded/i,
   /temporarily unavailable/i,
 ];
