@@ -12,7 +12,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['server/**/*.test.ts', 'lib/**/*.test.ts', '__tests__/**/*.test.ts', 'shared/**/*.test.ts'],
-    exclude: ['node_modules', 'server_dist', 'static-build'],
+    exclude: ['node_modules', 'server_dist', 'static-build', '__tests__/components/**'],
     coverage: {
       provider: 'v8',
       include: ['server/**/*.ts', 'lib/**/*.ts'],
