@@ -145,7 +145,15 @@ export default function RootLayout() {
             router.replace("/welcome");
           }
         })
-        .catch(() => {});
+        .catch((e) => {
+          // Fail safe: if we can't read consent/onboarding state, route to the
+          // consent gate rather than silently letting the app through (COPPA).
+          console.error(
+            "[layout] Failed to read consent/onboarding state, routing to consent gate",
+            e,
+          );
+          router.replace("/parental-consent");
+        });
     }
   }, [fontsLoaded, fontError]);
 

@@ -7,8 +7,9 @@ import { logger } from './logger';
  * Attaches decoded user info to req.user.
  */
 
-// Lazy-init firebase-admin to avoid import errors when not configured
-let adminAuth: import('firebase-admin').auth.Auth | null = null;
+// Lazy-init firebase-admin to avoid import errors when not configured.
+// Uses the modular v14 subpath API (firebase-admin/app, firebase-admin/auth).
+let adminAuth: import('firebase-admin/auth').Auth | null = null;
 
 async function getAdminAuth() {
   if (adminAuth) return adminAuth;
@@ -19,16 +20,17 @@ async function getAdminAuth() {
   }
 
   try {
-    const admin = await import('firebase-admin');
+    const { initializeApp, getApps, cert } = await import('firebase-admin/app');
+    const { getAuth } = await import('firebase-admin/auth');
     const serviceAccount = JSON.parse(serviceAccountJson);
 
-    if (admin.apps.length === 0) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+    if (getApps().length === 0) {
+      initializeApp({
+        credential: cert(serviceAccount),
       });
     }
 
-    adminAuth = admin.auth();
+    adminAuth = getAuth();
     return adminAuth;
   } catch (err) {
     console.error('[Auth] Failed to initialize Firebase Admin:', err instanceof Error ? err.message : String(err));
@@ -81,6 +83,12 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 
   const token = authHeader.slice(7);
+  // Reject implausibly long tokens before handing them to Firebase — a valid
+  // Firebase ID token is well under 4KB; anything larger is abuse/DoS.
+  if (token.length > 4096) {
+    logger.warn({ event: 'auth_failure', reason: 'token_too_long', path: req.path, method: req.method }, 'authentication failure');
+    return res.status(401).json({ error: 'Authentication required' });
+  }
   try {
     const decoded = await auth.verifyIdToken(token);
     req.user = {
