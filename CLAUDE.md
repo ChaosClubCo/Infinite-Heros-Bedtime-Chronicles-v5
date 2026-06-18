@@ -335,17 +335,15 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 - Focus on: courage, kindness, friendship, wonder, imagination, comfort
 
 ### Server Middleware Order
-1. Sentry init (before all middleware — captures unhandled errors)
-2. Environment validation (warns on missing providers)
-3. Security headers (X-Content-Type-Options, X-Frame-Options, etc.)
-4. CORS (see allowed origins above, methods: GET/POST/PUT/DELETE/OPTIONS)
-5. Body parsing (JSON + URL-encoded, 100KB limit)
-6. Request logging (pino)
-7. Load shedding (rejects if active-request ceiling exceeded)
-8. Expo manifest routing + static file serving
-9. Route registration (`requireAuth` applied to all POST /api/*; rate limit + idempotency per domain module)
-10. Sentry error handler
-11. Global error handler (sanitizes messages)
+1. Environment validation (warns on missing providers)
+2. Security headers (X-Content-Type-Options, X-Frame-Options, etc.)
+3. CORS (see allowed origins above, methods: GET/POST/PUT/DELETE/OPTIONS)
+4. Body parsing (JSON + URL-encoded, 100KB limit)
+5. Request logging (pino)
+6. Load shedding (rejects if active-request ceiling exceeded)
+7. Expo manifest routing + static file serving
+8. Route registration (`requireAuth` applied to all POST /api/*; rate limit + idempotency per domain module)
+9. Global error handler (sanitizes messages)
 
 ## Common Tasks
 
@@ -400,8 +398,7 @@ RATE_LIMIT_MAX=10            # Default 10 requests
 TTS_CACHE_MAX_AGE_MS=86400000       # Default 24 hours
 TTS_CACHE_MAX_SIZE_BYTES=524288000  # Default 500 MB
 
-# Observability (optional — both gracefully no-op when unset)
-SENTRY_DSN=                  # Server-side Sentry error tracking
+# Observability (optional)
 EXPO_PUBLIC_SENTRY_DSN=      # Client-side Sentry (bundled into APK — not a secret)
 
 # Cloudflare KV persistent rate limiting (optional — falls back to in-memory when absent)
@@ -415,7 +412,7 @@ REPLIT_DOMAINS=              # Production domains (comma-separated)
 EXPO_PUBLIC_DOMAIN=          # Client API domain (set by dev script)
 ```
 
-Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: OpenAI, Anthropic, ElevenLabs, DATABASE_URL, FIREBASE_SERVICE_ACCOUNT_KEY, SENTRY_DSN, Cloudflare KV vars.
+Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: OpenAI, Anthropic, ElevenLabs, DATABASE_URL, FIREBASE_SERVICE_ACCOUNT_KEY, Cloudflare KV vars.
 
 ## Story Response Schema (AI must return)
 ```json

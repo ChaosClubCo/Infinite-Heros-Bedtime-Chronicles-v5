@@ -10,44 +10,22 @@ This guide covers the setup and configuration of the two observability systems u
 
 | System | Purpose | SDK | No-op When |
 |--------|---------|-----|-----------|
-| **Sentry** | Error tracking (server + client) | `@sentry/node`, `@sentry/react-native` | `SENTRY_DSN` / `EXPO_PUBLIC_SENTRY_DSN` unset |
+| **Sentry (client)** | Client-side error tracking | `@sentry/react-native` | `EXPO_PUBLIC_SENTRY_DSN` unset |
 | **Cloudflare KV** | Persistent rate-limit state | REST API via `server/rate-limit.ts` | `CLOUDFLARE_*` env vars unset |
 
 Both systems are **opt-in** — the app runs fully without them, falling back to in-memory rate limiting and no error reporting.
 
+> **Note:** `@sentry/node` is installed as a dependency but is **not yet wired** in `server/index.ts`. Server-side error tracking currently relies on pino structured logging and the global Express error handler. To add server-side Sentry, initialize it at the top of `server/index.ts` before all middleware.
+
 ---
 
-## 1. Sentry Setup
+## 1. Sentry Setup (Client Only)
 
 ### Create a Sentry Project
 
 1. Log in to [sentry.io](https://sentry.io)
-2. Create two projects: one for **Node.js** (server), one for **React Native** (client)
-3. Copy the DSN for each project
-
-### Server Configuration
-
-Set the `SENTRY_DSN` environment variable in your deployment environment:
-
-**Replit:**
-```bash
-# In Replit Secrets panel
-SENTRY_DSN=https://<key>@<org>.ingest.sentry.io/<project-id>
-```
-
-**Vercel:**
-```bash
-vercel env add SENTRY_DSN production
-```
-
-The server SDK is initialized in `server/index.ts`:
-```typescript
-// Sentry init happens before all middleware — do not move it
-import * as Sentry from "@sentry/node";
-if (process.env.SENTRY_DSN) {
-  Sentry.init({ dsn: process.env.SENTRY_DSN, environment: process.env.NODE_ENV });
-}
-```
+2. Create a project for **React Native** (client)
+3. Copy the DSN for the project
 
 ### Client Configuration
 
@@ -58,17 +36,9 @@ eas secret:create --scope project --name EXPO_PUBLIC_SENTRY_DSN \
   --value "https://<key>@<org>.ingest.sentry.io/<project-id>"
 ```
 
-The client SDK is initialized in `app/_layout.tsx`. Because it uses the `EXPO_PUBLIC_` prefix, it is bundled into the APK — use the client-project DSN (not the server-project DSN).
+The client SDK is initialized in `app/_layout.tsx`. Because it uses the `EXPO_PUBLIC_` prefix, it is bundled into the APK.
 
 ### Verifying Sentry is Working
-
-**Server:** After deploying with `SENTRY_DSN` set, trigger a test error:
-```bash
-curl -X POST https://your-api/api/generate-story \
-  -H "Content-Type: application/json" \
-  -d '{"invalid": true}'
-```
-Check the Sentry dashboard for the captured event.
 
 **Client:** In development, the Sentry SDK logs its initialization. In production, any unhandled JS error will appear in the React Native project's Sentry dashboard.
 
@@ -137,7 +107,9 @@ Keys auto-expire after `RATE_LIMIT_WINDOW_MS` (default: 60 seconds) via KV TTL.
 
 ### Fallback Behavior
 
-If the Cloudflare API is unreachable (network error, rate limited itself), `checkRateLimitAsync()` falls back to the in-memory Map for that request. This means the persistent state and in-memory state can briefly diverge, but the system remains operational and does not throw.
+When `CLOUDFLARE_*` env vars are not set, `checkRateLimitAsync()` calls the synchronous in-memory `checkRateLimit()` directly.
+
+When KV is enabled but the Cloudflare API is unreachable, `kvGet()` returns `null`. The code treats a null entry as a new first-request window (`count: 1`) — this means every request in an outage gets a fresh window and rate limiting is effectively disabled for the duration. The system remains operational and does not throw, but repeated requests are not throttled while KV is down. The in-memory Map is still updated but is not consulted while KV mode is active.
 
 ---
 
@@ -152,14 +124,11 @@ GET /api/health
 ```json
 {
   "status": "ok",
-  "ai": {
-    "available": true,
-    "providers": ["anthropic", "gemini", "openai", "openrouter-llama", "openrouter-xai", "openrouter-mistral", "openrouter-cohere"]
-  },
-  "tts": { "available": true },
+  "timestamp": 1750000000000,
+  "aiProvidersAvailable": true,
+  "ttsAvailable": true,
   "features": { "voiceChatEnabled": false },
-  "activeRequests": 3,
-  "uptime": 14523.4
+  "activeRequests": 3
 }
 ```
 

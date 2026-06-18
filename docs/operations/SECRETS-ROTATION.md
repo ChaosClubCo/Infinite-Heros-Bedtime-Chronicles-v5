@@ -14,7 +14,7 @@ This document defines how API keys and secrets are rotated for Infinity Heroes: 
 | ElevenLabs API key | Every 90 days or on suspected compromise | Scheduled + incident |
 | Firebase Service Account Key | Every 180 days or on suspected compromise | Scheduled + incident |
 | Cloudflare API Token | Every 90 days or on suspected compromise | Scheduled + incident |
-| SENTRY_DSN | On team member departure or suspected compromise | Incident only |
+| EXPO_PUBLIC_SENTRY_DSN | On team member departure or suspected compromise | Incident only |
 | Parent PIN (user-set) | User-controlled (hashed on device, never on server) | N/A |
 
 ---
@@ -79,7 +79,6 @@ All secrets required to run the full stack:
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare | Server — KV rate limiting | No (server-only) |
 | `CLOUDFLARE_KV_NAMESPACE_ID` | Cloudflare | Server — KV rate limiting | No (server-only) |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare | Server — KV rate limiting | No (server-only) |
-| `SENTRY_DSN` | Sentry | Server — error tracking | No (server-only) |
 | `EXPO_PUBLIC_FIREBASE_API_KEY` | Firebase | Client — anonymous auth | **Yes** |
 | `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase | Client — anonymous auth | **Yes** |
 | `EXPO_PUBLIC_FIREBASE_PROJECT_ID` | Firebase | Client — anonymous auth | **Yes** |

@@ -114,22 +114,22 @@ SettingsContext (lib/SettingsContext.tsx)
 ## Server Architecture
 
 ### Middleware Stack (in order)
-1. **Sentry Init** — Error and performance instrumentation (no-ops when `SENTRY_DSN` unset)
-2. **Security Headers** — X-Content-Type-Options, X-Frame-Options, Referrer-Policy, X-XSS-Protection, Permissions-Policy, X-Permitted-Cross-Domain-Policies
+1. **Environment Validation** — Warns on missing providers at startup
+2. **Security Headers** — X-Content-Type-Options, X-Frame-Options, Referrer-Policy, CSP, HSTS
 3. **CORS** — Dynamic origin matching (Replit domains, localhost, bedtime-chronicles.com, Vercel previews)
 4. **Body Parser** — JSON + URL-encoded (100KB limit)
 5. **Request Logger** — pino structured logging (method, path, status, duration)
 6. **Load Shedding** — Rejects requests when active-request ceiling is exceeded (503)
 7. **Expo Manifest Routing + Static File Serving** — Dev server integration
 8. **Route Registration** — Auth gate (POST /api/* requires Firebase token) + domain modules
-9. **Sentry Error Handler** — Captures unhandled errors with context
-10. **Global Error Handler** — Sanitized error responses via `sanitizeErrorMessage()`
+9. **Global Error Handler** — Sanitized error responses via `sanitizeErrorMessage()`
 
 ### Rate Limiting
 - In-memory rate limiter, keyed by authenticated user UID (falls back to IP)
 - Default: 10 requests per 60 seconds
 - Configurable via `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_MAX`
 - Applied to all generation endpoints (story, avatar, scene, TTS, video, suggestions)
+- Optional Cloudflare KV persistence: when `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_KV_NAMESPACE_ID`, and `CLOUDFLARE_API_TOKEN` are set, rate-limit state survives server restarts. Without these vars, the in-memory Map resets on every restart.
 
 ### TTS Caching
 - Generated audio cached to `/tmp/tts-cache/` as MP3 files
@@ -157,7 +157,7 @@ SettingsContext (lib/SettingsContext.tsx)
 | Mobile (iOS) | EAS Build | Configured but no App Store submission yet |
 | Database | Supabase PostgreSQL | Project `aeraxfupuvwiskmfjliq` (us-east-1); required only for voice chat |
 | Rate limit state | Cloudflare KV | `infinity-heroes-rate-limit` namespace; optional — falls back to in-memory |
-| Error tracking | Sentry | `@sentry/node` (server) + `@sentry/react-native` (client); both no-op when DSN unset |
+| Error tracking | Sentry | `@sentry/react-native` (client only); `EXPO_PUBLIC_SENTRY_DSN` must be set. Server-side `@sentry/node` is installed but not yet wired in `server/index.ts`. |
 | TTS cache | `/tmp/tts-cache/` | In-process on the server instance; not shared across instances |
 | AI providers | External APIs | Anthropic, Gemini, OpenAI, OpenRouter — no on-premises models |
 

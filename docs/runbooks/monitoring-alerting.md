@@ -2,7 +2,7 @@
 
 <!-- Last verified: 2026-06-18 -->
 
-This runbook covers how to investigate and respond to alerts from the two observability systems provisioned for Infinity Heroes: Bedtime Chronicles — **Sentry** (error tracking) and **Cloudflare KV** (rate-limit state monitoring).
+This runbook covers how to investigate and respond to alerts from the two observability systems provisioned for Infinity Heroes: Bedtime Chronicles — **Sentry** (client error tracking) and **Cloudflare KV** (rate-limit state monitoring).
 
 ---
 
@@ -10,15 +10,14 @@ This runbook covers how to investigate and respond to alerts from the two observ
 
 ### Architecture
 
-- **Server:** `@sentry/node` initialized in `server/index.ts` before all middleware. Captures unhandled exceptions and errors passed to the Express error handler.
+- **Server:** No Sentry integration yet. Server errors are captured via pino structured logging and the Express global error handler. See server logs in your deployment dashboard.
 - **Client:** `@sentry/react-native` initialized in `app/_layout.tsx`. Captures JS errors and React component crashes.
-- **No-op behavior:** both SDKs gracefully no-op when `SENTRY_DSN` / `EXPO_PUBLIC_SENTRY_DSN` are unset, so staging/dev environments without these vars are unaffected.
+- **No-op behavior:** the client SDK gracefully no-ops when `EXPO_PUBLIC_SENTRY_DSN` is unset.
 
 ### Configuration
 
 | Env Var | Where Set | Notes |
 |---------|-----------|-------|
-| `SENTRY_DSN` | Server env | Replit secret or `.env` |
 | `EXPO_PUBLIC_SENTRY_DSN` | EAS secret | Bundled into APK — not a secret, but should match project DSN |
 
 ### Responding to a Sentry Alert
