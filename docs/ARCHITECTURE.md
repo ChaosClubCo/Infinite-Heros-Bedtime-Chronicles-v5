@@ -206,6 +206,10 @@ The app runs as a single-instance Express server. There is no load balancer, no 
 
 See [SECURITY.md](./SECURITY.md) for the full security policy and OWASP assessment.
 
+## Assets
+
+The 8 stock heroes use pre-baked PNG portraits located in `assets/heroes/` (512x512 with transparent background and cosmic style). A utility script `scripts/generate-hero-portraits.mjs` is provided to regenerate these assets by calling the `POST /api/generate-avatar` endpoint on a running local dev server (port 5000) using the active AI image generation model (e.g. Gemini 2.5 Flash Image). Run the script with `npx tsx scripts/generate-hero-portraits.mjs`. It supports idempotency and will skip existing images unless the `--force` flag is specified.
+
 ## Voice Chat Module
 
 When `AI_INTEGRATIONS_OPENAI_API_KEY` and `DATABASE_URL` are set:

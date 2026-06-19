@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Dimensions, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -9,12 +9,13 @@ import type { Hero } from '@/constants/heroes';
 interface HeroCardProps {
   hero: Hero;
   onPress: () => void;
+  avatarUri?: string;
 }
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 52) / 2;
 
-export function HeroCard({ hero, onPress }: HeroCardProps) {
+export function HeroCard({ hero, onPress, avatarUri }: HeroCardProps) {
   return (
     <Pressable
       onPress={() => {
@@ -35,7 +36,13 @@ export function HeroCard({ hero, onPress }: HeroCardProps) {
         style={styles.gradient}
       >
         <View style={styles.iconWrap}>
-          <Ionicons name={hero.iconName} size={36} color={hero.color} />
+          {hero.portraitAsset ? (
+            <Image source={hero.portraitAsset} style={styles.portrait} />
+          ) : avatarUri ? (
+            <Image source={{ uri: avatarUri }} style={styles.portrait} />
+          ) : (
+            <Ionicons name={hero.iconName} size={36} color={hero.color} />
+          )}
         </View>
         <Text style={styles.name}>{hero.name}</Text>
         <Text style={styles.title}>{hero.title}</Text>
@@ -73,6 +80,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
+    overflow: 'hidden',
+  },
+  portrait: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
   },
   name: {
     fontFamily: 'PlusJakartaSans_800ExtraBold',

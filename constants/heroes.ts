@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
 import type { Ionicons } from "@expo/vector-icons";
+import type { ImageSourcePropType } from "react-native";
 
 export type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 
@@ -13,6 +14,7 @@ export interface Hero {
   color: string;
   gradient: [string, string];
   constellation: string;
+  portraitAsset?: ImageSourcePropType;
 }
 
 export const HEROES: Hero[] = [
@@ -26,6 +28,7 @@ export const HEROES: Hero[] = [
     color: '#FFD54F',
     gradient: ['#1a237e', '#283593'],
     constellation: 'The Shield',
+    portraitAsset: require("../assets/heroes/hero-1.png"),
   },
   {
     id: 'hero-2',
@@ -37,6 +40,7 @@ export const HEROES: Hero[] = [
     color: '#4DD0E1',
     gradient: ['#006064', '#00838f'],
     constellation: 'The Wave',
+    portraitAsset: require("../assets/heroes/hero-2.png"),
   },
   {
     id: 'hero-3',
@@ -48,6 +52,7 @@ export const HEROES: Hero[] = [
     color: '#B388FF',
     gradient: ['#311b92', '#4527a0'],
     constellation: 'The Bridge',
+    portraitAsset: require("../assets/heroes/hero-3.png"),
   },
   {
     id: 'hero-4',
@@ -59,6 +64,7 @@ export const HEROES: Hero[] = [
     color: '#CE93D8',
     gradient: ['#4a148c', '#6a1b9a'],
     constellation: 'The Loom',
+    portraitAsset: require("../assets/heroes/hero-4.png"),
   },
   {
     id: 'hero-5',
@@ -70,6 +76,7 @@ export const HEROES: Hero[] = [
     color: '#90CAF9',
     gradient: ['#1565c0', '#1976d2'],
     constellation: 'The Cloud',
+    portraitAsset: require("../assets/heroes/hero-5.png"),
   },
   {
     id: 'hero-6',
@@ -81,6 +88,7 @@ export const HEROES: Hero[] = [
     color: '#A5D6A7',
     gradient: ['#1b5e20', '#2e7d32'],
     constellation: 'The Garden',
+    portraitAsset: require("../assets/heroes/hero-6.png"),
   },
   {
     id: 'hero-7',
@@ -92,6 +100,7 @@ export const HEROES: Hero[] = [
     color: '#B0BEC5',
     gradient: ['#37474f', '#455a64'],
     constellation: 'The Track',
+    portraitAsset: require("../assets/heroes/hero-7.png"),
   },
   {
     id: 'hero-8',
@@ -103,5 +112,6 @@ export const HEROES: Hero[] = [
     color: '#78909C',
     gradient: ['#212121', '#37474f'],
     constellation: 'The Shadow',
+    portraitAsset: require("../assets/heroes/hero-8.png"),
   },
 ];

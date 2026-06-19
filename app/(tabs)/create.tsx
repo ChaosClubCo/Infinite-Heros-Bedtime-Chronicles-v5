@@ -182,6 +182,7 @@ export default function CreateScreen() {
 
   useEffect(() => {
     const h = HEROES[heroIndex];
+    if (h.portraitAsset) return; // Skip API fetch if pre-baked asset is available
     // Ref guard avoids re-reading state and keeps the dep array tight.
     if (fetchedAvatarIdsRef.current.has(h.id)) return;
     fetchedAvatarIdsRef.current.add(h.id);
@@ -530,6 +531,7 @@ export default function CreateScreen() {
                 >
                   <HeroCard
                     hero={h}
+                    avatarUri={heroAvatarUri[h.id]}
                     onPress={() => {
                       Haptics.selectionAsync();
                       setHeroIndex(i);
@@ -544,7 +546,12 @@ export default function CreateScreen() {
             <View style={s.glassCard}>
               <View style={s.heroDetailRow}>
                 <View style={[s.heroDetailIcon, { backgroundColor: `${hero.color}20` }]}>
-                  {heroAvatarUri[hero.id] ? (
+                  {hero.portraitAsset ? (
+                    <Image
+                      source={hero.portraitAsset}
+                      style={s.heroAvatarImage}
+                    />
+                  ) : heroAvatarUri[hero.id] ? (
                     <Image
                       source={{ uri: heroAvatarUri[hero.id] }}
                       style={s.heroAvatarImage}
