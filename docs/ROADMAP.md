@@ -1,6 +1,6 @@
 # Development Roadmap
 
-**Last Updated:** 2026-06-13
+**Last Updated:** 2026-06-19
 
 Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Time Criticality + Risk Reduction) / Job Size`
 
@@ -45,6 +45,11 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 | Provision Supabase production database (conversations + messages) | Infrastructure | 2026-06-13 |
 | Add Sentry error tracking (server + client) | Observability | 2026-06-13 |
 | Add Cloudflare KV persistent rate limiting | Infrastructure | 2026-06-13 |
+| Production-readiness re-audit + HIGH remediations (retry 4xx gate, crash handlers, cost guards) | Security/Reliability | 2026-06-18 |
+| Pre-baked hero portraits + illustrated onboarding flow + 50 story seeds (#245) | Feature | 2026-06-19 |
+| Story playback cleanup + stale-closure fix in app/story.tsx (#245) | Code Quality | 2026-06-19 |
+| Refactor badge system into lib/badges.ts; fix vocab_5 & all_heroes bugs (#247) | Bug Fix | 2026-06-19 |
+| Custom hero storage + Trophies screen progress UI (#247) | Feature | 2026-06-19 |
 
 ## Backlog (Prioritized)
 
@@ -52,30 +57,35 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 1 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/PLAY_STORE_DEPLOYMENT.md |
-| 2 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | 14 remaining vulns (2 high in firebase-admin transitive chain); blocked on upstream |
+| 1 | M1 — KV-backed idempotency + TTS cache | 8 | 8 | 6 | 3 | 7.3 | Serverless gate: in-memory dedup + /tmp TTS cache are per-invocation → duplicate generations / re-synth cost. Move to Cloudflare KV / object storage. See docs/PRODUCTION-READINESS-AUDIT-2026-06-19.md |
+| 2 | M3 — Wire alerting + server-side Sentry | 8 | 7 | 4 | 2 | 9.5 | Serverless gate: alarm thresholds documented but not wired; no server-side Sentry. Add cost/latency/failure-rate alarms |
+| 3 | M2 — Live health checks (liveness/readiness) | 5 | 5 | 3 | 1 | 13.0 | /api/health checks env-var presence, not live reachability. Add cached, non-blocking dependency pings |
+| 4 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/PLAY_STORE_DEPLOYMENT.md |
+| 5 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | 42 advisories (2 high: `tmp`, `undici`; 40 moderate, mostly `@expo/config*`); 0 critical. Blocked on upstream Expo/transitive fixes |
 
 ### Low Priority
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 3 | Add authentication (anonymous sessions) | 5 | 1 | 3 | 8 | 1.1 | Only needed if API cost abuse becomes a concern |
-| 4 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | Stored data is non-sensitive (story text, badges) |
+| 6 | Add authentication (anonymous sessions) | 5 | 1 | 3 | 8 | 1.1 | Only needed if API cost abuse becomes a concern |
+| 7 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | Stored data is non-sensitive (story text, badges) |
 
 ## Dependencies
 
-- Item 1 (EAS) requires all API keys to be set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md)
-- Item 2 (audit) is blocked on firebase-admin upstream releasing fixes for transitive `@tootallnate/once` chain
-- Item 3 (auth) would require significant architecture changes
+- Items 1–3 (M1/M3/M2) are the audit's "before scaling past beta" gates — see docs/PRODUCTION-READINESS-AUDIT-2026-06-19.md §Go/No-Go. M1 requires the `CLOUDFLARE_*` KV vars to be set in the live Vercel env (verify; falls back to in-memory silently otherwise).
+- Item 4 (EAS) requires all API keys to be set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md)
+- Item 5 (audit) is blocked on upstream releasing fixes for the `tmp`/`undici` and `@expo/config*` transitive chains
+- Item 6 (auth) would require significant architecture changes
 
 ## Known Audit Issues
 
-2 high-severity advisories remain in the firebase-admin transitive dependency tree:
-- `@tootallnate/once` via `firebase-admin` → `http-proxy-agent` → `teeny-request` → `@google-cloud/storage`
-- Requires firebase-admin to update its deps; tracked in Dependabot
+`npm audit` as of 2026-06-19 reports **42 advisories: 2 high, 40 moderate, 0 critical**:
+- **High:** `tmp` (arbitrary file/dir write via symlink) and `undici` — both pulled in transitively.
+- **Moderate:** mostly `@expo/config*` and related Expo tooling chains; tracked against Expo SDK updates.
+- All are transitive; no direct-dependency fixes available yet. Tracked in Dependabot.
 
-CI uses `--audit-level=critical`. Tighten to `--audit-level=high` after firebase-admin upstream resolves.
+CI uses `--audit-level=critical`. Tighten to `--audit-level=high` once the `tmp`/`undici` chains resolve upstream.
 
 ## Tracked TODOs in Code
 
-No open `// TODO` comments found in source files as of last scan (2026-06-13).
+No open `// TODO` comments found in source files as of last scan (2026-06-19).

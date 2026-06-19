@@ -2,6 +2,40 @@
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
 
+## [Unreleased] — 2026-06-19 — Onboarding, story seeds, badge system overhaul
+
+Merged PRs #245 and #247 to `main`.
+
+### Added
+- **Pre-baked hero portraits** (#245) — the 8 stock heroes now ship 512×512 PNG assets
+  instead of generating an AI avatar per launch, improving startup time and removing a
+  network dependency. Avatar rendering prefers the pre-baked portrait. Generation script
+  at `scripts/generate-hero-portraits.mjs`.
+- **Illustrated onboarding flow** (#245) — 4-slide horizontal carousel (`components/OnboardingSlide.tsx`)
+  with Skip, progress dots, and haptic-enhanced navigation.
+- **Curated story seeds library** (#245) — browseable "Magic Story Seeds" screen with 50 seeds
+  (`constants/story-seeds.ts`, `components/SeedCard.tsx`) and age/theme filters that deep-link
+  into story-details.
+- **Custom hero storage** (#247) — `lib/customHeroStorage.ts` AsyncStorage helpers with size
+  limits and input sanitization.
+- **Centralized badge logic** (#247) — `lib/badges.ts` holds all 12 badge definitions plus pure
+  `evaluateBadges()` / `getBadgeProgress()` functions, with unit tests in `lib/badges.test.ts`.
+
+### Fixed
+- **`vocab_5` / Word Wizard badge** (#247) — now counts unique vocab words learned
+  (`story.vocabWord.word`) instead of total stories completed.
+- **`all_heroes` / Hero Collector badge** (#247) — reconciles custom heroes with stock heroes,
+  counting any unique hero used (built-in or custom) toward the target of 8.
+- **Stale-closure bug in `generateStory`** (#245) — added the missing `useCallback` deps in
+  `app/story.tsx`.
+
+### Changed
+- **Trophies screen** (#247) — extracted achievement card UI to `components/BadgeCard.tsx` with
+  gradients for earned badges and progress bars/hints for locked ones; earned badges sort first
+  (newest→oldest), then locked badges by progress ratio.
+- **Story playback cleanup** (#245) — extracted `teardownPlayback()` and `advanceToNextPart()`
+  to dedup logic and lifted magic numbers to module-level constants in `app/story.tsx`.
+
 ## [Unreleased] — 2026-06-13 — Production infrastructure + Phase 4 completion
 
 Phase 4 completion (routes.ts migration) and Phase 5 prep (production infrastructure via
