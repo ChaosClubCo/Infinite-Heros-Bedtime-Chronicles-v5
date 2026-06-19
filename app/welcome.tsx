@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -6,90 +6,83 @@ import {
   StyleSheet,
   Platform,
   Dimensions,
+  FlatList,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import Animated, {
-  FadeIn,
-  FadeInDown,
-  FadeInUp,
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withSequence,
-  withTiming,
-  Easing,
-} from "react-native-reanimated";
-import { StarField } from "@/components/StarField";
 import Colors from "@/constants/colors";
 import { setOnboardingComplete } from "@/lib/storage";
+import { useSettings } from "@/lib/SettingsContext";
+import { OnboardingSlide } from "@/components/OnboardingSlide";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-function PulsingOrb({ color }: { color: string }) {
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(0.6);
-
-  useEffect(() => {
-    scale.value = withRepeat(
-      withSequence(
-        withTiming(1.15, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      false
-    );
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 2000 }),
-        withTiming(0.5, { duration: 2000 })
-      ),
-      -1,
-      false
-    );
-  }, []);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View
-      style={[
-        styles.orbWrap,
-        { backgroundColor: `${color}18`, borderColor: `${color}30` },
-        animStyle,
-      ]}
-    >
-      <View style={[styles.orbInner, { backgroundColor: `${color}12` }]}>
-        <Ionicons name="sparkles" size={52} color={color} />
-      </View>
-    </Animated.View>
-  );
-}
+const SLIDES = [
+  {
+    image: require("../assets/onboarding/01-meet-heroes.png"),
+    title: "Meet Your Heroes",
+    body: "Create your own cosmic hero and embark on magical bedtime adventures together.",
+  },
+  {
+    image: require("../assets/onboarding/02-choose-adventure.png"),
+    title: "Choose Your Adventure",
+    body: "Select story settings, tones, and options to customize every bedtime story.",
+  },
+  {
+    image: require("../assets/onboarding/03-narration.png"),
+    title: "Bedtime Narration",
+    body: "Listen to cozy voice narration with calming background music as you drift off.",
+  },
+  {
+    image: require("../assets/onboarding/04-sleep-safe.png"),
+    title: "Safe & Calm Sleep",
+    body: "Child-safe content designed for peaceful nights, relaxation, and sweet dreams.",
+  },
+];
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
+  const { settings } = useSettings();
+  const reducedMotion = settings?.reducedMotion ?? false;
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
+
   const handleSkip = async () => {
+    Haptics.selectionAsync();
     await setOnboardingComplete();
     router.replace("/(tabs)");
   };
 
-  const handleCreate = () => {
+  const handleNext = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push("/quick-create");
+    if (currentIndex < SLIDES.length - 1) {
+      const nextIndex = currentIndex + 1;
+      flatListRef.current?.scrollToIndex({
+        index: nextIndex,
+        animated: !reducedMotion,
+      });
+      setCurrentIndex(nextIndex);
+    } else {
+      await setOnboardingComplete();
+      router.replace("/(tabs)");
+    }
   };
 
-  const handleLibrary = () => {
-    Haptics.selectionAsync();
-    router.replace("/(tabs)/library");
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const scrollOffset = event.nativeEvent.contentOffset.x;
+    const index = Math.round(scrollOffset / SCREEN_WIDTH);
+    if (index !== currentIndex && index >= 0 && index < SLIDES.length) {
+      setCurrentIndex(index);
+    }
   };
 
   return (
@@ -99,209 +92,151 @@ export default function WelcomeScreen() {
         locations={[0, 0.3, 0.6, 1]}
         style={StyleSheet.absoluteFill}
       />
-      <StarField />
 
-      <View style={[styles.topRow, { paddingTop: topInset + 8 }]}>
-        <Pressable onPress={handleSkip} hitSlop={12} style={styles.skipBtn}>
-          <Text style={styles.skipText}>Skip</Text>
-          <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" />
-        </Pressable>
-      </View>
+      <FlatList
+        ref={flatListRef}
+        data={SLIDES}
+        renderItem={({ item }) => (
+          <OnboardingSlide image={item.image} title={item.title} body={item.body} />
+        )}
+        keyExtractor={(_, index) => index.toString()}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handleScroll}
+        bounces={false}
+        style={StyleSheet.absoluteFill}
+      />
 
-      <View style={styles.heroSection}>
-        <Animated.View entering={FadeIn.duration(800)}>
-          <PulsingOrb color="#6366f1" />
-        </Animated.View>
+      {/* Top Header Row (Skip Button) */}
+      {currentIndex < SLIDES.length - 1 && (
+        <View style={[styles.topRow, { paddingTop: topInset + 8 }]}>
+          <Pressable onPress={handleSkip} hitSlop={12} style={styles.skipBtn}>
+            <Text style={styles.skipText}>Skip</Text>
+            <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" />
+          </Pressable>
+        </View>
+      )}
 
-        <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.titleWrap}>
-          <Text style={styles.tagline}>✨ INFINITY HEROES</Text>
-          <Text style={styles.headline}>Bedtime stories{"\n"}made magical</Text>
-          <Text style={styles.subtext}>
-            AI-powered adventures tailored for your child — ready in seconds.
-          </Text>
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.duration(500).delay(400)} style={styles.featureRow}>
-          {[
-            { icon: "sparkles", label: "AI Stories", color: "#6366f1" },
-            { icon: "headset", label: "Narration", color: "#A855F7" },
-            { icon: "image", label: "Illustrations", color: "#06b6d4" },
-          ].map((f) => (
-            <View key={f.label} style={styles.featureChip}>
-              <View style={[styles.featureIconWrap, { backgroundColor: `${f.color}18` }]}>
-                {/* intentional: icon names are string literals from inline data, not the typed Ionicons union */}
-                <Ionicons name={f.icon as React.ComponentProps<typeof Ionicons>["name"]} size={16} color={f.color} />
-              </View>
-              <Text style={styles.featureLabel}>{f.label}</Text>
-            </View>
+      {/* Bottom Control Bar */}
+      <View style={[styles.bottomBar, { paddingBottom: bottomInset + 24 }]}>
+        <View style={styles.dotContainer}>
+          {SLIDES.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.dot,
+                currentIndex === index ? styles.activeDot : styles.inactiveDot,
+              ]}
+            />
           ))}
-        </Animated.View>
-      </View>
+        </View>
 
-      <Animated.View
-        entering={FadeInUp.duration(600).delay(500)}
-        style={[styles.ctaSection, { paddingBottom: bottomInset + 24 }]}
-      >
         <Pressable
-          onPress={handleCreate}
+          onPress={handleNext}
           style={({ pressed }) => [
-            styles.primaryBtn,
+            styles.nextBtn,
             { transform: [{ scale: pressed ? 0.97 : 1 }] },
           ]}
-          testID="create-first-story-btn"
+          testID={currentIndex === SLIDES.length - 1 ? "get-started-btn" : "next-btn"}
         >
           <LinearGradient
             colors={["#6366f1", "#4f46e5"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={styles.primaryBtnGradient}
+            style={styles.nextBtnGradient}
           >
-            <Ionicons name="sparkles" size={20} color="#FFF" />
-            <Text style={styles.primaryBtnText}>Create My First Story</Text>
-            <Ionicons name="arrow-forward" size={18} color="rgba(255,255,255,0.7)" />
+            <Text style={styles.nextBtnText}>
+              {currentIndex === SLIDES.length - 1 ? "Get Started" : "Next"}
+            </Text>
+            <Ionicons
+              name={currentIndex === SLIDES.length - 1 ? "sparkles" : "arrow-forward"}
+              size={18}
+              color="#FFF"
+            />
           </LinearGradient>
         </Pressable>
-
-        <Pressable
-          onPress={handleLibrary}
-          hitSlop={8}
-          style={styles.secondaryBtn}
-          testID="explore-library-btn"
-        >
-          <Text style={styles.secondaryBtnText}>Explore Library</Text>
-        </Pressable>
-      </Animated.View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#02021a" },
+  container: {
+    flex: 1,
+    backgroundColor: "#02021a",
+  },
   topRow: {
+    position: "absolute",
+    top: 0,
+    right: 0,
     paddingHorizontal: 20,
-    flexDirection: "row",
-    justifyContent: "flex-end",
+    zIndex: 10,
   },
   skipBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
     paddingVertical: 6,
-    paddingHorizontal: 4,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   skipText: {
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 14,
-    color: "rgba(255,255,255,0.4)",
-  },
-  heroSection: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 28,
-    gap: 28,
-  },
-  orbWrap: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-  },
-  orbInner: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  titleWrap: { alignItems: "center", gap: 10 },
-  tagline: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 11,
-    color: Colors.accent,
-    letterSpacing: 2.5,
-  },
-  headline: {
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontSize: 34,
-    color: "#FFFFFF",
-    textAlign: "center",
-    lineHeight: 42,
-    letterSpacing: -0.5,
-  },
-  subtext: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 15,
-    color: "rgba(255,255,255,0.5)",
-    textAlign: "center",
-    lineHeight: 22,
-    marginTop: 4,
-  },
-  featureRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  featureChip: {
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
-  },
-  featureIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  featureLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 11,
     color: "rgba(255,255,255,0.6)",
   },
-  ctaSection: {
-    paddingHorizontal: 24,
-    gap: 14,
-    paddingTop: 8,
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    zIndex: 10,
   },
-  primaryBtn: {
+  dotContainer: {
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "center",
+  },
+  dot: {
+    height: 8,
+    borderRadius: 4,
+  },
+  activeDot: {
+    width: 20,
+    backgroundColor: Colors.accent,
+  },
+  inactiveDot: {
+    width: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  },
+  nextBtn: {
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#6366f1",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  primaryBtnGradient: {
+  nextBtnGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    paddingVertical: 18,
-    paddingHorizontal: 28,
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 22,
   },
-  primaryBtnText: {
+  nextBtnText: {
     fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 17,
+    fontSize: 16,
     color: "#FFF",
-    flex: 1,
-    textAlign: "center",
-  },
-  secondaryBtn: {
-    alignItems: "center",
-    paddingVertical: 10,
-  },
-  secondaryBtnText: {
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.4)",
-    textDecorationLine: "underline",
   },
 });

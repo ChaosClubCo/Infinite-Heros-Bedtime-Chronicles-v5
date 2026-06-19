@@ -19,6 +19,7 @@ import * as Haptics from "expo-haptics";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { useProfile } from "@/lib/ProfileContext";
+import { STORY_SEEDS } from "@/constants/story-seeds";
 
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 
@@ -119,16 +120,36 @@ export default function StoryDetailsScreen() {
   const insets = useSafeAreaInsets();
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
-  const { storyId } = useLocalSearchParams<{ storyId: string }>();
+  const params = useLocalSearchParams<{
+    storyId?: string;
+    setting?: string;
+    tone?: string;
+    sidekick?: string;
+    problem?: string;
+  }>();
   const { activeProfile } = useProfile();
 
-  const story = STORY_DATA[storyId || "1"] || STORY_DATA["1"];
+  const storyId = params.storyId;
+  const seed = STORY_SEEDS.find((s) => s.id === storyId);
+
+  const story = seed
+    ? {
+        title: seed.title,
+        category: seed.theme.charAt(0).toUpperCase() + seed.theme.slice(1),
+        duration: seed.mode === "sleep" ? "15 min" : "10 min",
+        ageRange: `Ages ${seed.ageRange}`,
+        summary: seed.blurb,
+        image: seed.mode === "sleep" ? STORY_DATA["3"].image : STORY_DATA["1"].image,
+        heroId: seed.suggestedHeroId || "hero-1",
+        mode: seed.mode,
+      }
+    : (STORY_DATA[storyId || "1"] || STORY_DATA["1"]);
 
   const [childName, setChildName] = useState(activeProfile?.name || "");
-  const [selectedSetting, setSelectedSetting] = useState("enchanted-forest");
-  const [selectedTone, setSelectedTone] = useState("gentle");
-  const [selectedSidekick, setSelectedSidekick] = useState("none");
-  const [selectedProblem, setSelectedProblem] = useState("lost-treasure");
+  const [selectedSetting, setSelectedSetting] = useState(params.setting || "enchanted-forest");
+  const [selectedTone, setSelectedTone] = useState(params.tone || "gentle");
+  const [selectedSidekick, setSelectedSidekick] = useState(params.sidekick || "none");
+  const [selectedProblem, setSelectedProblem] = useState(params.problem || "lost-treasure");
 
   const handleStartJourney = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);

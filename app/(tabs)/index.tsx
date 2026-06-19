@@ -15,6 +15,7 @@ import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
+import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
@@ -211,6 +212,44 @@ export default function HomeScreen() {
               </Pressable>
             ))}
           </ScrollView>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.duration(400).delay(220)}>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/story-seeds");
+            }}
+            style={({ pressed }) => [
+              styles.seedsBanner,
+              { transform: [{ scale: pressed ? 0.98 : 1 }] }
+            ]}
+            testID="story-seeds-banner"
+            accessibilityLabel="Browse Story Seeds"
+            accessibilityRole="button"
+          >
+            <LinearGradient
+              colors={["#4f46e5", "#311b92"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.seedsBannerGradient}
+            >
+              <View style={styles.seedsBannerContent}>
+                <View style={styles.seedsBannerTextWrap}>
+                  <View style={styles.seedsTag}>
+                    <Text style={styles.seedsTagText}>PRE-WRITTEN</Text>
+                  </View>
+                  <Text style={styles.seedsBannerTitle}>Quick Story Seeds 🌟</Text>
+                  <Text style={styles.seedsBannerSub}>
+                    Skip the setup! Tap a card to jump straight into a bedtime adventure.
+                  </Text>
+                </View>
+                <View style={styles.seedsIconCircle}>
+                  <Ionicons name="sparkles" size={24} color="#FFD54F" />
+                </View>
+              </View>
+            </LinearGradient>
+          </Pressable>
         </Animated.View>
 
         {recentStories.length > 0 && (
@@ -574,5 +613,59 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1.5,
     backgroundColor: "rgba(255,255,255,0.25)",
+  },
+  seedsBanner: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  seedsBannerGradient: {
+    padding: 16,
+  },
+  seedsBannerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  seedsBannerTextWrap: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  seedsTag: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  seedsTagText: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 8,
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
+  },
+  seedsBannerTitle: {
+    fontFamily: "PlusJakartaSans_800ExtraBold",
+    fontSize: 16,
+    color: "#FFFFFF",
+    marginBottom: 4,
+  },
+  seedsBannerSub: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 11,
+    color: "rgba(255, 255, 255, 0.7)",
+    lineHeight: 15,
+  },
+  seedsIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
