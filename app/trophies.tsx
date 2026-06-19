@@ -12,22 +12,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
 import { useProfile } from "@/lib/ProfileContext";
-import { EarnedBadge, StreakData, BADGE_DEFINITIONS } from "@/constants/types";
+import { EarnedBadge, StreakData, CachedStory } from "@/constants/types";
 import { getBadges, getStreak, getStoriesForProfile } from "@/lib/storage";
-
-const BADGE_GRADIENTS: [string, string][] = [
-  ["rgba(100,103,242,0.4)", "rgba(147,51,234,0.4)"],
-  ["rgba(59,130,246,0.4)", "rgba(99,102,241,0.4)"],
-  ["rgba(249,115,22,0.4)", "rgba(239,68,68,0.4)"],
-  ["rgba(16,185,129,0.4)", "rgba(6,182,212,0.4)"],
-  ["rgba(236,72,153,0.4)", "rgba(168,85,247,0.4)"],
-  ["rgba(245,158,11,0.4)", "rgba(239,68,68,0.4)"],
-];
+import { BadgeCard } from "@/components/BadgeCard";
+import { getBadgeProgress, BADGE_DEFINITIONS, BadgeState } from "@/lib/badges";
+import { getCustomHeroes } from "@/lib/customHeroStorage";
+import type { Hero } from "@/constants/heroes";
 
 export default function TrophiesScreen() {
   const insets = useSafeAreaInsets();
@@ -37,7 +31,8 @@ export default function TrophiesScreen() {
   const { activeProfile } = useProfile();
   const [badges, setBadges] = useState<EarnedBadge[]>([]);
   const [streak, setStreak] = useState<StreakData | null>(null);
-  const [totalStories, setTotalStories] = useState(0);
+  const [stories, setStories] = useState<CachedStory[]>([]);
+  const [customHeroes, setCustomHeroes] = useState<Hero[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -46,7 +41,8 @@ export default function TrophiesScreen() {
       Promise.all([
         getBadges(activeProfile.id).then(setBadges),
         getStreak(activeProfile.id).then(setStreak),
-        getStoriesForProfile(activeProfile.id).then((s) => setTotalStories(s.length)),
+        getStoriesForProfile(activeProfile.id).then(setStories),
+        getCustomHeroes().then(setCustomHeroes),
       ])
         .catch((e) => console.error("Failed to load trophy data:", e))
         .finally(() => setIsLoading(false));
@@ -56,6 +52,50 @@ export default function TrophiesScreen() {
   }, [activeProfile]);
 
   const earnedIds = new Set(badges.map((b) => b.id));
+
+  // Build the state for progress computation
+  const badgeState: BadgeState = activeProfile
+    ? {
+        profileId: activeProfile.id,
+        stories,
+        currentStreak: streak?.currentStreak || 0,
+        longestStreak: streak?.longestStreak || 0,
+        customHeroIds: customHeroes.map((h) => h.id),
+      }
+    : {
+        profileId: "",
+        stories: [],
+        currentStreak: 0,
+        longestStreak: 0,
+        customHeroIds: [],
+      };
+
+  // Map all badge definitions to their earned state and progress
+  const mappedBadges = BADGE_DEFINITIONS.map((def) => {
+    const earned = badges.find((b) => b.id === def.id);
+    const progress = getBadgeProgress(def.id, badgeState);
+    return {
+      def,
+      earned,
+      progress,
+    };
+  });
+
+  // Sort: earned badges first (sorted by earnedAt descending), then locked badges (sorted by progress ratio descending)
+  const sortedMappedBadges = [...mappedBadges].sort((a, b) => {
+    if (a.earned && !b.earned) return -1;
+    if (!a.earned && b.earned) return 1;
+    
+    if (a.earned && b.earned) {
+      return b.earned.earnedAt - a.earned.earnedAt;
+    }
+
+    const pctA = a.progress.target > 0 ? a.progress.current / a.progress.target : 0;
+    const pctB = b.progress.target > 0 ? b.progress.current / b.progress.target : 0;
+    return pctB - pctA;
+  });
+
+  const totalStories = stories.length;
 
   return (
     <View style={styles.container}>
@@ -130,41 +170,18 @@ export default function TrophiesScreen() {
               )}
 
               <View style={styles.badgeGrid}>
-                {badges.map((b, i) => (
+                {sortedMappedBadges.map(({ def, earned, progress }, i) => (
                   <Animated.View
-                    key={b.id}
+                    key={def.id}
                     entering={ZoomIn.duration(300).delay(i * 80)}
-                    style={styles.badgeCard}
+                    style={styles.badgeCardWrapper}
                   >
-                    <View style={[styles.badgeCircle, { backgroundColor: "transparent" }]}>
-                      <LinearGradient
-                        colors={BADGE_GRADIENTS[i % BADGE_GRADIENTS.length]}
-                        style={styles.badgeCircleGradient}
-                      >
-                        <Text style={styles.badgeEmoji}>{b.emoji}</Text>
-                      </LinearGradient>
-                      <View style={styles.badgeCircleRing} />
-                    </View>
-                    <Text style={styles.badgeTitle}>{b.title}</Text>
-                    <Text style={styles.badgeDesc}>{b.description}</Text>
-                  </Animated.View>
-                ))}
-
-                {BADGE_DEFINITIONS.filter((d) => !earnedIds.has(d.id)).map((d, i) => (
-                  <Animated.View
-                    key={d.id}
-                    entering={FadeInDown.duration(300).delay(i * 50)}
-                    style={[styles.badgeCard, styles.badgeCardLocked]}
-                  >
-                    <View style={styles.lockedCircle}>
-                      <Text style={styles.lockedQuestion}>?</Text>
-                    </View>
-                    <Text style={[styles.badgeTitle, styles.lockedTitle]}>
-                      {d.title}
-                    </Text>
-                    <Text style={[styles.badgeDesc, styles.lockedDesc]}>
-                      {d.description}
-                    </Text>
+                    <BadgeCard
+                      definition={def}
+                      earned={earned}
+                      progress={progress}
+                      index={i}
+                    />
                   </Animated.View>
                 ))}
               </View>
@@ -287,80 +304,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 20,
   },
-  badgeCard: {
+  badgeCardWrapper: {
     width: "47%" as `${number}%`,
-    alignItems: "center" as const,
-    gap: 6,
-    paddingVertical: 20,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: "rgba(100,103,242,0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(100,103,242,0.2)",
-  },
-  badgeCardLocked: {
-    opacity: 0.5,
-    borderColor: "rgba(255,255,255,0.06)",
-    backgroundColor: "rgba(255,255,255,0.02)",
-  },
-  badgeCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-  },
-  badgeCircleGradient: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeCircleRing: {
-    position: "absolute",
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    borderWidth: 2,
-    borderColor: "rgba(100,103,242,0.25)",
-  },
-  badgeEmoji: { fontSize: 38 },
-  badgeTitle: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 14,
-    color: "#FFFFFF",
-    textAlign: "center",
-  },
-  badgeDesc: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 11,
-    color: "rgba(255,255,255,0.4)",
-    textAlign: "center",
-    lineHeight: 15,
-  },
-  lockedCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(30,30,50,0.8)",
-    borderWidth: 2,
-    borderColor: "rgba(100,100,140,0.3)",
-    borderStyle: "dashed",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-  },
-  lockedQuestion: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 28,
-    color: "rgba(255,255,255,0.2)",
-  },
-  lockedTitle: {
-    color: "rgba(255,255,255,0.4)",
-  },
-  lockedDesc: {
-    color: "rgba(255,255,255,0.2)",
   },
 });

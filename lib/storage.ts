@@ -15,6 +15,8 @@ import {
   BADGE_DEFINITIONS,
 } from '@/constants/types';
 import { HEROES } from '@/constants/heroes';
+import { evaluateBadges } from './badges';
+import { getCustomHeroes } from './customHeroStorage';
 
 const FAVORITES_KEY = '@infinity_heroes_favorites';
 const READ_STORIES_KEY = '@infinity_heroes_read';
@@ -32,8 +34,7 @@ export async function getOnboardingComplete(): Promise<boolean> {
   try {
     const data = await AsyncStorage.getItem(ONBOARDING_KEY);
     return data === 'true';
-  } catch (e) {
-    console.warn('[storage] Failed to read onboarding flag, returning default', e);
+  } catch {
     return false;
   }
 }
@@ -50,8 +51,7 @@ export async function getParentConsent(): Promise<ParentConsent> {
   try {
     const data = await AsyncStorage.getItem(PARENT_CONSENT_KEY);
     return data ? JSON.parse(data) : DEFAULT_PARENT_CONSENT;
-  } catch (e) {
-    console.warn('[storage] Failed to read/parse parent consent, returning default', e);
+  } catch {
     return DEFAULT_PARENT_CONSENT;
   }
 }
@@ -79,8 +79,7 @@ export async function getFavorites(): Promise<string[]> {
   try {
     const data = await AsyncStorage.getItem(FAVORITES_KEY);
     return data ? JSON.parse(data) : [];
-  } catch (e) {
-    console.warn('[storage] Failed to read/parse stored data, returning default', e);
+  } catch {
     return [];
   }
 }
@@ -101,8 +100,7 @@ export async function getReadStories(): Promise<string[]> {
   try {
     const data = await AsyncStorage.getItem(READ_STORIES_KEY);
     return data ? JSON.parse(data) : [];
-  } catch (e) {
-    console.warn('[storage] Failed to read/parse stored data, returning default', e);
+  } catch {
     return [];
   }
 }
@@ -120,8 +118,7 @@ export async function getAllStories(): Promise<CachedStory[]> {
     const data = await AsyncStorage.getItem(STORIES_KEY);
     const stories: CachedStory[] = data ? JSON.parse(data) : [];
     return stories.sort((a, b) => b.timestamp - a.timestamp);
-  } catch (e) {
-    console.warn('[storage] Failed to read/parse stored data, returning default', e);
+  } catch {
     return [];
   }
 }
@@ -186,8 +183,7 @@ export async function getPreferences(): Promise<UserPreferences> {
   try {
     const data = await AsyncStorage.getItem(PREFERENCES_KEY);
     return data ? JSON.parse(data) : DEFAULT_PREFERENCES;
-  } catch (e) {
-    console.warn('[storage] Failed to read/parse preferences, returning default', e);
+  } catch {
     return DEFAULT_PREFERENCES;
   }
 }
@@ -196,8 +192,7 @@ export async function getProfiles(): Promise<ChildProfile[]> {
   try {
     const data = await AsyncStorage.getItem(PROFILES_KEY);
     return data ? JSON.parse(data) : [];
-  } catch (e) {
-    console.warn('[storage] Failed to read/parse stored data, returning default', e);
+  } catch {
     return [];
   }
 }
@@ -221,8 +216,7 @@ export async function deleteProfile(id: string): Promise<void> {
 export async function getActiveProfileId(): Promise<string | null> {
   try {
     return await AsyncStorage.getItem(ACTIVE_PROFILE_KEY);
-  } catch (e) {
-    console.warn('[storage] Failed to read active profile id, returning null', e);
+  } catch {
     return null;
   }
 }
@@ -268,8 +262,7 @@ export async function getBadges(profileId: string): Promise<EarnedBadge[]> {
     const data = await AsyncStorage.getItem(BADGES_KEY);
     const all: EarnedBadge[] = data ? JSON.parse(data) : [];
     return all.filter((b) => b.profileId === profileId);
-  } catch (e) {
-    console.warn('[storage] Failed to read/parse stored data, returning default', e);
+  } catch {
     return [];
   }
 }
@@ -278,8 +271,7 @@ export async function getAllBadges(): Promise<EarnedBadge[]> {
   try {
     const data = await AsyncStorage.getItem(BADGES_KEY);
     return data ? JSON.parse(data) : [];
-  } catch (e) {
-    console.warn('[storage] Failed to read/parse stored data, returning default', e);
+  } catch {
     return [];
   }
 }
@@ -304,8 +296,7 @@ export async function getStreak(profileId: string): Promise<StreakData> {
       longestStreak: 0,
       lastStoryDate: '',
     };
-  } catch (e) {
-    console.warn('[storage] Failed to read/parse streak data, returning default', e);
+  } catch {
     return { profileId, currentStreak: 0, longestStreak: 0, lastStoryDate: '' };
   }
 }
@@ -348,54 +339,26 @@ export async function checkAndAwardBadges(
 ): Promise<EarnedBadge[]> {
   const stories = await getStoriesForProfile(profileId);
   const streak = await getStreak(profileId);
+  const customHeroes = await getCustomHeroes();
   const existing = await getBadges(profileId);
   const existingIds = new Set(existing.map((b) => b.id));
+
+  const earned = evaluateBadges({
+    profileId,
+    stories,
+    currentStreak: streak.currentStreak,
+    longestStreak: streak.longestStreak,
+    customHeroIds: customHeroes.map(h => h.id),
+    currentStoryHour: new Date().getHours(),
+    storyId,
+  });
+
   const newBadges: EarnedBadge[] = [];
-
-  const now = new Date();
-  const hour = now.getHours();
-  const totalStories = stories.length;
-  const modeCount = (m: string) => stories.filter((s) => s.mode === m).length;
-  const uniqueHeroes = new Set(stories.map((s) => s.heroId));
-  const vocabWordsLearned = new Set(
-    stories.filter((s) => s.story?.vocabWord?.word).map((s) => s.story.vocabWord.word)
-  ).size;
-
-  for (const def of BADGE_DEFINITIONS) {
-    if (existingIds.has(def.id)) continue;
-
-    let earned = false;
-    switch (def.condition) {
-      case 'first_story': earned = totalStories >= 1; break;
-      case 'night_story': earned = hour >= 20; break;
-      case 'morning_story': earned = hour >= 5 && hour < 10; break;
-      // "Hero Collector": count distinct heroes used (built-in OR custom). The old
-      // check required every built-in hero, so children who play only with custom
-      // heroes could never earn it. Threshold = roster size, so the bar is unchanged
-      // for built-in users while custom heroes now count toward it.
-      case 'all_heroes': earned = uniqueHeroes.size >= HEROES.length; break;
-      case 'madlibs_3': earned = modeCount('madlibs') >= 3; break;
-      case 'sleep_3': earned = modeCount('sleep') >= 3; break;
-      case 'classic_5': earned = modeCount('classic') >= 5; break;
-      case 'streak_3': earned = streak.currentStreak >= 3; break;
-      case 'streak_7': earned = streak.currentStreak >= 7; break;
-      case 'total_10': earned = totalStories >= 10; break;
-      case 'total_25': earned = totalStories >= 25; break;
-      case 'vocab_5': earned = vocabWordsLearned >= 5; break;
-    }
-
-    if (earned) {
-      const badge: EarnedBadge = {
-        id: def.id,
-        emoji: def.emoji,
-        title: def.title,
-        description: def.description,
-        earnedAt: Date.now(),
-        storyId,
-        profileId,
-      };
-      const wasNew = await awardBadge(badge);
-      if (wasNew) newBadges.push(badge);
+  for (const badge of earned) {
+    if (existingIds.has(badge.id)) continue;
+    const wasNew = await awardBadge(badge);
+    if (wasNew) {
+      newBadges.push(badge);
     }
   }
 
@@ -458,8 +421,7 @@ export async function getParentControls(): Promise<ParentControls> {
   try {
     const data = await AsyncStorage.getItem(PARENT_CONTROLS_KEY);
     return data ? JSON.parse(data) : DEFAULT_PARENT_CONTROLS;
-  } catch (e) {
-    console.warn('[storage] Failed to read/parse parent controls, returning default', e);
+  } catch {
     return DEFAULT_PARENT_CONTROLS;
   }
 }

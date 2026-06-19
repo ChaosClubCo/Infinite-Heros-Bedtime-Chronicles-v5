@@ -11,6 +11,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    setupFiles: ['./__tests__/setup.ts'],
     include: ['server/**/*.test.ts', 'lib/**/*.test.ts', '__tests__/**/*.test.ts', 'shared/**/*.test.ts'],
     exclude: ['node_modules', 'server_dist', 'static-build', '__tests__/components/**'],
     coverage: {

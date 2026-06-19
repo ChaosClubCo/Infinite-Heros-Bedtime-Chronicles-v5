@@ -17,6 +17,28 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 }));
 
 // Mock constants
+vi.mock('@/lib/badges', () => ({
+  evaluateBadges: (state: any) => {
+    const earned = [];
+    if (state.stories.length >= 1) {
+      earned.push({
+        id: 'first_adventure',
+        emoji: '🌟',
+        title: 'First Adventure',
+        description: 'Complete first story',
+        earnedAt: Date.now(),
+        profileId: state.profileId,
+        storyId: state.storyId,
+      });
+    }
+    return earned;
+  },
+  getBadgeProgress: () => ({ current: 0, target: 1 }),
+  BADGE_DEFINITIONS: [
+    { id: 'first_adventure', emoji: '🌟', title: 'First Adventure', description: 'Complete first story', condition: 'first_story' },
+  ],
+}));
+
 vi.mock('@/constants/types', () => ({
   DEFAULT_PREFERENCES: { audioVolume: 80, narratorVoice: 'moonbeam' },
   DEFAULT_PARENT_CONTROLS: { pin: null, isLocked: false, dailyLimit: 0 },

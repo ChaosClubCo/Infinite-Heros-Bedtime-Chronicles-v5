@@ -2,6 +2,10 @@
  * Shared test utilities and mock factories.
  */
 
+if (typeof require !== 'undefined' && require.extensions) {
+  require.extensions['.png'] = () => 'mock-png-asset';
+}
+
 import { vi } from "vitest";
 import type { AIProvider, ProviderName, TextGenerationRequest, TextGenerationResponse, ImageGenerationResponse } from "../server/ai/types";
 
