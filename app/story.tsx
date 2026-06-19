@@ -35,27 +35,50 @@ import { StoryTextDisplay } from "@/components/StoryTextDisplay";
 import { StoryProgressBar } from "@/components/StoryProgressBar";
 import { StoryChoices } from "@/components/StoryChoices";
 
+const PARTICLE_COUNT = 6;
+const PARTICLE_STAGGER_MS = 800;
+const WEB_INSET_TOP = 67;
+const WEB_INSET_BOTTOM = 34;
+const PLAYER_CONTROLS_RESERVED_HEIGHT = 160;
+
+type StoryRouteParams = {
+  heroId: string;
+  duration: string;
+  voice: string;
+  mode: string;
+  madlibWords: string;
+  soundscape: string;
+  sleepTimer: string;
+  speed: string;
+  replayJson: string;
+  setting: string;
+  tone: string;
+  childName: string;
+  sidekick: string;
+  problem: string;
+};
+
 export default function StoryScreen() {
-  const { heroId, duration, voice, mode, madlibWords, soundscape, sleepTimer, speed: initialSpeed, replayJson, setting, tone, childName, sidekick, problem } =
-    useLocalSearchParams<{
-      heroId: string;
-      duration: string;
-      voice: string;
-      mode: string;
-      madlibWords: string;
-      soundscape: string;
-      sleepTimer: string;
-      speed: string;
-      replayJson: string;
-      setting: string;
-      tone: string;
-      childName: string;
-      sidekick: string;
-      problem: string;
-    }>();
+  const params = useLocalSearchParams<StoryRouteParams>();
+  const {
+    heroId,
+    duration,
+    voice,
+    mode,
+    madlibWords,
+    soundscape,
+    sleepTimer,
+    speed: initialSpeed,
+    replayJson,
+    setting,
+    tone,
+    childName,
+    sidekick,
+    problem,
+  } = params;
   const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const topInset = Platform.OS === "web" ? WEB_INSET_TOP : insets.top;
+  const bottomInset = Platform.OS === "web" ? WEB_INSET_BOTTOM : insets.bottom;
 
   const storyMode = (mode || "classic") as keyof typeof MODE_THEME;
   const theme = MODE_THEME[storyMode] || MODE_THEME.classic;
@@ -109,16 +132,30 @@ export default function StoryScreen() {
     },
   });
 
+  const advanceToNextPart = useCallback(
+    (haptic?: Haptics.ImpactFeedbackStyle) => {
+      if (haptic !== undefined) Haptics.impactAsync(haptic);
+      stopAudio();
+      setCurrentPartIndex((prev) => prev + 1);
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    },
+    [stopAudio],
+  );
+
   const { cancelAutoAdvance } = useAutoAdvance({
     storyState,
     storyMode,
     storyData,
     currentPartIndex,
-    onAdvance: () => {
-      setCurrentPartIndex((prev) => prev + 1);
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
-    },
+    onAdvance: advanceToNextPart,
   });
+
+  const teardownPlayback = useCallback(() => {
+    stopAudio();
+    stopBgMusic();
+    clearSleepTimer();
+    cancelAutoAdvance();
+  }, [stopAudio, stopBgMusic, clearSleepTimer, cancelAutoAdvance]);
 
   const generateStory = useCallback(async () => {
     if (!hero) return;
@@ -172,8 +209,25 @@ export default function StoryScreen() {
       console.error("Story generation error:", error);
       setStoryState("error");
     }
-  }, [hero, duration, storyMode, madlibWords]);
+  }, [
+    hero,
+    duration,
+    storyMode,
+    madlibWords,
+    soundscape,
+    setting,
+    tone,
+    sidekick,
+    problem,
+    childName,
+    clearSceneImage,
+  ]);
 
+  // Mount-only effect: kick off generation (or replay) and start background music.
+  // We intentionally omit the referenced callbacks from deps — they would re-fire
+  // this effect mid-playback, restarting the story. Cleanup uses the captured refs,
+  // which is the correct behavior on unmount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (replayJson) {
       try {
@@ -194,19 +248,13 @@ export default function StoryScreen() {
     };
   }, []);
 
-  const handleChoiceSelect = (choiceIndex: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    stopAudio();
-    setCurrentPartIndex((prev) => prev + 1);
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  const handleChoiceSelect = (_choiceIndex: number) => {
+    advanceToNextPart(Haptics.ImpactFeedbackStyle.Medium);
   };
 
   const handleStoryComplete = () => {
     if (!hero || !storyData) return;
-    stopAudio();
-    stopBgMusic();
-    clearSleepTimer();
-    cancelAutoAdvance();
+    teardownPlayback();
     router.push({
       pathname: "/completion",
       params: {
@@ -219,10 +267,7 @@ export default function StoryScreen() {
   };
 
   const handleClose = () => {
-    stopAudio();
-    stopBgMusic();
-    clearSleepTimer();
-    cancelAutoAdvance();
+    teardownPlayback();
     router.dismissAll();
   };
 
@@ -238,9 +283,7 @@ export default function StoryScreen() {
   const handleNextPart = () => {
     if (storyData && currentPartIndex < storyData.parts.length - 1) {
       Haptics.selectionAsync();
-      stopAudio();
-      setCurrentPartIndex((prev) => prev + 1);
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      advanceToNextPart();
     }
   };
 
@@ -266,8 +309,8 @@ export default function StoryScreen() {
       <LinearGradient colors={theme.gradient} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
       <StarField />
 
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <FloatingParticle key={i} delay={i * 800} accent={theme.accent} />
+      {Array.from({ length: PARTICLE_COUNT }, (_, i) => (
+        <FloatingParticle key={i} delay={i * PARTICLE_STAGGER_MS} accent={theme.accent} />
       ))}
 
       <StoryTopBar
@@ -296,7 +339,10 @@ export default function StoryScreen() {
         <>
           <ScrollView
             ref={scrollRef}
-            contentContainerStyle={[styles.storyScrollContent, { paddingBottom: bottomInset + 160 }]}
+            contentContainerStyle={[
+              styles.storyScrollContent,
+              { paddingBottom: bottomInset + PLAYER_CONTROLS_RESERVED_HEIGHT },
+            ]}
             showsVerticalScrollIndicator={false}
           >
             <StorySceneDisplay
