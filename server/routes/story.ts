@@ -1,15 +1,15 @@
 import type { Express } from "express";
 import { StoryRequestSchema } from "../validation";
 import { getStorySystemPrompt, getStoryUserPrompt, getPartCount, getWordCount, STORY_RESPONSE_SCHEMA } from "../prompts";
-import { classifyError, createErrorResponse } from "../utils";
+import { classifyError, createErrorResponse, parsePositiveIntEnv } from "../utils";
 import { IdempotencyCache } from "../idempotency";
 import { estimateCostUsd } from "../ai/cost";
 import { aiRouter, idempotencyCache } from "./context";
 import { rateLimited, sendRouteError } from "./helpers";
 
 // Per-call token ceiling — configurable so a runaway generation can be capped
-// without a code change (cost guard). Defaults preserve prior behaviour.
-const STORY_MAX_TOKENS = parseInt(process.env.STORY_MAX_TOKENS || "8192", 10);
+// without a code change (cost guard). Invalid env values fall back to the default.
+const STORY_MAX_TOKENS = parsePositiveIntEnv(process.env.STORY_MAX_TOKENS, 8192);
 
 export function registerStoryRoutes(app: Express): void {
   app.post("/api/generate-story", rateLimited(), async (req, res) => {

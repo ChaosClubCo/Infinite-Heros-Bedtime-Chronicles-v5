@@ -62,6 +62,15 @@ function validateEnvironment() {
     log("[Env] WARNING: FIREBASE_SERVICE_ACCOUNT_KEY not set — authentication is DISABLED (dev mode)");
   }
 
+  // Cloudflare KV gives the rate limiter durable, cross-invocation state on
+  // serverless. Missing entirely → silent in-memory fallback (fine for local/
+  // Replit). Partially set → likely a misconfiguration worth surfacing.
+  const cfVars = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_KV_NAMESPACE_ID", "CLOUDFLARE_API_TOKEN"];
+  const cfSet = cfVars.filter((v) => !!process.env[v]).length;
+  if (cfSet > 0 && cfSet < cfVars.length) {
+    log("[Env] WARNING: CLOUDFLARE_* KV vars are partially set — rate limiting falls back to in-memory (not durable across serverless invocations)");
+  }
+
   log(`[Env] Environment validation complete (${textProviders} text providers, ${imageProviders} image providers)`);
 }
 
@@ -347,6 +356,22 @@ function setupErrorHandler(app: express.Application) {
   });
 }
 
+// Register process-level crash logging once. This runs in BOTH the serverless
+// (Vercel) and long-running paths so unhandled rejections/exceptions always get
+// a structured log instead of crashing silently. The long-running path adds its
+// own drain-and-exit handler on top (see below).
+let crashLoggingRegistered = false;
+function registerCrashLogging() {
+  if (crashLoggingRegistered) return;
+  crashLoggingRegistered = true;
+  process.on("unhandledRejection", (reason) => {
+    logger.error({ err: reason }, "unhandledRejection");
+  });
+  process.on("uncaughtException", (err) => {
+    logger.error({ err }, "uncaughtException");
+  });
+}
+
 export async function createApp(): Promise<express.Application> {
   const app = express();
 
@@ -355,6 +380,7 @@ export async function createApp(): Promise<express.Application> {
   app.set('trust proxy', 1);
 
   validateEnvironment();
+  registerCrashLogging();
   setupSecurityHeaders(app);
   setupCors(app);
   setupBodyParsing(app);
@@ -404,16 +430,10 @@ if (!process.env.VERCEL) {
     process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
     process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
-    // Safety net: without these, an unhandled rejection or uncaught exception
-    // crashes the process with no structured log. A stray rejection is logged
-    // but kept alive; an uncaught exception leaves the process in an undefined
-    // state, so we log and drain via gracefulShutdown.
-    process.on("unhandledRejection", (reason) => {
-      logger.error({ err: reason }, "unhandledRejection");
-    });
-    process.on("uncaughtException", (err) => {
-      logger.error({ err }, "uncaughtException — initiating shutdown");
-      gracefulShutdown("uncaughtException");
-    });
+    // Long-running server only: createApp() already registered the structured
+    // crash logging; here we additionally drain and exit on an uncaught
+    // exception so a supervisor restarts a clean process. (On serverless the
+    // platform isolates each invocation, so no drain handler is registered.)
+    process.on("uncaughtException", () => gracefulShutdown("uncaughtException"));
   })();
 }

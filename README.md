@@ -84,6 +84,8 @@ See [`.env.example`](./.env.example) for all variables with inline descriptions.
 | `PORT` | Optional | Server port (default: 5000) |
 | `RATE_LIMIT_MAX` | Optional | Requests per window (default: 10) |
 | `RATE_LIMIT_WINDOW_MS` | Optional | Rate limit window in ms (default: 60000) |
+| `STORY_MAX_TOKENS` | Optional | Per-call LLM token ceiling for story generation, cost guard (default: 8192) |
+| `SUGGEST_MAX_TOKENS` | Optional | Per-call LLM token ceiling for settings suggestions, cost guard (default: 2048) |
 | `OPENAI_API_KEY` | Optional | Direct key for Sora video generation |
 
 **Never** put real secret values in `.env.example` or commit `.env`. For EAS builds, set all vars as EAS secrets.

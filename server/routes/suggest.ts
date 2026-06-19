@@ -1,12 +1,13 @@
 import type { Express } from "express";
 import { VOICE_MAP, MODE_DEFAULT_VOICES, getVoicesForMode } from "../elevenlabs";
-import { SuggestSettingsRequestSchema, VALID_MODES, VALID_DURATIONS } from "../validation";
+import { SuggestSettingsRequestSchema, VALID_MODES, VALID_DURATIONS, sanitizePromptInput } from "../validation";
 import { estimateCostUsd } from "../ai/cost";
+import { parsePositiveIntEnv } from "../utils";
 import { aiRouter } from "./context";
 import { rateLimited, sendRouteError } from "./helpers";
 
-// Per-call token ceiling (cost guard) — env-configurable, default preserved.
-const SUGGEST_MAX_TOKENS = parseInt(process.env.SUGGEST_MAX_TOKENS || "2048", 10);
+// Per-call token ceiling (cost guard) — env-configurable, invalid values fall back.
+const SUGGEST_MAX_TOKENS = parsePositiveIntEnv(process.env.SUGGEST_MAX_TOKENS, 2048);
 
 export function registerSuggestRoutes(app: Express): void {
   app.post("/api/suggest-settings", rateLimited("Too many requests"), async (req, res) => {
@@ -25,10 +26,16 @@ export function registerSuggestRoutes(app: Express): void {
       const classicVoices = getVoicesForMode("classic").join(", ");
       const funVoices = getVoicesForMode("madlibs").join(", ");
 
-      const ageContext = childAge ? ` Child age: ${childAge} years old.${childAge <= 5 ? " For younger kids, prefer shorter, gentler stories with sleep mode." : " For older kids, classic and madlibs modes with longer stories work great."}` : "";
-      const nameContext = childName ? ` Child name: ${childName}.` : "";
+      // Sanitize user-provided strings before prompt inclusion (prompt-injection
+      // defense) — schema truncation alone does not strip control chars / role markers.
+      const safeHeroName = sanitizePromptInput(heroName, 500);
+      const safeHeroPower = sanitizePromptInput(heroPower, 500);
+      const safeChildName = childName ? sanitizePromptInput(childName, 500) : "";
 
-      const userPrompt = `Suggest bedtime story settings as JSON. Time: ${timeOfDay}.${ageContext}${nameContext} Hero: ${heroName} (${heroPower}). Modes: classic, madlibs, sleep. Durations: short, medium-short, medium, long, epic. Speeds: gentle, medium, normal. Voice categories - Sleep voices: ${sleepVoices}. Classic voices: ${classicVoices}. Fun/madlibs voices: ${funVoices}. IMPORTANT: Match voice to mode (sleep voices for sleep, classic voices for classic, fun voices for madlibs). Night=sleep+gentle+short. Afternoon=classic/madlibs+medium/normal. Reply ONLY with: {"mode":"...","duration":"...","speed":"...","voice":"...","tip":"short parent-friendly reason"}`;
+      const ageContext = childAge ? ` Child age: ${childAge} years old.${childAge <= 5 ? " For younger kids, prefer shorter, gentler stories with sleep mode." : " For older kids, classic and madlibs modes with longer stories work great."}` : "";
+      const nameContext = safeChildName ? ` Child name: ${safeChildName}.` : "";
+
+      const userPrompt = `Suggest bedtime story settings as JSON. Time: ${timeOfDay}.${ageContext}${nameContext} Hero: ${safeHeroName} (${safeHeroPower}). Modes: classic, madlibs, sleep. Durations: short, medium-short, medium, long, epic. Speeds: gentle, medium, normal. Voice categories - Sleep voices: ${sleepVoices}. Classic voices: ${classicVoices}. Fun/madlibs voices: ${funVoices}. IMPORTANT: Match voice to mode (sleep voices for sleep, classic voices for classic, fun voices for madlibs). Night=sleep+gentle+short. Afternoon=classic/madlibs+medium/normal. Reply ONLY with: {"mode":"...","duration":"...","speed":"...","voice":"...","tip":"short parent-friendly reason"}`;
 
       const aiResponse = await aiRouter.generateText("suggestion", {
         systemPrompt: "You are a helpful assistant that suggests bedtime story settings. Respond with valid JSON only.",

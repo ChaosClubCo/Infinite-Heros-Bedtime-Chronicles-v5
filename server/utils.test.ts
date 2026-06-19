@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toErrorMessage, classifyError, createErrorResponse, isRetryableError } from './utils';
+import { toErrorMessage, classifyError, createErrorResponse, isRetryableError, parsePositiveIntEnv } from './utils';
 
 describe('toErrorMessage', () => {
   it('extracts message from Error objects', () => {
@@ -71,6 +71,36 @@ describe('isRetryableError', () => {
     expect(isRetryableError(new Error('ECONNRESET'))).toBe(true);
     expect(isRetryableError(new Error('timed out after 60000ms'))).toBe(true);
     expect(isRetryableError(new Error('something weird'))).toBe(true);
+  });
+
+  it('does not retry other 4xx codes embedded in the message (413/415)', () => {
+    expect(isRetryableError(new Error('413 Payload Too Large'))).toBe(false);
+    expect(isRetryableError(new Error('415 Unsupported Media Type'))).toBe(false);
+  });
+
+  it('reads numeric status/statusCode off the error object', () => {
+    expect(isRetryableError({ status: 413, message: 'too big' })).toBe(false);
+    expect(isRetryableError({ statusCode: 403, message: 'nope' })).toBe(false);
+    expect(isRetryableError({ status: 429 })).toBe(true);
+    expect(isRetryableError({ status: 408 })).toBe(true); // request timeout
+    expect(isRetryableError({ status: 500 })).toBe(true);
+  });
+});
+
+describe('parsePositiveIntEnv', () => {
+  it('returns the fallback when the value is unset', () => {
+    expect(parsePositiveIntEnv(undefined, 8192)).toBe(8192);
+  });
+
+  it('parses a valid positive integer', () => {
+    expect(parsePositiveIntEnv('4096', 8192)).toBe(4096);
+  });
+
+  it('falls back on non-numeric, NaN, zero, or negative values', () => {
+    expect(parsePositiveIntEnv('abc', 2048)).toBe(2048);
+    expect(parsePositiveIntEnv('0', 2048)).toBe(2048);
+    expect(parsePositiveIntEnv('-5', 2048)).toBe(2048);
+    expect(parsePositiveIntEnv('12.5', 2048)).toBe(2048);
   });
 });
 
