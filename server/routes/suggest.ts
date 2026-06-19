@@ -1,8 +1,12 @@
 import type { Express } from "express";
 import { VOICE_MAP, MODE_DEFAULT_VOICES, getVoicesForMode } from "../elevenlabs";
 import { SuggestSettingsRequestSchema, VALID_MODES, VALID_DURATIONS } from "../validation";
+import { estimateCostUsd } from "../ai/cost";
 import { aiRouter } from "./context";
 import { rateLimited, sendRouteError } from "./helpers";
+
+// Per-call token ceiling (cost guard) — env-configurable, default preserved.
+const SUGGEST_MAX_TOKENS = parseInt(process.env.SUGGEST_MAX_TOKENS || "2048", 10);
 
 export function registerSuggestRoutes(app: Express): void {
   app.post("/api/suggest-settings", rateLimited("Too many requests"), async (req, res) => {
@@ -30,12 +34,18 @@ export function registerSuggestRoutes(app: Express): void {
         systemPrompt: "You are a helpful assistant that suggests bedtime story settings. Respond with valid JSON only.",
         userPrompt,
         temperature: 0.7,
-        maxTokens: 2048,
+        maxTokens: SUGGEST_MAX_TOKENS,
         thinkingBudget: 0,
         jsonMode: true,
       });
 
-      req.log?.info({ provider: aiResponse.provider, model: aiResponse.model }, 'suggestion generated');
+      req.log?.info({
+        provider: aiResponse.provider,
+        model: aiResponse.model,
+        inputTokens: aiResponse.usage?.inputTokens,
+        outputTokens: aiResponse.usage?.outputTokens,
+        estCostUsd: estimateCostUsd(aiResponse.provider, aiResponse.usage),
+      }, 'suggestion generated');
 
       // The router parses + validates JSON (via extractFirstJson) when jsonMode is set,
       // so consume parsedJson directly rather than re-parsing the raw text here.

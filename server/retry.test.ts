@@ -50,6 +50,39 @@ describe('retryWithJitter', () => {
     expect(result).toBe(42);
     expect(fn).toHaveBeenCalledTimes(1);
   });
+
+  it('does NOT retry clear 4xx client errors by default', async () => {
+    const fn = vi.fn().mockRejectedValue(new Error('401 Unauthorized: invalid api key'));
+    await expect(
+      retryWithJitter(fn, { maxRetries: 3, baseDelayMs: 1, maxDelayMs: 10 })
+    ).rejects.toThrow('401');
+    expect(fn).toHaveBeenCalledTimes(1); // failed fast, no retries
+  });
+
+  it('DOES retry 429 rate-limit errors (4xx but retryable)', async () => {
+    const fn = vi.fn().mockRejectedValue(new Error('429 Too Many Requests'));
+    await expect(
+      retryWithJitter(fn, { maxRetries: 2, baseDelayMs: 1, maxDelayMs: 10 })
+    ).rejects.toThrow('429');
+    expect(fn).toHaveBeenCalledTimes(3); // initial + 2 retries
+  });
+
+  it('DOES retry 5xx and network errors by default', async () => {
+    const fn = vi.fn()
+      .mockRejectedValueOnce(new Error('503 Service Unavailable'))
+      .mockResolvedValue('recovered');
+    const result = await retryWithJitter(fn, { maxRetries: 2, baseDelayMs: 1, maxDelayMs: 10 });
+    expect(result).toBe('recovered');
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it('honours a custom shouldRetry predicate', async () => {
+    const fn = vi.fn().mockRejectedValue(new Error('whatever'));
+    await expect(
+      retryWithJitter(fn, { maxRetries: 3, baseDelayMs: 1, maxDelayMs: 10, shouldRetry: () => false })
+    ).rejects.toThrow('whatever');
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('_jitteredDelay', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toErrorMessage, classifyError, createErrorResponse } from './utils';
+import { toErrorMessage, classifyError, createErrorResponse, isRetryableError } from './utils';
 
 describe('toErrorMessage', () => {
   it('extracts message from Error objects', () => {
@@ -48,6 +48,29 @@ describe('classifyError', () => {
 
   it('classifies unknown errors as permanent', () => {
     expect(classifyError(new Error('something weird'))).toBe('permanent');
+  });
+});
+
+describe('isRetryableError', () => {
+  it('does not retry clear 4xx client errors', () => {
+    expect(isRetryableError(new Error('400 Bad Request'))).toBe(false);
+    expect(isRetryableError(new Error('401 Unauthorized'))).toBe(false);
+    expect(isRetryableError(new Error('403 Forbidden'))).toBe(false);
+    expect(isRetryableError(new Error('404 Not Found'))).toBe(false);
+    expect(isRetryableError(new Error('422 Unprocessable Entity'))).toBe(false);
+    expect(isRetryableError(new Error('invalid api key'))).toBe(false);
+  });
+
+  it('retries 429 rate-limit errors despite being 4xx', () => {
+    expect(isRetryableError(new Error('429 Too Many Requests'))).toBe(true);
+    expect(isRetryableError(new Error('Too Many Requests'))).toBe(true);
+  });
+
+  it('retries 5xx, network, timeout, and unknown errors', () => {
+    expect(isRetryableError(new Error('500 Internal Server Error'))).toBe(true);
+    expect(isRetryableError(new Error('ECONNRESET'))).toBe(true);
+    expect(isRetryableError(new Error('timed out after 60000ms'))).toBe(true);
+    expect(isRetryableError(new Error('something weird'))).toBe(true);
   });
 });
 

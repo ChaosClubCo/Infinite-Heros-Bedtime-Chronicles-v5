@@ -403,5 +403,17 @@ if (!process.env.VERCEL) {
 
     process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
     process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
+    // Safety net: without these, an unhandled rejection or uncaught exception
+    // crashes the process with no structured log. A stray rejection is logged
+    // but kept alive; an uncaught exception leaves the process in an undefined
+    // state, so we log and drain via gracefulShutdown.
+    process.on("unhandledRejection", (reason) => {
+      logger.error({ err: reason }, "unhandledRejection");
+    });
+    process.on("uncaughtException", (err) => {
+      logger.error({ err }, "uncaughtException — initiating shutdown");
+      gracefulShutdown("uncaughtException");
+    });
   })();
 }
