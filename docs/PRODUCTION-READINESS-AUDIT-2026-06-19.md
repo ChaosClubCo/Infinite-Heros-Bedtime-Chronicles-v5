@@ -18,6 +18,13 @@ CONDITIONS** — ship to the current beta, with the three HIGH findings remediat
 (done in the accompanying change) and the MEDIUM scalability/alerting items
 cleared before scaling past beta.
 
+**Deployment gates at a glance:** (1) H1–H3 remediated — ✓ done; (2) M1 (KV-backed
+idempotency/TTS) cleared before scaling beyond beta; (3) M3 (alerting + server-side
+Sentry) wired before scaling. **Rollback trigger:** if per-generation `estCostUsd`
+logs show a sustained spike (e.g. >2× the 24h baseline) or the `/api/generate-story`
+5xx rate exceeds the documented critical threshold, roll back to the previous stable
+release per `docs/runbooks/rollback.md`.
+
 ## Prerequisite gate
 
 | Question | Answer |
@@ -143,4 +150,7 @@ No CRITICAL findings.
 - **ASSUMPTIONS:** per-token cost figures in `server/ai/cost.ts` are coarse
   list-price approximations — verify against current provider pricing.
 - **UNKNOWNS:** whether `CLOUDFLARE_*` KV env vars are set in the live Vercel
-  environment — surface via a startup assertion or the `/api/health` feature block.
+  environment. Startup now logs a WARNING when they are *partially* set
+  (`validateEnvironment` in `server/index.ts`); a fully-unset config still falls
+  back silently to in-memory by design. Confirm the live Vercel env has all three
+  (`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_KV_NAMESPACE_ID`, `CLOUDFLARE_API_TOKEN`).

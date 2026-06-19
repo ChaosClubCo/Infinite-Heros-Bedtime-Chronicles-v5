@@ -33,15 +33,9 @@ export function classifyError(err: unknown): ErrorKind {
 
 // Errors that signal a client-side problem (bad key, malformed request, missing
 // resource). Retrying these wastes paid API quota and only adds latency — the
-// request will fail identically every time. 429 is deliberately excluded: it is
-// a 4xx but IS retryable after backoff (handled in isRetryableError below).
+// request will fail identically every time. Used as a fallback when the error
+// carries no numeric status code (see isRetryableError).
 const NON_RETRYABLE_PATTERNS = [
-  /\b400\b/,
-  /\b401\b/,
-  /\b403\b/,
-  /\b404\b/,
-  /\b405\b/,
-  /\b422\b/,
   /unauthorized/i,
   /forbidden/i,
   /invalid[\s_-]?api[\s_-]?key/i,
@@ -50,20 +44,53 @@ const NON_RETRYABLE_PATTERNS = [
   /\binvalid request\b/i,
 ];
 
+// 4xx status codes that ARE worth retrying despite being client errors:
+// 408 Request Timeout, 409 Conflict, 425 Too Early, 429 Too Many Requests.
+const RETRYABLE_4XX = new Set([408, 409, 425, 429]);
+
+/** Extract a numeric HTTP status from an error object's status/statusCode field. */
+function getStatusCode(err: unknown): number | undefined {
+  if (err && typeof err === 'object') {
+    const obj = err as { status?: unknown; statusCode?: unknown };
+    if (typeof obj.status === 'number') return obj.status;
+    if (typeof obj.statusCode === 'number') return obj.statusCode;
+  }
+  return undefined;
+}
+
 /**
- * Decide whether an error is worth retrying. Defaults to retryable (so unknown
- * and network errors still get a second chance) and only returns false for clear
- * non-429 4xx client errors. Used as the default `shouldRetry` predicate in
- * `retryWithJitter`.
+ * Decide whether an error is worth retrying. Treats any 4xx (except the
+ * retryable set above) as non-retryable, reading the status off the error
+ * object when present and falling back to a status code embedded in the message
+ * or known client-error keywords. Defaults to retryable so unknown / network /
+ * 5xx / timeout errors still get a second chance. Used as the default
+ * `shouldRetry` predicate in `retryWithJitter`.
  */
 export function isRetryableError(err: unknown): boolean {
+  const status = getStatusCode(err);
+  if (status !== undefined && status >= 400 && status < 500) {
+    return RETRYABLE_4XX.has(status);
+  }
   const message = toErrorMessage(err);
-  // Rate limiting is a 4xx but is always retryable after backoff.
-  if (/\b429\b/.test(message) || /too many requests/i.test(message)) return true;
+  const codeMatch = message.match(/\b(4\d{2})\b/);
+  if (codeMatch) {
+    return RETRYABLE_4XX.has(parseInt(codeMatch[1], 10));
+  }
   for (const pattern of NON_RETRYABLE_PATTERNS) {
     if (pattern.test(message)) return false;
   }
   return true;
+}
+
+/**
+ * Parse a positive integer from an env var, falling back when unset or invalid
+ * (non-numeric, NaN, zero, or negative). Prevents a config typo from forwarding
+ * NaN into downstream APIs.
+ */
+export function parsePositiveIntEnv(value: string | undefined, fallback: number): number {
+  if (value === undefined) return fallback;
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
 }
 
 export function createErrorResponse(message: string, kind: ErrorKind): { error: string; retryable: boolean } {
