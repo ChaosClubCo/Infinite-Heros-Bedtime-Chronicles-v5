@@ -12,7 +12,7 @@
     "server:dev": "NODE_ENV=development tsx server/index.ts",
     "expo:start:static:build": "npx expo start --no-dev --minify --localhost",
     "expo:static:build": "node scripts/build.js",
-    "server:build": "esbuild server/index.ts --platform=node --bundle --format=cjs --outdir=server_dist --minify --external:openai --external:elevenlabs --external:@google/genai --external:@anthropic-ai/sdk --external:firebase-admin --external:drizzle-orm --external:drizzle-orm/node-postgres --external:pg --external:@sentry/node --external:express --external:pino --external:pino-std-serializers",
+    "server:build": "esbuild server/index.ts --platform=node --bundle --format=cjs --outdir=server_dist --minify --external:openai --external:elevenlabs --external:@google/genai --external:@anthropic-ai/sdk --external:firebase-admin --external:drizzle-orm --external:drizzle-orm/node-postgres --external:pg --external:@sentry/node --external:express --external:pino --external:pino-std-serializers --external:zod --external:drizzle-zod",
     "server:prod": "NODE_ENV=production node server_dist/index.js",
     "db:push": "drizzle-kit push",
     "start": "npx expo start",

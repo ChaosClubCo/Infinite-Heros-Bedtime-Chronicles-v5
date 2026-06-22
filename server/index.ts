@@ -50,8 +50,13 @@ function validateEnvironment() {
   if (textProviders === 0) {
     log("[Env] WARNING: No text AI providers configured — story generation will fail");
     if (process.env.NODE_ENV === "production") {
-      log("[Env] FATAL: No text AI providers configured in production. Exiting.");
-      process.exit(1);
+      const fatalMsg = "No text AI providers configured in production. Refusing to start.";
+      log(`[Env] FATAL: ${fatalMsg}`);
+      // Throw instead of process.exit() so that:
+      // - On Vercel (serverless) the rejected promise is caught by the handler
+      //   and the function returns a 500 JSON response instead of crashing.
+      // - On the standalone server the IIFE catch block calls process.exit(1).
+      throw new Error(fatalMsg);
     }
   }
   if (imageProviders === 0) {
@@ -399,7 +404,13 @@ export async function createApp(): Promise<express.Application> {
 // Only start the server when running directly (not imported by Vercel)
 if (!process.env.VERCEL) {
   (async () => {
-    const app = await createApp();
+    let app: express.Application;
+    try {
+      app = await createApp();
+    } catch (err) {
+      logger.error({ err }, "[Startup] Failed to initialize app. Exiting.");
+      process.exit(1);
+    }
     const { createServer } = await import("node:http");
     const server = createServer(app);
 
