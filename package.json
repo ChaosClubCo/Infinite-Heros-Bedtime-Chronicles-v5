@@ -32,12 +32,12 @@
     "npm": ">=10.0.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.104.1",
+    "@anthropic-ai/sdk": "^0.105.0",
     "@expo-google-fonts/bangers": "^0.4.1",
     "@expo-google-fonts/nunito": "^0.4.2",
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@expo/vector-icons": "^15.1.1",
-    "@google/genai": "^2.8.0",
+    "@google/genai": "^2.9.0",
     "@react-native-async-storage/async-storage": "3.1.1",
     "@react-native-community/netinfo": "^12.0.1",
     "@sentry/node": "^10.58.0",
@@ -76,7 +76,7 @@
     "firebase": "^12.14.0",
     "firebase-admin": "^14.0.0",
     "http-proxy-middleware": "^4.1.1",
-    "openai": "^6.42.0",
+    "openai": "^6.44.0",
     "p-limit": "7.3.0",
     "p-retry": "8.0.0",
     "pg": "^8.21.0",
