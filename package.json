@@ -98,7 +98,7 @@
     "zod-validation-error": "^5.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^8.0.1",
+    "@babel/core": "^7.29.7",
     "@expo/ngrok": "^4.1.0",
     "@react-native/jest-preset": "^0.86.0",
     "@react-native/metro-babel-transformer": "^0.86.0",
