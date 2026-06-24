@@ -1,15 +1,6 @@
 import * as Sentry from "@sentry/react-native";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, router } from "expo-router";
-
-// Initialize Sentry for client-side error tracking.
-// No-ops gracefully when EXPO_PUBLIC_SENTRY_DSN is unset.
-if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
-  Sentry.init({
-    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
-  });
-}
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -40,6 +31,15 @@ import {
   PlusJakartaSans_800ExtraBold,
 } from "@expo-google-fonts/plus-jakarta-sans";
 import Colors from "@/constants/colors";
+
+// Initialize Sentry for client-side error tracking.
+// No-ops gracefully when EXPO_PUBLIC_SENTRY_DSN is unset.
+if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  });
+}
 
 SplashScreen.preventAutoHideAsync();
 

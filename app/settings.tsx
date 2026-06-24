@@ -34,14 +34,14 @@ const SPEED_OPTIONS = [
   { id: 2.0, label: "2×" },
 ];
 
-const TEXT_SIZES: Array<AppSettings["textSize"]> = ["small", "medium", "large"];
-const SORT_ORDERS: Array<{ id: AppSettings["librarySortOrder"]; label: string }> = [
+const TEXT_SIZES: AppSettings["textSize"][] = ["small", "medium", "large"];
+const SORT_ORDERS: { id: AppSettings["librarySortOrder"]; label: string }[] = [
   { id: "recent", label: "Most Recent" },
   { id: "alphabetical", label: "A–Z" },
   { id: "theme", label: "By Theme" },
 ];
-const AGE_RANGES: Array<AppSettings["ageRange"]> = ["2-4", "4-6", "6-8", "8-10"];
-const STORY_LENGTHS: Array<{ id: AppSettings["storyLength"]; label: string; desc: string }> = [
+const AGE_RANGES: AppSettings["ageRange"][] = ["2-4", "4-6", "6-8", "8-10"];
+const STORY_LENGTHS: { id: AppSettings["storyLength"]; label: string; desc: string }[] = [
   { id: "short", label: "Short", desc: "~300 words" },
   { id: "medium", label: "Medium", desc: "~600 words" },
   { id: "long", label: "Long", desc: "~1000 words" },
