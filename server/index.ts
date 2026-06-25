@@ -64,7 +64,7 @@ function validateEnvironment() {
   }
 
   if (!isAuthEnabled()) {
-    log("[Env] WARNING: FIREBASE_SERVICE_ACCOUNT_KEY not set — authentication is DISABLED (dev mode)");
+    log("[Env] WARNING: Supabase auth not configured (need SUPABASE_SERVICE_ROLE_KEY + Supabase URL) — authentication is DISABLED (dev mode)");
   }
 
   // Cloudflare KV gives the rate limiter durable, cross-invocation state on
