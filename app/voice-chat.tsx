@@ -200,7 +200,7 @@ export default function VoiceChatScreen() {
     loadConversations();
   }, [loadConversations]);
 
-  async function loadMessages(id: number) {
+  const loadMessages = useCallback(async (id: number) => {
     setLoadingMsgs(true);
     try {
       const res = await apiRequest("GET", `api/conversations/${id}`);
@@ -217,7 +217,7 @@ export default function VoiceChatScreen() {
     } finally {
       setLoadingMsgs(false);
     }
-  }
+  }, []);
 
   async function createConversation() {
     try {
@@ -360,9 +360,8 @@ export default function VoiceChatScreen() {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (activeConvId !== null) loadMessages(activeConvId);
-  }, [activeConvId]);
+  }, [activeConvId, loadMessages]);
 
   // Conversation list view
   if (activeConvId === null) {

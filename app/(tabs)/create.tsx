@@ -173,8 +173,7 @@ export default function CreateScreen() {
       -1,
       true,
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [avatarShimmerOpacity]);
 
   const shimmerStyle = useAnimatedStyle(() => ({
     opacity: avatarShimmerOpacity.value,
