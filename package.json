@@ -27,7 +27,7 @@
     "test:components": "jest",
     "preflight": "node scripts/preflight.js",
     "dev:server": "NODE_ENV=development node --env-file-if-exists=.env --import tsx server/index.ts",
-    "dev:expo": "npx expo start --web",
+    "dev:expo": "EXPO_PUBLIC_API_URL=http://localhost:5000 npx expo start --web",
     "dev": "npm run dev:server & npm run dev:expo"
   },
   "engines": {

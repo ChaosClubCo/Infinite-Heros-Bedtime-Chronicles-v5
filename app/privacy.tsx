@@ -97,8 +97,8 @@ export default function PrivacyScreen() {
         <Section title="3. Third-Party AI Services">
           <Text style={styles.paragraph}>
             To generate stories, images, and audio we use Google Gemini, OpenAI,
-            Anthropic Claude, and ElevenLabs (text-to-speech), plus Firebase for
-            anonymous session management. Only the story-generation inputs above
+            Anthropic Claude, and ElevenLabs (text-to-speech), plus Supabase for
+            authentication and session management. Only the story-generation inputs above
             are shared with these services, under their respective privacy policies.
           </Text>
         </Section>

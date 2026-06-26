@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mirror the auth logic for testing without importing @supabase/supabase-js
 describe('requireAuth middleware behavior', () => {
-  // ── Dev Mode (no Firebase config) ─────────────────────────────
+  // ── Dev Mode (no Supabase config) ─────────────────────────────
   describe('dev mode (Supabase not configured)', () => {
     it('allows request without auth header', () => {
       const isConfigured = false;
@@ -35,7 +35,7 @@ describe('requireAuth middleware behavior', () => {
     });
   });
 
-  // ── Production Mode (Firebase configured) ─────────────────────
+  // ── Production Mode (Supabase configured) ─────────────────────
   describe('production mode (Supabase configured)', () => {
     it('rejects request without Authorization header', () => {
       const authHeader: string | undefined = undefined;
@@ -154,7 +154,7 @@ describe('requireAuth middleware behavior', () => {
     function canInit(url?: string, serviceRoleKey?: string) {
       return !!(url && serviceRoleKey);
     }
-    const url = 'https://aeraxfupuvwiskmfjliq.supabase.co';
+    const url = 'https://example.supabase.co';
 
     it('returns false when SUPABASE_SERVICE_ROLE_KEY is empty', () => {
       expect(canInit(url, '')).toBe(false);
@@ -196,6 +196,17 @@ describe('requireAuth middleware behavior', () => {
         expect(msg).not.toContain('stack');
         expect(msg).not.toContain('internal');
       }
+    });
+
+    it('maps a transient upstream auth error to 503, a genuine 4xx to 401', () => {
+      // Mirrors requireAuth: only a 4xx from the auth server means the token is bad;
+      // a 5xx / missing status is an upstream blip and should be retryable (503).
+      const classify = (status?: number) =>
+        typeof status === 'number' && status >= 400 && status < 500 ? 401 : 503;
+      expect(classify(401)).toBe(401);
+      expect(classify(403)).toBe(401);
+      expect(classify(500)).toBe(503);
+      expect(classify(undefined)).toBe(503);
     });
   });
 });
