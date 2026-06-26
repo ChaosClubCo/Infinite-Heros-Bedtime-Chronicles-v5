@@ -198,13 +198,16 @@ describe('requireAuth middleware behavior', () => {
       }
     });
 
-    it('maps a transient upstream auth error to 503, a genuine 4xx to 401', () => {
-      // Mirrors requireAuth: only a 4xx from the auth server means the token is bad;
-      // a 5xx / missing status is an upstream blip and should be retryable (503).
+    it('maps only 401/403 to an auth failure; 429/4xx-misconfig/5xx/missing to 503', () => {
+      // Mirrors requireAuth: only a 401/403 from the auth server means the token is bad.
+      // Any other status — 429 rate-limit, 4xx misconfig, 5xx, or missing (network) — is an
+      // upstream/transient failure and must be retryable (503), never a user logout.
       const classify = (status?: number) =>
-        typeof status === 'number' && status >= 400 && status < 500 ? 401 : 503;
+        status === 401 || status === 403 ? 401 : 503;
       expect(classify(401)).toBe(401);
       expect(classify(403)).toBe(401);
+      expect(classify(429)).toBe(503); // rate limited — retryable, not a bad token
+      expect(classify(400)).toBe(503); // misconfig — not a user-auth failure
       expect(classify(500)).toBe(503);
       expect(classify(undefined)).toBe(503);
     });

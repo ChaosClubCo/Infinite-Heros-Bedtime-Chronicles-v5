@@ -93,11 +93,12 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   try {
     const { data, error } = await supabase.auth.getUser(token);
     if (error) {
-      // Distinguish a genuinely invalid/expired token (4xx from the auth server) from a
-      // transient upstream/network failure (5xx / missing status), so a Supabase blip
-      // surfaces as a retryable 503 instead of logging the user out with a 401.
+      // Only a 401/403 from the auth server means the token itself is invalid/expired.
+      // Every other status — 429 (rate limit), 4xx misconfig, 5xx, or a missing status
+      // (network/transport failure) — is an upstream/transient problem, so surface it as a
+      // retryable 503 rather than logging the user out with a 401.
       const status = (error as { status?: number }).status;
-      if (typeof status === 'number' && status >= 400 && status < 500) {
+      if (status === 401 || status === 403) {
         logger.warn({ event: 'auth_failure', reason: 'invalid_token', path: req.path, method: req.method }, 'authentication failure');
         return res.status(401).json({ error: 'Invalid or expired token' });
       }
