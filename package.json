@@ -106,7 +106,7 @@
     "@react-native/jest-preset": "^0.86.0",
     "@react-native/metro-babel-transformer": "^0.86.0",
     "@react-native/metro-config": "^0.86.0",
-    "@testing-library/react-native": "^14.0.0",
+    "@testing-library/react-native": "^14.0.1",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/pg": "^8.20.0",
