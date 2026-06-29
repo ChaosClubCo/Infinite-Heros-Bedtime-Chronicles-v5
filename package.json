@@ -54,7 +54,7 @@
     "elevenlabs": "^1.59.0",
     "eslint": "9.39.4",
     "eslint-config-expo": "~56.0.4",
-    "expo": "~55.0.24",
+    "expo": "~55.0.27",
     "expo-asset": "~56.0.17",
     "expo-audio": "^56.0.12",
     "expo-av": "^16.0.8",
