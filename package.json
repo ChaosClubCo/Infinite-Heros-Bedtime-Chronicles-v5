@@ -61,7 +61,7 @@
     "expo-blur": "~55.0.13",
     "expo-constants": "~56.0.17",
     "expo-crypto": "^56.0.4",
-    "expo-font": "~56.0.7",
+    "expo-font": "~57.0.0",
     "expo-glass-effect": "~56.0.4",
     "expo-haptics": "~56.0.3",
     "expo-image": "~56.0.11",
