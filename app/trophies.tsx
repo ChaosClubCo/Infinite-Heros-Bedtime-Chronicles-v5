@@ -37,6 +37,7 @@ export default function TrophiesScreen() {
 
   useEffect(() => {
     if (activeProfile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoading(true);
       Promise.all([
         getBadges(activeProfile.id).then(setBadges),
@@ -50,8 +51,6 @@ export default function TrophiesScreen() {
       setIsLoading(false);
     }
   }, [activeProfile]);
-
-  const earnedIds = new Set(badges.map((b) => b.id));
 
   // Build the state for progress computation
   const badgeState: BadgeState = activeProfile

@@ -73,6 +73,9 @@ function FloatingStar({ delay, x, y, color }: { delay: number; x: number; y: num
         withTiming(0.8, { duration: 2000, easing: Easing.inOut(Easing.ease) })
       ), -1, false
     ));
+  // Shared values (opacity, scale) are stable Reanimated refs; delay is mount-time
+  // configuration that does not change. Intentional mount-only animation setup.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const animStyle = useAnimatedStyle(() => ({
@@ -111,6 +114,9 @@ function PulsingBadge({ emoji, color }: { emoji: string; color: string }) {
         withTiming(1.6, { duration: 2400 })
       ), -1, false
     ));
+  // Shared values (pulseScale, ringOpacity, ringScale) are stable Reanimated refs.
+  // Intentional mount-only animation setup.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const badgeStyle = useAnimatedStyle(() => ({
@@ -202,6 +208,10 @@ export default function CompletionScreen() {
       }
     };
     trackCompletion();
+  // Intentional mount-only effect: completion tracking runs exactly once when
+  // this screen mounts. Props (storyData, hero, etc.) are route params that
+  // don't change during the lifecycle of this screen.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSaveToJar = useCallback(async () => {

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Dimensions } from "react-native";
 import Animated, {
   useSharedValue,
@@ -18,9 +18,10 @@ interface FloatingParticleProps {
 export function FloatingParticle({ delay, accent }: FloatingParticleProps) {
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(0);
-  const screenWidth = Dimensions.get("window").width;
-  const startX = Math.random() * screenWidth;
-  const size = 2 + Math.random() * 3;
+  // Compute random position and size once on mount using lazy state so the
+  // values are stable across re-renders without needing ref.current in render.
+  const [startX] = useState(() => Dimensions.get("window").width * Math.random());
+  const [size] = useState(() => 2 + Math.random() * 3);
 
   useEffect(() => {
     opacity.value = withDelay(
@@ -42,6 +43,8 @@ export function FloatingParticle({ delay, accent }: FloatingParticleProps) {
         false
       )
     );
+  // Shared values are stable Reanimated refs; delay is mount-time config.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const animStyle = useAnimatedStyle(() => ({
