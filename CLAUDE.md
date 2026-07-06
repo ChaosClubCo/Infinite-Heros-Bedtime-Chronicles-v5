@@ -10,7 +10,7 @@ AI-powered interactive bedtime story app for children ages 3-9. Kids create cust
 
 ## Tech Stack
 
-- **Frontend:** Expo SDK 54, React Native 0.85 (New Architecture), Expo Router v6 (file-based routing)
+- **Frontend:** Expo SDK 54, React Native 0.85 (New Architecture), Expo Router v6 (file-based routing, single root `app/_layout.tsx` — all navigation params via `useLocalSearchParams<T>()` generics; never use untyped string routes)
 - **State:** TanStack React Query v5 (server state) + React Context (app settings, profiles)
 - **Local Storage:** AsyncStorage for stories, profiles, badges, streaks, parent controls
 - **Styling:** React Native StyleSheet + react-native-reanimated v4 for animations
@@ -24,6 +24,7 @@ AI-powered interactive bedtime story app for children ages 3-9. Kids create cust
 - **TTS:** ElevenLabs API (eleven_multilingual_v2 model, MP3 44.1kHz/128kbps, 9 narrator voices)
 - **Video:** OpenAI Sora 2 (optional)
 - **Build:** esbuild (server), Metro (client), Babel with React Compiler
+- **Android:** targetSdkVersion 35, minSdkVersion 26 (set in `app.json` → `android`)
 
 ## Project Structure
 
@@ -177,6 +178,11 @@ npm run test:coverage       # vitest run --coverage
 
 # Database
 npm run db:push             # Drizzle schema migration (needs DATABASE_URL)
+
+# Verify (compile_applet standard — required before every PR)
+npm run typecheck           # TypeScript type check (tsc --noEmit)
+npm run lint                # Expo lint
+npm test                    # Vitest unit tests
 ```
 
 ## Architecture
@@ -520,7 +526,7 @@ npm run test:coverage   # vitest run --coverage
 - **Vercel deployment:** `api/server.mjs` serverless handler wraps `server_dist/index.js` via `createApp()`. Config in `vercel.json` (60s max duration, all routes rewrite to `/api/server`)
 - **React Compiler** enabled via app.json experiments
 - **New Architecture** (React Native) enabled
-- **Typed Routes** enabled for Expo Router
+- **Typed Routes** enabled for Expo Router — all route params via `useLocalSearchParams<T>()` generics; never access params without type parameters
 - **patch-package** used for dependency fixes (applied via postinstall)
 - Database (PostgreSQL) only required for voice chat; core story functionality uses AsyncStorage only
 - Server uses esbuild for production bundling to `server_dist/`
@@ -535,6 +541,7 @@ npm run test:coverage   # vitest run --coverage
 - `app/story.tsx` is a ~386-line composition shell — playback/music/scene/video/timer logic lives in `lib/use*.ts` hooks and presentational pieces in `components/Story*`; mode constants in `constants/story-theme.ts`
 - `server/routes.ts` is a ~50-line composer — handlers live in `server/routes/<domain>.ts` modules; shared singletons in `server/routes/context.ts`, request plumbing in `server/routes/helpers.ts`
 - **`npm run dev` does not exist** — use `npm run server:dev` + `npm run expo:dev` separately
+- **Never use `./gradlew` or `gradlew`** — EAS Build manages Gradle internally; use `npx expo` or `eas` CLI commands instead
 - **`expo:dev` requires Replit env vars** — outside Replit, use `npx expo start` directly
 - **`patches/expo-asset+12.0.12.patch`** — patch-package fix for Expo dev server HTTPS; removed when SDK 55+
 - AI router automatically falls back through providers, with circuit breakers and retry — check `server/ai/router.ts`
