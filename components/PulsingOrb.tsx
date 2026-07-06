@@ -42,6 +42,9 @@ export function PulsingOrb({
       -1,
       true
     );
+  // Shared values (scale, opacity) are stable Reanimated refs; animation props
+  // (maxScale, duration, minOpacity) are treated as mount-time configuration.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const animStyle = useAnimatedStyle(() => ({
@@ -88,6 +91,8 @@ export function LoadingOrb({ color }: { color: string }) {
       -1,
       false
     );
+  // Shared values (scale, opacity) are stable Reanimated refs.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const animStyle = useAnimatedStyle(() => ({

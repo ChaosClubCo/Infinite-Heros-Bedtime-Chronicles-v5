@@ -89,7 +89,7 @@ function buildWavDataUri(pcm16Chunks: string[], sampleRate = 24000): string {
   return `data:audio/wav;base64,${btoa(binary)}`;
 }
 
-function parseSseText(text: string): Array<{ type: string; data?: string; transcript?: string; error?: string }> {
+function parseSseText(text: string): { type: string; data?: string; transcript?: string; error?: string }[] {
   return text
     .split("\n\n")
     .filter(Boolean)
@@ -196,14 +196,15 @@ export default function VoiceChatScreen() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadConversations();
   }, [loadConversations]);
 
-  async function loadMessages(id: number) {
+  const loadMessages = useCallback(async (id: number) => {
     setLoadingMsgs(true);
     try {
       const res = await apiRequest("GET", `api/conversations/${id}`);
-      const conv = await res.json() as { messages: Array<{ role: string; content: string; id: number }> };
+      const conv = await res.json() as { messages: { role: string; content: string; id: number }[] };
       setMessages(
         (conv.messages || []).map((m) => ({
           role: m.role as "user" | "assistant",
@@ -216,7 +217,7 @@ export default function VoiceChatScreen() {
     } finally {
       setLoadingMsgs(false);
     }
-  }
+  }, []);
 
   async function createConversation() {
     try {
@@ -256,7 +257,7 @@ export default function VoiceChatScreen() {
       await recording.startAsync();
       recordingRef.current = recording;
       setIsRecording(true);
-    } catch (err) {
+    } catch {
       Alert.alert("Recording error", "Could not start recording. Please try again.");
     }
   }
@@ -295,7 +296,9 @@ export default function VoiceChatScreen() {
       }
 
       const newMessages: Message[] = [];
+      // eslint-disable-next-line react-hooks/purity
       if (userText) newMessages.push({ role: "user", content: userText, id: `u-${Date.now()}` });
+      // eslint-disable-next-line react-hooks/purity
       if (assistantText) newMessages.push({ role: "assistant", content: assistantText, id: `a-${Date.now()}` });
       setMessages((prev) => [...prev, ...newMessages]);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
@@ -306,7 +309,7 @@ export default function VoiceChatScreen() {
       } else if (assistantText) {
         await playTtsAudio(assistantText);
       }
-    } catch (err) {
+    } catch {
       Alert.alert("Error", "Could not send voice message. Please try again.");
     } finally {
       setIsProcessing(false);
@@ -358,7 +361,7 @@ export default function VoiceChatScreen() {
 
   useEffect(() => {
     if (activeConvId !== null) loadMessages(activeConvId);
-  }, [activeConvId]);
+  }, [activeConvId, loadMessages]);
 
   // Conversation list view
   if (activeConvId === null) {
