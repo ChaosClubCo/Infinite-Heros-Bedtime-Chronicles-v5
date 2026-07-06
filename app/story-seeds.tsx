@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
-import { STORY_SEEDS, StorySeed, ContentTheme } from "@/constants/story-seeds";
+import { STORY_SEEDS, ContentTheme } from "@/constants/story-seeds";
 import { SeedCard } from "@/components/SeedCard";
 
 const THEMES: { id: ContentTheme | "all"; label: string; emoji: string }[] = [

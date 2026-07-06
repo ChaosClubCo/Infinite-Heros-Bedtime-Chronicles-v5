@@ -41,6 +41,8 @@ function LoadingDot({ delay, color }: { delay: number; color: string }) {
         false
       )
     );
+  // Shared value (opacity) is a stable Reanimated ref; delay is mount-time config.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));

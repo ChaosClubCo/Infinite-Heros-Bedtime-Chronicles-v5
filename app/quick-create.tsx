@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -92,7 +92,8 @@ export default function QuickCreateScreen() {
   const [ageRange, setAgeRange] = useState("4-6");
   const [customPrompt, setCustomPrompt] = useState("");
 
-  const advancedHeight = useRef(new RNAnimated.Value(0)).current;
+  // Use useMemo to create the Animated.Value once without accessing .current during render.
+  const advancedHeight = useMemo(() => new RNAnimated.Value(0), []);
 
   const toggleAdvanced = () => {
     Haptics.selectionAsync();
