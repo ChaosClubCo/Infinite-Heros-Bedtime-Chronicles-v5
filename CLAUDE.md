@@ -24,7 +24,7 @@ AI-powered interactive bedtime story app for children ages 3-9. Kids create cust
 - **TTS:** ElevenLabs API (eleven_multilingual_v2 model, MP3 44.1kHz/128kbps, 9 narrator voices)
 - **Video:** OpenAI Sora 2 (optional)
 - **Build:** esbuild (server), Metro (client), Babel with React Compiler
-- **Android:** targetSdkVersion 35, minSdkVersion 26 (set in `app.json` → `android`)
+- **Android:** targetSdkVersion 35, minSdkVersion 26 (via the `expo-build-properties` config plugin in `app.json` → `plugins`, not a bare `android` key — plugin not yet installed)
 
 ## Project Structure
 
