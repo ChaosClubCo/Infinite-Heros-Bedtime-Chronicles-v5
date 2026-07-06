@@ -28,6 +28,8 @@ function Star({ size, top, left, delay }: StarProps) {
         true
       )
     );
+  // Shared value (opacity) is a stable Reanimated ref; delay is mount-time config.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({

@@ -103,8 +103,9 @@ export function MemoryJar({ visible, onClose }: MemoryJarProps) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (visible) loadStories();
-  }, [visible]);
+  }, [visible, loadStories]);
 
   const handleDelete = async (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
