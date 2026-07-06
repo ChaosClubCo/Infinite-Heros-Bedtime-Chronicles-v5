@@ -227,13 +227,15 @@ export default function StoryScreen() {
   // We intentionally omit the referenced callbacks from deps — they would re-fire
   // this effect mid-playback, restarting the story. Cleanup uses the captured refs,
   // which is the correct behavior on unmount.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (replayJson) {
       try {
         const replayed = JSON.parse(replayJson) as StoryFull;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setStoryData(replayed);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setStoryState("ready");
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCurrentPartIndex(0);
       } catch {
         generateStory();
@@ -246,6 +248,7 @@ export default function StoryScreen() {
       stopAudio();
       stopBgMusic();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleChoiceSelect = (_choiceIndex: number) => {

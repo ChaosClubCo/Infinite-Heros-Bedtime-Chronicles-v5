@@ -15,9 +15,6 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-
-type IoniconsName = ComponentProps<typeof Ionicons>["name"];
-type MCIName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import Animated, {
@@ -26,7 +23,6 @@ import Animated, {
   FadeInUp,
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
@@ -42,6 +38,9 @@ import { ParentControlsModal } from "@/components/ParentControlsModal";
 import { useProfile } from "@/lib/ProfileContext";
 import { apiRequest } from "@/lib/query-client";
 import { TTS_PREVIEW_TIMEOUT_MS } from "@/constants/timing";
+
+type IoniconsName = ComponentProps<typeof Ionicons>["name"];
+type MCIName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 
 interface AISuggestion {
   mode: string;
@@ -174,7 +173,7 @@ export default function CreateScreen() {
       -1,
       true,
     );
-  }, []);
+  }, [avatarShimmerOpacity]);
 
   const shimmerStyle = useAnimatedStyle(() => ({
     opacity: avatarShimmerOpacity.value,

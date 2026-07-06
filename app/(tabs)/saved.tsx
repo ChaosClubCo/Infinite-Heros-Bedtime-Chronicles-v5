@@ -7,7 +7,6 @@ import {
   FlatList,
   Pressable,
   Alert,
-  Dimensions,
   Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,13 +16,10 @@ import { useFocusEffect, router } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
-import { useProfile } from "@/lib/ProfileContext";
 import { HEROES } from "@/constants/heroes";
 
 import { CachedStory } from "@/constants/types";
-import { getAllStories, deleteStory, getFavorites, toggleFavorite } from "@/lib/storage";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+import { getAllStories, getFavorites, toggleFavorite } from "@/lib/storage";
 
 const MODE_COLORS: Record<string, string> = {
   classic: "#6366f1",
@@ -45,9 +41,7 @@ function formatDate(timestamp: number): string {
 export default function SavedScreen() {
   const insets = useSafeAreaInsets();
   const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const { activeProfile } = useProfile();
   const [savedStories, setSavedStories] = useState<CachedStory[]>([]);
-  const [favorites, setFavorites] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useFocusEffect(
@@ -62,13 +56,12 @@ export default function SavedScreen() {
         if (!cancelled) {
           const favStories = allStories.filter((s) => favIds.includes(s.id));
           setSavedStories(favStories);
-          setFavorites(favIds);
           setIsLoading(false);
         }
       }
       load();
       return () => { cancelled = true; };
-    }, [activeProfile])
+    }, [])
   );
 
   const handleUnfavorite = async (id: string, title: string) => {
@@ -78,8 +71,7 @@ export default function SavedScreen() {
         text: "Remove",
         style: "destructive",
         onPress: async () => {
-          const updated = await toggleFavorite(id);
-          setFavorites(updated);
+          await toggleFavorite(id);
           setSavedStories((prev) => prev.filter((s) => s.id !== id));
         },
       },
