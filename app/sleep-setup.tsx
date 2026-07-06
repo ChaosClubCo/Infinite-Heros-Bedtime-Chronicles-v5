@@ -13,7 +13,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { HEROES } from "@/constants/heroes";
 import { StarField } from "@/components/StarField";
