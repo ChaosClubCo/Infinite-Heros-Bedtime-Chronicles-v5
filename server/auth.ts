@@ -92,7 +92,20 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
   try {
     const { data, error } = await supabase.auth.getUser(token);
-    if (error || !data?.user) {
+    if (error) {
+      // Only a 401/403 from the auth server means the token itself is invalid/expired.
+      // Every other status — 429 (rate limit), 4xx misconfig, 5xx, or a missing status
+      // (network/transport failure) — is an upstream/transient problem, so surface it as a
+      // retryable 503 rather than logging the user out with a 401.
+      const status = (error as { status?: number }).status;
+      if (status === 401 || status === 403) {
+        logger.warn({ event: 'auth_failure', reason: 'invalid_token', path: req.path, method: req.method }, 'authentication failure');
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+      logger.error({ event: 'auth_upstream_error', status, path: req.path, method: req.method }, 'auth verification upstream error');
+      return res.status(503).json({ error: 'Service temporarily unavailable' });
+    }
+    if (!data?.user) {
       logger.warn({ event: 'auth_failure', reason: 'invalid_token', path: req.path, method: req.method }, 'authentication failure');
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
@@ -101,9 +114,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       isAnonymous: data.user.is_anonymous ?? false,
     };
     next();
-  } catch {
-    logger.warn({ event: 'auth_failure', reason: 'invalid_token', path: req.path, method: req.method }, 'authentication failure');
-    return res.status(401).json({ error: 'Invalid or expired token' });
+  } catch (err) {
+    // Thrown errors from getUser are almost always network/transport failures — treat as
+    // transient (retryable) rather than an auth rejection.
+    logger.error({ event: 'auth_upstream_error', err: err instanceof Error ? err.message : String(err), path: req.path, method: req.method }, 'auth verification threw');
+    return res.status(503).json({ error: 'Service temporarily unavailable' });
   }
 }
 requireAuth._devWarned = false;

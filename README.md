@@ -75,11 +75,9 @@ See [`.env.example`](./.env.example) for all variables with inline descriptions.
 | `AI_INTEGRATIONS_OPENROUTER_BASE_URL` | Optional | Custom/proxy base URL override for OpenRouter API |
 | `ELEVENLABS_API_KEY` | Optional | TTS narration |
 | `DATABASE_URL` | Optional | PostgreSQL — required for voice chat |
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | Optional (prod required) | Firebase Admin; omit to bypass auth in dev |
-| `EXPO_PUBLIC_FIREBASE_API_KEY` | Optional | Client Firebase config |
-| `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` | Optional | Client Firebase config |
-| `EXPO_PUBLIC_FIREBASE_PROJECT_ID` | Optional | Client Firebase config |
-| `EXPO_PUBLIC_FIREBASE_APP_ID` | Optional | Client Firebase config |
+| `SUPABASE_SERVICE_ROLE_KEY` | Optional (prod required) | Supabase server-side token verification; omit to bypass auth in dev. Server-only — never expose client-side |
+| `EXPO_PUBLIC_SUPABASE_URL` | Optional (prod required) | Supabase project URL (client) |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Optional (prod required) | Supabase anon/public key (client) |
 | `EXPO_PUBLIC_API_URL` | Optional | Override API server base URL |
 | `PORT` | Optional | Server port (default: 5000) |
 | `RATE_LIMIT_MAX` | Optional | Requests per window (default: 10) |
@@ -143,7 +141,7 @@ constants/              # Static data and configuration
 lib/                    # Client utilities and state management
   SettingsContext.tsx   # App settings (React Context — canonical settings source)
   ProfileContext.tsx    # Child profile context
-  AuthContext.tsx       # Firebase authentication context
+  AuthContext.tsx       # Supabase authentication context
   storage.ts            # AsyncStorage helpers (stories, profiles, badges, streaks)
   query-client.ts       # TanStack React Query config
 server/                 # Express backend
@@ -151,7 +149,7 @@ server/                 # Express backend
   routes.ts             # All API route registrations
   prompts.ts            # Story system/user prompt builders + CHILD_SAFETY_RULES
   validation.ts         # Zod schemas + sanitizeString()
-  auth.ts               # Firebase Admin bearer-token middleware
+  auth.ts               # Supabase bearer-token (JWT) middleware
   rate-limit.ts         # Per-IP sliding-window rate limiter
   ai/                   # Multi-provider AI abstraction layer
     router.ts           # AIRouter: fallback chains, circuit breakers, retry

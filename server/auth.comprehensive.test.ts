@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mirror the auth logic for testing without importing @supabase/supabase-js
 describe('requireAuth middleware behavior', () => {
-  // ── Dev Mode (no Firebase config) ─────────────────────────────
+  // ── Dev Mode (no Supabase config) ─────────────────────────────
   describe('dev mode (Supabase not configured)', () => {
     it('allows request without auth header', () => {
       const isConfigured = false;
@@ -35,7 +35,7 @@ describe('requireAuth middleware behavior', () => {
     });
   });
 
-  // ── Production Mode (Firebase configured) ─────────────────────
+  // ── Production Mode (Supabase configured) ─────────────────────
   describe('production mode (Supabase configured)', () => {
     it('rejects request without Authorization header', () => {
       const authHeader: string | undefined = undefined;
@@ -154,7 +154,7 @@ describe('requireAuth middleware behavior', () => {
     function canInit(url?: string, serviceRoleKey?: string) {
       return !!(url && serviceRoleKey);
     }
-    const url = 'https://aeraxfupuvwiskmfjliq.supabase.co';
+    const url = 'https://example.supabase.co';
 
     it('returns false when SUPABASE_SERVICE_ROLE_KEY is empty', () => {
       expect(canInit(url, '')).toBe(false);
@@ -196,6 +196,20 @@ describe('requireAuth middleware behavior', () => {
         expect(msg).not.toContain('stack');
         expect(msg).not.toContain('internal');
       }
+    });
+
+    it('maps only 401/403 to an auth failure; 429/4xx-misconfig/5xx/missing to 503', () => {
+      // Mirrors requireAuth: only a 401/403 from the auth server means the token is bad.
+      // Any other status — 429 rate-limit, 4xx misconfig, 5xx, or missing (network) — is an
+      // upstream/transient failure and must be retryable (503), never a user logout.
+      const classify = (status?: number) =>
+        status === 401 || status === 403 ? 401 : 503;
+      expect(classify(401)).toBe(401);
+      expect(classify(403)).toBe(401);
+      expect(classify(429)).toBe(503); // rate limited — retryable, not a bad token
+      expect(classify(400)).toBe(503); // misconfig — not a user-auth failure
+      expect(classify(500)).toBe(503);
+      expect(classify(undefined)).toBe(503);
     });
   });
 });
