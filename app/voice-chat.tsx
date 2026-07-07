@@ -360,6 +360,7 @@ export default function VoiceChatScreen() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (activeConvId !== null) loadMessages(activeConvId);
   }, [activeConvId, loadMessages]);
 
