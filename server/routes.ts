@@ -4,8 +4,6 @@ import { logProviderStatus } from "./ai";
 import { requireAuth } from "./auth";
 import { isFeatureEnabled } from "./feature-flags";
 import { logger } from "./logger";
-import { registerAudioRoutes } from "./replit_integrations/audio";
-import { registerImageRoutes } from "./replit_integrations/image";
 import { registerHealthRoutes } from "./routes/health";
 import { registerStoryRoutes } from "./routes/story";
 import { registerImageGenRoutes } from "./routes/images";
@@ -38,11 +36,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerVideoRoutes(app);
 
   if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.DATABASE_URL && isFeatureEnabled('voiceChatEnabled')) {
+    const { registerAudioRoutes } = await import("./replit_integrations/audio");
     registerAudioRoutes(app);
     logger.info('voice chat & conversation routes registered');
   }
 
   if (process.env.AI_INTEGRATIONS_GEMINI_API_KEY) {
+    const { registerImageRoutes } = await import("./replit_integrations/image");
     registerImageRoutes(app);
     logger.info('Gemini image generation route registered');
   }
