@@ -14,6 +14,7 @@ vi.mock("../video", () => ({
 let app: Express;
 let server: Server;
 let createVideoJob: ReturnType<typeof vi.fn>;
+const previousFeatureVideoEnabled = process.env.FEATURE_VIDEO_ENABLED;
 
 beforeAll(async () => {
   // feature-flags.ts reads process.env once at module load, so this must be
@@ -29,8 +30,16 @@ beforeAll(async () => {
   server = app.listen(0);
 });
 
-afterAll(() => {
-  server?.close();
+afterAll(async () => {
+  await new Promise<void>((resolve, reject) => {
+    if (!server) return resolve();
+    server.close((err) => (err ? reject(err) : resolve()));
+  });
+  if (previousFeatureVideoEnabled === undefined) {
+    delete process.env.FEATURE_VIDEO_ENABLED;
+  } else {
+    process.env.FEATURE_VIDEO_ENABLED = previousFeatureVideoEnabled;
+  }
 });
 
 describe("POST /api/generate-video prompt sanitization", () => {

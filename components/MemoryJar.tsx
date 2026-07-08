@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Modal,
   FlatList,
-  Alert,
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,6 +17,7 @@ import Colors from "@/constants/colors";
 import { HEROES } from "@/constants/heroes";
 import { CachedStory } from "@/constants/types";
 import { getAllStories, deleteStory } from "@/lib/storage";
+import { confirmDestructive } from "@/lib/confirmDestructive";
 
 function StoryCard({ item, onDelete, onReread }: { item: CachedStory; onDelete: (id: string) => void; onReread: (item: CachedStory) => void }) {
   const hero = HEROES.find((h) => h.id === item.heroId);
@@ -33,10 +33,7 @@ function StoryCard({ item, onDelete, onReread }: { item: CachedStory; onDelete: 
   const badge = item.story.rewardBadge;
 
   const handleDelete = () => {
-    Alert.alert("Remove Story", "Remove this story from your Memory Jar?", [
-      { text: "Keep", style: "cancel" },
-      { text: "Remove", style: "destructive", onPress: () => onDelete(item.id) },
-    ]);
+    confirmDestructive("Remove Story", "Remove this story from your Memory Jar?", "Remove", () => onDelete(item.id));
   };
 
   return (

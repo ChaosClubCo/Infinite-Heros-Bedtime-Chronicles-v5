@@ -8,7 +8,6 @@ import {
   ScrollView,
   TextInput,
   Platform,
-  Alert,
 } from "react-native";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,6 +18,7 @@ import Colors from "@/constants/colors";
 import { ChildProfile, AVATAR_EMOJIS } from "@/constants/types";
 import { HEROES } from "@/constants/heroes";
 import { useProfile } from "@/lib/ProfileContext";
+import { confirmDestructive } from "@/lib/confirmDestructive";
 import * as Crypto from "expo-crypto";
 
 interface Props {
@@ -93,13 +93,13 @@ export function ProfileModal({ visible, onClose }: Props) {
 
   const handleDelete = (id: string, name: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert(
+    confirmDestructive(
       "Delete Profile",
       `Delete ${name}'s profile? Their stories, badges, and streaks will be removed and this can't be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: () => removeProfile(id) },
-      ]
+      "Delete",
+      () => {
+        removeProfile(id).catch((err) => console.error("Failed to delete profile", err));
+      }
     );
   };
 
