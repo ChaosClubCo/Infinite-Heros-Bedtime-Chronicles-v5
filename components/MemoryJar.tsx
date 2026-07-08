@@ -33,14 +33,10 @@ function StoryCard({ item, onDelete, onReread }: { item: CachedStory; onDelete: 
   const badge = item.story.rewardBadge;
 
   const handleDelete = () => {
-    if (Platform.OS === "web") {
-      onDelete(item.id);
-    } else {
-      Alert.alert("Remove Story", "Remove this story from your Memory Jar?", [
-        { text: "Keep", style: "cancel" },
-        { text: "Remove", style: "destructive", onPress: () => onDelete(item.id) },
-      ]);
-    }
+    Alert.alert("Remove Story", "Remove this story from your Memory Jar?", [
+      { text: "Keep", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: () => onDelete(item.id) },
+    ]);
   };
 
   return (

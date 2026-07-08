@@ -10,7 +10,7 @@ const Colors = {
   starlight: '#E8E4F0',
   textPrimary: '#FFFFFF',
   textSecondary: '#94a3b8',
-  textMuted: '#64748b',
+  textMuted: '#6f7fa0', // WCAG AA: ~5:1 against primary (#64748b measured ~4.2:1, below the 4.5:1 threshold)
   cardBg: 'rgba(255, 255, 255, 0.05)',
   cardBorder: 'rgba(255, 255, 255, 0.1)',
   glassBg: 'rgba(255, 255, 255, 0.03)',

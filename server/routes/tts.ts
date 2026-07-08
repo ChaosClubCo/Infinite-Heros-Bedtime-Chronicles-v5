@@ -2,7 +2,7 @@ import type { Express } from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { generateSpeech, VOICE_MAP, MODE_DEFAULT_VOICES } from "../elevenlabs";
-import { sanitizeString, TtsRequestSchema } from "../validation";
+import { TtsPreviewRequestSchema, TtsRequestSchema } from "../validation";
 import { TTS_CACHE_DIR } from "./context";
 import { rateLimited, sendRouteError, ttsCachePathFor } from "./helpers";
 
@@ -69,8 +69,13 @@ export function registerTtsRoutes(app: Express): void {
   });
 
   app.post("/api/tts-preview", rateLimited("Too many requests"), async (req, res) => {
+    const parsed = TtsPreviewRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
+    }
+
     try {
-      const voiceKey = sanitizeString(req.body.voice || "moonbeam", 20).toLowerCase();
+      const voiceKey = parsed.data.voice;
       const voiceInfo = VOICE_MAP[voiceKey];
       if (!voiceInfo) {
         return res.status(400).json({ error: "Invalid voice" });

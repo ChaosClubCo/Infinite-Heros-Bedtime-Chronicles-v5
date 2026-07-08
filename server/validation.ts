@@ -115,6 +115,12 @@ export const TtsRequestSchema = z.object({
 
 export type TtsRequest = z.output<typeof TtsRequestSchema>;
 
+export const TtsPreviewRequestSchema = z.object({
+  voice: z.string().optional().default('moonbeam').transform((s) => s.slice(0, 20).toLowerCase()),
+});
+
+export type TtsPreviewRequest = z.output<typeof TtsPreviewRequestSchema>;
+
 export const VideoRequestSchema = z.object({
   sceneText: truncated(2000).refine((s) => s.length > 0, { message: 'Scene text is required' }),
   heroName: truncated(MAX_INPUT_STRING_LENGTH).default(''),

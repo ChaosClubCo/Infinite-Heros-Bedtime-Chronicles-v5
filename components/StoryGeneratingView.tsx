@@ -104,6 +104,9 @@ export function StoryGeneratingView({
       <Pressable
         onPress={onRetry}
         style={[s.retryButton, { backgroundColor: theme.accent }]}
+        accessibilityRole="button"
+        accessibilityLabel="Try again"
+        accessibilityHint="Retries generating the story"
       >
         <Ionicons name="refresh" size={18} color="#FFF" />
         <Text style={s.retryText}>Try Again</Text>

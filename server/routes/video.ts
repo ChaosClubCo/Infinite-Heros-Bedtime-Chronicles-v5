@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createVideoJob, getVideoJob, getVideoFilePath, isVideoAvailable } from "../video";
-import { sanitizeString, VideoRequestSchema } from "../validation";
+import { sanitizePromptInput, sanitizeString, VideoRequestSchema } from "../validation";
 import { isFeatureEnabled } from "../feature-flags";
 import { rateLimited, sendRouteError } from "./helpers";
 
@@ -24,7 +24,9 @@ export function registerVideoRoutes(app: Express): void {
       return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
     }
 
-    const { sceneText, heroName, heroDescription } = parsed.data;
+    const sceneText = sanitizePromptInput(parsed.data.sceneText, 2000);
+    const heroName = sanitizePromptInput(parsed.data.heroName, 500);
+    const heroDescription = sanitizePromptInput(parsed.data.heroDescription, 500);
 
     try {
       const result = await createVideoJob(sceneText, heroName, heroDescription);
