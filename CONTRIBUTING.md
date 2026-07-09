@@ -8,6 +8,7 @@ Thank you for your interest in contributing! This guide covers the development w
 ## Table of Contents
 
 - [Branch Naming](#branch-naming)
+- [Branch Lifecycle](#branch-lifecycle)
 - [Commit Message Format](#commit-message-format)
 - [Pull Request Process](#pull-request-process)
 - [Code Style](#code-style)
@@ -32,6 +33,50 @@ Use the following prefixes:
 | `test/` | Add/update tests | `test/story-generation-unit` |
 
 Branch names should be lowercase kebab-case, descriptive, and under 60 characters.
+
+**Exception:** Session branches created by Claude Code (prefix `claude/`) bypass the naming convention. These are temporary development branches and are automatically cleaned up after merge.
+
+---
+
+## Branch Lifecycle
+
+Follow this workflow to keep the remote repository clean and reduce cognitive load:
+
+### 1. Push Immediately After First Commit
+- Create your branch locally and make your first commit
+- Push to origin **before or immediately after** the first commit to signal that work is in progress
+- This ensures your work is backed up and visible to teammates
+
+```bash
+git checkout -b feat/your-feature
+git add .
+git commit -m "feat: start implementing your feature"
+git push -u origin feat/your-feature
+```
+
+### 2. Branch Protection & CI Checks
+- The `main` branch is protected and requires:
+  - ≥1 approval before merge
+  - All CI checks must pass: `npm run typecheck`, `npm run lint`, `npm test`, and production build
+- Feature branches may have any history; squash commits before merge via the GitHub UI
+
+### 3. After Merge: Delete Local Branch
+- Once your PR is merged, **delete the branch locally** to reduce clutter:
+  ```bash
+  git branch -d feat/your-feature  # Safe delete (requires upstream to be merged)
+  ```
+- GitHub can auto-delete the remote branch on merge; enable this in repository settings if desired
+
+### 4. Stale Branch Cleanup
+- Automated workflows run monthly to detect branches >60 days old with no activity
+- These branches are flagged in CI logs; delete them manually if work is abandoned
+- Session branches (claude/*) are exempt from automated cleanup as long as they're actively worked
+
+### Why This Matters
+- **Clean remote:** Reduces branch clutter and makes it easier to find active work
+- **Clear intent:** Early pushes signal "I'm working on this" to the team
+- **Safety:** Pushing immediately ensures your work isn't lost locally
+- **Reduced cognitive load:** Fewer branches = fewer decisions about which branches are alive
 
 ---
 
