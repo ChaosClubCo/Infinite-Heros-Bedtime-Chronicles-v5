@@ -1,5 +1,6 @@
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
+import * as Sentry from "@sentry/node";
 import { registerRoutes } from "./routes";
 import { isAuthEnabled } from "./auth";
 import { logger, createRequestId } from "./logger";
@@ -9,6 +10,20 @@ import * as fs from "fs";
 import * as path from "path";
 
 const log = logger.info.bind(logger);
+
+// Server-side error tracking. No-ops gracefully when SENTRY_DSN is unset
+// (mirrors the client-side init in app/_layout.tsx).
+let sentryInitialized = false;
+function initSentry() {
+  if (sentryInitialized) return;
+  sentryInitialized = true;
+  if (!process.env.SENTRY_DSN) return;
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || "development",
+    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  });
+}
 
 function validateEnvironment() {
   const providerConfigs: [string, string, string, boolean][] = [
@@ -371,6 +386,9 @@ function setupErrorHandler(app: express.Application) {
     const message = sanitizeErrorMessage(err);
 
     logger.error({ err, status }, 'unhandled server error');
+    if (status >= 500) {
+      Sentry.captureException(err);
+    }
 
     if (res.headersSent) {
       return next(err);
@@ -390,9 +408,11 @@ function registerCrashLogging() {
   crashLoggingRegistered = true;
   process.on("unhandledRejection", (reason) => {
     logger.error({ err: reason }, "unhandledRejection");
+    Sentry.captureException(reason);
   });
   process.on("uncaughtException", (err) => {
     logger.error({ err }, "uncaughtException");
+    Sentry.captureException(err);
   });
 }
 
@@ -404,6 +424,7 @@ export async function createApp(): Promise<express.Application> {
   app.set('trust proxy', 1);
 
   validateEnvironment();
+  initSentry();
   registerCrashLogging();
   setupSecurityHeaders(app);
   setupCors(app);

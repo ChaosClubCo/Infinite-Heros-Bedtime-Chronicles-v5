@@ -21,7 +21,10 @@ export function registerMusicRoutes(app: Express): void {
       if (err) {
         logger.error({ err }, 'music file error');
         if (!res.headersSent) {
-          res.status(404).json({ error: "Music file not found" });
+          // res.json() only sets Content-Type when unset, so the "audio/mpeg"
+          // header set above must be overridden or the JSON error body gets
+          // served mislabeled as audio/mpeg (see the same fix in routes/video.ts).
+          res.status(404).set("Content-Type", "application/json").json({ error: "Music file not found" });
         }
       }
     });

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { VOICE_MAP, MODE_DEFAULT_VOICES, getVoicesForMode } from "../elevenlabs";
 import { SuggestSettingsRequestSchema, VALID_MODES, VALID_DURATIONS, sanitizePromptInput } from "../validation";
-import { estimateCostUsd } from "../ai/cost";
+import { estimateCostUsd, reportCostAnomaly } from "../ai/cost";
 import { parsePositiveIntEnv } from "../utils";
 import { aiRouter } from "./context";
 import { rateLimited, sendRouteError } from "./helpers";
@@ -46,13 +46,15 @@ export function registerSuggestRoutes(app: Express): void {
         jsonMode: true,
       });
 
+      const estCostUsd = estimateCostUsd(aiResponse.provider, aiResponse.usage);
       req.log?.info({
         provider: aiResponse.provider,
         model: aiResponse.model,
         inputTokens: aiResponse.usage?.inputTokens,
         outputTokens: aiResponse.usage?.outputTokens,
-        estCostUsd: estimateCostUsd(aiResponse.provider, aiResponse.usage),
+        estCostUsd,
       }, 'suggestion generated');
+      reportCostAnomaly(estCostUsd, { provider: aiResponse.provider, endpoint: '/api/suggest-settings' });
 
       // The router parses + validates JSON (via extractFirstJson) when jsonMode is set,
       // so consume parsedJson directly rather than re-parsing the raw text here.
