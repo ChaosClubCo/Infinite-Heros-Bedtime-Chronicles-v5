@@ -411,6 +411,21 @@ data: {"done":true}
 
 ---
 
+## GitHub Integration
+
+### `POST /api/github/webhook`
+Receives GitHub repository webhook deliveries (e.g. `workflow_run`). **Not** authenticated via Supabase — GitHub cannot supply a bearer token — instead the raw request body is verified against the `X-Hub-Signature-256` header using HMAC-SHA256 with `GITHUB_WEBHOOK_SECRET` (timing-safe comparison). This is the one POST endpoint exempt from the Supabase auth gate described above.
+
+**Headers read:** `X-GitHub-Event`, `X-GitHub-Delivery`, `X-Hub-Signature-256`
+
+**Responses:**
+- `202 { "ok": true }` — signature verified, delivery accepted
+- `401 { "error": "Invalid signature" }` — missing/invalid `X-Hub-Signature-256`
+- `400 { "error": "Bad request" }` — raw body unavailable
+- `500 { "error": "Webhook not configured" }` — `GITHUB_WEBHOOK_SECRET` not set
+
+---
+
 ## Error Responses
 
 All errors follow this format:

@@ -85,6 +85,7 @@ See [`.env.example`](./.env.example) for all variables with inline descriptions.
 | `STORY_MAX_TOKENS` | Optional | Per-call LLM token ceiling for story generation, cost guard (default: 8192) |
 | `SUGGEST_MAX_TOKENS` | Optional | Per-call LLM token ceiling for settings suggestions, cost guard (default: 2048) |
 | `OPENAI_API_KEY` | Optional | Direct key for Sora video generation |
+| `GITHUB_WEBHOOK_SECRET` | Optional | Enables `POST /api/github/webhook`; must match the secret configured on the GitHub repo webhook |
 
 **Never** put real secret values in `.env.example` or commit `.env`. For EAS builds, set all vars as EAS secrets.
 

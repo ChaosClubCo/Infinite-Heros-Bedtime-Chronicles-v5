@@ -13,14 +13,10 @@ let app: Express;
 let server: Server;
 
 beforeAll(() => {
+  // No global body parser here — the route installs its own raw-body parser
+  // (matching how server/index.ts skips the global json/urlencoded parsers
+  // for this path in production), so the exact wire bytes reach the HMAC check.
   app = express();
-  app.use(
-    express.json({
-      verify: (req, _res, buf) => {
-        (req as unknown as { rawBody: Buffer }).rawBody = buf;
-      },
-    }),
-  );
   registerGithubWebhookRoute(app);
   server = app.listen(0);
 });
@@ -99,5 +95,18 @@ describe("POST /api/github/webhook", () => {
 
     expect(res.status).toBe(202);
     expect(res.body).toEqual({ ok: true });
+  });
+
+  it("accepts a signed payload larger than the app-wide 100kb JSON limit", async () => {
+    const body = JSON.stringify({ action: "completed", padding: "x".repeat(150_000) });
+
+    const res = await request(app)
+      .post("/api/github/webhook")
+      .set("Content-Type", "application/json")
+      .set("X-GitHub-Event", "workflow_run")
+      .set("X-Hub-Signature-256", sign(SECRET, body))
+      .send(body);
+
+    expect(res.status).toBe(202);
   });
 });
