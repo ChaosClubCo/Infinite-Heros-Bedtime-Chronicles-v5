@@ -8,7 +8,7 @@ All endpoints return JSON unless otherwise noted. Rate limiting applies to all P
 
 ## Authentication
 
-All POST endpoints require a valid Supabase access token (JWT) in the `Authorization: Bearer <token>` header.
+All non-GET API endpoints (`POST`, `PUT`, `DELETE`) require a valid Supabase access token (JWT) in the Authorization header. The only exception is `POST /api/github/webhook`, which is authenticated via `X-Hub-Signature-256` HMAC verification.
 
 - **Dev mode**: If `SUPABASE_SERVICE_ROLE_KEY` (+ Supabase URL) is not set, auth is bypassed and requests are accepted without tokens.
 - **Production**: The server validates tokens via the Supabase service-role client (`supabase.auth.getUser`). Invalid/expired tokens return `401 Unauthorized`; if Supabase is unconfigured in production, auth-gated routes return `503`.
