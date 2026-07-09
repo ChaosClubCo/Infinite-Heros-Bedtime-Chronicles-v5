@@ -1,6 +1,6 @@
 # Architecture
 
-<!-- Last verified: 2026-06-18 -->
+<!-- Last verified: 2026-07-09 -->
 
 See also: [ADRs](./adr/) for individual architectural decisions.
 
@@ -21,11 +21,11 @@ See also: [ADRs](./adr/) for individual architectural decisions.
 │  ┌──────────────────────────────────────────────────┐   │
 │  │              Security + Middleware Layer           │   │
 │  │  Security Headers → CORS → Body Parser (100KB)    │   │
-│  │  → Load Shedding → Auth (Firebase) → Rate Limiter │   │
+│  │  → Load Shedding → Auth (Supabase) → Rate Limiter │   │
 │  │  → Idempotency Cache → Request Logger             │   │
 │  └──────────────────────────────────────────────────┘   │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │       Route Composer (server/routes.ts ~43 lines) │   │
+│  │       Route Composer (server/routes.ts ~63 lines) │   │
 │  │  routes/health.ts  → /api/health, /api/metrics   │   │
 │  │  routes/story.ts   → /api/generate-story[-stream]│   │
 │  │  routes/images.ts  → /api/generate-avatar/scene  │   │
@@ -121,7 +121,7 @@ SettingsContext (lib/SettingsContext.tsx)
 5. **Request Logger** — pino structured logging (method, path, status, duration)
 6. **Load Shedding** — Rejects requests when active-request ceiling is exceeded (503)
 7. **Expo Manifest Routing + Static File Serving** — Dev server integration
-8. **Route Registration** — Auth gate (POST /api/* requires Firebase token) + domain modules
+8. **Route Registration** — Auth gate (`/api/*`: all non-GET + `GET /api/conversations*`; `/api/github/webhook` exempt) + domain modules
 9. **Global Error Handler** — Sanitized error responses via `sanitizeErrorMessage()`
 
 ### Rate Limiting
@@ -139,13 +139,13 @@ SettingsContext (lib/SettingsContext.tsx)
 
 ## Authentication Flow
 
-1. App launches → `AuthProvider` in `app/_layout.tsx` initializes Firebase Auth
-2. If no existing user, `signInAnonymously()` creates an anonymous Firebase user
+1. App launches → `AuthProvider` in `app/_layout.tsx` initializes Supabase Auth (when configured)
+2. If Supabase client config is missing, the app remains unauthenticated and runs in dev-friendly mode
 3. `AuthBridge` component passes the token getter to `query-client.ts`
-4. All API requests include `Authorization: Bearer <token>` header
-5. Server middleware (`server/auth.ts`) validates the token via Firebase Admin SDK
+4. API requests include `Authorization: Bearer <access_token>` when a session exists
+5. Server middleware (`server/auth.ts`) validates tokens via `supabase.auth.getUser(token)`
 6. Rate limiting keys on `req.user.uid` instead of IP address
-7. Production guard: if `FIREBASE_SERVICE_ACCOUNT_KEY` is unset in `NODE_ENV=production`, all auth-gated routes return 503; in dev, auth is skipped and an anonymous user is synthesized from the client IP
+7. Production guard: if Supabase auth is unconfigured (`SUPABASE_SERVICE_ROLE_KEY` + Supabase URL), auth-gated routes return 503; in dev, auth is skipped and an anonymous user is synthesized from the client IP
 
 ## Infrastructure Topology
 
@@ -197,7 +197,7 @@ The app runs as a single-instance Express server. There is no load balancer, no 
 |----------|--------|
 | AI provider keys | Server-side env vars only; never exposed to client |
 | Client data | AsyncStorage on-device; no PII stored server-side |
-| Auth tokens | Firebase JWT validated server-side on every POST request |
+| Auth tokens | Supabase access tokens validated server-side on auth-gated routes |
 | TTS filenames | Regex `/^[a-f0-9]+\.mp3$/` enforced before serving; path traversal impossible |
 | Video IDs | Regex `/^[a-f0-9]+$/` enforced before lookup |
 | CORS | Replit domains + localhost only; no wildcard |
