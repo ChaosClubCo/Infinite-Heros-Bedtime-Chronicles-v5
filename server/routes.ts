@@ -27,7 +27,7 @@ import { registerGithubWebhookRoute } from "./routes/github-webhook";
  * the route authenticates the caller itself via HMAC (X-Hub-Signature-256).
  */
 export function requiresAuthGate(method: string, path: string): boolean {
-  if (path.startsWith('/github/webhook')) return false;
+  if (path === '/github/webhook' || path === '/github/webhook/') return false;
   if (method === 'GET') return path.startsWith('/conversations');
   return true;
 }
