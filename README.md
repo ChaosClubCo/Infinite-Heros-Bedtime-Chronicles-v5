@@ -23,7 +23,7 @@ An AI-powered interactive bedtime story app for children ages 3–9. Kids create
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Mobile Framework | Expo (React Native) | SDK 55 / RN 0.85.2 |
+| Mobile Framework | Expo (React Native) | SDK 55 / RN 0.86.0 |
 | Router | Expo Router (file-based) | v6 |
 | Backend | Express.js (Node.js) | v5 |
 | Language | TypeScript | 6.0 (strict) |
@@ -85,6 +85,7 @@ See [`.env.example`](./.env.example) for all variables with inline descriptions.
 | `STORY_MAX_TOKENS` | Optional | Per-call LLM token ceiling for story generation, cost guard (default: 8192) |
 | `SUGGEST_MAX_TOKENS` | Optional | Per-call LLM token ceiling for settings suggestions, cost guard (default: 2048) |
 | `OPENAI_API_KEY` | Optional | Direct key for Sora video generation |
+| `GITHUB_WEBHOOK_SECRET` | Optional | Enables `POST /api/github/webhook`; must match the secret configured on the GitHub repo webhook |
 
 **Never** put real secret values in `.env.example` or commit `.env`. For EAS builds, set all vars as EAS secrets.
 
@@ -123,7 +124,7 @@ npm run server:prod          # Run production server bundle
 ```
 app/                    # Expo Router screens (file path = route)
   (tabs)/               # Tab navigation: index, create, library, saved, profile
-  story.tsx             # Story reading/playback screen (~1600 lines)
+  story.tsx             # Story reading/playback screen (~390 lines)
   completion.tsx        # Story completion + badge awarding
   story-details.tsx     # Story customization wizard (Classic mode)
   madlibs.tsx           # Mad Libs mode wizard

@@ -11,6 +11,7 @@ import type {
 } from "./types";
 import { CircuitBreaker } from "../circuit-breaker";
 import { retryWithJitter } from "../retry";
+import { logger } from "../logger";
 
 /**
  * Extract the first complete, balanced JSON object from a string.
@@ -118,7 +119,7 @@ export class AIRouter {
     for (const provider of chain) {
       const breaker = this.breakers.get(provider.name);
       if (breaker && breaker.getState() === 'open') {
-        console.error(`[AI Router] ${provider.displayName} circuit open, skipping`);
+        logger.warn({ provider: provider.name, taskType }, 'provider circuit open, skipping');
         continue;
       }
 
@@ -146,7 +147,7 @@ export class AIRouter {
           cleaned = cleaned.replace(/```json\s*/g, "").replace(/```\s*/g, "");
           const jsonStr = extractFirstJson(cleaned);
           if (!jsonStr) {
-            console.error(`[AI Router] ${provider.displayName} returned non-JSON for ${taskType}, trying next provider`);
+            logger.warn({ provider: provider.name, taskType }, 'provider returned non-json response, falling through');
             lastError = new Error(`${provider.displayName} returned invalid JSON`);
             continue;
           }
@@ -154,7 +155,7 @@ export class AIRouter {
             response.parsedJson = JSON.parse(jsonStr);
             response.text = jsonStr;
           } catch {
-            console.error(`[AI Router] ${provider.displayName} returned unparseable JSON for ${taskType}, trying next provider`);
+            logger.warn({ provider: provider.name, taskType }, 'provider returned unparseable json, falling through');
             lastError = new Error(`${provider.displayName} returned malformed JSON`);
             continue;
           }
@@ -163,7 +164,7 @@ export class AIRouter {
         return response;
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
-        console.error(`[AI Router] ${provider.displayName} failed for ${taskType}: ${lastError.message}`);
+        logger.warn({ provider: provider.name, taskType, err: lastError }, 'provider text generation failed');
       }
     }
 
@@ -193,7 +194,7 @@ export class AIRouter {
         return;
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
-        console.error(`[AI Router] ${provider.displayName} streaming failed for ${taskType}: ${lastError.message}`);
+        logger.warn({ provider: provider.name, taskType, err: lastError }, 'provider streaming failed');
       }
     }
 
@@ -214,7 +215,7 @@ export class AIRouter {
       if (!provider.generateImage) continue;
       const breaker = this.breakers.get(provider.name);
       if (breaker && breaker.getState() === 'open') {
-        console.error(`[AI Router] ${provider.displayName} circuit open, skipping image`);
+        logger.warn({ provider: provider.name, taskType }, 'provider image circuit open, skipping');
         continue;
       }
 
@@ -227,7 +228,7 @@ export class AIRouter {
         return response;
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
-        console.error(`[AI Router] ${provider.displayName} image failed for ${taskType}: ${lastError.message}`);
+        logger.warn({ provider: provider.name, taskType, err: lastError }, 'provider image generation failed');
       }
     }
 

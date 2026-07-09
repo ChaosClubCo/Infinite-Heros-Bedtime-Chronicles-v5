@@ -163,17 +163,29 @@ function setupCors(app: express.Application) {
   });
 }
 
-function setupBodyParsing(app: express.Application) {
-  app.use(
-    express.json({
-      limit: "100kb",
-      verify: (req, _res, buf) => {
-        req.rawBody = buf;
-      },
-    }),
-  );
+// GitHub webhook payloads can legitimately exceed the 100kb app-wide limit and
+// need their exact wire bytes (not the parsed/re-serialized form) for HMAC
+// signature verification, so that route installs its own raw-body parser
+// (server/routes/github-webhook.ts) and must skip these global parsers entirely.
+const BODY_PARSING_EXEMPT_PATHS = new Set(["/api/github/webhook"]);
 
-  app.use(express.urlencoded({ extended: false, limit: "100kb" }));
+function setupBodyParsing(app: express.Application) {
+  const jsonParser = express.json({
+    limit: "100kb",
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  });
+  const urlencodedParser = express.urlencoded({ extended: false, limit: "100kb" });
+
+  app.use((req, res, next) => {
+    if (BODY_PARSING_EXEMPT_PATHS.has(req.path)) return next();
+    jsonParser(req, res, next);
+  });
+  app.use((req, res, next) => {
+    if (BODY_PARSING_EXEMPT_PATHS.has(req.path)) return next();
+    urlencodedParser(req, res, next);
+  });
 }
 
 function setupRequestLogging(app: express.Application) {
@@ -312,6 +324,13 @@ function configureExpoAndLanding(app: express.Application) {
     }
 
     if (req.path === "/") {
+      const webIndexPath = path.resolve(process.cwd(), "static-build", "index.html");
+      if (fs.existsSync(webIndexPath)) {
+        // Web build is present — fall through to the express.static("static-build")
+        // middleware below so the real app is served instead of the marketing page.
+        return next();
+      }
+
       return serveLandingPage({
         req,
         res,

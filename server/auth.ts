@@ -33,7 +33,7 @@ function getSupabaseAdmin(): SupabaseClient | null {
     });
     return supabaseAdmin;
   } catch (err) {
-    console.error('[Auth] Failed to initialize Supabase client:', err instanceof Error ? err.message : String(err));
+    logger.error({ err }, 'failed to initialize supabase admin client');
     return null;
   }
 }
@@ -65,12 +65,12 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   // SECURITY: Block unauthenticated access in production — no opt-out
   if (!supabase) {
     if (process.env.NODE_ENV === 'production') {
-      console.error('[Auth] CRITICAL: Supabase auth is not configured in production. Rejecting request.');
+      logger.error({ path: req.path, method: req.method }, 'supabase auth missing in production; rejecting request');
       return res.status(503).json({ error: 'Service temporarily unavailable' });
     }
     // Development mode: allow with warning on first request
     if (!requireAuth._devWarned) {
-      console.warn('[Auth] WARNING: Running without authentication (development mode). Set SUPABASE_SERVICE_ROLE_KEY (+ Supabase URL) for production.');
+      logger.warn('running without authentication in development mode');
       requireAuth._devWarned = true;
     }
     req.user = { uid: req.ip || 'anonymous', isAnonymous: true };

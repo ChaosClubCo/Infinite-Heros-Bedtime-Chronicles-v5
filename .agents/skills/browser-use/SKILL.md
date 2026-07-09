@@ -16,7 +16,7 @@ Before using this skill, `browser-use` must be installed and configured. Run dia
 browser-use doctor
 ```
 
-For more information, see https://github.com/browser-use/browser-use/blob/main/browser_use/skill_cli/README.md
+For more information, see https://github.com/browser-use/browser-use/blob/main/README.md
 
 ## Core Workflow
 

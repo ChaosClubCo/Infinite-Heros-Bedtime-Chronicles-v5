@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { logger } from "./logger";
 
 const VIDEO_CACHE_DIR = path.resolve("/tmp/video-cache");
 if (!fs.existsSync(VIDEO_CACHE_DIR)) {
@@ -24,10 +25,10 @@ export async function cleanVideoCache() {
       }
     }
     if (removed > 0) {
-      console.log(`[VideoCache] Cleaned ${removed} expired video files`);
+      logger.info({ removed }, 'video cache cleanup completed');
     }
   } catch (err) {
-    console.error("[VideoCache] Cleanup error:", err);
+    logger.error({ err }, 'video cache cleanup failed');
   }
 }
 
@@ -109,7 +110,7 @@ export async function createVideoJob(
     return { jobId };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[Video] Creation error:", message);
+    logger.error({ err, message }, 'video creation failed');
     return { error: message || "Failed to create video" };
   }
 }
@@ -151,7 +152,7 @@ async function pollVideoStatus(client: OpenAI, job: VideoJob) {
           job.status = "completed";
           job.progress = 100;
         } catch (dlErr: unknown) {
-          console.error("[Video] Download error:", dlErr instanceof Error ? dlErr.message : String(dlErr));
+          logger.error({ err: dlErr }, 'video download failed');
           job.status = "failed";
           job.error = "Video generated but download failed";
         }
@@ -164,7 +165,7 @@ async function pollVideoStatus(client: OpenAI, job: VideoJob) {
         return;
       }
     } catch (err: unknown) {
-      console.error("[Video] Poll error:", err instanceof Error ? err.message : String(err));
+      logger.error({ err }, 'video poll failed');
       if (polls >= maxPolls) {
         job.status = "failed";
         job.error = "Video generation timed out";

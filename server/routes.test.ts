@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeString, validateMadlibWords, VALID_MODES, VALID_DURATIONS } from './validation';
+import { sanitizeString, validateMadlibWords, VALID_MODES, VALID_DURATIONS, TtsPreviewRequestSchema } from './validation';
 import { getPartCount, getWordCount } from './prompts';
 import { checkRateLimit, resetRateLimits } from './rate-limit';
+import { requiresAuthGate } from './routes';
 
 describe('sanitizeString', () => {
   it('returns empty string for non-string input', () => {
@@ -246,5 +247,46 @@ describe('video ID validation', () => {
 
   it('rejects non-hex characters', () => {
     expect(VIDEO_ID_REGEX.test('xyz')).toBe(false);
+  });
+});
+
+describe('requiresAuthGate', () => {
+  it('requires auth for all non-GET methods', () => {
+    expect(requiresAuthGate('POST', '/generate-story')).toBe(true);
+    expect(requiresAuthGate('PUT', '/conversations/1')).toBe(true);
+    expect(requiresAuthGate('DELETE', '/conversations/1')).toBe(true);
+  });
+
+  it('skips auth for public GET catalog endpoints', () => {
+    expect(requiresAuthGate('GET', '/health')).toBe(false);
+    expect(requiresAuthGate('GET', '/voices')).toBe(false);
+    expect(requiresAuthGate('GET', '/music/classic')).toBe(false);
+  });
+
+  it('requires auth for GET /conversations (private per-user history) — regression for IDOR', () => {
+    expect(requiresAuthGate('GET', '/conversations')).toBe(true);
+    expect(requiresAuthGate('GET', '/conversations/1')).toBe(true);
+  });
+});
+
+describe('TtsPreviewRequestSchema', () => {
+  it('defaults to moonbeam when voice is omitted', () => {
+    const parsed = TtsPreviewRequestSchema.safeParse({});
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.voice).toBe('moonbeam');
+  });
+
+  it('lowercases and truncates the voice key', () => {
+    const parsed = TtsPreviewRequestSchema.safeParse({ voice: 'MOONBEAM'.repeat(5) });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.voice).toBe(parsed.data.voice.toLowerCase());
+      expect(parsed.data.voice.length).toBeLessThanOrEqual(20);
+    }
+  });
+
+  it('rejects non-string voice values', () => {
+    const parsed = TtsPreviewRequestSchema.safeParse({ voice: 123 });
+    expect(parsed.success).toBe(false);
   });
 });

@@ -14,26 +14,7 @@ Configure Android builds with:
 - `targetSdkVersion: 35`
 - `minSdkVersion: 26`
 
-This is a managed Expo project — bare `targetSdkVersion`/`minSdkVersion` keys under
-`app.json`'s `expo.android` block are not read by Expo prebuild (that block only
-recognizes `package`, `versionCode`, `permissions`, and `adaptiveIcon`). Set these via
-the [`expo-build-properties`](https://docs.expo.dev/versions/latest/sdk/build-properties/)
-config plugin in `app.json`'s `plugins` array instead:
-
-```json
-[
-  "expo-build-properties",
-  {
-    "android": {
-      "targetSdkVersion": 35,
-      "minSdkVersion": 26
-    }
-  }
-]
-```
-
-The `expo-build-properties` package is not yet installed — add it with
-`npx expo install expo-build-properties` before wiring in the plugin.
+Set these in `app.json` under the `android` key.
 
 ## Build Commands
 

@@ -23,6 +23,8 @@ export function ChoiceButton({ label, index, onPress, colors }: ChoiceButtonProp
           { transform: [{ scale: pressed ? 0.96 : 1 }] },
         ]}
         testID={`choice-${index}`}
+        accessibilityRole="button"
+        accessibilityLabel={`Choice ${String.fromCharCode(65 + index)}: ${label}`}
       >
         <LinearGradient
           colors={pair}
