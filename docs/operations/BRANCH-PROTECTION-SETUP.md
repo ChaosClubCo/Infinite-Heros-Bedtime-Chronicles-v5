@@ -40,19 +40,18 @@ Fill in the following fields:
 | Require status checks to pass before merging | ✓ Checked | Ensures CI passes |
 | Require branches to be up to date before merging | ✓ Checked | Prevents merge conflicts |
 | Require code reviews from code owners | — (optional) | Enforce CODEOWNERS file review |
-| Allow force pushes | Select → Allow force pushes by administrators | Enable hotfix bypass |
+| Allow force pushes | Select → Specify administrators only | Enable hotfix bypass (admins only; don't use the broad "everyone" option) |
 | Allow deletions | — (unchecked) | Prevent accidental main branch deletion |
 
 ### Step 3: Select Required Status Checks
 
-Check **all** of these CI checks (they all run in `.github/workflows/ci.yml` on every push):
+Check **all** of these CI checks (from `.github/workflows/ci.yml`):
 
-- `ESLint` / `Lint`
-- `TypeScript` / `typecheck`
-- `Vitest` / `test`
-- `Build` (server build, Expo build)
+- `Lint and Test`
+- `Production Install Smoke Test`
+- `Build Server`
 
-The exact names may appear slightly different in the GitHub UI based on your CI workflow configuration.
+**Important:** GitHub matches status check names exactly. Use the names above as they appear in your CI workflow; names in the GitHub UI select dialog must match these job IDs exactly.
 
 ### Step 4: Save
 
@@ -110,6 +109,5 @@ A: No, branch protection enforces the rule. Admins can only bypass via force-pus
 
 ## See Also
 
-- `docs/CONTRIBUTING.md` — Contributing guide with branch lifecycle workflow
-- `docs/runbooks/deploy.md` — Deployment runbook (references this protection model)
-- `.github/workflows/ci.yml` — CI pipeline definition
+- `CONTRIBUTING.md` — Contributing guide with branch lifecycle workflow
+- `.github/workflows/ci.yml` — CI pipeline definition (defines required status checks)

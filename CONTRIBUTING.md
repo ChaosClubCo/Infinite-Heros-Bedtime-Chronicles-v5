@@ -44,7 +44,7 @@ Follow this workflow to keep the remote repository clean and reduce cognitive lo
 
 ### 1. Push Immediately After First Commit
 - Create your branch locally and make your first commit
-- Push to origin **before or immediately after** the first commit to signal that work is in progress
+- Push to origin **immediately after** the first commit to signal that work is in progress
 - This ensures your work is backed up and visible to teammates
 
 ```bash
@@ -68,9 +68,10 @@ git push -u origin feat/your-feature
 - GitHub can auto-delete the remote branch on merge; enable this in repository settings if desired
 
 ### 4. Stale Branch Cleanup
-- Automated workflows run monthly to detect branches >60 days old with no activity
-- These branches are flagged in CI logs; delete them manually if work is abandoned
-- Session branches (claude/*) are exempt from automated cleanup as long as they're actively worked
+- Stale branch detection runs manually via GitHub Actions (`Actions` → `Branch Cleanup` → `workflow_dispatch`)
+- Detects branches >90 days old with no commits; supports dry-run mode (default) or actual deletion
+- Merged branches are automatically deleted after PR merge (no manual action needed)
+- Session branches (claude/*) can be left alone during cleanup runs; delete manually if work is abandoned
 
 ### Why This Matters
 - **Clean remote:** Reduces branch clutter and makes it easier to find active work
