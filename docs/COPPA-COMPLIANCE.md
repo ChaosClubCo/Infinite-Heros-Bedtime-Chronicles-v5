@@ -113,7 +113,7 @@ The following fields from user input are transmitted to whichever AI provider is
 
 ### 3.4 What Is NOT Collected or Transmitted
 
-- No email addresses
+- No email addresses **from children** — the only email collected is the parent/adult's own sign-in email via Supabase Auth (§3.1); it is never sent to AI or TTS providers
 - No phone numbers
 - No physical addresses
 - No photos or biometric data
@@ -141,7 +141,7 @@ The following fields from user input are transmitted to whichever AI provider is
 | Behavioral data (streaks, badges) | Yes | AsyncStorage (device only) | No | Compliant | Stored locally; never uploaded. |
 | IP address | Yes | Server rate-limit map (in-memory) | No | Compliant | Ephemeral; not logged; not stored. |
 | Request metadata (method, path, status) | Yes | Server logs | No | Compliant | No PII in structured log fields. |
-| Email / account credentials | No | — | — | Compliant — not collected | |
+| Parent/adult sign-in email | Yes | Supabase Auth (not this app's database) | Yes — to Supabase Auth only | Compliant | Adult account credential, not child PII; never sent to AI/TTS providers. |
 | Advertising identifiers | No | — | — | Compliant — not collected | |
 | Analytics behavioral profiles | No | — | — | Compliant — not collected | |
 
@@ -268,7 +268,7 @@ during submission (Phase 3/5), and confirm the contact email
 |---|---|
 | Analytics/tracking SDKs | Not present — ✅ Compliant |
 | Advertising | Not present — ✅ Compliant |
-| Email/account collection | Not present — ✅ Compliant |
+| Email/account collection | Parent/adult sign-in email only (Supabase Auth) — ✅ Compliant, not child PII |
 | Auth (Supabase) | ✅ Compliant with caveats (verify Supabase DPA — see GAP 8) |
 | Child name collection | Optional; ⚠️ **Requires DPAs with AI providers or removal from server calls (GAP 2)** |
 | Child age collection | Optional; ⚠️ **Requires DPAs with AI providers or removal from server calls (GAP 2)** |
