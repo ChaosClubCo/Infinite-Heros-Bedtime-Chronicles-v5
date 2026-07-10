@@ -9,6 +9,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { useNetworkStatus } from "@/lib/useNetworkStatus";
 import { queryClient, setAuthTokenGetter } from "@/lib/query-client";
+import { ConsentProvider, useConsent } from "@/lib/ConsentContext";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { ProfileProvider } from "@/lib/ProfileContext";
 import { SettingsProvider } from "@/lib/SettingsContext";
@@ -49,6 +50,20 @@ function OfflineIndicator() {
 }
 
 function RootLayoutNav() {
+  const { isLoaded, isConsented } = useConsent();
+
+  // Keep the splash up until the consent record has been read — combined
+  // with the Stack.Protected guard below, no protected screen can mount (or
+  // fire network requests) on ANY entry path — cold start, deep link, web
+  // URL, or restored navigation state — before consent is known.
+  useEffect(() => {
+    if (isLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [isLoaded]);
+
+  if (!isLoaded) return null;
+
   return (
     <Stack
       screenOptions={{
@@ -58,61 +73,66 @@ function RootLayoutNav() {
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen name="(tabs)" />
       <Stack.Screen
         name="parental-consent"
-        options={{ animation: "fade", gestureEnabled: false }}
-      />
-      <Stack.Screen
-        name="welcome"
         options={{ animation: "fade", gestureEnabled: false }}
       />
       <Stack.Screen
         name="privacy"
         options={{ animation: "slide_from_right" }}
       />
-      <Stack.Screen
-        name="quick-create"
-        options={{ animation: "slide_from_bottom", presentation: "modal" }}
-      />
-      <Stack.Screen
-        name="settings"
-        options={{ animation: "slide_from_right" }}
-      />
-      <Stack.Screen
-        name="story-details"
-        options={{ animation: "slide_from_right" }}
-      />
-      <Stack.Screen
-        name="madlibs"
-        options={{ animation: "slide_from_right" }}
-      />
-      <Stack.Screen
-        name="sleep-setup"
-        options={{ animation: "slide_from_right" }}
-      />
-      <Stack.Screen
-        name="story"
-        options={{
-          presentation: "fullScreenModal",
-          animation: "fade",
-        }}
-      />
-      <Stack.Screen
-        name="completion"
-        options={{
-          presentation: "fullScreenModal",
-          animation: "fade",
-        }}
-      />
-      <Stack.Screen
-        name="trophies"
-        options={{ animation: "slide_from_right" }}
-      />
-      <Stack.Screen
-        name="voice-chat"
-        options={{ animation: "slide_from_right" }}
-      />
+      {/* COPPA: everything below is unreachable until parental consent is
+          given — un-consented deep links fall back to index (the launch
+          gate), which redirects to the consent screen. */}
+      <Stack.Protected guard={isConsented}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="welcome"
+          options={{ animation: "fade", gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="quick-create"
+          options={{ animation: "slide_from_bottom", presentation: "modal" }}
+        />
+        <Stack.Screen
+          name="settings"
+          options={{ animation: "slide_from_right" }}
+        />
+        <Stack.Screen
+          name="story-details"
+          options={{ animation: "slide_from_right" }}
+        />
+        <Stack.Screen
+          name="madlibs"
+          options={{ animation: "slide_from_right" }}
+        />
+        <Stack.Screen
+          name="sleep-setup"
+          options={{ animation: "slide_from_right" }}
+        />
+        <Stack.Screen
+          name="story"
+          options={{
+            presentation: "fullScreenModal",
+            animation: "fade",
+          }}
+        />
+        <Stack.Screen
+          name="completion"
+          options={{
+            presentation: "fullScreenModal",
+            animation: "fade",
+          }}
+        />
+        <Stack.Screen
+          name="trophies"
+          options={{ animation: "slide_from_right" }}
+        />
+        <Stack.Screen
+          name="voice-chat"
+          options={{ animation: "slide_from_right" }}
+        />
+      </Stack.Protected>
     </Stack>
   );
 }
@@ -132,35 +152,31 @@ export default function RootLayout() {
     PlusJakartaSans_800ExtraBold,
   });
 
-  // The consent/onboarding redirect lives in app/index.tsx (the launch gate),
-  // which renders nothing until lib/launch-gate.ts resolves — so hiding the
-  // splash here can no longer flash the tabs at an un-consented install.
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
-
+  // Splash hiding + consent gating live in RootLayoutNav (it needs the
+  // ConsentContext); the onboarding redirect lives in app/index.tsx (the
+  // launch gate, backed by lib/launch-gate.ts).
   if (!fontsLoaded && !fontError) return null;
 
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <AuthBridge />
-        <QueryClientProvider client={queryClient}>
-          <ProfileProvider>
-            <SettingsProvider>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <KeyboardProvider>
-                  <StatusBar style="light" />
-                  <OfflineIndicator />
-                  <RootLayoutNav />
-                </KeyboardProvider>
-              </GestureHandlerRootView>
-            </SettingsProvider>
-          </ProfileProvider>
-        </QueryClientProvider>
-      </AuthProvider>
+      <ConsentProvider>
+        <AuthProvider>
+          <AuthBridge />
+          <QueryClientProvider client={queryClient}>
+            <ProfileProvider>
+              <SettingsProvider>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                  <KeyboardProvider>
+                    <StatusBar style="light" />
+                    <OfflineIndicator />
+                    <RootLayoutNav />
+                  </KeyboardProvider>
+                </GestureHandlerRootView>
+              </SettingsProvider>
+            </ProfileProvider>
+          </QueryClientProvider>
+        </AuthProvider>
+      </ConsentProvider>
     </ErrorBoundary>
   );
 }

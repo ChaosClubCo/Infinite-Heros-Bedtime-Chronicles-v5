@@ -92,7 +92,7 @@ inconsistent playback params.
 
 | Finding | Fix |
 |---|---|
-| R1, R2 | New `app/index.tsx` launch gate: explicit `/` route that renders nothing until the decision resolves, then `<Redirect>`s. `app/_layout.tsx` no longer navigates; it only hides the splash. No UI can flash before the gate decides. |
+| R1, R2 | New `app/index.tsx` launch gate: explicit `/` route that renders nothing until the decision resolves, then `<Redirect>`s. `app/_layout.tsx` no longer navigates; it hides the splash only once the consent record is read. Additionally, every screen except `index`, `parental-consent`, and `privacy` sits inside a `Stack.Protected` guard driven by `lib/ConsentContext.tsx` — so deep links, web URLs, and restored navigation state (which never mount `index`) also cannot render a protected screen or fire its network requests until consent is granted. Revoking consent (Settings → Delete Everything) flips the guard and unmounts the whole protected stack. |
 | R3 | New `lib/launch-gate.ts` — `resolveLaunchRoute()` is the single source of truth (consent → welcome → tabs, fail-safe to consent), used by `app/index.tsx` and `app/parental-consent.tsx`. Unit tests in `lib/launch-gate.test.ts`. |
 | N1 | `quick-create` wired into onboarding: welcome's "Get Started" lands on `/(tabs)` then opens `/quick-create` on top. Its `/story` entry now uses `push` (consistent with all other entries), the dead `isFirstStory` chain was removed (welcome owns onboarding-completion), `story-details` accepts a `heroId` param, and `customPrompt` is threaded end-to-end (client param → `StoryRequestSchema` (`optTruncated(500)`) → `getStoryUserPrompt` via `sanitizePromptInput`, classic mode only). |
 | N2 | `!hero` bailouts moved into `useEffect` with `router.canGoBack() ? back() : replace("/(tabs)")` in `madlibs`, `sleep-setup`, and `story`'s error fallback. |
@@ -103,7 +103,10 @@ inconsistent playback params.
 
 ```
 Splash (kept up by preventAutoHideAsync)
-      ▼ fonts loaded → _layout hides splash; Stack renders "/" = app/index.tsx
+      ▼ fonts loaded + consent record read (ConsentContext) → _layout hides splash
+      ▼ Stack renders; screens other than index/parental-consent/privacy are
+        inside <Stack.Protected guard={isConsented}> — un-consented deep links
+        fall back to "/" = app/index.tsx
 app/index.tsx renders null → resolveLaunchRoute()  (lib/launch-gate.ts)
       ├─ !consented            → <Redirect href="/parental-consent" />
       │        └─ consent → canGoBack ? back() : replace(resolveLaunchRoute())

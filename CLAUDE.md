@@ -78,6 +78,7 @@ lib/                    # Client utilities
   storage-migration.test.ts      # Storage migration tests
   launch-gate.ts        # resolveLaunchRoute(): single source of truth for the cold-start consent/onboarding decision
   launch-gate.test.ts   # Launch-gate unit tests
+  ConsentContext.tsx    # Reactive consent state driving the root layout's Stack.Protected guard
   scene-handoff.ts      # In-memory handoff of scene images from story → completion (too large for nav params)
   replay-params.ts      # buildStoryReplayParams(): shared /story replay params for all replay entry points
   query-client.ts       # TanStack React Query config (staleTime: Infinity, retry: false)
@@ -568,7 +569,7 @@ npm run test:coverage   # vitest run --coverage
 - **`getReadStories` / `markStoryRead`** — wired into library screen (unread dot indicator) and completion screen (marks story read on completion)
 - **`server/replit_integrations/`** — backend routes are functional and the voice chat UI exists at `app/voice-chat.tsx` (reachable from the profile tab)
 - **Supabase auth is optional** — if `SUPABASE_SERVICE_ROLE_KEY` (+ Supabase URL) is unset, all POSTs in dev are treated as anonymous with IP-based rate-limit identity (production returns 503)
-- **COPPA consent gate** — `app/index.tsx` (the "/" launch gate) resolves the cold-start route via `lib/launch-gate.ts` (`resolveLaunchRoute()`: consent before onboarding, fail-safe to consent); an un-consented install is routed to `app/parental-consent.tsx` first and no other screen renders until the decision resolves. Consent is keyed by `CONSENT_VERSION` (`constants/types.ts`) — bump it to re-prompt existing installs when privacy practices change
+- **COPPA consent gate** — two layers: `app/index.tsx` (the "/" launch gate) resolves the cold-start route via `lib/launch-gate.ts` (`resolveLaunchRoute()`: consent before onboarding, fail-safe to consent), and `app/_layout.tsx` wraps every screen except `index`/`parental-consent`/`privacy` in `Stack.Protected` guarded by `lib/ConsentContext.tsx` — so deep links and restored navigation state can't mount protected screens un-consented either. Consent is keyed by `CONSENT_VERSION` (`constants/types.ts`) — bump it to re-prompt existing installs when privacy practices change
 - **AI router JSON extraction** — `router.ts` uses `extractFirstJson()` (balanced-brace scan that skips string literals), not a greedy regex; callers consume `response.parsedJson` when `jsonMode` is set
 - **Streaming model field** — `router.ts` reports the provider's `textModel` (the concrete model ID) on streaming chunks, falling back to `provider.name` only when `textModel` is unset
 

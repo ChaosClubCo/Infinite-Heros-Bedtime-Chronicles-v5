@@ -13,7 +13,7 @@ import * as Haptics from "expo-haptics";
 import { StarField } from "@/components/StarField";
 import Colors from "@/constants/colors";
 import { setParentConsent } from "@/lib/storage";
-import { resolveLaunchRoute } from "@/lib/launch-gate";
+import { useConsent } from "@/lib/ConsentContext";
 
 /** Build a simple arithmetic parent gate that a young child is unlikely to pass. */
 function makeChallenge() {
@@ -41,6 +41,7 @@ export default function ParentalConsentScreen() {
   const [gatePassed, setGatePassed] = useState(false);
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const { markConsented } = useConsent();
 
   const prompt = useMemo(
     () => `What is ${challenge.a} + ${challenge.b}?`,
@@ -65,12 +66,14 @@ export default function ParentalConsentScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await setParentConsent();
+      markConsented(); // flips the Stack.Protected guard
       if (router.canGoBack()) {
         // Re-viewing consent (pushed from Settings) — return where we came from.
         router.back();
       } else {
-        // First launch (this screen replaced the launch gate).
-        router.replace(await resolveLaunchRoute());
+        // First launch or post-reset: let the launch gate ("/") re-resolve
+        // the destination (welcome vs tabs) from the fresh state.
+        router.replace("/");
       }
     } catch {
       setSubmitting(false);
