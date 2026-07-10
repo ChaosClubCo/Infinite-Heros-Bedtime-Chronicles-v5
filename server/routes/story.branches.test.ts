@@ -164,6 +164,9 @@ describe("POST /api/generate-story-stream", () => {
 
     expect([500, 503]).toContain(res.status);
     expect(res.body.error).toBeDefined();
+    // Before any bytes are written the error is a real JSON response, not an
+    // SSE error event, so it must not inherit the text/event-stream header.
+    expect(res.headers["content-type"]).toMatch(/application\/json/);
   });
 
   it("writes an SSE error event when the stream fails after headers are already sent", async () => {

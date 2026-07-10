@@ -67,5 +67,9 @@ describe("GET /api/video/:id file serving", () => {
     const res = await request(app).get("/api/video/deadbeef");
     expect(res.status).toBe(404);
     expect(res.body.error).toBe("Video not found");
+    // The JSON error must not inherit the success-path video/mp4 or 24h-cache
+    // headers set before sendFile().
+    expect(res.headers["content-type"]).toMatch(/application\/json/);
+    expect(res.headers["cache-control"]).toBe("no-store");
   });
 });

@@ -55,6 +55,10 @@ describe("GET /api/music/:mode", () => {
     const res = await request(app).get("/api/music/classic");
     expect(res.status).toBe(404);
     expect(res.body.error).toBe("Music file not found");
+    // The JSON error must not inherit the success-path audio/mpeg or 5m-cache
+    // headers set before sendFile().
+    expect(res.headers["content-type"]).toMatch(/application\/json/);
+    expect(res.headers["cache-control"]).toBe("no-store");
   });
 
   it("rejects an invalid mode before touching the filesystem", async () => {
