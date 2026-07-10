@@ -47,7 +47,7 @@ An AI-powered interactive bedtime story app for children ages 3–9. Kids create
 ## Quick Start
 
 ```bash
-# 1. Install dependencies (patch-package runs automatically in postinstall)
+# 1. Install dependencies
 npm install
 
 # 2. Copy and configure environment variables
@@ -92,7 +92,7 @@ See [`.env.example`](./.env.example) for all variables with inline descriptions.
 ## Running Tests
 
 ```bash
-npm test                  # Single run (919 tests across 15 files)
+npm test                  # Single run (1000+ tests across 40+ files)
 npm run test:watch        # Watch mode
 npm run test:coverage     # Coverage report (≥80% branch target for server utilities)
 ```
@@ -124,7 +124,8 @@ npm run server:prod          # Run production server bundle
 ```
 app/                    # Expo Router screens (file path = route)
   (tabs)/               # Tab navigation: index, create, library, saved, profile
-  story.tsx             # Story reading/playback screen (~390 lines)
+  story.tsx             # Story reading/playback screen (~440 lines; composition shell over lib/use* hooks + components/Story*)
+  story-seeds.tsx       # Browsable story-seed gallery (filter by theme + age)
   completion.tsx        # Story completion + badge awarding
   story-details.tsx     # Story customization wizard (Classic mode)
   madlibs.tsx           # Mad Libs mode wizard
@@ -132,6 +133,9 @@ app/                    # Expo Router screens (file path = route)
   quick-create.tsx      # Onboarding hero creation
   settings.tsx          # App settings screen
   trophies.tsx          # Badge collection view
+  voice-chat.tsx        # Voice chat UI (reachable from the profile tab)
+  parental-consent.tsx  # COPPA parental-consent gate (first launch, before onboarding)
+  privacy.tsx           # In-app Privacy Policy screen (offline)
   welcome.tsx           # Onboarding splash
 components/             # Reusable React Native components (PascalCase.tsx)
 constants/              # Static data and configuration
@@ -178,7 +182,6 @@ docs/                   # All project documentation
 api/                    # Vercel serverless entry point
   server.mjs            # Wraps server_dist/index.js for Vercel
 scripts/                # Build helpers
-patches/                # patch-package patches (do not modify without approval)
 ```
 
 ## API Endpoints
@@ -199,11 +202,16 @@ See [docs/API.md](docs/API.md) for full reference.
 | GET | `/api/voices` | List available narrator voices |
 | GET | `/api/music/:mode` | Serve background music |
 | POST | `/api/suggest-settings` | AI-powered story setting suggestions |
+| GET | `/api/video-available` | Whether video generation is configured |
 | POST | `/api/generate-video` | Start video generation job |
 | GET | `/api/video-status/:id` | Check video generation progress |
+| GET | `/api/video/:id` | Retrieve generated video |
 | GET | `/api/conversations` | List voice chat conversations |
 | POST | `/api/conversations` | Create new conversation |
+| DELETE | `/api/conversations/:id` | Delete a conversation |
 | POST | `/api/conversations/:id/messages` | Send voice message (SSE response) |
+| POST | `/api/generate-image` | Gemini image generation (Replit integration) |
+| POST | `/api/github/webhook` | GitHub webhook receiver (HMAC-authenticated) |
 
 ## Documentation
 
