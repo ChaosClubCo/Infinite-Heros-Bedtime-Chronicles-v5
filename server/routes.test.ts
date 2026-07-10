@@ -267,6 +267,11 @@ describe('requiresAuthGate', () => {
     expect(requiresAuthGate('GET', '/conversations')).toBe(true);
     expect(requiresAuthGate('GET', '/conversations/1')).toBe(true);
   });
+
+  it('skips auth for POST /github/webhook (uses HMAC signature verification)', () => {
+    expect(requiresAuthGate('POST', '/github/webhook')).toBe(false);
+    expect(requiresAuthGate('POST', '/github/webhook/')).toBe(false);
+  });
 });
 
 describe('TtsPreviewRequestSchema', () => {
