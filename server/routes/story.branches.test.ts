@@ -155,9 +155,9 @@ describe("POST /api/generate-story-stream", () => {
 
   it("returns a JSON error when the stream throws before any bytes are written", async () => {
     mockGenerateTextStream.mockReturnValueOnce((async function* () {
+      // Throws on first iteration, before yielding any chunk — exercises the
+      // pre-headers-sent error branch (JSON response, not an SSE error event).
       throw new Error("stream failed to start");
-      // eslint-disable-next-line no-unreachable
-      yield { text: "", done: true, provider: "gemini", model: "gemini-test" };
     })());
 
     const res = await request(app).post("/api/generate-story-stream").send({ heroName: "StreamFailEarlyHero" });
