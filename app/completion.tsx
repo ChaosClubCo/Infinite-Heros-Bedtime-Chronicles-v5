@@ -29,7 +29,8 @@ import Colors from "@/constants/colors";
 import { HEROES } from "@/constants/heroes";
 import { StarField } from "@/components/StarField";
 import { StoryFull, EarnedBadge } from "@/constants/types";
-import { saveStory, saveStoryWithProfile, saveStoryScene, updateStreak, checkAndAwardBadges, markStoryRead, updateFeedback, setOnboardingComplete } from "@/lib/storage";
+import { saveStory, saveStoryWithProfile, saveStoryScene, updateStreak, checkAndAwardBadges, markStoryRead, updateFeedback } from "@/lib/storage";
+import { takePendingScenes } from "@/lib/scene-handoff";
 import { useProfile } from "@/lib/ProfileContext";
 
 const MODE_THEMES = {
@@ -138,12 +139,10 @@ function PulsingBadge({ emoji, color }: { emoji: string; color: string }) {
 }
 
 export default function CompletionScreen() {
-  const { heroId, mode, storyJson, isFirstStory, scenesJson } = useLocalSearchParams<{
+  const { heroId, mode, storyJson } = useLocalSearchParams<{
     heroId: string;
     mode: string;
     storyJson: string;
-    isFirstStory: string;
-    scenesJson: string;
   }>();
   const insets = useSafeAreaInsets();
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -166,9 +165,9 @@ export default function CompletionScreen() {
 
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    if (isFirstStory === "true") {
-      setOnboardingComplete().catch(() => {});
-    }
+    // Scene images arrive via the in-memory handoff (see lib/scene-handoff.ts);
+    // take them exactly once so they never leak into a later completion.
+    const scenes = takePendingScenes();
 
     const trackCompletion = async () => {
       if (!activeProfile || !hero) return;
@@ -178,13 +177,10 @@ export default function CompletionScreen() {
         if (storyData) {
           storyId = await saveStoryWithProfile(storyData, hero.id, mode || "classic", activeProfile.id);
           setSavedStoryId(storyId);
-          if (scenesJson) {
-            try {
-              const scenes: Record<string, string> = JSON.parse(scenesJson);
-              for (const [key, imageDataUri] of Object.entries(scenes)) {
-                await saveStoryScene(storyId, Number(key), imageDataUri);
-              }
-            } catch {}
+          if (scenes) {
+            for (const [key, imageDataUri] of Object.entries(scenes)) {
+              await saveStoryScene(storyId, Number(key), imageDataUri);
+            }
           }
           // best-effort: never block badge awarding on a storage write failure
           try {

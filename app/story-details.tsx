@@ -122,6 +122,7 @@ export default function StoryDetailsScreen() {
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
   const params = useLocalSearchParams<{
     storyId?: string;
+    heroId?: string;
     setting?: string;
     tone?: string;
     sidekick?: string;
@@ -143,7 +144,12 @@ export default function StoryDetailsScreen() {
         heroId: seed.suggestedHeroId || "hero-1",
         mode: seed.mode,
       }
-    : (STORY_DATA[storyId || "1"] || STORY_DATA["1"]);
+    : {
+        ...(STORY_DATA[storyId || "1"] || STORY_DATA["1"]),
+        // Entry points that pick a hero first (e.g. Quick Create's hero card)
+        // pass heroId; honor it over the preset card's default hero.
+        ...(params.heroId ? { heroId: params.heroId } : {}),
+      };
 
   const [childName, setChildName] = useState(activeProfile?.name || "");
   const [selectedSetting, setSelectedSetting] = useState(params.setting || "enchanted-forest");

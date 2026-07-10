@@ -96,6 +96,7 @@ Generates a complete story as a single JSON response.
 | childName | string | No | Child's name to weave into story |
 | sidekick | string | No | Companion character |
 | problem | string | No | Central challenge |
+| customPrompt | string | No | Free-form story idea from the child (classic mode; max 500 chars, sanitized) |
 | soundscape | string | No | `rain` \| `ocean` \| `crickets` \| `wind` \| `fire` \| `forest` (sleep mode) |
 | madlibWords | object | No | Word substitutions (madlibs mode) |
 

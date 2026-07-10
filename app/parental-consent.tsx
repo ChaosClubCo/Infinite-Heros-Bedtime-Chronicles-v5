@@ -12,7 +12,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { StarField } from "@/components/StarField";
 import Colors from "@/constants/colors";
-import { setParentConsent, getOnboardingComplete } from "@/lib/storage";
+import { setParentConsent } from "@/lib/storage";
+import { resolveLaunchRoute } from "@/lib/launch-gate";
 
 /** Build a simple arithmetic parent gate that a young child is unlikely to pass. */
 function makeChallenge() {
@@ -64,8 +65,13 @@ export default function ParentalConsentScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await setParentConsent();
-      const onboarded = await getOnboardingComplete();
-      router.replace(onboarded ? "/(tabs)" : "/welcome");
+      if (router.canGoBack()) {
+        // Re-viewing consent (pushed from Settings) — return where we came from.
+        router.back();
+      } else {
+        // First launch (this screen replaced the launch gate).
+        router.replace(await resolveLaunchRoute());
+      }
     } catch {
       setSubmitting(false);
     }

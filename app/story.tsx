@@ -19,6 +19,7 @@ import { fetch } from "expo/fetch";
 import { StoryFull } from "@/constants/types";
 import { MODE_THEME, MODE_VOICES, type StoryState } from "@/constants/story-theme";
 import { useLoadingMessages } from "@/lib/useLoadingMessages";
+import { setPendingScenes } from "@/lib/scene-handoff";
 import { useBackgroundMusic } from "@/lib/useBackgroundMusic";
 import { useStoryAudio } from "@/lib/useStoryAudio";
 import { useSceneGeneration } from "@/lib/useSceneGeneration";
@@ -56,6 +57,7 @@ type StoryRouteParams = {
   childName: string;
   sidekick: string;
   problem: string;
+  customPrompt: string;
 };
 
 export default function StoryScreen() {
@@ -75,6 +77,7 @@ export default function StoryScreen() {
     childName,
     sidekick,
     problem,
+    customPrompt,
   } = params;
   const insets = useSafeAreaInsets();
   const topInset = Platform.OS === "web" ? WEB_INSET_TOP : insets.top;
@@ -191,6 +194,7 @@ export default function StoryScreen() {
         if (tone) bodyData.tone = tone;
         if (sidekick) bodyData.sidekick = sidekick;
         if (problem) bodyData.problem = problem;
+        if (customPrompt) bodyData.customPrompt = customPrompt;
       }
       if (childName) bodyData.childName = childName;
 
@@ -219,6 +223,7 @@ export default function StoryScreen() {
     tone,
     sidekick,
     problem,
+    customPrompt,
     childName,
     clearSceneImage,
   ]);
@@ -256,13 +261,15 @@ export default function StoryScreen() {
   const handleStoryComplete = () => {
     if (!hero || !storyData) return;
     teardownPlayback();
+    // Scene images (base64 data URIs) are handed off in memory — they are far
+    // too large to serialize through navigation params.
+    setPendingScenes(sceneCacheRef.current);
     router.push({
       pathname: "/completion",
       params: {
         heroId: hero.id,
         mode: storyMode,
         storyJson: JSON.stringify(storyData),
-        scenesJson: JSON.stringify(sceneCacheRef.current),
       },
     });
   };
@@ -292,7 +299,9 @@ export default function StoryScreen() {
     return (
       <View style={[styles.container, styles.centered]}>
         <Text style={styles.errorText}>Hero not found</Text>
-        <Pressable onPress={() => router.back()}>
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)"))}
+        >
           <Text style={styles.errorLink}>Go Back</Text>
         </Pressable>
       </View>

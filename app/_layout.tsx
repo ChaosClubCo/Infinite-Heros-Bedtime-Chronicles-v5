@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/react-native";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Stack, router } from "expo-router";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -8,7 +8,6 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { useNetworkStatus } from "@/lib/useNetworkStatus";
-import { getOnboardingComplete, getConsentGiven } from "@/lib/storage";
 import { queryClient, setAuthTokenGetter } from "@/lib/query-client";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { ProfileProvider } from "@/lib/ProfileContext";
@@ -58,6 +57,7 @@ function RootLayoutNav() {
         animation: "fade",
       }}
     >
+      <Stack.Screen name="index" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
         name="parental-consent"
@@ -132,28 +132,12 @@ export default function RootLayout() {
     PlusJakartaSans_800ExtraBold,
   });
 
+  // The consent/onboarding redirect lives in app/index.tsx (the launch gate),
+  // which renders nothing until lib/launch-gate.ts resolves — so hiding the
+  // splash here can no longer flash the tabs at an un-consented install.
   useEffect(() => {
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
-      // COPPA gate: verifiable parental consent must come before any
-      // data-collecting / AI feature, so it takes precedence over onboarding.
-      Promise.all([getConsentGiven(), getOnboardingComplete()])
-        .then(([consented, onboarded]) => {
-          if (!consented) {
-            router.replace("/parental-consent");
-          } else if (!onboarded) {
-            router.replace("/welcome");
-          }
-        })
-        .catch((e) => {
-          // Fail safe: if we can't read consent/onboarding state, route to the
-          // consent gate rather than silently letting the app through (COPPA).
-          console.error(
-            "[layout] Failed to read consent/onboarding state, routing to consent gate",
-            e,
-          );
-          router.replace("/parental-consent");
-        });
     }
   }, [fontsLoaded, fontError]);
 
