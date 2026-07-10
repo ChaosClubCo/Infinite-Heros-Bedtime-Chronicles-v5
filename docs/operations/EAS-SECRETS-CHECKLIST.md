@@ -24,11 +24,10 @@ eas secret:create --scope project --name <NAME> --value <VALUE>
 
 | Secret Name | Description | Required For |
 |-------------|-------------|--------------|
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | Firebase Admin JSON string | Server-side auth in production; omit → dev mode (no auth) |
-| `EXPO_PUBLIC_FIREBASE_API_KEY` | Firebase client API key | Client Firebase Auth |
-| `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase auth domain (e.g. `your-project.firebaseapp.com`) | Client Firebase Auth |
-| `EXPO_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID | Client Firebase Auth |
-| `EXPO_PUBLIC_FIREBASE_APP_ID` | Firebase app ID | Client Firebase Auth |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key (server-only) | Server-side auth in production; omit → dev mode (no auth), 503 in production |
+| `SUPABASE_URL` | Server-side Supabase project URL | Server-side auth (falls back to `EXPO_PUBLIC_SUPABASE_URL`) |
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL | Client Supabase Auth |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key (bundled — not a secret) | Client Supabase Auth |
 
 ## Required — Voice Chat
 

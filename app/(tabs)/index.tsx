@@ -11,16 +11,15 @@ import {
   Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
 import { useProfile } from "@/lib/ProfileContext";
-import { getAllStories, getFavorites } from "@/lib/storage";
+import { getAllStories } from "@/lib/storage";
 import { CachedStory } from "@/constants/types";
 import { HEROES } from "@/constants/heroes";
 

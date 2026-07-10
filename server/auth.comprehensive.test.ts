@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ══════════════════════════════════════════════════════════════════
-// Firebase Auth Middleware Tests
+// Supabase Auth Middleware Tests
 // Tests the requireAuth middleware behavior in all scenarios.
 // ══════════════════════════════════════════════════════════════════
 
-// Mirror the auth logic for testing without importing firebase-admin
+// Mirror the auth logic for testing without importing @supabase/supabase-js
 describe('requireAuth middleware behavior', () => {
-  // ── Dev Mode (no Firebase config) ─────────────────────────────
-  describe('dev mode (FIREBASE_SERVICE_ACCOUNT_KEY not set)', () => {
+  // ── Dev Mode (no Supabase config) ─────────────────────────────
+  describe('dev mode (Supabase not configured)', () => {
     it('allows request without auth header', () => {
       const isConfigured = false;
       const result = isConfigured ? 'check-token' : 'skip-auth';
@@ -35,8 +35,8 @@ describe('requireAuth middleware behavior', () => {
     });
   });
 
-  // ── Production Mode (Firebase configured) ─────────────────────
-  describe('production mode (Firebase configured)', () => {
+  // ── Production Mode (Supabase configured) ─────────────────────
+  describe('production mode (Supabase configured)', () => {
     it('rejects request without Authorization header', () => {
       const authHeader: string | undefined = undefined;
       const hasBearerToken = authHeader?.startsWith('Bearer ');
@@ -77,41 +77,44 @@ describe('requireAuth middleware behavior', () => {
   });
 
   // ── Token Validation ──────────────────────────────────────────
-  describe('token decoding', () => {
-    it('extracts uid from decoded token', () => {
-      const decoded = { uid: 'user123', firebase: { sign_in_provider: 'google.com' } };
+  describe('token decoding (Supabase getUser result)', () => {
+    it('extracts uid from the Supabase user id', () => {
+      const supaUser = { id: 'user123', is_anonymous: false };
       const user = {
-        uid: decoded.uid,
-        isAnonymous: decoded.firebase?.sign_in_provider === 'anonymous',
+        uid: supaUser.id,
+        isAnonymous: supaUser.is_anonymous ?? false,
       };
       expect(user.uid).toBe('user123');
       expect(user.isAnonymous).toBe(false);
     });
 
     it('identifies anonymous sign-in', () => {
-      const decoded = { uid: 'anon456', firebase: { sign_in_provider: 'anonymous' } };
+      const supaUser = { id: 'anon456', is_anonymous: true };
       const user = {
-        uid: decoded.uid,
-        isAnonymous: decoded.firebase?.sign_in_provider === 'anonymous',
+        uid: supaUser.id,
+        isAnonymous: supaUser.is_anonymous ?? false,
       };
       expect(user.isAnonymous).toBe(true);
     });
 
-    it('handles missing firebase field', () => {
-      const decoded = { uid: 'user789' } as any;
+    it('handles missing is_anonymous field', () => {
+      const supaUser = { id: 'user789' } as { id: string; is_anonymous?: boolean };
       const user = {
-        uid: decoded.uid,
-        isAnonymous: decoded.firebase?.sign_in_provider === 'anonymous',
+        uid: supaUser.id,
+        isAnonymous: supaUser.is_anonymous ?? false,
       };
       expect(user.isAnonymous).toBe(false);
     });
 
-    it('handles various sign-in providers', () => {
-      const providers = ['google.com', 'apple.com', 'password', 'phone', 'anonymous'];
-      for (const provider of providers) {
-        const decoded = { uid: 'u', firebase: { sign_in_provider: provider } };
-        const isAnon = decoded.firebase.sign_in_provider === 'anonymous';
-        expect(isAnon).toBe(provider === 'anonymous');
+    it('treats only is_anonymous === true as anonymous', () => {
+      const cases: { is_anonymous?: boolean; expected: boolean }[] = [
+        { is_anonymous: true, expected: true },
+        { is_anonymous: false, expected: false },
+        { is_anonymous: undefined, expected: false },
+      ];
+      for (const c of cases) {
+        const isAnon = (c.is_anonymous ?? false) === true;
+        expect(isAnon).toBe(c.expected);
       }
     });
   });
@@ -146,38 +149,27 @@ describe('requireAuth middleware behavior', () => {
     });
   });
 
-  // ── Firebase Admin Initialization ─────────────────────────────
-  describe('Firebase Admin lazy init', () => {
-    it('returns null when FIREBASE_SERVICE_ACCOUNT_KEY is empty', () => {
-      const key = '';
-      expect(key ? 'init' : null).toBeNull();
+  // ── Supabase Client Initialization ────────────────────────────
+  describe('Supabase client lazy init', () => {
+    function canInit(url?: string, serviceRoleKey?: string) {
+      return !!(url && serviceRoleKey);
+    }
+    const url = 'https://example.supabase.co';
+
+    it('returns false when SUPABASE_SERVICE_ROLE_KEY is empty', () => {
+      expect(canInit(url, '')).toBe(false);
     });
 
-    it('returns null when FIREBASE_SERVICE_ACCOUNT_KEY is undefined', () => {
-      const key: string | undefined = undefined;
-      expect(key ? 'init' : null).toBeNull();
+    it('returns false when SUPABASE_SERVICE_ROLE_KEY is undefined', () => {
+      expect(canInit(url, undefined)).toBe(false);
     });
 
-    it('attempts init when key is present', () => {
-      const key = '{"type":"service_account"}';
-      expect(key ? 'init' : null).toBe('init');
+    it('returns false when the Supabase URL is missing', () => {
+      expect(canInit(undefined, 'service-role-key')).toBe(false);
     });
 
-    it('handles invalid JSON in service account key', () => {
-      const key = 'not-valid-json';
-      let parsed;
-      try {
-        parsed = JSON.parse(key);
-      } catch {
-        parsed = null;
-      }
-      expect(parsed).toBeNull();
-    });
-
-    it('handles valid JSON but wrong structure', () => {
-      const key = '{"wrong":"structure"}';
-      const parsed = JSON.parse(key);
-      expect(parsed.type).toBeUndefined();
+    it('initializes when both URL and service-role key are present', () => {
+      expect(canInit(url, 'service-role-key')).toBe(true);
     });
   });
 
@@ -200,10 +192,24 @@ describe('requireAuth middleware behavior', () => {
     it('error messages do not leak internal details', () => {
       const errorMessages = ['Authentication required', 'Invalid or expired token'];
       for (const msg of errorMessages) {
-        expect(msg).not.toContain('Firebase');
+        expect(msg).not.toContain('Supabase');
         expect(msg).not.toContain('stack');
         expect(msg).not.toContain('internal');
       }
+    });
+
+    it('maps only 401/403 to an auth failure; 429/4xx-misconfig/5xx/missing to 503', () => {
+      // Mirrors requireAuth: only a 401/403 from the auth server means the token is bad.
+      // Any other status — 429 rate-limit, 4xx misconfig, 5xx, or missing (network) — is an
+      // upstream/transient failure and must be retryable (503), never a user logout.
+      const classify = (status?: number) =>
+        status === 401 || status === 403 ? 401 : 503;
+      expect(classify(401)).toBe(401);
+      expect(classify(403)).toBe(401);
+      expect(classify(429)).toBe(503); // rate limited — retryable, not a bad token
+      expect(classify(400)).toBe(503); // misconfig — not a user-auth failure
+      expect(classify(500)).toBe(503);
+      expect(classify(undefined)).toBe(503);
     });
   });
 });

@@ -1,4 +1,5 @@
 import { ElevenLabsClient } from 'elevenlabs';
+import { logger } from './logger';
 
 async function getCredentials(): Promise<string> {
   const apiKey = process.env.ELEVENLABS_API_KEY;
@@ -191,6 +192,7 @@ export async function generateSpeech(text: string, voiceKey: string, modeOverrid
     }
     return Buffer.concat(chunks);
   } catch (err) {
+    logger.error({ err, voiceKey, textLength: text.length }, 'TTS generation failed');
     throw new Error(`TTS generation failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }

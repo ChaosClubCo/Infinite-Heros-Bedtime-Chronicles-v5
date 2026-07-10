@@ -10,20 +10,21 @@ AI-powered interactive bedtime story app for children ages 3-9. Kids create cust
 
 ## Tech Stack
 
-- **Frontend:** Expo SDK 54, React Native 0.85 (New Architecture), Expo Router v6 (file-based routing)
+- **Frontend:** Expo SDK ~55, React Native 0.86 (New Architecture), Expo Router v6 (file-based routing, single root `app/_layout.tsx` — all navigation params via `useLocalSearchParams<T>()` generics; never use untyped string routes)
 - **State:** TanStack React Query v5 (server state) + React Context (app settings, profiles)
 - **Local Storage:** AsyncStorage for stories, profiles, badges, streaks, parent controls
 - **Styling:** React Native StyleSheet + react-native-reanimated v4 for animations
 - **Fonts:** Nunito (primary), Plus Jakarta Sans (UI), Bangers (display/titles)
 - **Validation:** Zod v4
-- **Backend:** Express.js v5, TypeScript, Node.js 18+
+- **Backend:** Express.js v5, TypeScript, Node.js 20.19+ / 22.13+ (see `engines` in `package.json`)
 - **Database:** PostgreSQL + Drizzle ORM v0.45 (voice chat features only)
-- **Auth:** Firebase Admin (optional) — bearer-token middleware gated on `FIREBASE_SERVICE_ACCOUNT_KEY`
+- **Auth:** Supabase Auth (optional) — bearer-token (JWT) middleware gated on `SUPABASE_SERVICE_ROLE_KEY` + Supabase URL
 - **AI:** Multi-provider router with per-task fallback chains, circuit breakers, retry with jitter, and timeouts (see `server/ai/router.ts`). Chains: `story`: Anthropic → Gemini → OpenAI → Meta-Llama → xAI → Mistral → Cohere; `suggestion`: Gemini-first chain
 - **Observability:** pino structured logging, in-process metrics, load-shedding, idempotency cache, feature flags
 - **TTS:** ElevenLabs API (eleven_multilingual_v2 model, MP3 44.1kHz/128kbps, 9 narrator voices)
 - **Video:** OpenAI Sora 2 (optional)
 - **Build:** esbuild (server), Metro (client), Babel with React Compiler
+- **Android:** built via EAS (android-only build/submit profiles in `eas.json`; package `com.infinityheroes.bedtime`; SDK versions are managed by Expo defaults — not overridden in `app.json`)
 
 ## Project Structure
 
@@ -32,8 +33,9 @@ app/                    # Expo Router screens (file-based routing)
   _layout.tsx           # Root layout — providers: ErrorBoundary → QueryClient → Profile → Settings → Gesture → Keyboard
   (tabs)/               # Tab navigation (home, create, library, saved, profile)
     _layout.tsx          # Tab bar layout (5 tabs, 60px height + bottom inset)
-  story.tsx             # Story reading/playback composition shell (~386 lines; logic in lib/use* hooks, UI in components/Story*, fullScreen fade modal)
+  story.tsx             # Story reading/playback composition shell (~440 lines; logic in lib/use* hooks, UI in components/Story*, fullScreen fade modal)
   story-details.tsx     # Story customization wizard (slide from right)
+  story-seeds.tsx       # Browsable story-seed gallery (filter by theme + age; seeds in constants/story-seeds.ts, card UI in components/SeedCard.tsx)
   completion.tsx        # Post-story celebration + badge awarding (fullScreen fade modal)
   quick-create.tsx      # Fast onboarding hero creation (modal from bottom)
   madlibs.tsx           # Mad Libs mode wizard (slide from right)
@@ -67,7 +69,7 @@ constants/              # Types, hero templates, colors, timing
 lib/                    # Client utilities
   SettingsContext.tsx    # Unified settings provider (React Context)
   ProfileContext.tsx     # Child profile context
-  AuthContext.tsx        # Authentication context
+  AuthContext.tsx        # Supabase auth context (email/password; getIdToken() supplies the Bearer JWT)
   storage.ts            # AsyncStorage helpers
   storage.test.ts       # Storage unit tests
   storage.comprehensive.test.ts  # Extended storage test suite
@@ -80,7 +82,7 @@ server/                 # Express.js backend
   index.ts              # Server bootstrap, security middleware, CORS, graceful shutdown
   routes.ts             # Route composer: auth gate + registers domain modules, returns HTTP server (~50 lines)
   routes/               # Domain route modules (health, story, images, tts, music, suggest, video) + context.ts (singletons) + helpers.ts (rate-limit middleware, error/IP/cache-path helpers)
-  auth.ts               # Firebase Admin bearer-token middleware (optional, lazy-init)
+  auth.ts               # Supabase bearer-token (JWT) middleware (optional, lazy-init service-role client)
   validation.ts         # Zod request schemas + sanitizeString
   prompts.ts            # Story system/user prompt builders + CHILD_SAFETY_RULES
   rate-limit.ts         # Per-IP sliding-window rate limiter (in-memory Map with optional Cloudflare KV persistence)
@@ -130,7 +132,6 @@ docs/                   # Project documentation
   superpowers/plans/    # Maturity & hardening plans (2026-04-08; historical planning docs)
 api/                    # Vercel serverless entry point
   server.mjs            # Handler that imports createApp from server_dist
-patches/                # patch-package fixes for dependencies
 scripts/                # Build scripts
   build.js              # Expo static build script
   build-android.sh      # Android build script
@@ -157,6 +158,7 @@ scripts/                # Build scripts
 npm run server:dev          # Backend on port 5000 (tsx server/index.ts)
 npm run expo:dev            # Frontend on port 8081 (Replit environment)
 npx expo start              # Frontend (non-Replit)
+npm run dev                 # Both at once (dev:server & dev:expo — POSIX shells; on Windows run the two commands in separate terminals)
 
 # Build
 npm run server:build        # esbuild → server_dist/index.js (ESM format)
@@ -177,13 +179,18 @@ npm run test:coverage       # vitest run --coverage
 
 # Database
 npm run db:push             # Drizzle schema migration (needs DATABASE_URL)
+
+# Verify (compile_applet standard — required before every PR)
+npm run typecheck           # TypeScript type check (tsc --noEmit)
+npm run lint                # Expo lint
+npm test                    # Vitest unit tests
 ```
 
 ## Architecture
 
 ```
 [Expo Mobile App] → HTTPS/JSON → [Express Server (port 5000, 0.0.0.0)]
-                                    ├→ [Auth middleware] — Firebase bearer token (optional)
+                                    ├→ [Auth middleware] — Supabase bearer token / JWT (optional)
                                     ├→ [Rate limiter] — per-IP sliding window
                                     ├→ [Load shedding] — active-request ceiling
                                     ├→ [Idempotency cache] — 5-min dedup on POSTs
@@ -252,11 +259,12 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 - `GET /privacy` — Privacy policy HTML
 
 **Video (optional):**
+- `GET /api/video-available` — Whether video generation is configured
 - `POST /api/generate-video` — Create video via Sora 2
 - `GET /api/video-status/:id` — Check video job status
 - `GET /api/video/:id` — Retrieve generated video
 
-**Voice Chat (requires AI_INTEGRATIONS_OPENAI_API_KEY + AI_INTEGRATIONS_OPENAI_BASE_URL + DATABASE_URL):**
+**Voice Chat (requires AI_INTEGRATIONS_OPENAI_API_KEY + DATABASE_URL + the `voiceChatEnabled` feature flag — see `server/routes.ts`):**
 - `GET /api/conversations` — List conversations
 - `POST /api/conversations` — Create new conversation
 - `GET /api/conversations/:id` — Get conversation history
@@ -269,10 +277,12 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 
 ## Authentication
 
-- The server uses Firebase Admin (`server/auth.ts`) for token verification. Clients hit Firebase anonymous-auth on the web side (`lib/AuthContext.tsx`) and send the resulting ID token as a `Bearer` header.
+- The server uses Supabase Auth (`server/auth.ts`) for token verification: a lazy-init service-role client (`SUPABASE_SERVICE_ROLE_KEY` + `SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_URL`) validates the Bearer access token via `supabase.auth.getUser(token)`.
+- Clients sign in with Supabase email/password (`lib/AuthContext.tsx`, gated on `EXPO_PUBLIC_SUPABASE_URL` + `EXPO_PUBLIC_SUPABASE_ANON_KEY`) and send the session JWT as a `Bearer` header via `getIdToken()`.
 - `requireAuth` middleware attaches `req.user = { uid, isAnonymous }` and 401s on a missing or invalid token.
-- **Production guard:** when `NODE_ENV=production` and `FIREBASE_SERVICE_ACCOUNT_KEY` is unset, every auth-gated route returns 503. There is no `AUTH_DISABLED` opt-out — it was removed in the 2026-04 audit.
+- **Production guard:** when `NODE_ENV=production` and Supabase is not configured, every auth-gated route returns 503. There is no `AUTH_DISABLED` opt-out — it was removed in the 2026-04 audit.
 - In dev (no `NODE_ENV=production`), auth is skipped and an anonymous `req.user` is assigned from the client IP.
+- **`SUPABASE_SERVICE_ROLE_KEY` is server-only** — never read it into an `EXPO_PUBLIC_*` var or ship it in the client bundle.
 
 ## Code Conventions
 
@@ -378,7 +388,7 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 # AI Providers (via Replit integrations)
 AI_INTEGRATIONS_GEMINI_API_KEY=
 AI_INTEGRATIONS_OPENAI_API_KEY=
-AI_INTEGRATIONS_OPENAI_BASE_URL=     # Required for voice chat (Replit OpenAI connector base URL)
+AI_INTEGRATIONS_OPENAI_BASE_URL=     # Replit OpenAI connector base URL (used by the voice-chat integration when set; no longer required for route registration)
 AI_INTEGRATIONS_ANTHROPIC_API_KEY=
 AI_INTEGRATIONS_OPENROUTER_API_KEY=
 OPENAI_API_KEY=              # Direct key for video generation
@@ -387,8 +397,11 @@ OPENAI_API_KEY=              # Direct key for video generation
 ELEVENLABS_API_KEY=          # Optional: if set, used directly; otherwise falls back to Replit ElevenLabs connector
 DATABASE_URL=                # PostgreSQL (required for voice chat only)
 
-# Authentication (optional)
-FIREBASE_SERVICE_ACCOUNT_KEY=  # JSON string; enables Firebase Admin bearer-token auth on POST endpoints. If unset, auth is skipped and req.user falls back to IP-based anonymous identity.
+# Authentication (optional — Supabase)
+SUPABASE_URL=                  # Server-side Supabase project URL (falls back to EXPO_PUBLIC_SUPABASE_URL)
+SUPABASE_SERVICE_ROLE_KEY=     # Server-only; enables Supabase bearer-token auth on POST endpoints. If unset, auth is skipped in dev (req.user falls back to IP-based anonymous identity) and returns 503 in production.
+EXPO_PUBLIC_SUPABASE_URL=      # Client: Supabase project URL (bundled — not a secret)
+EXPO_PUBLIC_SUPABASE_ANON_KEY= # Client: Supabase anon key (bundled — not a secret)
 
 # Server Config (optional)
 PORT=5000                    # Default 5000
@@ -412,7 +425,7 @@ REPLIT_DOMAINS=              # Production domains (comma-separated)
 EXPO_PUBLIC_DOMAIN=          # Client API domain (set by dev script)
 ```
 
-Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: OpenAI, Anthropic, ElevenLabs, DATABASE_URL, FIREBASE_SERVICE_ACCOUNT_KEY, Cloudflare KV vars.
+Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: OpenAI, Anthropic, ElevenLabs, DATABASE_URL, Supabase auth vars, Cloudflare KV vars.
 
 ## Story Response Schema (AI must return)
 ```json
@@ -496,7 +509,7 @@ Nova (Guardian of Light), Coral (Heart of the Ocean), Orion (Star of Friendship)
 | Story Legend | Complete 25 total stories |
 | Word Wizard | Learn 5 vocabulary words |
 
-See `docs/TEST-COVERAGE-ANALYSIS.md` for known logic bugs in badge evaluation (e.g. `vocab_5` currently counts total stories, `all_heroes` doesn't include custom heroes).
+Badge evaluation is centralized in `lib/badges.ts` (with tests in `lib/badges.test.ts`). The historical `vocab_5` and `all_heroes` logic bugs were fixed in PR #247 — see `docs/TEST-COVERAGE-ANALYSIS.md` for remaining known hazards.
 
 ## Testing
 
@@ -520,11 +533,11 @@ npm run test:coverage   # vitest run --coverage
 - **Vercel deployment:** `api/server.mjs` serverless handler wraps `server_dist/index.js` via `createApp()`. Config in `vercel.json` (60s max duration, all routes rewrite to `/api/server`)
 - **React Compiler** enabled via app.json experiments
 - **New Architecture** (React Native) enabled
-- **Typed Routes** enabled for Expo Router
+- **Typed Routes** enabled for Expo Router — all route params via `useLocalSearchParams<T>()` generics; never access params without type parameters
 - **patch-package** used for dependency fixes (applied via postinstall)
 - Database (PostgreSQL) only required for voice chat; core story functionality uses AsyncStorage only
 - Server uses esbuild for production bundling to `server_dist/`
-- Voice chat routes only registered when `AI_INTEGRATIONS_OPENAI_API_KEY`, `AI_INTEGRATIONS_OPENAI_BASE_URL`, and `DATABASE_URL` are set
+- Voice chat routes only registered when `AI_INTEGRATIONS_OPENAI_API_KEY` and `DATABASE_URL` are set and the `voiceChatEnabled` feature flag is on (`server/routes.ts`)
 - React Query configured with `staleTime: Infinity`, `retry: false`, `refetchOnWindowFocus: false`
 - TTS audio cached at `/tmp/tts-cache` with configurable max age and max size
 - 12 randomized art styles for scene illustrations (watercolor, cel-shaded, paper cutout, gouache, crayon, digital, retro storybook, ink wash, pastel, pop art, chalk, flat design)
@@ -532,15 +545,15 @@ npm run test:coverage   # vitest run --coverage
 
 ## Known Gotchas
 
-- `app/story.tsx` is a ~386-line composition shell — playback/music/scene/video/timer logic lives in `lib/use*.ts` hooks and presentational pieces in `components/Story*`; mode constants in `constants/story-theme.ts`
+- `app/story.tsx` is a ~440-line composition shell — playback/music/scene/video/timer logic lives in `lib/use*.ts` hooks and presentational pieces in `components/Story*`; mode constants in `constants/story-theme.ts`
 - `server/routes.ts` is a ~50-line composer — handlers live in `server/routes/<domain>.ts` modules; shared singletons in `server/routes/context.ts`, request plumbing in `server/routes/helpers.ts`
-- **`npm run dev` does not exist** — use `npm run server:dev` + `npm run expo:dev` separately
+- **`npm run dev` exists but is POSIX-only** — it runs `dev:server & dev:expo` with a shell `&`; on Windows run `npm run server:dev` and `npm run expo:dev` in separate terminals
+- **Never use `./gradlew` or `gradlew`** — EAS Build manages Gradle internally; use `npx expo` or `eas` CLI commands instead
 - **`expo:dev` requires Replit env vars** — outside Replit, use `npx expo start` directly
-- **`patches/expo-asset+12.0.12.patch`** — patch-package fix for Expo dev server HTTPS; removed when SDK 55+
 - AI router automatically falls back through providers, with circuit breakers and retry — check `server/ai/router.ts`
 - ElevenLabs voices are hardcoded in `server/elevenlabs.ts` with specific voice IDs
 - Expo Router v6 file-based routing — screen paths map to file paths in `app/`
-- `postinstall` runs `patch-package` — don't skip it when installing dependencies
+- `postinstall` runs `patch-package || true` — currently a no-op (`patches/` was removed after the SDK 55 upgrade) but kept so future patches apply automatically
 - Metro blocklist includes `.local/state/workflow-logs/**`
 - Legacy `@infinity_heroes_preferences` key auto-migrates to `@infinity_heroes_app_settings`
 - Server binds to `0.0.0.0` with `reusePort: true`
@@ -549,7 +562,7 @@ npm run test:coverage   # vitest run --coverage
 - **`shared/schema.ts` vs `shared/models/chat.ts`** — schema.ts re-exports from models/chat.ts; both in drizzle.config.ts
 - **`getReadStories` / `markStoryRead`** — wired into library screen (unread dot indicator) and completion screen (marks story read on completion)
 - **`server/replit_integrations/`** — backend routes are functional and the voice chat UI exists at `app/voice-chat.tsx` (reachable from the profile tab)
-- **Firebase auth is optional** — if `FIREBASE_SERVICE_ACCOUNT_KEY` is unset, all POSTs are treated as anonymous with IP-based rate-limit identity
+- **Supabase auth is optional** — if `SUPABASE_SERVICE_ROLE_KEY` (+ Supabase URL) is unset, all POSTs in dev are treated as anonymous with IP-based rate-limit identity (production returns 503)
 - **COPPA consent gate** — `app/_layout.tsx` checks `getConsentGiven()` before `getOnboardingComplete()`; an un-consented install is routed to `app/parental-consent.tsx` first. Consent is keyed by `CONSENT_VERSION` (`constants/types.ts`) — bump it to re-prompt existing installs when privacy practices change
 - **AI router JSON extraction** — `router.ts` uses `extractFirstJson()` (balanced-brace scan that skips string literals), not a greedy regex; callers consume `response.parsedJson` when `jsonMode` is set
 - **Streaming model field** — `router.ts` reports the provider's `textModel` (the concrete model ID) on streaming chunks, falling back to `provider.name` only when `textModel` is unset

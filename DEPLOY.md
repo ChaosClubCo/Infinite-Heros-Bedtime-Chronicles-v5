@@ -61,15 +61,10 @@ Expo's `typescript@^5.0.0` peer-dep range. The fix:
 That's already on `main` — `npm ci` now succeeds. The only remaining
 blocker is the Hobby commit-author wall described above.
 
-## Caveat — the web bundle
+## The web bundle (resolved)
 
-`vercel.json` runs `npm run server:build` only. The Expo web bundle
-(`static-build/`) is **not** committed and is **not** built by that
-command. The serverless function will deploy green, but the web UI
-may render empty until either:
-
-- the build command is updated to also produce `static-build/`, or
-- `static-build/` is committed.
-
-Preview deploys with the same config have been going green, so this is
-flagged but non-blocking for the immediate "unbreak production" goal.
+`vercel.json`'s `buildCommand` now runs `npm run server:build` **and**
+`npx expo export --platform web --output-dir static-build`, and the
+serverless function bundles `static-build/**` via
+`functions.includeFiles`. The web UI ships with every deploy — no need
+to commit `static-build/`.

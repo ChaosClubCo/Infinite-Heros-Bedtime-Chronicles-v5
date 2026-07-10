@@ -75,6 +75,22 @@ export async function setParentConsent(): Promise<void> {
   await AsyncStorage.setItem(PARENT_CONSENT_KEY, JSON.stringify(record));
 }
 
+/**
+ * COPPA parental-deletion-rights support: removes every AsyncStorage key this
+ * app owns (profiles, stories, badges, streaks, settings, consent record,
+ * custom heroes, etc.) so a parent can wipe all locally-stored data for their
+ * child. Keys are discovered by prefix rather than hardcoded so newly added
+ * storage helpers are covered automatically. Does not touch the Supabase
+ * session — call `signOut()` separately for that.
+ */
+export async function clearAllData(): Promise<void> {
+  const keys = await AsyncStorage.getAllKeys();
+  const appKeys = keys.filter((k) => k.startsWith('@infinity_heroes_'));
+  if (appKeys.length > 0) {
+    await AsyncStorage.removeMany(appKeys);
+  }
+}
+
 export async function getFavorites(): Promise<string[]> {
   try {
     const data = await AsyncStorage.getItem(FAVORITES_KEY);

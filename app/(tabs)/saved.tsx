@@ -6,8 +6,6 @@ import {
   Platform,
   FlatList,
   Pressable,
-  Alert,
-  Dimensions,
   Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,13 +15,11 @@ import { useFocusEffect, router } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
-import { useProfile } from "@/lib/ProfileContext";
 import { HEROES } from "@/constants/heroes";
 
 import { CachedStory } from "@/constants/types";
-import { getAllStories, deleteStory, getFavorites, toggleFavorite } from "@/lib/storage";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+import { getAllStories, getFavorites, toggleFavorite } from "@/lib/storage";
+import { confirmDestructive } from "@/lib/confirmDestructive";
 
 const MODE_COLORS: Record<string, string> = {
   classic: "#6366f1",
@@ -45,9 +41,7 @@ function formatDate(timestamp: number): string {
 export default function SavedScreen() {
   const insets = useSafeAreaInsets();
   const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const { activeProfile } = useProfile();
   const [savedStories, setSavedStories] = useState<CachedStory[]>([]);
-  const [favorites, setFavorites] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useFocusEffect(
@@ -62,28 +56,20 @@ export default function SavedScreen() {
         if (!cancelled) {
           const favStories = allStories.filter((s) => favIds.includes(s.id));
           setSavedStories(favStories);
-          setFavorites(favIds);
           setIsLoading(false);
         }
       }
       load();
       return () => { cancelled = true; };
-    }, [activeProfile])
+    }, [])
   );
 
-  const handleUnfavorite = async (id: string, title: string) => {
-    Alert.alert("Remove from Saved", `Remove "${title}" from your saved stories?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: async () => {
-          const updated = await toggleFavorite(id);
-          setFavorites(updated);
-          setSavedStories((prev) => prev.filter((s) => s.id !== id));
-        },
-      },
-    ]);
+  const handleUnfavorite = (id: string, title: string) => {
+    confirmDestructive("Remove from Saved", `Remove "${title}" from your saved stories?`, "Remove", () => {
+      toggleFavorite(id)
+        .then(() => setSavedStories((prev) => prev.filter((s) => s.id !== id)))
+        .catch((err) => console.error("Failed to remove favorite", err));
+    });
   };
 
   const getHero = (heroId: string) => HEROES.find((h) => h.id === heroId);

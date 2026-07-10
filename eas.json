@@ -13,7 +13,7 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "development",
-        "EXPO_PUBLIC_API_URL": ""
+        "EXPO_PUBLIC_API_URL": "https://www.bedtime-chronicles.com"
       }
     },
     "preview": {
@@ -23,7 +23,7 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "preview",
-        "EXPO_PUBLIC_API_URL": ""
+        "EXPO_PUBLIC_API_URL": "https://www.bedtime-chronicles.com"
       }
     },
     "production": {
@@ -33,7 +33,7 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "production",
-        "EXPO_PUBLIC_API_URL": ""
+        "EXPO_PUBLIC_API_URL": "https://www.bedtime-chronicles.com"
       }
     }
   },

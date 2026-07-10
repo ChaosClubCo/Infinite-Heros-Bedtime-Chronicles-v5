@@ -39,7 +39,7 @@ All data in this section is stored exclusively on the user's device using React 
 
 The Express backend maintains:
 
-- **Rate-limit map** (`server/rate-limit.ts`): keyed by Firebase UID (when auth is enabled) or client IP address. Stores hit count and reset timestamp. Cleared on server restart. Never persisted to disk.
+- **Rate-limit map** (`server/rate-limit.ts`): keyed by Supabase-authenticated UID (when auth is enabled) or client IP address. Stores hit count and reset timestamp. Cleared on server restart. Never persisted to disk.
 - **Idempotency cache** (`server/idempotency.ts`): keyed by a hash of the story request body. TTL of 5 minutes. Never persisted to disk.
 - **TTS audio cache** (`/tmp/tts-cache/`): story narration MP3 files. File names are MD5 hashes of `voiceKey:mode:text`. Contains rendered audio of story text (which may include a child name if the parent provided one). Automatically cleaned up after 24 hours.
 
@@ -50,7 +50,7 @@ The Express backend maintains:
 The pino logger (`server/logger.ts`, `server/index.ts`) records:
 
 - HTTP method, path, status code, and duration for each `/api/*` request
-- Firebase UID used as the rate-limit key (included in log context indirectly)
+- Supabase-authenticated UID used as the rate-limit key (included in log context indirectly)
 - Error details (sanitized — stack traces are stripped before logging)
 - Provider and model name for successful AI and TTS calls
 
@@ -60,12 +60,12 @@ The pino logger (`server/logger.ts`, `server/index.ts`) records:
 
 ## 3. Data Sent to Third Parties
 
-### 3.1 Firebase (Google) — Anonymous Authentication
+### 3.1 Supabase — Authentication
 
-- **What is sent:** The Firebase SDK (`lib/AuthContext.tsx`) calls `signInAnonymously()` on app launch. This contacts Firebase Auth servers and returns an opaque anonymous UID.
-- **What is NOT sent:** No name, email, phone, or any user-provided personal information. Anonymous sign-in by design provides only a rotating UID with no PII linkage.
-- **Persistence:** The Firebase UID is ephemeral; it is used server-side only as a rate-limit key and is not stored in any database.
-- **Firebase's COPPA posture:** Google Firebase anonymous auth does not collect personal information. However, operators are responsible for their own COPPA compliance and must ensure Firebase's data processing terms are reviewed.
+- **What is sent:** The Supabase client (`lib/AuthContext.tsx`) authenticates via email/password sign-in, persisting the session in AsyncStorage. The server validates the resulting JWT via `supabase.auth.getUser(token)` (`server/auth.ts`). When Supabase is not configured, the app runs unauthenticated with an IP-derived anonymous identity (dev only — production returns 503).
+- **What is NOT sent to AI/TTS providers:** The Supabase account email/password never leaves the Supabase auth flow — it is not included in AI or TTS provider payloads.
+- **Persistence:** The authenticated UID is used server-side only as a rate-limit key and is not stored in any database by this app's own code paths.
+- **Supabase's COPPA posture:** Operators are responsible for their own COPPA compliance and must ensure Supabase's data processing terms are reviewed, and — since this app now collects a parent/adult email address for sign-in — that this collection is disclosed and covered by the consent/privacy notice.
 
 ### 3.2 AI Providers — Story Generation, Avatar, Scene, and Suggestion Endpoints
 
@@ -113,13 +113,13 @@ The following fields from user input are transmitted to whichever AI provider is
 
 ### 3.4 What Is NOT Collected or Transmitted
 
-- No email addresses
+- No email addresses **from children** — the only email collected is the parent/adult's own sign-in email via Supabase Auth (§3.1); it is never sent to AI or TTS providers
 - No phone numbers
 - No physical addresses
 - No photos or biometric data
 - No device advertising identifiers (IDFA/GAID)
 - No persistent cross-app or cross-device identifiers tied to personal information
-- No analytics or behavioral tracking SDKs (no Mixpanel, Amplitude, Segment, Firebase Analytics, or equivalent)
+- No analytics or behavioral tracking SDKs (no Mixpanel, Amplitude, Segment, or equivalent)
 - No advertising networks or ad SDKs
 - No social login or social sharing
 - No crash reporting service that transmits PII (no Sentry, Bugsnag, or equivalent installed)
@@ -137,11 +137,11 @@ The following fields from user input are transmitted to whichever AI provider is
 | Story feedback text | Optional | AsyncStorage (device only) | No | Compliant | Free text; no server upload path exists. |
 | Hero customization | Yes | AsyncStorage + AI providers | Yes — to AI providers | **Needs DPA review** | Not inherently PII; fictional content. |
 | Story content | Yes | AsyncStorage + ElevenLabs | Partial — TTS text to ElevenLabs | **Needs DPA review** | May contain child name. |
-| Firebase anonymous UID | Yes | In-memory rate limiter | Yes — to Firebase Auth | Compliant | No PII; anonymous only. No email/password. |
+| Supabase auth UID | Yes | In-memory rate limiter | Yes — to Supabase Auth | Compliant | Used only as an opaque rate-limit key server-side. |
 | Behavioral data (streaks, badges) | Yes | AsyncStorage (device only) | No | Compliant | Stored locally; never uploaded. |
 | IP address | Yes | Server rate-limit map (in-memory) | No | Compliant | Ephemeral; not logged; not stored. |
 | Request metadata (method, path, status) | Yes | Server logs | No | Compliant | No PII in structured log fields. |
-| Email / account credentials | No | — | — | Compliant — not collected | |
+| Parent/adult sign-in email | Yes | Supabase Auth (not this app's database) | Yes — to Supabase Auth only | Compliant | Adult account credential, not child PII; never sent to AI/TTS providers. |
 | Advertising identifiers | No | — | — | Compliant — not collected | |
 | Analytics behavioral profiles | No | — | — | Compliant — not collected | |
 
@@ -240,14 +240,11 @@ during submission (Phase 3/5), and confirm the contact email
 
 **Remaining recommendation:** For strongest protection, migrate the PIN storage to `expo-secure-store` (iOS Keychain / Android Keystore) so the hashed value is also stored in hardware-backed secure storage rather than plain AsyncStorage. This is a future hardening step, not a COPPA blocker.
 
-### GAP 6 — No Data Deletion Mechanism (Medium)
+### GAP 6 — No Data Deletion Mechanism ✅ Resolved
 
 **Risk:** Medium. COPPA grants parents the right to request deletion of their child's personal information.
 
-**Recommendation:**
-1. Expose a "Delete All Data" option in the app that calls `AsyncStorage.clear()` and signs out the Firebase anonymous user.
-2. Document the deletion procedure in the Privacy Policy.
-3. Because no child data is currently stored server-side (GAP 2 remediation pending), server-side deletion is only needed for: (a) TTS cache files (auto-expire after 24 hours; manual purge can be added), and (b) Firebase anonymous UIDs (these can be deleted via Firebase Admin SDK).
+**Resolution:** A "Delete All Data" option is available under Settings → Privacy & Data (`app/settings.tsx`). It calls `clearAllData()` (`lib/storage.ts`), which removes every `@infinity_heroes_*` AsyncStorage key on-device, then signs out of the Supabase session (`signOut()` from `lib/AuthContext.tsx`) and returns the user to the parental-consent gate. Server-side, no child data is stored outside the TTS cache, which already auto-expires after 24 hours (`server/tts-cache.ts`).
 
 ### GAP 7 — Story Feedback Free-Text Has No Length Limit (Low)
 
@@ -255,11 +252,11 @@ during submission (Phase 3/5), and confirm the contact email
 
 **Recommendation:** Enforce a reasonable character limit (e.g., 500 characters) on the feedback input UI and in the storage helper.
 
-### GAP 8 — Firebase DPA and COPPA Verification (Low–Medium)
+### GAP 8 — Supabase DPA and COPPA Verification (Low–Medium)
 
-**Risk:** Low to medium. Firebase anonymous auth does not transmit PII, but the operator must verify that the Firebase project is enrolled in Google's applicable data processing terms.
+**Risk:** Low to medium. Supabase auth collects a parent/adult email for sign-in but does not transmit child PII, and the operator must verify that the Supabase project has applicable data processing terms accepted.
 
-**Recommendation:** In the Firebase console, confirm that "Data Processing and Security Terms" (which include the COPPA certification addendum) are accepted for the project.
+**Recommendation:** In the Supabase dashboard, confirm the org has accepted Supabase's Data Processing Agreement / applicable terms.
 
 ---
 
@@ -271,8 +268,8 @@ during submission (Phase 3/5), and confirm the contact email
 |---|---|
 | Analytics/tracking SDKs | Not present — ✅ Compliant |
 | Advertising | Not present — ✅ Compliant |
-| Email/account collection | Not present — ✅ Compliant |
-| Anonymous auth (Firebase) | ✅ Compliant with caveats (verify Firebase DPA in console — see GAP 8) |
+| Email/account collection | Parent/adult sign-in email only (Supabase Auth) — ✅ Compliant, not child PII |
+| Auth (Supabase) | ✅ Compliant with caveats (verify Supabase DPA — see GAP 8) |
 | Child name collection | Optional; ⚠️ **Requires DPAs with AI providers or removal from server calls (GAP 2)** |
 | Child age collection | Optional; ⚠️ **Requires DPAs with AI providers or removal from server calls (GAP 2)** |
 | AI provider data processing | ⚠️ **Requires signed DPAs with each active provider (Gemini, OpenAI, Anthropic, OpenRouter)** |
@@ -280,7 +277,7 @@ during submission (Phase 3/5), and confirm the contact email
 | Parental consent mechanism | ✅ Implemented (2026-06-11) — `app/parental-consent.tsx` with parent gate + consent affirmation |
 | Privacy policy / parental notice | ✅ Implemented (2026-06-11) — `app/privacy.tsx` (in-app, offline) + `GET /privacy` (server) |
 | PIN code security | ✅ SHA-256 hashed with per-user salt via expo-crypto |
-| Data deletion rights | ⚠️ **No in-app deletion UI yet (GAP 6)** — TTS cache auto-expires after 24 h; profile data stored on-device only |
+| Data deletion rights | ✅ In-app "Delete All Data" (Settings → Privacy & Data) — TTS cache also auto-expires after 24 h |
 
 ---
 
@@ -289,7 +286,7 @@ during submission (Phase 3/5), and confirm the contact email
 - FTC COPPA Rule: https://www.ftc.gov/legal-library/browse/rules/childrens-online-privacy-protection-rule-coppa
 - FTC COPPA Guidance for App Developers: https://www.ftc.gov/tips-advice/business-center/guidance/complying-coppa-frequently-asked-questions
 - 16 C.F.R. Part 312 (full rule text): https://www.ecfr.gov/current/title-16/chapter-I/subchapter-C/part-312
-- Google Firebase Data Processing Terms: https://firebase.google.com/terms/data-processing-terms
+- Supabase Data Processing Agreement: https://supabase.com/legal/dpa
 - OpenAI Business Terms (including DPA): https://openai.com/policies/business-terms/
 - Anthropic Usage Policies and DPA: https://www.anthropic.com/legal/commercial-terms
 - ElevenLabs Terms of Service: https://elevenlabs.io/terms-of-use

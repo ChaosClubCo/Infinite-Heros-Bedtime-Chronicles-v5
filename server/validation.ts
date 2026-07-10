@@ -109,11 +109,17 @@ export type SceneRequest = z.output<typeof SceneRequestSchema>;
 
 export const TtsRequestSchema = z.object({
   text: z.string({ message: 'Text is required' }).min(1, 'Text is required').max(MAX_TTS_TEXT_LENGTH, `Text too long. Maximum ${MAX_TTS_TEXT_LENGTH} characters.`),
-  voice: z.string().optional().default('moonbeam').transform((s) => s.slice(0, 20).toLowerCase()),
+  voice: z.string().optional().default('moonbeam').transform((s) => s.slice(0, 20).trim().toLowerCase()),
   mode: z.string().optional().transform((s) => s ? s.slice(0, 20) : undefined),
 });
 
 export type TtsRequest = z.output<typeof TtsRequestSchema>;
+
+export const TtsPreviewRequestSchema = z.object({
+  voice: z.string().optional().default('moonbeam').transform((s) => s.slice(0, 20).trim().toLowerCase()),
+});
+
+export type TtsPreviewRequest = z.output<typeof TtsPreviewRequestSchema>;
 
 export const VideoRequestSchema = z.object({
   sceneText: truncated(2000).refine((s) => s.length > 0, { message: 'Scene text is required' }),

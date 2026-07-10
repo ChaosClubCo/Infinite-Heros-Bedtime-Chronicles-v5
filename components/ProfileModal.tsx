@@ -18,6 +18,7 @@ import Colors from "@/constants/colors";
 import { ChildProfile, AVATAR_EMOJIS } from "@/constants/types";
 import { HEROES } from "@/constants/heroes";
 import { useProfile } from "@/lib/ProfileContext";
+import { confirmDestructive } from "@/lib/confirmDestructive";
 import * as Crypto from "expo-crypto";
 
 interface Props {
@@ -90,9 +91,16 @@ export function ProfileModal({ visible, onClose }: Props) {
     setScreen("edit");
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string, name: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    await removeProfile(id);
+    confirmDestructive(
+      "Delete Profile",
+      `Delete ${name}'s profile? Their stories, badges, and streaks will be removed and this can't be undone.`,
+      "Delete",
+      () => {
+        removeProfile(id).catch((err) => console.error("Failed to delete profile", err));
+      }
+    );
   };
 
   const handleSelect = async (id: string) => {
@@ -196,6 +204,7 @@ export function ProfileModal({ visible, onClose }: Props) {
             <Pressable
               onPress={() => { resetForm(); setScreen("list"); }}
               style={styles.backBtn}
+              hitSlop={8}
               accessibilityLabel="Go back"
               accessibilityRole="button"
             >
@@ -207,7 +216,7 @@ export function ProfileModal({ visible, onClose }: Props) {
           <Text style={styles.headerTitle}>
             {screen === "create" ? "New Profile" : screen === "edit" ? "Edit Profile" : "Profiles"}
           </Text>
-          <Pressable onPress={handleCloseModal} style={styles.closeBtn} accessibilityLabel="Close" accessibilityRole="button">
+          <Pressable onPress={handleCloseModal} style={styles.closeBtn} hitSlop={8} accessibilityLabel="Close" accessibilityRole="button">
             <Ionicons name="close" size={22} color="rgba(255,255,255,0.7)" />
           </Pressable>
         </View>
@@ -265,7 +274,7 @@ export function ProfileModal({ visible, onClose }: Props) {
                       <Ionicons name="pencil-outline" size={16} color="rgba(255,255,255,0.4)" />
                     </Pressable>
                     <Pressable
-                      onPress={() => handleDelete(p.id)}
+                      onPress={() => handleDelete(p.id, p.name)}
                       style={styles.editBtn}
                       hitSlop={8}
                       accessibilityLabel={`Delete profile: ${p.name}`}

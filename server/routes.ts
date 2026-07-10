@@ -11,6 +11,26 @@ import { registerTtsRoutes } from "./routes/tts";
 import { registerMusicRoutes } from "./routes/music";
 import { registerSuggestRoutes } from "./routes/suggest";
 import { registerVideoRoutes } from "./routes/video";
+import { registerGithubWebhookRoute } from "./routes/github-webhook";
+
+/**
+ * Auth-gate predicate for `/api/*` requests (paths are relative to the `/api` mount,
+ * e.g. `/conversations/1`, not `/api/conversations/1`).
+ *
+ * GET requests skip auth by default since most GETs (health, voices, music, etc.)
+ * serve public catalog data. GET /api/conversations* is the exception: it returns
+ * per-user voice-chat history, so it must go through requireAuth like the writes do
+ * — otherwise every caller resolves to the same "anonymous" identity and can read
+ * anyone else's conversations.
+ *
+ * /github/webhook is exempt: GitHub cannot supply a Supabase bearer token, and
+ * the route authenticates the caller itself via HMAC (X-Hub-Signature-256).
+ */
+export function requiresAuthGate(method: string, path: string): boolean {
+  if (path === '/github/webhook' || path === '/github/webhook/') return false;
+  if (method === 'GET') return path.startsWith('/conversations');
+  return true;
+}
 
 /**
  * Route composer. Installs the auth gate, then registers each domain module.
@@ -20,10 +40,8 @@ import { registerVideoRoutes } from "./routes/video";
 export async function registerRoutes(app: Express): Promise<Server> {
   logProviderStatus();
 
-  // Auth middleware applied before all domain routes — POST /api/* requires a valid token.
-  // GET endpoints (health, voices, music, etc.) skip auth.
   app.use('/api', async (req, res, next) => {
-    if (req.method === 'GET') return next();
+    if (!requiresAuthGate(req.method, req.path)) return next();
     return requireAuth(req, res, next);
   });
 
@@ -34,6 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerMusicRoutes(app);
   registerSuggestRoutes(app);
   registerVideoRoutes(app);
+  registerGithubWebhookRoute(app);
 
   if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.DATABASE_URL && isFeatureEnabled('voiceChatEnabled')) {
     const { registerAudioRoutes } = await import("./replit_integrations/audio");

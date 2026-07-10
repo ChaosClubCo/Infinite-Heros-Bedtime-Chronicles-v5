@@ -23,7 +23,7 @@ An AI-powered interactive bedtime story app for children ages 3–9. Kids create
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Mobile Framework | Expo (React Native) | SDK 55 / RN 0.85.2 |
+| Mobile Framework | Expo (React Native) | SDK 55 / RN 0.86.0 |
 | Router | Expo Router (file-based) | v6 |
 | Backend | Express.js (Node.js) | v5 |
 | Language | TypeScript | 6.0 (strict) |
@@ -47,7 +47,7 @@ An AI-powered interactive bedtime story app for children ages 3–9. Kids create
 ## Quick Start
 
 ```bash
-# 1. Install dependencies (patch-package runs automatically in postinstall)
+# 1. Install dependencies
 npm install
 
 # 2. Copy and configure environment variables
@@ -75,11 +75,9 @@ See [`.env.example`](./.env.example) for all variables with inline descriptions.
 | `AI_INTEGRATIONS_OPENROUTER_BASE_URL` | Optional | Custom/proxy base URL override for OpenRouter API |
 | `ELEVENLABS_API_KEY` | Optional | TTS narration |
 | `DATABASE_URL` | Optional | PostgreSQL — required for voice chat |
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | Optional (prod required) | Firebase Admin; omit to bypass auth in dev |
-| `EXPO_PUBLIC_FIREBASE_API_KEY` | Optional | Client Firebase config |
-| `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` | Optional | Client Firebase config |
-| `EXPO_PUBLIC_FIREBASE_PROJECT_ID` | Optional | Client Firebase config |
-| `EXPO_PUBLIC_FIREBASE_APP_ID` | Optional | Client Firebase config |
+| `SUPABASE_SERVICE_ROLE_KEY` | Optional (prod required) | Supabase server-side token verification; omit to bypass auth in dev. Server-only — never expose client-side |
+| `EXPO_PUBLIC_SUPABASE_URL` | Optional (prod required) | Supabase project URL (client) |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Optional (prod required) | Supabase anon/public key (client) |
 | `EXPO_PUBLIC_API_URL` | Optional | Override API server base URL |
 | `PORT` | Optional | Server port (default: 5000) |
 | `RATE_LIMIT_MAX` | Optional | Requests per window (default: 10) |
@@ -87,13 +85,14 @@ See [`.env.example`](./.env.example) for all variables with inline descriptions.
 | `STORY_MAX_TOKENS` | Optional | Per-call LLM token ceiling for story generation, cost guard (default: 8192) |
 | `SUGGEST_MAX_TOKENS` | Optional | Per-call LLM token ceiling for settings suggestions, cost guard (default: 2048) |
 | `OPENAI_API_KEY` | Optional | Direct key for Sora video generation |
+| `GITHUB_WEBHOOK_SECRET` | Optional | Enables `POST /api/github/webhook`; must match the secret configured on the GitHub repo webhook |
 
 **Never** put real secret values in `.env.example` or commit `.env`. For EAS builds, set all vars as EAS secrets.
 
 ## Running Tests
 
 ```bash
-npm test                  # Single run (919 tests across 15 files)
+npm test                  # Single run (1000+ tests across 40+ files)
 npm run test:watch        # Watch mode
 npm run test:coverage     # Coverage report (≥80% branch target for server utilities)
 ```
@@ -125,7 +124,8 @@ npm run server:prod          # Run production server bundle
 ```
 app/                    # Expo Router screens (file path = route)
   (tabs)/               # Tab navigation: index, create, library, saved, profile
-  story.tsx             # Story reading/playback screen (~1600 lines)
+  story.tsx             # Story reading/playback screen (~440 lines; composition shell over lib/use* hooks + components/Story*)
+  story-seeds.tsx       # Browsable story-seed gallery (filter by theme + age)
   completion.tsx        # Story completion + badge awarding
   story-details.tsx     # Story customization wizard (Classic mode)
   madlibs.tsx           # Mad Libs mode wizard
@@ -133,6 +133,9 @@ app/                    # Expo Router screens (file path = route)
   quick-create.tsx      # Onboarding hero creation
   settings.tsx          # App settings screen
   trophies.tsx          # Badge collection view
+  voice-chat.tsx        # Voice chat UI (reachable from the profile tab)
+  parental-consent.tsx  # COPPA parental-consent gate (first launch, before onboarding)
+  privacy.tsx           # In-app Privacy Policy screen (offline)
   welcome.tsx           # Onboarding splash
 components/             # Reusable React Native components (PascalCase.tsx)
 constants/              # Static data and configuration
@@ -143,7 +146,7 @@ constants/              # Static data and configuration
 lib/                    # Client utilities and state management
   SettingsContext.tsx   # App settings (React Context — canonical settings source)
   ProfileContext.tsx    # Child profile context
-  AuthContext.tsx       # Firebase authentication context
+  AuthContext.tsx       # Supabase authentication context
   storage.ts            # AsyncStorage helpers (stories, profiles, badges, streaks)
   query-client.ts       # TanStack React Query config
 server/                 # Express backend
@@ -151,7 +154,7 @@ server/                 # Express backend
   routes.ts             # All API route registrations
   prompts.ts            # Story system/user prompt builders + CHILD_SAFETY_RULES
   validation.ts         # Zod schemas + sanitizeString()
-  auth.ts               # Firebase Admin bearer-token middleware
+  auth.ts               # Supabase bearer-token (JWT) middleware
   rate-limit.ts         # Per-IP sliding-window rate limiter
   ai/                   # Multi-provider AI abstraction layer
     router.ts           # AIRouter: fallback chains, circuit breakers, retry
@@ -179,7 +182,6 @@ docs/                   # All project documentation
 api/                    # Vercel serverless entry point
   server.mjs            # Wraps server_dist/index.js for Vercel
 scripts/                # Build helpers
-patches/                # patch-package patches (do not modify without approval)
 ```
 
 ## API Endpoints
@@ -200,11 +202,16 @@ See [docs/API.md](docs/API.md) for full reference.
 | GET | `/api/voices` | List available narrator voices |
 | GET | `/api/music/:mode` | Serve background music |
 | POST | `/api/suggest-settings` | AI-powered story setting suggestions |
+| GET | `/api/video-available` | Whether video generation is configured |
 | POST | `/api/generate-video` | Start video generation job |
 | GET | `/api/video-status/:id` | Check video generation progress |
+| GET | `/api/video/:id` | Retrieve generated video |
 | GET | `/api/conversations` | List voice chat conversations |
 | POST | `/api/conversations` | Create new conversation |
+| DELETE | `/api/conversations/:id` | Delete a conversation |
 | POST | `/api/conversations/:id/messages` | Send voice message (SSE response) |
+| POST | `/api/generate-image` | Gemini image generation (Replit integration) |
+| POST | `/api/github/webhook` | GitHub webhook receiver (HMAC-authenticated) |
 
 ## Documentation
 

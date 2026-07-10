@@ -6,6 +6,7 @@ import {
   getVoicesForMode,
 } from "../../server/elevenlabs";
 import type { VoiceCategory } from "../../server/elevenlabs";
+import { logger } from "../../server/logger";
 
 describe("VOICE_MAP", () => {
   it("contains 9 voices", () => {
@@ -116,7 +117,12 @@ describe("getVoicesForMode", () => {
   });
 });
 
-describe("generateSpeech error handling", () => {
+// Note: success/API-failure paths that require driving generateSpeech()
+// through a real ElevenLabsClient instance are covered in server/elevenlabs.test.ts,
+// which mocks the 'elevenlabs' package itself (vi.spyOn on this module's own
+// getElevenLabsClient export does not intercept generateSpeech()'s internal
+// call to it, so a test built that way would silently hit the live API).
+describe("generateSpeech error handling (unconfigured)", () => {
   const originalEnv = process.env.ELEVENLABS_API_KEY;
 
   afterEach(() => {
@@ -130,17 +136,17 @@ describe("generateSpeech error handling", () => {
     await expect(generateSpeech("hello", "moonbeam")).rejects.toThrow(Error);
   });
 
-  it("wraps API failures in a descriptive Error", async () => {
-    process.env.ELEVENLABS_API_KEY = "test-key";
-    const { getElevenLabsClient } = await import("../../server/elevenlabs");
-    vi.spyOn(await import("../../server/elevenlabs"), "getElevenLabsClient").mockResolvedValue({
-      textToSpeech: {
-        convert: vi.fn().mockRejectedValue(new Error("API rate limit exceeded")),
-      },
-    } as unknown as Awaited<ReturnType<typeof getElevenLabsClient>>);
+  it("logs a structured error (voiceKey + textLength) when unconfigured", async () => {
+    delete process.env.ELEVENLABS_API_KEY;
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
 
     const { generateSpeech } = await import("../../server/elevenlabs");
-    await expect(generateSpeech("hello", "moonbeam")).rejects.toThrow("TTS generation failed");
+    await expect(generateSpeech("hi there", "captain")).rejects.toThrow();
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ voiceKey: "captain", textLength: "hi there".length }),
+      "TTS generation failed",
+    );
   });
 });
 

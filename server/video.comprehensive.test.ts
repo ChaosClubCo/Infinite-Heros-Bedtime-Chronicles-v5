@@ -39,11 +39,14 @@ describe('video job lifecycle', () => {
     return activeJobs.get(jobId);
   }
 
-  function getVideoFilePath(jobId: string, fsExists: (path: string) => boolean): string | null {
+  // Mirrors the real server/video.ts implementation: it intentionally does NOT
+  // check fs.existsSync here. A pre-check-then-serve pattern is a TOCTOU race
+  // against the hourly cache cleanup / job-expiry sweep, so existence is left
+  // to whatever actually reads the file (res.sendFile in the route handler),
+  // which reports a clean 404 on ENOENT instead of a misleading 500.
+  function getVideoFilePath(jobId: string): string | null {
     const job = activeJobs.get(jobId);
-    if (!job || !job.videoPath) return null;
-    if (!fsExists(job.videoPath)) return null;
-    return job.videoPath;
+    return job?.videoPath ?? null;
   }
 
   beforeEach(() => {
@@ -67,22 +70,17 @@ describe('video job lifecycle', () => {
   });
 
   it('returns null file path for non-existent job', () => {
-    expect(getVideoFilePath('x', () => true)).toBeNull();
+    expect(getVideoFilePath('x')).toBeNull();
   });
 
   it('returns null file path when job has no videoPath', () => {
     activeJobs.set('j1', { id: 'j1', openaiVideoId: 'o1', status: 'completed', progress: 100, createdAt: Date.now() });
-    expect(getVideoFilePath('j1', () => true)).toBeNull();
+    expect(getVideoFilePath('j1')).toBeNull();
   });
 
-  it('returns null when video file does not exist on disk', () => {
-    activeJobs.set('j2', { id: 'j2', openaiVideoId: 'o2', status: 'completed', progress: 100, videoPath: '/tmp/video-cache/j2.mp4', createdAt: Date.now() });
-    expect(getVideoFilePath('j2', () => false)).toBeNull();
-  });
-
-  it('returns video path when file exists', () => {
+  it('returns the recorded video path without checking disk state (no TOCTOU pre-check)', () => {
     activeJobs.set('j3', { id: 'j3', openaiVideoId: 'o3', status: 'completed', progress: 100, videoPath: '/tmp/video-cache/j3.mp4', createdAt: Date.now() });
-    expect(getVideoFilePath('j3', () => true)).toBe('/tmp/video-cache/j3.mp4');
+    expect(getVideoFilePath('j3')).toBe('/tmp/video-cache/j3.mp4');
   });
 
   // Job status transitions

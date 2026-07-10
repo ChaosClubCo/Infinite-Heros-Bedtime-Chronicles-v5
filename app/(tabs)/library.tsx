@@ -6,7 +6,6 @@ import {
   Platform,
   FlatList,
   Pressable,
-  Alert,
   Dimensions,
   Image,
 } from "react-native";
@@ -21,6 +20,7 @@ import { useProfile } from "@/lib/ProfileContext";
 import { HEROES } from "@/constants/heroes";
 import { CachedStory } from "@/constants/types";
 import { getStoriesForProfile, getAllStories, deleteStory, getFavorites, toggleFavorite, getReadStories, markStoryRead } from "@/lib/storage";
+import { confirmDestructive } from "@/lib/confirmDestructive";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
@@ -79,17 +79,11 @@ export default function LibraryScreen() {
   };
 
   const handleDelete = (id: string, title: string) => {
-    Alert.alert("Delete Story", `Remove "${title}" from your library?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          await deleteStory(id);
-          setStories((prev) => prev.filter((s) => s.id !== id));
-        },
-      },
-    ]);
+    confirmDestructive("Delete Story", `Remove "${title}" from your library?`, "Delete", () => {
+      deleteStory(id)
+        .then(() => setStories((prev) => prev.filter((s) => s.id !== id)))
+        .catch((err) => console.error("Failed to delete story", err));
+    });
   };
 
   const getHero = (heroId: string) => HEROES.find((h) => h.id === heroId);

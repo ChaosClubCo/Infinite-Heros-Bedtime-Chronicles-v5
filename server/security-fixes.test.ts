@@ -149,36 +149,36 @@ CRITICAL RULES:
 // ── Fix #2: Auth Production Guard ─────────────────────────────────
 describe('auth production guard', () => {
   describe('production mode behavior', () => {
-    it('blocks requests when Firebase key missing in production', () => {
+    it('blocks requests when Supabase is not configured in production', () => {
       const NODE_ENV = 'production';
-      const auth = null; // Firebase not initialized
+      const supabase = null; // Supabase not configured
 
-      const shouldBlock = !auth && NODE_ENV === 'production';
+      const shouldBlock = !supabase && NODE_ENV === 'production';
       expect(shouldBlock).toBe(true);
     });
 
     it('still blocks in production even if a legacy AUTH_DISABLED env var is set (no opt-out)', () => {
       const NODE_ENV = 'production';
       // AUTH_DISABLED env var removed — must be ignored by the guard
-      const auth = null;
+      const supabase = null;
 
-      const shouldBlock = !auth && NODE_ENV === 'production';
+      const shouldBlock = !supabase && NODE_ENV === 'production';
       expect(shouldBlock).toBe(true);
     });
 
-    it('allows requests when Firebase key is present', () => {
-      const auth = {}; // Firebase initialized
-      const shouldBlock = !auth;
+    it('allows requests when Supabase is configured', () => {
+      const supabase = {}; // Supabase client initialized
+      const shouldBlock = !supabase;
       expect(shouldBlock).toBe(false);
     });
   });
 
   describe('development mode behavior', () => {
-    it('allows requests without Firebase key in development', () => {
+    it('allows requests without Supabase config in development', () => {
       const NODE_ENV = 'development';
-      const auth = null;
+      const supabase = null;
 
-      const shouldBlock = !auth && NODE_ENV === 'production';
+      const shouldBlock = !supabase && NODE_ENV === 'production';
       expect(shouldBlock).toBe(false);
     });
 
@@ -208,8 +208,8 @@ describe('auth production guard', () => {
     it('production block returns 503', () => {
       const response = { status: 503, error: 'Service temporarily unavailable' };
       expect(response.status).toBe(503);
-      expect(response.error).not.toContain('Firebase');
-      expect(response.error).not.toContain('FIREBASE_SERVICE_ACCOUNT_KEY');
+      expect(response.error).not.toContain('Supabase');
+      expect(response.error).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
     });
 
     it('auth failure returns 401', () => {
@@ -221,7 +221,7 @@ describe('auth production guard', () => {
     it('invalid token returns 401', () => {
       const response = { status: 401, error: 'Invalid or expired token' };
       expect(response.error).not.toContain('stack');
-      expect(response.error).not.toContain('Firebase');
+      expect(response.error).not.toContain('Supabase');
     });
   });
 });

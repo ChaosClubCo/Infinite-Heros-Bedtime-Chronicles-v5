@@ -1,5 +1,6 @@
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
+import * as Sentry from "@sentry/node";
 import { registerRoutes } from "./routes";
 import { isAuthEnabled } from "./auth";
 import { logger, createRequestId } from "./logger";
@@ -9,6 +10,20 @@ import * as fs from "fs";
 import * as path from "path";
 
 const log = logger.info.bind(logger);
+
+// Server-side error tracking. No-ops gracefully when SENTRY_DSN is unset
+// (mirrors the client-side init in app/_layout.tsx).
+let sentryInitialized = false;
+function initSentry() {
+  if (sentryInitialized) return;
+  sentryInitialized = true;
+  if (!process.env.SENTRY_DSN) return;
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || "development",
+    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  });
+}
 
 function validateEnvironment() {
   const providerConfigs: [string, string, string, boolean][] = [
@@ -64,7 +79,7 @@ function validateEnvironment() {
   }
 
   if (!isAuthEnabled()) {
-    log("[Env] WARNING: FIREBASE_SERVICE_ACCOUNT_KEY not set — authentication is DISABLED (dev mode)");
+    log("[Env] WARNING: Supabase auth not configured (need SUPABASE_SERVICE_ROLE_KEY + Supabase URL) — authentication is DISABLED (dev mode)");
   }
 
   // Cloudflare KV gives the rate limiter durable, cross-invocation state on
@@ -163,17 +178,29 @@ function setupCors(app: express.Application) {
   });
 }
 
-function setupBodyParsing(app: express.Application) {
-  app.use(
-    express.json({
-      limit: "100kb",
-      verify: (req, _res, buf) => {
-        req.rawBody = buf;
-      },
-    }),
-  );
+// GitHub webhook payloads can legitimately exceed the 100kb app-wide limit and
+// need their exact wire bytes (not the parsed/re-serialized form) for HMAC
+// signature verification, so that route installs its own raw-body parser
+// (server/routes/github-webhook.ts) and must skip these global parsers entirely.
+const BODY_PARSING_EXEMPT_PATHS = new Set(["/api/github/webhook"]);
 
-  app.use(express.urlencoded({ extended: false, limit: "100kb" }));
+function setupBodyParsing(app: express.Application) {
+  const jsonParser = express.json({
+    limit: "100kb",
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  });
+  const urlencodedParser = express.urlencoded({ extended: false, limit: "100kb" });
+
+  app.use((req, res, next) => {
+    if (BODY_PARSING_EXEMPT_PATHS.has(req.path)) return next();
+    jsonParser(req, res, next);
+  });
+  app.use((req, res, next) => {
+    if (BODY_PARSING_EXEMPT_PATHS.has(req.path)) return next();
+    urlencodedParser(req, res, next);
+  });
 }
 
 function setupRequestLogging(app: express.Application) {
@@ -312,6 +339,13 @@ function configureExpoAndLanding(app: express.Application) {
     }
 
     if (req.path === "/") {
+      const webIndexPath = path.resolve(process.cwd(), "static-build", "index.html");
+      if (fs.existsSync(webIndexPath)) {
+        // Web build is present — fall through to the express.static("static-build")
+        // middleware below so the real app is served instead of the marketing page.
+        return next();
+      }
+
       return serveLandingPage({
         req,
         res,
@@ -352,6 +386,9 @@ function setupErrorHandler(app: express.Application) {
     const message = sanitizeErrorMessage(err);
 
     logger.error({ err, status }, 'unhandled server error');
+    if (status >= 500) {
+      Sentry.captureException(err);
+    }
 
     if (res.headersSent) {
       return next(err);
@@ -371,9 +408,11 @@ function registerCrashLogging() {
   crashLoggingRegistered = true;
   process.on("unhandledRejection", (reason) => {
     logger.error({ err: reason }, "unhandledRejection");
+    Sentry.captureException(reason);
   });
   process.on("uncaughtException", (err) => {
     logger.error({ err }, "uncaughtException");
+    Sentry.captureException(err);
   });
 }
 
@@ -385,6 +424,7 @@ export async function createApp(): Promise<express.Application> {
   app.set('trust proxy', 1);
 
   validateEnvironment();
+  initSentry();
   registerCrashLogging();
   setupSecurityHeaders(app);
   setupCors(app);

@@ -19,7 +19,7 @@ on:
           - all
           - ios
           - android
-        default: 'all'
+        default: 'android'
       profile:
         description: 'Build profile'
         required: true
@@ -32,7 +32,7 @@ on:
 
 jobs:
   build:
-    name: EAS Build - ${{ github.event.inputs.platform || 'all' }} (${{ github.event.inputs.profile || 'preview' }})
+    name: EAS Build - ${{ github.event.inputs.platform || 'android' }} (${{ github.event.inputs.profile || 'preview' }})
     runs-on: ubuntu-latest
     
     steps:
@@ -57,7 +57,7 @@ jobs:
 
       - name: Build on EAS
         run: |
-          PLATFORM="${{ github.event.inputs.platform || 'all' }}"
+          PLATFORM="${{ github.event.inputs.platform || 'android' }}"
           PROFILE="${{ github.event.inputs.profile || 'preview' }}"
           eas build --platform $PLATFORM --profile $PROFILE --non-interactive --no-wait
         env:
