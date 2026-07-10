@@ -57,7 +57,7 @@ type StoryRouteParams = {
   childName: string;
   sidekick: string;
   problem: string;
-  customPrompt: string;
+  customPrompt?: string;
 };
 
 export default function StoryScreen() {

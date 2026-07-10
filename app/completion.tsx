@@ -178,8 +178,14 @@ export default function CompletionScreen() {
           storyId = await saveStoryWithProfile(storyData, hero.id, mode || "classic", activeProfile.id);
           setSavedStoryId(storyId);
           if (scenes) {
-            for (const [key, imageDataUri] of Object.entries(scenes)) {
-              await saveStoryScene(storyId, Number(key), imageDataUri);
+            // best-effort: a scene-image write failure must never abort the
+            // rest of completion tracking (read marking, streaks, badges)
+            try {
+              for (const [key, imageDataUri] of Object.entries(scenes)) {
+                await saveStoryScene(storyId, Number(key), imageDataUri);
+              }
+            } catch (e) {
+              if (__DEV__) console.log("Error saving story scenes:", e);
             }
           }
           // best-effort: never block badge awarding on a storage write failure
