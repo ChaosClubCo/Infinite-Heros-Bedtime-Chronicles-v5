@@ -74,7 +74,18 @@ export function registerVideoRoutes(app: Express): void {
     res.setHeader("Cache-Control", "public, max-age=86400");
     res.sendFile(filePath, (err) => {
       if (err && !res.headersSent) {
-        res.status(500).json({ error: "Failed to serve video" });
+        // The path can go stale between the lookup above and this send (cache
+        // cleanup runs on an hourly interval), so treat a missing file as a
+        // normal 404 rather than a server error.
+        const status = (err as NodeJS.ErrnoException).code === "ENOENT" ? 404 : 500;
+        // Both the Content-Type ("video/mp4") and Cache-Control (24h) headers
+        // were set above for the success path; override them so the JSON error
+        // body is neither mislabeled as video nor cached for a day by CDNs.
+        res
+          .status(status)
+          .set("Content-Type", "application/json")
+          .set("Cache-Control", "no-store")
+          .json({ error: status === 404 ? "Video not found" : "Failed to serve video" });
       }
     });
   });

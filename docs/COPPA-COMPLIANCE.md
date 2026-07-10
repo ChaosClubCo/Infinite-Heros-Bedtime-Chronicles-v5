@@ -240,14 +240,11 @@ during submission (Phase 3/5), and confirm the contact email
 
 **Remaining recommendation:** For strongest protection, migrate the PIN storage to `expo-secure-store` (iOS Keychain / Android Keystore) so the hashed value is also stored in hardware-backed secure storage rather than plain AsyncStorage. This is a future hardening step, not a COPPA blocker.
 
-### GAP 6 — No Data Deletion Mechanism (Medium)
+### GAP 6 — No Data Deletion Mechanism ✅ Resolved
 
 **Risk:** Medium. COPPA grants parents the right to request deletion of their child's personal information.
 
-**Recommendation:**
-1. Expose a "Delete All Data" option in the app that calls `AsyncStorage.clear()` and signs out the Firebase anonymous user.
-2. Document the deletion procedure in the Privacy Policy.
-3. Because no child data is currently stored server-side (GAP 2 remediation pending), server-side deletion is only needed for: (a) TTS cache files (auto-expire after 24 hours; manual purge can be added), and (b) Firebase anonymous UIDs (these can be deleted via Firebase Admin SDK).
+**Resolution:** A "Delete All Data" option is available under Settings → Privacy & Data (`app/settings.tsx`). It calls `clearAllData()` (`lib/storage.ts`), which removes every `@infinity_heroes_*` AsyncStorage key on-device, then signs out of the Supabase session (`signOut()` from `lib/AuthContext.tsx`) and returns the user to the parental-consent gate. Server-side, no child data is stored outside the TTS cache, which already auto-expires after 24 hours (`server/tts-cache.ts`).
 
 ### GAP 7 — Story Feedback Free-Text Has No Length Limit (Low)
 
@@ -272,7 +269,7 @@ during submission (Phase 3/5), and confirm the contact email
 | Analytics/tracking SDKs | Not present — ✅ Compliant |
 | Advertising | Not present — ✅ Compliant |
 | Email/account collection | Not present — ✅ Compliant |
-| Anonymous auth (Firebase) | ✅ Compliant with caveats (verify Firebase DPA in console — see GAP 8) |
+| Anonymous auth (Supabase) | ✅ Compliant with caveats (verify Supabase DPA — see GAP 8) |
 | Child name collection | Optional; ⚠️ **Requires DPAs with AI providers or removal from server calls (GAP 2)** |
 | Child age collection | Optional; ⚠️ **Requires DPAs with AI providers or removal from server calls (GAP 2)** |
 | AI provider data processing | ⚠️ **Requires signed DPAs with each active provider (Gemini, OpenAI, Anthropic, OpenRouter)** |
@@ -280,7 +277,7 @@ during submission (Phase 3/5), and confirm the contact email
 | Parental consent mechanism | ✅ Implemented (2026-06-11) — `app/parental-consent.tsx` with parent gate + consent affirmation |
 | Privacy policy / parental notice | ✅ Implemented (2026-06-11) — `app/privacy.tsx` (in-app, offline) + `GET /privacy` (server) |
 | PIN code security | ✅ SHA-256 hashed with per-user salt via expo-crypto |
-| Data deletion rights | ⚠️ **No in-app deletion UI yet (GAP 6)** — TTS cache auto-expires after 24 h; profile data stored on-device only |
+| Data deletion rights | ✅ In-app "Delete All Data" (Settings → Privacy & Data) — TTS cache also auto-expires after 24 h |
 
 ---
 

@@ -17,6 +17,8 @@ import * as Haptics from "expo-haptics";
 import { StarField } from "@/components/StarField";
 import Colors from "@/constants/colors";
 import { useSettings, AppSettings } from "@/lib/SettingsContext";
+import { useAuth } from "@/lib/AuthContext";
+import { clearAllData } from "@/lib/storage";
 
 const VOICES = [
   { id: "moonbeam", label: "Moonbeam" },
@@ -137,6 +139,7 @@ export default function SettingsScreen() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
   const { settings, updateSetting, resetSettings } = useSettings();
+  const { signOut } = useAuth();
 
   const handleReset = () => {
     Alert.alert(
@@ -150,6 +153,26 @@ export default function SettingsScreen() {
           onPress: () => {
             resetSettings();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAllData = () => {
+    Alert.alert(
+      "Delete All Data",
+      "This permanently removes every profile, story, badge, streak, and setting stored on this device. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Everything",
+          style: "destructive",
+          onPress: async () => {
+            await clearAllData();
+            await signOut();
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            router.replace("/parental-consent");
           },
         },
       ]
@@ -339,6 +362,20 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
           </Pressable>
         </View>
+
+        <Pressable
+          onPress={handleDeleteAllData}
+          style={({ pressed }) => [
+            styles.resetBtn,
+            { opacity: pressed ? 0.7 : 1 },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Delete all data stored on this device"
+          testID="delete-all-data-btn"
+        >
+          <Ionicons name="trash-outline" size={18} color="rgba(255,100,100,0.7)" />
+          <Text style={styles.resetBtnText}>Delete All Data</Text>
+        </Pressable>
 
         <Pressable
           onPress={handleReset}

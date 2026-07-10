@@ -3,7 +3,7 @@ import { StoryRequestSchema } from "../validation";
 import { getStorySystemPrompt, getStoryUserPrompt, getPartCount, getWordCount, STORY_RESPONSE_SCHEMA } from "../prompts";
 import { classifyError, createErrorResponse, parsePositiveIntEnv } from "../utils";
 import { IdempotencyCache } from "../idempotency";
-import { estimateCostUsd } from "../ai/cost";
+import { estimateCostUsd, reportCostAnomaly } from "../ai/cost";
 import { aiRouter, idempotencyCache } from "./context";
 import { rateLimited, sendRouteError } from "./helpers";
 
@@ -52,15 +52,17 @@ export function registerStoryRoutes(app: Express): void {
         throw new Error("Invalid story response");
       }
 
-      // Cost signal: emit tokens + estimated USD per generation so anomaly
-      // alerting can be wired to logs (cost guard / observability).
+      // Cost signal: emit tokens + estimated USD per generation, and alert
+      // Sentry when a single generation is anomalously expensive.
+      const estCostUsd = estimateCostUsd(aiResponse.provider, aiResponse.usage);
       req.log?.info({
         provider: aiResponse.provider,
         model: aiResponse.model,
         inputTokens: aiResponse.usage?.inputTokens,
         outputTokens: aiResponse.usage?.outputTokens,
-        estCostUsd: estimateCostUsd(aiResponse.provider, aiResponse.usage),
+        estCostUsd,
       }, 'story generated');
+      reportCostAnomaly(estCostUsd, { provider: aiResponse.provider, endpoint: '/api/generate-story' });
 
       const story = aiResponse.parsedJson as Record<string, unknown>;
 
@@ -142,7 +144,10 @@ export function registerStoryRoutes(app: Express): void {
         res.write(`data: ${JSON.stringify({ type: "error", error: "Failed to generate story", retryable: kind === 'transient' })}\n\n`);
         res.end();
       } else {
-        res.status(kind === 'transient' ? 503 : 500).json(createErrorResponse('Failed to generate story', kind));
+        // res.json() only sets Content-Type when unset, so the "text/event-stream"
+        // header set above must be overridden or this JSON error body gets served
+        // mislabeled as an SSE stream (see the same fix in routes/video.ts).
+        res.status(kind === 'transient' ? 503 : 500).set("Content-Type", "application/json").json(createErrorResponse('Failed to generate story', kind));
       }
     }
   });

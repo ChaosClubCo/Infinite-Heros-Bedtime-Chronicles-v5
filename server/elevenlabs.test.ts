@@ -1,15 +1,26 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock the ElevenLabs SDK to avoid module resolution errors in the SDK internals
+// Mock the ElevenLabs SDK so tests never make live network calls. `mockConvert`
+// is shared across the whole file (via vi.hoisted so it's available inside the
+// vi.mock factory) and reconfigured per test — the client itself is cached
+// module-internally after first construction, so reassigning `convert`'s
+// behavior is how individual tests control success/failure.
+const { mockConvert } = vi.hoisted(() => ({ mockConvert: vi.fn() }));
 vi.mock('elevenlabs', () => ({
-  ElevenLabsClient: vi.fn(),
+  // Must be a real function (not an arrow function) so `new ElevenLabsClient()`
+  // works — a constructor call requires a constructible implementation.
+  ElevenLabsClient: vi.fn().mockImplementation(function ElevenLabsClientMock() {
+    return { textToSpeech: { convert: mockConvert } };
+  }),
 }));
 
+import { logger } from './logger';
 import {
   VOICE_MAP,
   MODE_DEFAULT_VOICES,
   MODE_VOICE_CATEGORIES,
   getVoicesForMode,
+  generateSpeech,
   type VoiceConfig,
   type VoiceCategory,
 } from './elevenlabs';
@@ -229,6 +240,65 @@ describe('voice lookup behavior', () => {
     const voice = VOICE_MAP['CAPTAIN'.toLowerCase()];
     expect(voice).toBeDefined();
     expect(voice.characterName).toBe('Captain Story');
+  });
+});
+
+describe('generateSpeech', () => {
+  const originalApiKey = process.env.ELEVENLABS_API_KEY;
+
+  beforeEach(() => {
+    process.env.ELEVENLABS_API_KEY = 'test-key';
+    mockConvert.mockReset();
+  });
+
+  afterEach(() => {
+    process.env.ELEVENLABS_API_KEY = originalApiKey;
+    vi.restoreAllMocks();
+  });
+
+  it('resolves to a Buffer of the concatenated audio stream on success', async () => {
+    async function* fakeStream() {
+      yield new Uint8Array([1, 2, 3]);
+      yield new Uint8Array([4, 5]);
+    }
+    mockConvert.mockResolvedValueOnce(fakeStream());
+
+    const result = await generateSpeech('hello', 'moonbeam');
+
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect(result.equals(Buffer.from([1, 2, 3, 4, 5]))).toBe(true);
+  });
+
+  it('wraps API failures in a descriptive Error', async () => {
+    mockConvert.mockRejectedValueOnce(new Error('API rate limit exceeded'));
+
+    await expect(generateSpeech('hello', 'moonbeam')).rejects.toThrow('TTS generation failed: API rate limit exceeded');
+  });
+
+  it('logs the failure with voiceKey and textLength before rethrowing', async () => {
+    mockConvert.mockRejectedValueOnce(new Error('API rate limit exceeded'));
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => logger);
+
+    await expect(generateSpeech('hello there', 'captain')).rejects.toThrow();
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ voiceKey: 'captain', textLength: 'hello there'.length }),
+      'TTS generation failed',
+    );
+  });
+
+  it('passes the sleep-mode-adjusted settings through to the SDK for a non-sleep voice', async () => {
+    async function* fakeStream() { yield new Uint8Array([9]); }
+    mockConvert.mockResolvedValueOnce(fakeStream());
+
+    await generateSpeech('bedtime story', 'captain', 'sleep');
+
+    expect(mockConvert).toHaveBeenCalledWith(
+      VOICE_MAP.captain.id,
+      expect.objectContaining({
+        voice_settings: expect.objectContaining({ use_speaker_boost: false }),
+      }),
+    );
   });
 });
 

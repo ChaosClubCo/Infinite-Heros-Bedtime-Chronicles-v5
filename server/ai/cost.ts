@@ -1,4 +1,8 @@
+import * as Sentry from "@sentry/node";
 import type { ProviderName } from "./types";
+
+/** A single generation costing more than this is reported to Sentry as a cost-anomaly signal. */
+const COST_ANOMALY_THRESHOLD_USD = 0.50;
 
 /**
  * Approximate blended USD cost per 1M tokens (input + output averaged) per
@@ -25,4 +29,17 @@ export function estimateCostUsd(
   if (tokens === 0) return 0;
   const rate = APPROX_USD_PER_MTOK[provider] ?? 1;
   return Number(((tokens / 1_000_000) * rate).toFixed(6));
+}
+
+/**
+ * Reports a single generation's cost to Sentry as a warning breadcrumb when it
+ * exceeds COST_ANOMALY_THRESHOLD_USD. No-ops when Sentry isn't initialized
+ * (unset SENTRY_DSN) since captureMessage is then a safe no-op.
+ */
+export function reportCostAnomaly(estCostUsd: number, context: { provider: ProviderName; endpoint: string }): void {
+  if (estCostUsd <= COST_ANOMALY_THRESHOLD_USD) return;
+  Sentry.captureMessage(
+    `High-cost AI generation: $${estCostUsd.toFixed(4)} (${context.endpoint} via ${context.provider})`,
+    'warning',
+  );
 }

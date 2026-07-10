@@ -180,7 +180,5 @@ export function getVideoJob(jobId: string): VideoJob | undefined {
 
 export function getVideoFilePath(jobId: string): string | null {
   const job = activeJobs.get(jobId);
-  if (!job || !job.videoPath) return null;
-  if (!fs.existsSync(job.videoPath)) return null;
-  return job.videoPath;
+  return job?.videoPath ?? null;
 }
