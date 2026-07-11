@@ -187,6 +187,8 @@ describe('story management', () => {
     const stories = await getAllStories();
     expect(stories).toHaveLength(1);
     expect(stories[0].story.title).toBe('Test Story');
+    expect(stories[0].voice).toBe('moonbeam');
+    expect(stories[0].speed).toBe('medium');
   });
 
   it('generates unique IDs', async () => {

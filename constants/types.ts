@@ -22,6 +22,8 @@ export interface CachedStory {
   scenes?: Record<number, string>;
   heroId: string;
   mode: string;
+  voice: string;
+  speed: string;
   profileId?: string;
   feedback?: {
     rating: number;

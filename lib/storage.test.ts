@@ -144,9 +144,9 @@ describe('getAllStories', () => {
 
   it('returns stories sorted by timestamp descending', async () => {
     const stories = [
-      { id: 'old', timestamp: 1000, story: makeStoryFull(), heroId: 'h1', mode: 'classic' },
-      { id: 'new', timestamp: 3000, story: makeStoryFull(), heroId: 'h1', mode: 'classic' },
-      { id: 'mid', timestamp: 2000, story: makeStoryFull(), heroId: 'h1', mode: 'classic' },
+      { id: 'old', timestamp: 1000, story: makeStoryFull(), heroId: 'h1', mode: 'classic', voice: 'moonbeam', speed: 'medium' },
+      { id: 'new', timestamp: 3000, story: makeStoryFull(), heroId: 'h1', mode: 'classic', voice: 'moonbeam', speed: 'medium' },
+      { id: 'mid', timestamp: 2000, story: makeStoryFull(), heroId: 'h1', mode: 'classic', voice: 'moonbeam', speed: 'medium' },
     ];
     mockStorage['@infinity_heroes_stories'] = JSON.stringify(stories);
     const result = await getAllStories();
@@ -176,6 +176,8 @@ describe('saveStory', () => {
     expect(stored).toHaveLength(1);
     expect(stored[0].heroId).toBe('hero1');
     expect(stored[0].mode).toBe('classic');
+    expect(stored[0].voice).toBe('moonbeam');
+    expect(stored[0].speed).toBe('medium');
   });
 
   it('includes avatar when provided', async () => {

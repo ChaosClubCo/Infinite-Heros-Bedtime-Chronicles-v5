@@ -126,12 +126,6 @@ app/index.tsx renders null → resolveLaunchRoute()  (lib/launch-gate.ts)
 
 - `replayJson` still carries the full story text through params; fine at
   current sizes, but a story-id + storage lookup would be cleaner.
-- Replays use fixed narration defaults (`moonbeam`/`medium`) because
-  `CachedStory` does not persist the voice/speed a story was created with.
-  Restoring the original narration on replay requires extending the
-  `CachedStory` schema, threading voice/speed into the save path, and a
-  storage migration — pre-existing behavior, now at least consistent across
-  all replay entry points via `lib/replay-params.ts`.
 - `story-details` still shows preset card copy (title/summary) when entered
   with only a `heroId`; the hero is honored but the card content is generic.
 - Route strings remain literals; Expo Router typed routes validate them at

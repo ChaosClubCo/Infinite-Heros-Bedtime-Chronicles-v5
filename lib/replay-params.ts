@@ -12,8 +12,8 @@ export function buildStoryReplayParams(item: CachedStory) {
     heroId: item.heroId,
     mode: item.mode,
     duration: "medium",
-    voice: "moonbeam",
-    speed: "medium",
+    voice: item.voice || "moonbeam",
+    speed: item.speed || "medium",
     replayJson: JSON.stringify(item.story),
   };
 }

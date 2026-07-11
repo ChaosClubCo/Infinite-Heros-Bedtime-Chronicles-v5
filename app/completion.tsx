@@ -139,9 +139,11 @@ function PulsingBadge({ emoji, color }: { emoji: string; color: string }) {
 }
 
 export default function CompletionScreen() {
-  const { heroId, mode, storyJson } = useLocalSearchParams<{
+  const { heroId, mode, voice, speed, storyJson } = useLocalSearchParams<{
     heroId: string;
     mode: string;
+    voice: string;
+    speed: string;
     storyJson: string;
   }>();
   const insets = useSafeAreaInsets();
@@ -175,7 +177,15 @@ export default function CompletionScreen() {
         await updateStreak(activeProfile.id);
         let storyId = `story_${Date.now()}`;
         if (storyData) {
-          storyId = await saveStoryWithProfile(storyData, hero.id, mode || "classic", activeProfile.id);
+          storyId = await saveStoryWithProfile(
+            storyData,
+            hero.id,
+            mode || "classic",
+            activeProfile.id,
+            undefined,
+            voice || "moonbeam",
+            speed || "medium",
+          );
           setSavedStoryId(storyId);
           if (scenes) {
             // best-effort: a scene-image write failure must never abort the
@@ -219,9 +229,9 @@ export default function CompletionScreen() {
   const handleSaveToJar = useCallback(async () => {
     if (!storyData || !hero || saved) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await saveStory(storyData, hero.id, mode || "classic");
+    await saveStory(storyData, hero.id, mode || "classic", undefined, voice || "moonbeam", speed || "medium");
     setSaved(true);
-  }, [storyData, hero, mode, saved]);
+  }, [storyData, hero, mode, saved, voice, speed]);
 
   const handleNewStory = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

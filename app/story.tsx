@@ -269,6 +269,8 @@ export default function StoryScreen() {
       params: {
         heroId: hero.id,
         mode: storyMode,
+        voice: defaultVoice,
+        speed: defaultSpeed,
         storyJson: JSON.stringify(storyData),
       },
     });
