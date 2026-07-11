@@ -41,7 +41,28 @@ describe('runStorageMigrations', () => {
     expect(store.get('@infinity_heroes_storage_version')).toBe(String(STORAGE_VERSION));
   });
 
-  it('STORAGE_VERSION is at least 1', () => {
-    expect(STORAGE_VERSION).toBeGreaterThanOrEqual(1);
+  it('backfills voice/speed on existing cached stories', async () => {
+    store.set('@infinity_heroes_storage_version', '1');
+    store.set(
+      '@infinity_heroes_stories',
+      JSON.stringify([
+        { id: 's1', heroId: 'nova', mode: 'classic', timestamp: 1, story: { title: 'One' } },
+        { id: 's2', heroId: 'luna', mode: 'sleep', timestamp: 2, voice: 'aurora', speed: 'gentle', story: { title: 'Two' } },
+      ]),
+    );
+
+    await runStorageMigrations();
+
+    const migratedRaw = store.get('@infinity_heroes_stories');
+    expect(migratedRaw).toBeTruthy();
+    const migrated = JSON.parse(migratedRaw!);
+    expect(migrated[0].voice).toBe('moonbeam');
+    expect(migrated[0].speed).toBe('medium');
+    expect(migrated[1].voice).toBe('aurora');
+    expect(migrated[1].speed).toBe('gentle');
+  });
+
+  it('STORAGE_VERSION is at least 2', () => {
+    expect(STORAGE_VERSION).toBeGreaterThanOrEqual(2);
   });
 });

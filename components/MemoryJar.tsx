@@ -18,6 +18,7 @@ import { HEROES } from "@/constants/heroes";
 import { CachedStory } from "@/constants/types";
 import { getAllStories, deleteStory } from "@/lib/storage";
 import { confirmDestructive } from "@/lib/confirmDestructive";
+import { buildStoryReplayParams } from "@/lib/replay-params";
 
 function StoryCard({ item, onDelete, onReread }: { item: CachedStory; onDelete: (id: string) => void; onReread: (item: CachedStory) => void }) {
   const hero = HEROES.find((h) => h.id === item.heroId);
@@ -111,11 +112,7 @@ export function MemoryJar({ visible, onClose }: MemoryJarProps) {
     onClose();
     router.push({
       pathname: "/story",
-      params: {
-        heroId: item.heroId,
-        mode: item.mode,
-        replayJson: JSON.stringify(item.story),
-      },
+      params: buildStoryReplayParams(item),
     });
   };
 

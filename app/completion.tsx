@@ -29,7 +29,8 @@ import Colors from "@/constants/colors";
 import { HEROES } from "@/constants/heroes";
 import { StarField } from "@/components/StarField";
 import { StoryFull, EarnedBadge } from "@/constants/types";
-import { saveStory, saveStoryWithProfile, saveStoryScene, updateStreak, checkAndAwardBadges, markStoryRead, updateFeedback, setOnboardingComplete } from "@/lib/storage";
+import { saveStory, saveStoryWithProfile, saveStoryScene, updateStreak, checkAndAwardBadges, markStoryRead, updateFeedback } from "@/lib/storage";
+import { takePendingScenes } from "@/lib/scene-handoff";
 import { useProfile } from "@/lib/ProfileContext";
 
 const MODE_THEMES = {
@@ -138,12 +139,12 @@ function PulsingBadge({ emoji, color }: { emoji: string; color: string }) {
 }
 
 export default function CompletionScreen() {
-  const { heroId, mode, storyJson, isFirstStory, scenesJson } = useLocalSearchParams<{
+  const { heroId, mode, voice, speed, storyJson } = useLocalSearchParams<{
     heroId: string;
     mode: string;
+    voice: string;
+    speed: string;
     storyJson: string;
-    isFirstStory: string;
-    scenesJson: string;
   }>();
   const insets = useSafeAreaInsets();
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -166,9 +167,9 @@ export default function CompletionScreen() {
 
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    if (isFirstStory === "true") {
-      setOnboardingComplete().catch(() => {});
-    }
+    // Scene images arrive via the in-memory handoff (see lib/scene-handoff.ts);
+    // take them exactly once so they never leak into a later completion.
+    const scenes = takePendingScenes();
 
     const trackCompletion = async () => {
       if (!activeProfile || !hero) return;
@@ -176,15 +177,26 @@ export default function CompletionScreen() {
         await updateStreak(activeProfile.id);
         let storyId = `story_${Date.now()}`;
         if (storyData) {
-          storyId = await saveStoryWithProfile(storyData, hero.id, mode || "classic", activeProfile.id);
+          storyId = await saveStoryWithProfile(
+            storyData,
+            hero.id,
+            mode || "classic",
+            activeProfile.id,
+            undefined,
+            voice || "moonbeam",
+            speed || "medium",
+          );
           setSavedStoryId(storyId);
-          if (scenesJson) {
+          if (scenes) {
+            // best-effort: a scene-image write failure must never abort the
+            // rest of completion tracking (read marking, streaks, badges)
             try {
-              const scenes: Record<string, string> = JSON.parse(scenesJson);
               for (const [key, imageDataUri] of Object.entries(scenes)) {
                 await saveStoryScene(storyId, Number(key), imageDataUri);
               }
-            } catch {}
+            } catch (e) {
+              if (__DEV__) console.log("Error saving story scenes:", e);
+            }
           }
           // best-effort: never block badge awarding on a storage write failure
           try {
@@ -217,9 +229,9 @@ export default function CompletionScreen() {
   const handleSaveToJar = useCallback(async () => {
     if (!storyData || !hero || saved) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await saveStory(storyData, hero.id, mode || "classic");
+    await saveStory(storyData, hero.id, mode || "classic", undefined, voice || "moonbeam", speed || "medium");
     setSaved(true);
-  }, [storyData, hero, mode, saved]);
+  }, [storyData, hero, mode, saved, voice, speed]);
 
   const handleNewStory = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
