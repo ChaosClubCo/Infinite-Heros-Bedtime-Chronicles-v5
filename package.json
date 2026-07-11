@@ -13,9 +13,10 @@
     "expo:start:static:build": "npx expo start --no-dev --minify --localhost",
     "expo:static:build": "node scripts/build.js",
     "server:build": "esbuild server/index.ts --platform=node --bundle --format=cjs --outdir=server_dist --minify --external:openai --external:elevenlabs --external:@google/genai --external:@anthropic-ai/sdk --external:@supabase/supabase-js --external:drizzle-orm --external:drizzle-orm/node-postgres --external:pg --external:@sentry/node --external:express --external:pino --external:pino-std-serializers --external:zod --external:drizzle-zod",
+    "gcp-build": "npm run server:build",
     "server:prod": "NODE_ENV=production node server_dist/index.js",
     "db:push": "drizzle-kit push",
-    "start": "npx expo start",
+    "start": "npm run server:prod",
     "lint": "npx expo lint",
     "lint:fix": "npx expo lint --fix",
     "typecheck": "npx tsc --noEmit",
@@ -32,7 +33,7 @@
   },
   "engines": {
     "node": ">=20.19.0 <21 || >=22.13.0 <23",
-    "npm": ">=10.0.0"
+    "npm": "11.x"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
