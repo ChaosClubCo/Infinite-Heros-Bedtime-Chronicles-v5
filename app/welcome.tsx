@@ -73,7 +73,10 @@ export default function WelcomeScreen() {
       setCurrentIndex(nextIndex);
     } else {
       await setOnboardingComplete();
+      // Land on Home, then open Quick Create on top so the family can make
+      // their first story right away — closing the modal falls through to Home.
       router.replace("/(tabs)");
+      router.push("/quick-create");
     }
   };
 

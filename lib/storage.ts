@@ -29,6 +29,8 @@ const STREAKS_KEY = '@infinity_heroes_streaks';
 const PARENT_CONTROLS_KEY = '@infinity_heroes_parent_controls';
 const ONBOARDING_KEY = '@infinity_heroes_onboarding_complete';
 const PARENT_CONSENT_KEY = '@infinity_heroes_parent_consent';
+const DEFAULT_STORY_VOICE = 'moonbeam';
+const DEFAULT_STORY_SPEED = 'medium';
 
 export async function getOnboardingComplete(): Promise<boolean> {
   try {
@@ -143,7 +145,9 @@ export async function saveStory(
   story: StoryFull,
   heroId: string,
   mode: string,
-  avatar?: string
+  avatar?: string,
+  voice = DEFAULT_STORY_VOICE,
+  speed = DEFAULT_STORY_SPEED,
 ): Promise<string> {
   const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
   const cached: CachedStory = {
@@ -152,6 +156,8 @@ export async function saveStory(
     story,
     heroId,
     mode,
+    voice,
+    speed,
     ...(avatar ? { avatar } : {}),
   };
   const stories = await getAllStories();
@@ -250,7 +256,9 @@ export async function saveStoryWithProfile(
   heroId: string,
   mode: string,
   profileId?: string,
-  avatar?: string
+  avatar?: string,
+  voice = DEFAULT_STORY_VOICE,
+  speed = DEFAULT_STORY_SPEED,
 ): Promise<string> {
   const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
   const cached: CachedStory = {
@@ -259,6 +267,8 @@ export async function saveStoryWithProfile(
     story,
     heroId,
     mode,
+    voice,
+    speed,
     profileId,
     ...(avatar ? { avatar } : {}),
   };

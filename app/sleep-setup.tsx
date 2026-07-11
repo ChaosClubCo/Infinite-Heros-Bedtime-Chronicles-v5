@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -56,10 +56,17 @@ export default function SleepSetupScreen() {
 
   const hero = HEROES.find((h) => h.id === heroId);
 
-  if (!hero) {
-    router.back();
-    return null;
-  }
+  // A missing/unknown heroId (stale deep link) leaves nothing to configure.
+  // Navigate in an effect — never during render — and guard against an
+  // empty back stack when this screen is the app's entry point.
+  useEffect(() => {
+    if (!hero) {
+      if (router.canGoBack()) router.back();
+      else router.replace("/(tabs)");
+    }
+  }, [hero]);
+
+  if (!hero) return null;
 
   const handleStart = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
