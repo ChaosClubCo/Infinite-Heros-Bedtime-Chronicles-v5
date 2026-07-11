@@ -1,0 +1,12 @@
+node_modules
+.git
+.expo
+.claude
+.github
+server_dist
+static-build
+docs
+coverage
+*.log
+.env
+.env.*
