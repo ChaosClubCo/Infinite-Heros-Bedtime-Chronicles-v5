@@ -28,7 +28,8 @@
     "preflight": "node scripts/preflight.js",
     "dev:server": "NODE_ENV=development node --env-file-if-exists=.env --import tsx server/index.ts",
     "dev:expo": "EXPO_PUBLIC_API_URL=http://localhost:5000 npx expo start --web",
-    "dev": "npm run dev:server & npm run dev:expo"
+    "dev": "npm run dev:server & npm run dev:expo",
+    "gcp-build": "npm run expo:static:build && npm run server:build"
   },
   "engines": {
     "node": ">=20.19.0 <21 || >=22.13.0 <23",
