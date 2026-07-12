@@ -36,12 +36,12 @@
     "npm": "11.x"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.110.0",
+    "@anthropic-ai/sdk": "^0.111.0",
     "@expo-google-fonts/bangers": "^0.4.1",
     "@expo-google-fonts/nunito": "^0.4.2",
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@expo/vector-icons": "^15.1.1",
-    "@google/genai": "^2.10.0",
+    "@google/genai": "^2.11.0",
     "@react-native-async-storage/async-storage": "3.1.1",
     "@react-native-community/netinfo": "^12.0.1",
     "@sentry/node": "^10.62.0",
@@ -79,7 +79,7 @@
     "expo-web-browser": "~56.0.5",
     "express": "^5.0.1",
     "http-proxy-middleware": "^4.1.1",
-    "openai": "^6.45.0",
+    "openai": "^6.46.0",
     "p-limit": "7.3.0",
     "p-retry": "^4.6.2",
     "pg": "^8.22.0",
