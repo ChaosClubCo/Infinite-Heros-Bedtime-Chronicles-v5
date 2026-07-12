@@ -1,6 +1,8 @@
 # Security Fixes Applied — 2026-03-27
 
 > **Status: historical snapshot.** Documents fixes applied on 2026-03-27; see `docs/CHANGELOG.md` for the consolidated history.
+>
+> **Specifically superseded (verified 2026-07-12):** auth in this doc refers to Firebase — the app fully migrated to Supabase Auth (`server/auth.ts`) and there is **no `AUTH_DISABLED` opt-out**; it was removed in the 2026-04 audit. The "IDOR ownership check" item under Remaining Work below is **done** — `server/replit_integrations/audio/routes.ts` now checks `userId` ownership on every conversation read/write (fixed 2026-07-06). Treat every other item in this file as historical color, not current state.
 
 **Branch:** `copilot/fix-package-lock-mismatch`
 **Fixes:** Top 5 Critical Findings from Comprehensive Audit

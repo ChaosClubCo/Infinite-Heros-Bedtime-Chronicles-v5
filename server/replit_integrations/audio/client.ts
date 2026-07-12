@@ -1,9 +1,35 @@
 import OpenAI, { toFile } from "openai";
 import { Buffer } from "node:buffer";
 
-export const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
+// Construct the OpenAI client lazily so a missing AI_INTEGRATIONS_OPENAI_API_KEY
+// does not throw at module load (the SDK throws "Missing credentials" on an
+// empty key), which would crash the serverless function on cold start — e.g. a
+// Gemini-only deploy. The client is built on first use and reused; the exported
+// `openai` is a transparent proxy so existing `openai.chat…` / `openai.audio…`
+// call sites (here and in audio/routes.ts) stay unchanged.
+let _openai: OpenAI | null = null;
+function getOpenAIClient(): OpenAI {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("OpenAI is not configured. AI_INTEGRATIONS_OPENAI_API_KEY is required.");
+  }
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
+    });
+  }
+  return _openai;
+}
+
+export const openai: OpenAI = new Proxy({} as OpenAI, {
+  get(_target, prop) {
+    const client = getOpenAIClient() as unknown as Record<string | symbol, unknown>;
+    const value = client[prop];
+    return typeof value === "function"
+      ? (value as (...args: unknown[]) => unknown).bind(client)
+      : value;
+  },
 });
 
 export type AudioFormat = "wav" | "mp3" | "webm" | "mp4" | "ogg" | "unknown";

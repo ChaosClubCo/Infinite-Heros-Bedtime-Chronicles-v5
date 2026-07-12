@@ -1,5 +1,6 @@
-<!-- Last verified: 2026-06-13 -->
+<!-- Last verified: 2026-07-12 -->
 <!-- Generated from codebase scan + docs/ROADMAP.md. Re-run scan to refresh TODO signals. -->
+<!-- docs/ROADMAP.md is the actively-maintained backlog; this file lags behind it — reconcile against ROADMAP.md before trusting stale-looking rows. -->
 
 # TODO.md — Prioritized Backlog
 
@@ -16,13 +17,13 @@ Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 
 | Priority | Item | Category | Business Value | Time Criticality | Risk/Opportunity | Job Size | WSJF | Status | Issue/Notes |
 |----------|------|----------|---------------|-----------------|-----------------|----------|------|--------|-------------|
 | 1 | EAS build & Play Store submission | Deployment | H | H | H | M | 4.8 | ready | eas.json + build-android.sh + PLAY_STORE_DEPLOYMENT.md all set; needs EAS secrets + AAB build |
-| 2 | Resolve remaining npm audit vulnerabilities | Security | M | M | M | S | 5.0 | blocked | 2 high in firebase-admin transitive chain (blocked on upstream); CI at --audit-level=critical |
+| 2 | Resolve remaining npm audit vulnerabilities | Security | M | M | M | S | 5.0 | blocked | 2 high in `tmp`/`undici` transitive chain (not firebase-admin — app has no Firebase dependency; blocked on upstream); CI at --audit-level=critical |
 
 ### Low Priority
 
 | Priority | Item | Category | Business Value | Time Criticality | Risk/Opportunity | Job Size | WSJF | Status | Issue/Notes |
 |----------|------|----------|---------------|-----------------|-----------------|----------|------|--------|-------------|
-| 3 | Add authentication (anonymous sessions) | Feature | M | S | M | H | 1.6 | low-priority | Only needed if API cost abuse becomes a concern; significant architecture change |
+| 3 | Remove or wire up `server/replit_integrations/chat/routes.ts` | Code Quality | S | S | S | S | 2.5 | ready | `registerChatRoutes()` is implemented but never called from server/routes.ts — dead code found in 2026-07-12 doc audit |
 | 4 | Encrypt client-side AsyncStorage | Security | S | S | S | L | 9.0 | low-priority | Stored data is non-sensitive (story text, badges); not a current risk |
 
 ---
@@ -31,7 +32,10 @@ Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 
 
 | Item | Category | Completed | Notes |
 |------|----------|-----------|-------|
-| Complete server/routes.ts migration | Code Quality | 2026-06-13 | Removed all inline handlers; routes.ts is now ~43-line pure composer; all logic in server/routes/*.ts domain modules |
+| Add Supabase Auth (bearer-token JWT middleware) | Feature/Security | 2026-07-06 | Optional, gated on SUPABASE_SERVICE_ROLE_KEY + Supabase URL; 503 in production when unconfigured |
+| Fix voice-chat IDOR | Security | 2026-07-06 | Ownership (userId) checks added on all conversation reads/writes in server/replit_integrations/audio/routes.ts |
+| Parent-controls PIN brute-force lockout | Security | 2026-07-06 | 5 failed attempts → 30s lockout; lib/storage.ts + components/ParentControlsModal.tsx |
+| Complete server/routes.ts migration | Code Quality | 2026-06-13 | Removed all inline handlers; routes.ts is now ~70-line pure composer (grew since as github-webhook route was added); all logic in server/routes/*.ts domain modules |
 | Provision Supabase production database | Infrastructure | 2026-06-13 | Project aeraxfupuvwiskmfjliq (us-east-1); conversations + messages tables migrated |
 | Add Sentry error tracking | Observability | 2026-06-13 | @sentry/node (server) + @sentry/react-native (client); graceful no-op when DSN unset |
 | Add Cloudflare KV persistent rate limiting | Infrastructure | 2026-06-13 | Namespace ed09afa77f9243bbb08f3dbe34df1e70; checkRateLimitAsync() used by middleware; falls back to in-memory |
