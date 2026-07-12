@@ -50,7 +50,6 @@ The Express backend maintains:
 The pino logger (`server/logger.ts`, `server/index.ts`) records:
 
 - HTTP method, path, status code, and duration for each `/api/*` request
-- Supabase-authenticated UID used as the rate-limit key (included in log context indirectly)
 - Error details (sanitized — stack traces are stripped before logging)
 - Provider and model name for successful AI and TTS calls
 
