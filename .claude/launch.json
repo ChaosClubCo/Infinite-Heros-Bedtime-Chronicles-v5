@@ -5,13 +5,15 @@
       "name": "backend",
       "runtimeExecutable": "cmd",
       "runtimeArgs": ["/c", "if exist .env (set NODE_ENV=development&& set SUPABASE_URL=&& set SUPABASE_SERVICE_ROLE_KEY=&& set OPENAI_API_KEY=&& set GEMINI_API_KEY=&& node --env-file=.env --import tsx server/index.ts) else (set NODE_ENV=development&& set SUPABASE_URL=&& set SUPABASE_SERVICE_ROLE_KEY=&& set OPENAI_API_KEY=&& set GEMINI_API_KEY=&& node --import tsx server/index.ts)"],
-      "port": 5000
+      "port": 5000,
+      "autoPort": false
     },
     {
       "name": "frontend",
       "runtimeExecutable": "cmd",
       "runtimeArgs": ["/c", "set EXPO_PUBLIC_API_URL=http://localhost:5000&& npx expo start --web"],
-      "port": 8081
+      "port": 8081,
+      "autoPort": false
     }
   ]
 }
