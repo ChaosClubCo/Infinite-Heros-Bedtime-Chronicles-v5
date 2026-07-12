@@ -4,7 +4,8 @@ import * as Sentry from "@sentry/node";
 import { registerRoutes } from "./routes";
 import { isAuthEnabled } from "./auth";
 import { logger, createRequestId } from "./logger";
-import { recordRequest } from "./metrics";
+import { recordRequest, getMetrics } from "./metrics";
+import { checkAlertThresholds } from "./alerting";
 import { createLoadSheddingMiddleware } from "./load-shedding";
 import * as fs from "fs";
 import * as path from "path";
@@ -219,6 +220,14 @@ function setupRequestLogging(app: express.Application) {
       const duration = Date.now() - start;
       req.log!.info({ method: req.method, path: reqPath, status: res.statusCode, duration }, 'request completed');
       recordRequest(res.statusCode);
+
+      // Threshold-based alerting is cheap and synchronous, but there's no need
+      // to run it on every single request — checking every ~20th request is
+      // enough resolution and works identically on Replit's long-running
+      // process and Vercel's per-invocation one (no separate timer needed).
+      if (getMetrics().requests.total % 20 === 0) {
+        checkAlertThresholds();
+      }
     });
 
     next();

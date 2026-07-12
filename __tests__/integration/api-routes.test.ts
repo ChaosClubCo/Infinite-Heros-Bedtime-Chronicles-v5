@@ -42,6 +42,7 @@ vi.mock("../../server/ai", () => {
       { name: "gemini", displayName: "Gemini", available: true, capabilities: { text: true, image: true, streaming: true } },
     ],
     logProviderStatus: vi.fn(),
+    getBreakerStatuses: () => [{ provider: "gemini", state: "closed" }],
   };
 });
 

@@ -30,6 +30,17 @@ export function registerStoryRoutes(app: Express): void {
       return res.json(result);
     }
 
+    // KV-backed cross-invocation dedup: catches a duplicate request that
+    // landed on a different serverless invocation than the one that already
+    // completed the generation (the in-memory check above only dedups
+    // requests within this same warm process). No-ops when Cloudflare KV
+    // isn't configured, so local/Replit dev behavior is unchanged.
+    const resolvedFromKv = await idempotencyCache.getResolved(idempotencyKey);
+    if (resolvedFromKv !== undefined) {
+      req.log?.info('story request deduplicated (KV hit)');
+      return res.json(resolvedFromKv);
+    }
+
     const generationPromise = (async () => {
       const partCount = getPartCount(duration);
       const wordCount = getWordCount(duration);
@@ -87,6 +98,7 @@ export function registerStoryRoutes(app: Express): void {
 
     try {
       const story = await generationPromise;
+      idempotencyCache.setResolved(idempotencyKey, story);
       res.json(story);
     } catch (error: unknown) {
       idempotencyCache.delete(idempotencyKey);
