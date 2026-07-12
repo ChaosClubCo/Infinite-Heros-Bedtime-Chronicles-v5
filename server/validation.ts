@@ -86,6 +86,7 @@ export const StoryRequestSchema = z.object({
   childName: optTruncated(50),
   sidekick: optTruncated(100),
   problem: optTruncated(100),
+  customPrompt: optTruncated(500),
 });
 
 export type StoryRequest = z.output<typeof StoryRequestSchema>;

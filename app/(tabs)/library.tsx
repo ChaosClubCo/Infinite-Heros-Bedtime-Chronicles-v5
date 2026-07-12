@@ -21,6 +21,7 @@ import { HEROES } from "@/constants/heroes";
 import { CachedStory } from "@/constants/types";
 import { getStoriesForProfile, getAllStories, deleteStory, getFavorites, toggleFavorite, getReadStories, markStoryRead } from "@/lib/storage";
 import { confirmDestructive } from "@/lib/confirmDestructive";
+import { buildStoryReplayParams } from "@/lib/replay-params";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
@@ -114,14 +115,7 @@ export default function LibraryScreen() {
             }
             router.push({
               pathname: "/story",
-              params: {
-                heroId: item.heroId,
-                mode: item.mode,
-                duration: "medium",
-                voice: "moonbeam",
-                speed: "medium",
-                replayJson: JSON.stringify(item.story),
-              },
+              params: buildStoryReplayParams(item),
             });
           }}
           onLongPress={() => handleDelete(item.id, item.story.title)}

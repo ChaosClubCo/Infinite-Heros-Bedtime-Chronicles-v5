@@ -20,6 +20,7 @@ import { HEROES } from "@/constants/heroes";
 import { CachedStory } from "@/constants/types";
 import { getAllStories, getFavorites, toggleFavorite } from "@/lib/storage";
 import { confirmDestructive } from "@/lib/confirmDestructive";
+import { buildStoryReplayParams } from "@/lib/replay-params";
 
 const MODE_COLORS: Record<string, string> = {
   classic: "#6366f1",
@@ -86,14 +87,7 @@ export default function SavedScreen() {
           onPress={() => {
             router.push({
               pathname: "/story",
-              params: {
-                heroId: item.heroId,
-                mode: item.mode,
-                duration: "medium",
-                voice: "moonbeam",
-                speed: "medium",
-                replayJson: JSON.stringify(item.story),
-              },
+              params: buildStoryReplayParams(item),
             });
           }}
           onLongPress={() => handleUnfavorite(item.id, item.story.title)}
