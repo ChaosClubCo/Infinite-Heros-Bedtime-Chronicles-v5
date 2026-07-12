@@ -20,6 +20,7 @@ import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
 import { useProfile } from "@/lib/ProfileContext";
 import { getAllStories } from "@/lib/storage";
+import { buildStoryReplayParams } from "@/lib/replay-params";
 import { CachedStory } from "@/constants/types";
 import { HEROES } from "@/constants/heroes";
 
@@ -274,14 +275,7 @@ export default function HomeScreen() {
                     onPress={() => {
                       router.push({
                         pathname: "/story",
-                        params: {
-                          heroId: story.heroId,
-                          mode: story.mode,
-                          duration: "medium",
-                          voice: "moonbeam",
-                          speed: "medium",
-                          replayJson: JSON.stringify(story.story),
-                        },
+                        params: buildStoryReplayParams(story),
                       });
                     }}
                     accessibilityLabel={`Open story: ${story.story.title}`}

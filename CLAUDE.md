@@ -31,13 +31,14 @@ AI-powered interactive bedtime story app for children ages 3-9. Kids create cust
 ```
 app/                    # Expo Router screens (file-based routing)
   _layout.tsx           # Root layout — providers: ErrorBoundary → QueryClient → Profile → Settings → Gesture → Keyboard
+  index.tsx             # Launch gate ("/"): waits for lib/launch-gate.ts decision, then redirects (consent → welcome → tabs)
   (tabs)/               # Tab navigation (home, create, library, saved, profile)
     _layout.tsx          # Tab bar layout (5 tabs, 60px height + bottom inset)
   story.tsx             # Story reading/playback composition shell (~440 lines; logic in lib/use* hooks, UI in components/Story*, fullScreen fade modal)
   story-details.tsx     # Story customization wizard (slide from right)
   story-seeds.tsx       # Browsable story-seed gallery (filter by theme + age; seeds in constants/story-seeds.ts, card UI in components/SeedCard.tsx)
   completion.tsx        # Post-story celebration + badge awarding (fullScreen fade modal)
-  quick-create.tsx      # Fast onboarding hero creation (modal from bottom)
+  quick-create.tsx      # Fast onboarding hero creation (modal from bottom; opened after welcome's "Get Started")
   madlibs.tsx           # Mad Libs mode wizard (slide from right)
   sleep-setup.tsx       # Sleep mode setup (slide from right)
   settings.tsx          # App settings (slide from right)
@@ -75,6 +76,11 @@ lib/                    # Client utilities
   storage.comprehensive.test.ts  # Extended storage test suite
   storage-migration.ts  # Versioned AsyncStorage migration runner (see Known Gotchas)
   storage-migration.test.ts      # Storage migration tests
+  launch-gate.ts        # resolveLaunchRoute(): single source of truth for the cold-start consent/onboarding decision
+  launch-gate.test.ts   # Launch-gate unit tests
+  ConsentContext.tsx    # Reactive consent state driving the root layout's Stack.Protected guard
+  scene-handoff.ts      # In-memory handoff of scene images from story → completion (too large for nav params)
+  replay-params.ts      # buildStoryReplayParams(): shared /story replay params for all replay entry points
   query-client.ts       # TanStack React Query config (staleTime: Infinity, retry: false)
   query-client.test.ts  # Query client unit tests
   useNetworkStatus.ts   # NetInfo hook returning { isConnected, isInternetReachable } (used by app/_layout.tsx to gate OfflineBanner)
@@ -563,7 +569,7 @@ npm run test:coverage   # vitest run --coverage
 - **`getReadStories` / `markStoryRead`** — wired into library screen (unread dot indicator) and completion screen (marks story read on completion)
 - **`server/replit_integrations/`** — backend routes are functional and the voice chat UI exists at `app/voice-chat.tsx` (reachable from the profile tab)
 - **Supabase auth is optional** — if `SUPABASE_SERVICE_ROLE_KEY` (+ Supabase URL) is unset, all POSTs in dev are treated as anonymous with IP-based rate-limit identity (production returns 503)
-- **COPPA consent gate** — `app/_layout.tsx` checks `getConsentGiven()` before `getOnboardingComplete()`; an un-consented install is routed to `app/parental-consent.tsx` first. Consent is keyed by `CONSENT_VERSION` (`constants/types.ts`) — bump it to re-prompt existing installs when privacy practices change
+- **COPPA consent gate** — two layers: `app/index.tsx` (the "/" launch gate) resolves the cold-start route via `lib/launch-gate.ts` (`resolveLaunchRoute()`: consent before onboarding, fail-safe to consent), and `app/_layout.tsx` wraps every screen except `index`/`parental-consent`/`privacy` in `Stack.Protected` guarded by `lib/ConsentContext.tsx` — so deep links and restored navigation state can't mount protected screens un-consented either. Consent is keyed by `CONSENT_VERSION` (`constants/types.ts`) — bump it to re-prompt existing installs when privacy practices change
 - **AI router JSON extraction** — `router.ts` uses `extractFirstJson()` (balanced-brace scan that skips string literals), not a greedy regex; callers consume `response.parsedJson` when `jsonMode` is set
 - **Streaming model field** — `router.ts` reports the provider's `textModel` (the concrete model ID) on streaming chunks, falling back to `provider.name` only when `textModel` is unset
 

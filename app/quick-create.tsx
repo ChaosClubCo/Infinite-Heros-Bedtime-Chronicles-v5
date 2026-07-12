@@ -110,7 +110,7 @@ export default function QuickCreateScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     const theme = THEMES.find((t) => t.id === selectedTheme) || THEMES[0];
 
-    router.replace({
+    router.push({
       pathname: "/story",
       params: {
         heroId: theme.heroId,
@@ -118,7 +118,6 @@ export default function QuickCreateScreen() {
         duration: storyLength,
         voice: "moonbeam",
         speed: "medium",
-        isFirstStory: "true",
         ...(childName.trim() ? { childName: childName.trim() } : {}),
         ...(customPrompt.trim() ? { customPrompt: customPrompt.trim() } : {}),
       },

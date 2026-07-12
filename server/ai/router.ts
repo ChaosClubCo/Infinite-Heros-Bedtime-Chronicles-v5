@@ -10,8 +10,14 @@ import type {
   FallbackChain,
 } from "./types";
 import { CircuitBreaker } from "../circuit-breaker";
+import type { CircuitState } from "../circuit-breaker";
 import { retryWithJitter } from "../retry";
 import { logger } from "../logger";
+
+export interface BreakerStatus {
+  provider: ProviderName;
+  state: CircuitState;
+}
 
 /**
  * Extract the first complete, balanced JSON object from a string.
@@ -80,6 +86,14 @@ export class AIRouter {
 
   getAvailableProviders(): AIProvider[] {
     return Array.from(this.providers.values()).filter((p) => p.isAvailable());
+  }
+
+  /** Current circuit-breaker state per registered provider, for health/observability endpoints. */
+  getBreakerStatuses(): BreakerStatus[] {
+    return Array.from(this.breakers.entries()).map(([provider, breaker]) => ({
+      provider,
+      state: breaker.getState(),
+    }));
   }
 
   private getChain(taskType: AITaskType): ProviderName[] {

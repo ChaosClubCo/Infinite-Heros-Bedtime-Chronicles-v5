@@ -53,6 +53,8 @@ function makeStory(overrides: Partial<CachedStory> = {}): CachedStory {
     story,
     heroId: "hero-1",
     mode: "classic",
+    voice: "moonbeam",
+    speed: "medium",
     profileId: PROFILE_ID,
     ...overrides,
   };

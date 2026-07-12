@@ -4,9 +4,11 @@ import { openaiProvider } from "./providers/openai";
 import { anthropicProvider } from "./providers/anthropic";
 import { xaiProvider, mistralProvider, cohereProvider, metaLlamaProvider } from "./providers/openrouter";
 import type { ProviderStatus } from "./types";
+import type { BreakerStatus } from "./router";
 import { logger } from "../logger";
 
 export { AIRouter } from "./router";
+export type { BreakerStatus } from "./router";
 export type { AITaskType, ProviderName, TextGenerationRequest, TextGenerationResponse, ImageGenerationRequest, ImageGenerationResponse, StreamingTextChunk, ProviderStatus } from "./types";
 
 const allProviders = [
@@ -39,6 +41,10 @@ export function getProviderStatuses(): ProviderStatus[] {
     available: p.isAvailable(),
     capabilities: { ...p.capabilities },
   }));
+}
+
+export function getBreakerStatuses(): BreakerStatus[] {
+  return getAIRouter().getBreakerStatuses();
 }
 
 export function logProviderStatus(): void {

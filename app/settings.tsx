@@ -18,6 +18,7 @@ import { StarField } from "@/components/StarField";
 import Colors from "@/constants/colors";
 import { useSettings, AppSettings } from "@/lib/SettingsContext";
 import { useAuth } from "@/lib/AuthContext";
+import { useConsent } from "@/lib/ConsentContext";
 import { clearAllData } from "@/lib/storage";
 
 const VOICES = [
@@ -140,6 +141,7 @@ export default function SettingsScreen() {
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
   const { settings, updateSetting, resetSettings } = useSettings();
   const { signOut } = useAuth();
+  const { markUnconsented } = useConsent();
 
   const handleReset = () => {
     Alert.alert(
@@ -172,7 +174,12 @@ export default function SettingsScreen() {
             await clearAllData();
             await signOut();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            // Land on the consent gate first, then flip the guard — the
+            // Stack.Protected flip unmounts every protected screen (tabs,
+            // settings), so consent restarts with an empty back stack and
+            // re-consent flows through the launch gate to onboarding.
             router.replace("/parental-consent");
+            markUnconsented();
           },
         },
       ]

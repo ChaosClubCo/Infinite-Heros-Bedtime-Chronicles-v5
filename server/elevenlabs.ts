@@ -1,5 +1,6 @@
 import { ElevenLabsClient } from 'elevenlabs';
 import { logger } from './logger';
+import { CHECK_TIMEOUT_MS } from './health-checks';
 
 async function getCredentials(): Promise<string> {
   const apiKey = process.env.ELEVENLABS_API_KEY;
@@ -23,6 +24,20 @@ export async function getElevenLabsClient(): Promise<ElevenLabsClient> {
       });
   }
   return _elevenLabsClientPromise;
+}
+
+/**
+ * Cheap reachability probe for health checks: a metadata read, not a
+ * generation call, so it costs nothing and also validates the API key.
+ */
+export async function pingElevenLabs(): Promise<boolean> {
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  if (!apiKey) return false;
+  const res = await fetch('https://api.elevenlabs.io/v1/user', {
+    headers: { 'xi-api-key': apiKey },
+    signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+  });
+  return res.ok;
 }
 
 export type VoiceCategory = "sleep" | "classic" | "fun";
