@@ -10,7 +10,7 @@ AI-powered interactive bedtime story app for children ages 3-9. Kids create cust
 
 ## Tech Stack
 
-- **Frontend:** Expo SDK ~55, React Native 0.86 (New Architecture), Expo Router v6 (file-based routing, single root `app/_layout.tsx` — all navigation params via `useLocalSearchParams<T>()` generics; never use untyped string routes)
+- **Frontend:** Expo SDK ~55, React Native 0.86 (New Architecture), Expo Router 56 (file-based routing, single root `app/_layout.tsx` — all navigation params via `useLocalSearchParams<T>()` generics; never use untyped string routes; note `expo-router`'s own package major (56) no longer tracks the Expo SDK major)
 - **State:** TanStack React Query v5 (server state) + React Context (app settings, profiles)
 - **Local Storage:** AsyncStorage for stories, profiles, badges, streaks, parent controls
 - **Styling:** React Native StyleSheet + react-native-reanimated v4 for animations
@@ -34,6 +34,7 @@ app/                    # Expo Router screens (file-based routing)
   index.tsx             # Launch gate ("/"): waits for lib/launch-gate.ts decision, then redirects (consent → welcome → tabs)
   (tabs)/               # Tab navigation (home, create, library, saved, profile)
     _layout.tsx          # Tab bar layout (5 tabs, 60px height + bottom inset)
+    index.tsx / create.tsx / library.tsx / saved.tsx / profile.tsx  # The 5 tab screens
   story.tsx             # Story reading/playback composition shell (~440 lines; logic in lib/use* hooks, UI in components/Story*, fullScreen fade modal)
   story-details.tsx     # Story customization wizard (slide from right)
   story-seeds.tsx       # Browsable story-seed gallery (filter by theme + age; seeds in constants/story-seeds.ts, card UI in components/SeedCard.tsx)
@@ -51,10 +52,13 @@ components/             # Reusable React Native components
   ErrorBoundary.tsx     # Error boundary wrapper
   ErrorFallback.tsx     # Error fallback UI component
   HeroCard.tsx          # Hero template card (used in hero selection grid)
+  BadgeCard.tsx         # Badge/trophy display card (trophies screen)
+  OnboardingSlide.tsx   # Illustrated onboarding slide (welcome flow)
+  SeedCard.tsx          # Story-seed card (story-seeds.tsx gallery)
   KeyboardAwareScrollViewCompat.tsx  # Cross-platform keyboard-aware scroll
   MemoryJar.tsx         # Story memory display
   OfflineBanner.tsx     # Offline state banner (wired into app/_layout.tsx via useNetworkStatus)
-  ParentControlsModal.tsx  # Parent controls (PIN-protected)
+  ParentControlsModal.tsx  # Parent controls (PIN-protected, with lockout after failed attempts)
   ProfileModal.tsx      # Child profile management
   SettingsModal.tsx     # Settings overlay
   PulsingOrb.tsx        # Animated orb effect
@@ -67,6 +71,7 @@ constants/              # Types, hero templates, colors, timing
   colors.ts             # Cosmic theme palette
   timing.ts             # Animation timing constants
   story-theme.ts        # Story-mode themes, voices, loading messages, speed rates + StoryMode/StoryState/StoryTheme types
+  story-seeds.ts        # Browsable story-seed catalog (used by app/story-seeds.tsx)
 lib/                    # Client utilities
   SettingsContext.tsx    # Unified settings provider (React Context)
   ProfileContext.tsx     # Child profile context
@@ -81,13 +86,19 @@ lib/                    # Client utilities
   ConsentContext.tsx    # Reactive consent state driving the root layout's Stack.Protected guard
   scene-handoff.ts      # In-memory handoff of scene images from story → completion (too large for nav params)
   replay-params.ts      # buildStoryReplayParams(): shared /story replay params for all replay entry points
+  replay-params.test.ts # Replay-params unit tests
   query-client.ts       # TanStack React Query config (staleTime: Infinity, retry: false)
   query-client.test.ts  # Query client unit tests
   useNetworkStatus.ts   # NetInfo hook returning { isConnected, isInternetReachable } (used by app/_layout.tsx to gate OfflineBanner)
+  badges.ts             # Centralized badge-award evaluation (see Badge System)
+  badges.test.ts        # Badge logic unit tests
+  customHeroStorage.ts  # AsyncStorage helpers for user-created custom heroes
+  confirmDestructive.ts # Cross-platform confirm() wrapper for destructive actions (delete profile/story)
+  useAutoAdvance.ts / useBackgroundMusic.ts / useLoadingMessages.ts / useSceneGeneration.ts / useSleepTimer.ts / useStoryAudio.ts / useVideoGeneration.ts  # Story-screen hooks extracted from app/story.tsx (untestable under Vitest — import Expo native modules)
 server/                 # Express.js backend
   index.ts              # Server bootstrap, security middleware, CORS, graceful shutdown
-  routes.ts             # Route composer: auth gate + registers domain modules, returns HTTP server (~50 lines)
-  routes/               # Domain route modules (health, story, images, tts, music, suggest, video) + context.ts (singletons) + helpers.ts (rate-limit middleware, error/IP/cache-path helpers)
+  routes.ts             # Route composer: auth gate + registers domain modules, returns HTTP server (~70 lines)
+  routes/               # Domain route modules (health, story, images, tts, music, suggest, video, github-webhook) + context.ts (singletons) + helpers.ts (rate-limit middleware, error/IP/cache-path helpers)
   auth.ts               # Supabase bearer-token (JWT) middleware (optional, lazy-init service-role client)
   validation.ts         # Zod request schemas + sanitizeString
   prompts.ts            # Story system/user prompt builders + CHILD_SAFETY_RULES
@@ -95,23 +106,27 @@ server/                 # Express.js backend
   circuit-breaker.ts    # Circuit breaker for AI providers
   retry.ts              # Retry with jitter
   load-shedding.ts      # Active-request ceiling middleware
-  idempotency.ts        # Idempotency cache (TTL 5 min, keyed by request hash)
+  idempotency.ts        # Idempotency cache (TTL 5 min, keyed by request hash; KV-backed for cross-invocation survival — see kv.ts)
   logger.ts             # pino structured logger
   metrics.ts            # In-process metrics (request/provider counters)
   feature-flags.ts      # Runtime feature flag resolver
   tts-cache.ts          # TTS file cache with size + age limits
   utils.ts              # toErrorMessage, classifyError, createErrorResponse
+  alerting.ts           # Fires Sentry alerts on 5xx-rate / TTS-failure-rate threshold breaches
+  health-checks.ts      # Background-refreshed, short-TTL live-reachability cache for /api/health, /api/ai-providers
+  kv.ts                 # Cloudflare KV client wrapper (persistent rate-limit + idempotency; falls back to in-memory when unset)
   ai/                   # Multi-provider AI router
     index.ts            # Provider registration & status checking
     router.ts           # AIRouter class with fallback chain, circuit breakers, retry
     types.ts            # AI provider interface definitions
+    cost.ts             # Per-provider token cost estimation
     providers/          # Gemini, OpenAI, Anthropic, OpenRouter
   elevenlabs.ts         # TTS voice definitions & generation
   suno.ts               # Background music serving
   video.ts              # Sora video generation
   storage.ts            # Server-side in-memory story cache (NOT the same as lib/storage.ts)
   db.ts                 # Drizzle ORM client
-  replit_integrations/  # Audio, chat, image, batch modules (conditionally registered)
+  replit_integrations/  # Audio, chat, image, batch modules (audio + image conditionally registered; chat/ implemented but never registered — dead code)
   templates/            # HTML templates (landing page, privacy policy)
 shared/                 # Shared between client & server
   schema.ts             # Drizzle ORM schema (users table, re-exports models/chat.ts)
@@ -127,27 +142,32 @@ docs/                   # Project documentation
   BETA_TESTING.md       # Beta testing plan
   TEST-COVERAGE-ANALYSIS.md  # Test coverage status + known bugs
   GITHUB-CUSTOM-AGENTS.md    # GitHub Copilot custom agent configurations
-  AUDIT-SECURITY-2026-03-27.md      # Security audit findings (2026-03-27)
-  COMPREHENSIVE-AUDIT-2026-03-27.md # Full codebase audit (2026-03-27)
-  SECURITY-FIXES-2026-03-27.md      # Security fixes applied (2026-03-27)
+  AUDIT-SECURITY-2026-03-27.md      # Security audit findings (2026-03-27) — historical; written against the since-removed Firebase auth, see supersession note
+  COMPREHENSIVE-AUDIT-2026-03-27.md # Full codebase audit (2026-03-27) — historical, same caveat
+  SECURITY-FIXES-2026-03-27.md      # Security fixes applied (2026-03-27) — historical, same caveat
+  PRODUCTION-READINESS-AUDIT-2026-06-19.md  # Production-readiness re-audit
+  AUDIT-ROUTING-2026-07-10.md       # Splash/launch-gate routing audit
+  RELEASE-QUALITY-LENSES-2026-07-12.md  # Reliability-sprint release-quality review
   adr/                  # Architecture Decision Records (5 ADRs)
   agents/               # 15 files: 12 agent spec files + README + pr-review.md + security.md
   best-practices/       # Best-practice guides (ACCESSIBILITY, PERFORMANCE, SECURITY, TESTING)
-  operations/           # PLAY_STORE_DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md, OBSERVABILITY.md, SECRETS-ROTATION.md, README.md
+  operations/           # PLAY_STORE_DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md, OBSERVABILITY.md, SECRETS-ROTATION.md, BRANCH-PROTECTION-SETUP.md, README.md
   runbooks/             # deploy, incident-response, database-migrations, provider-outage, rollback, monitoring-alerting, README.md
-  superpowers/plans/    # Maturity & hardening plans (2026-04-08; historical planning docs)
+  superpowers/plans/    # Maturity & hardening plans (2026-04-08 onward; historical planning docs)
 api/                    # Vercel serverless entry point
   server.mjs            # Handler that imports createApp from server_dist
 scripts/                # Build scripts
   build.js              # Expo static build script
   build-android.sh      # Android build script
   preflight.js          # Pre-build environment / dependency checks
+  generate-hero-portraits.mjs  # Pre-bakes hero portrait images (one-off/CI asset generation)
 ```
 
 **Root-level docs and config** (not part of the app source tree):
 - `AGENTS.md` — agent framework conventions
 - `CONTRIBUTING.md` — contribution guidelines
 - `CONVENTIONS.md` — code conventions reference
+- `DEPLOY.md` — Vercel/EAS deployment runbook
 - `GEMINI.md` — Gemini-specific agent instructions
 - `GLOSSARY.md` — project terminology
 - `MEMORY.md` — persistent agent memory/context
@@ -167,7 +187,7 @@ npx expo start              # Frontend (non-Replit)
 npm run dev                 # Both at once (dev:server & dev:expo — POSIX shells; on Windows run the two commands in separate terminals)
 
 # Build
-npm run server:build        # esbuild → server_dist/index.js (ESM format)
+npm run server:build        # esbuild → server_dist/index.js (CommonJS, minified)
 npm run expo:static:build   # Expo static build (node scripts/build.js)
 
 # Production
@@ -270,16 +290,20 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 - `GET /api/video-status/:id` — Check video job status
 - `GET /api/video/:id` — Retrieve generated video
 
-**Voice Chat (requires AI_INTEGRATIONS_OPENAI_API_KEY + DATABASE_URL + the `voiceChatEnabled` feature flag — see `server/routes.ts`):**
+**Voice Chat (requires AI_INTEGRATIONS_OPENAI_API_KEY + DATABASE_URL + the `voiceChatEnabled` feature flag — registered by `registerAudioRoutes()` in `server/replit_integrations/audio/routes.ts`, see `server/routes.ts`):**
 - `GET /api/conversations` — List conversations
 - `POST /api/conversations` — Create new conversation
 - `GET /api/conversations/:id` — Get conversation history
 - `DELETE /api/conversations/:id` — Delete conversation
 - `POST /api/conversations/:id/messages` — Send voice message in a conversation
 
-**Replit Integrations (conditional — registered by `server/replit_integrations/*`):**
-- `/api/audio/*` — audio pipeline routes (registered by `registerAudioRoutes()`)
-- `/api/image/*` — image pipeline routes (registered by `registerImageRoutes()`)
+**Image generation (conditional — requires AI_INTEGRATIONS_GEMINI_API_KEY, registered by `registerImageRoutes()`):**
+- `POST /api/generate-image` — Replit-integration image generation route (distinct from `/api/generate-avatar` and `/api/generate-scene` above)
+
+**GitHub Integration:**
+- `POST /api/github/webhook` — GitHub webhook receiver, authenticated via `X-Hub-Signature-256` HMAC (not Supabase auth)
+
+> `server/replit_integrations/chat/routes.ts` also implements a text-chat variant of `POST /api/conversations/:id/messages`, but `registerChatRoutes()` is never called — it is dead code, not a live endpoint.
 
 ## Authentication
 
@@ -340,7 +364,7 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 - Video ID validation: only IDs matching `/^[a-f0-9]+$/` are accepted
 - CORS allowed origins: Replit dev/prod domains, localhost (ports 5000/8081/19000-19006), `https://bedtime-chronicles.com`, `https://www.bedtime-chronicles.com`, Vercel preview URLs matching `infinite-hero*.vercel.app`, and `VERCEL_URL` env var — do not add wildcards
 - Input truncation via `sanitizeString()` is mandatory before any prompt inclusion
-- PIN storage: parent-controls PIN is stored as a SHA-256 hash with a per-install salt (`hashPin` / `generatePinSalt` in `lib/storage.ts`); the plaintext PIN is never persisted. See `docs/COPPA-COMPLIANCE.md` §6.
+- PIN storage: parent-controls PIN is stored as a SHA-256 hash with a per-install salt (`hashPin` / `generatePinSalt` in `lib/storage.ts`); the plaintext PIN is never persisted. Brute-force lockout: 5 failed attempts triggers a 30s lockout (`isPinLockedOut` / `recordFailedPinAttempt` / `resetPinAttempts` in `lib/storage.ts`, enforced in `components/ParentControlsModal.tsx`). See `docs/COPPA-COMPLIANCE.md` §6.
 
 ### Child Safety Rules (enforced in AI prompts)
 - No violence, weapons, fighting, scary/horror elements
@@ -358,7 +382,7 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 5. Request logging (pino)
 6. Load shedding (rejects if active-request ceiling exceeded)
 7. Expo manifest routing + static file serving
-8. Route registration (`requireAuth` applied to all POST /api/*; rate limit + idempotency per domain module)
+8. Route registration (`requireAuth` applied to all non-GET `/api/*` methods plus `GET /api/conversations*`; rate limit + idempotency per domain module)
 9. Global error handler (sanitizes messages)
 
 ## Common Tasks
@@ -552,13 +576,13 @@ npm run test:coverage   # vitest run --coverage
 ## Known Gotchas
 
 - `app/story.tsx` is a ~440-line composition shell — playback/music/scene/video/timer logic lives in `lib/use*.ts` hooks and presentational pieces in `components/Story*`; mode constants in `constants/story-theme.ts`
-- `server/routes.ts` is a ~50-line composer — handlers live in `server/routes/<domain>.ts` modules; shared singletons in `server/routes/context.ts`, request plumbing in `server/routes/helpers.ts`
+- `server/routes.ts` is a ~70-line composer — handlers live in `server/routes/<domain>.ts` modules; shared singletons in `server/routes/context.ts`, request plumbing in `server/routes/helpers.ts`
 - **`npm run dev` exists but is POSIX-only** — it runs `dev:server & dev:expo` with a shell `&`; on Windows run `npm run server:dev` and `npm run expo:dev` in separate terminals
 - **Never use `./gradlew` or `gradlew`** — EAS Build manages Gradle internally; use `npx expo` or `eas` CLI commands instead
 - **`expo:dev` requires Replit env vars** — outside Replit, use `npx expo start` directly
 - AI router automatically falls back through providers, with circuit breakers and retry — check `server/ai/router.ts`
 - ElevenLabs voices are hardcoded in `server/elevenlabs.ts` with specific voice IDs
-- Expo Router v6 file-based routing — screen paths map to file paths in `app/`
+- Expo Router (file-based routing, package major 56) — screen paths map to file paths in `app/`
 - `postinstall` runs `patch-package || true` — currently a no-op (`patches/` was removed after the SDK 55 upgrade) but kept so future patches apply automatically
 - Metro blocklist includes `.local/state/workflow-logs/**`
 - Legacy `@infinity_heroes_preferences` key auto-migrates to `@infinity_heroes_app_settings`

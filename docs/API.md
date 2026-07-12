@@ -21,19 +21,35 @@ Rate limiting uses the authenticated user's UID when available, falling back to 
 ## Health & Status
 
 ### `GET /api/health`
-Returns server health status.
+Returns server health status, including AI/TTS availability, circuit-breaker state, and feature flags. `ttsLive`/`aiProvidersLive` come from a short-TTL background-refreshed cache (see `server/health-checks.ts`) — never a synchronous network probe — so they read `{ reachable: null, checkedAt: null }` until the first background check completes (e.g. right after a serverless cold start).
 
 **Response:**
 ```json
-{ "status": "ok", "timestamp": 1710000000000 }
+{
+  "status": "ok",
+  "timestamp": 1710000000000,
+  "aiProvidersAvailable": true,
+  "ttsAvailable": true,
+  "ttsLive": { "reachable": true, "checkedAt": 1710000000000 },
+  "aiProvidersLive": { "reachable": true, "checkedAt": 1710000000000 },
+  "breakers": { "gemini": "closed", "openai": "closed" },
+  "features": { "voiceChatEnabled": false },
+  "activeRequests": 0
+}
 ```
 
 ### `GET /api/ai-providers`
-Returns availability status of all configured AI providers.
+Returns availability status of all configured AI providers plus circuit-breaker state. `providers` is an array of status objects, not a boolean map.
 
 **Response:**
 ```json
-{ "providers": { "gemini": true, "openai": true, "anthropic": false, "openrouter": true } }
+{
+  "providers": [
+    { "name": "anthropic", "available": true, "capabilities": { "text": true, "image": false, "streaming": true } },
+    { "name": "gemini", "available": true, "capabilities": { "text": true, "image": true, "streaming": true } }
+  ],
+  "breakers": { "anthropic": "closed", "gemini": "closed" }
+}
 ```
 
 ### `GET /api/metrics`
@@ -391,24 +407,7 @@ data: {"type":"audio","data":"<base64-pcm16-chunk>"}
 data: {"type":"done","transcript":"Hi there! How are you?"}
 ```
 
-### `POST /api/conversations/:id/messages` (text chat variant)
-Sends a text message and receives a streaming AI response.
-
-**Request Body:**
-```json
-{ "content": "Tell me a bedtime story!" }
-```
-
-| Field | Type | Required | Constraints |
-|-------|------|----------|-------------|
-| content | string | Yes | Non-empty, max 10,000 characters |
-
-**SSE Response Events:**
-```
-data: {"content":"Once upon..."}
-data: {"content":" a time..."}
-data: {"done":true}
-```
+> **Not currently live:** `server/replit_integrations/chat/routes.ts` implements a text-chat variant of this endpoint (`{ content }` request → `{content}`/`{done}` SSE events), but `registerChatRoutes()` is never called from `server/routes.ts` — there is no code path that registers it on the running server. Treat it as dead code, not a documented API surface, until something wires it up.
 
 ---
 
