@@ -9,9 +9,13 @@ import { Buffer } from "node:buffer";
 // call sites (here and in audio/routes.ts) stay unchanged.
 let _openai: OpenAI | null = null;
 function getOpenAIClient(): OpenAI {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("OpenAI is not configured. AI_INTEGRATIONS_OPENAI_API_KEY is required.");
+  }
   if (!_openai) {
     _openai = new OpenAI({
-      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+      apiKey,
       baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
     });
   }

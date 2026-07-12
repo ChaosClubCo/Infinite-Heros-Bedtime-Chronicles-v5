@@ -9,10 +9,12 @@ import { sanitizePromptInput } from "../../validation";
 // cold start before any request or graceful degradation can run. Voice-chat
 // routes are only reachable when the key (and DATABASE_URL) are configured.
 let _openai: OpenAI | null = null;
-function getOpenAIClient(): OpenAI {
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY?.trim();
+  if (!apiKey) return null;
   if (!_openai) {
     _openai = new OpenAI({
-      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+      apiKey,
       baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
     });
   }
@@ -132,6 +134,11 @@ export function registerChatRoutes(app: Express): void {
         return res.status(404).json({ error: "Conversation not found" });
       }
 
+      const openai = getOpenAIClient();
+      if (!openai) {
+        return res.status(503).json({ error: "Voice chat is not configured" });
+      }
+
       // Save user message (sanitized: strip control chars / defang injection markers)
       const safeContent = sanitizePromptInput(content, MAX_MESSAGE_LENGTH);
       await chatStorage.createMessage(conversationId, "user", safeContent);
@@ -148,18 +155,19 @@ export function registerChatRoutes(app: Express): void {
         })),
       ];
 
-      // Set up SSE
-      res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache");
-      res.setHeader("Connection", "keep-alive");
-
       // Stream response from OpenAI
-      const stream = await getOpenAIClient().chat.completions.create({
+      const stream = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: chatMessages,
         stream: true,
         max_completion_tokens: 8192,
       });
+
+      // Set up SSE only after the stream is created successfully so early errors
+      // can still return a normal JSON response with the correct content type.
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
 
       let fullResponse = "";
 
@@ -188,4 +196,3 @@ export function registerChatRoutes(app: Express): void {
     }
   });
 }
-
