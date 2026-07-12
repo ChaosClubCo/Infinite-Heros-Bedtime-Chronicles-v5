@@ -1,6 +1,6 @@
 # Development Roadmap
 
-**Last Updated:** 2026-07-12
+**Last Updated:** 2026-07-12 (doc/code audit pass)
 
 Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Time Criticality + Risk Reduction) / Job Size`
 
@@ -50,11 +50,13 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 | Story playback cleanup + stale-closure fix in app/story.tsx (#245) | Code Quality | 2026-06-19 |
 | Refactor badge system into lib/badges.ts; fix vocab_5 & all_heroes bugs (#247) | Bug Fix | 2026-06-19 |
 | Custom hero storage + Trophies screen progress UI (#247) | Feature | 2026-06-19 |
-| Add Sentry error tracking (server + client) | Observability | 2026-06-13 |
-| Add Cloudflare KV persistent rate limiting | Infrastructure | 2026-06-13 |
 | M2 — Live health checks: circuit-breaker status + cached non-blocking live reachability probes on `/api/health` and `/api/ai-providers` | Reliability | 2026-07-12 |
 | M3 — Wire alerting thresholds: `server/alerting.ts` fires Sentry alerts on 5xx-rate/TTS-failure-rate breaches (server-side Sentry itself already shipped 2026-06-13) | Observability | 2026-07-12 |
 | M1 (idempotency half) — KV-backed idempotency cache: `/api/generate-story` dedup now survives across Vercel serverless invocations, not just within one warm process | Infrastructure | 2026-07-12 |
+| Add Supabase Auth (bearer-token JWT middleware, optional/gated, 503 in production when unconfigured) | Feature/Security | 2026-07-06 |
+| Voice-chat IDOR fix — ownership (`userId`) checks on all conversation reads/writes in `server/replit_integrations/audio/routes.ts` | Security | 2026-07-06 |
+| Parent-controls PIN brute-force lockout (5 attempts → 30s lockout, `lib/storage.ts` + `ParentControlsModal.tsx`) | Security | 2026-07-06 |
+| Doc/code audit — reconciled `CLAUDE.md`, `.claude/CLAUDE.md`, `docs/API.md` project structure, endpoint list, tech-stack versions, and middleware description against actual source | Docs | 2026-07-12 |
 
 ## Backlog (Prioritized)
 
@@ -70,15 +72,15 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 4 | Add authentication (anonymous sessions) | 5 | 1 | 3 | 8 | 1.1 | Only needed if API cost abuse becomes a concern |
+| 4 | Remove or wire up `server/replit_integrations/chat/routes.ts` | 2 | 1 | 2 | 2 | 2.5 | `registerChatRoutes()` implements a text-chat variant of `POST /api/conversations/:id/messages` but is never called from `server/routes.ts` — dead code flagged in the 2026-07-12 doc audit. Either delete it or register it behind a feature flag like the audio routes |
 | 5 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | Stored data is non-sensitive (story text, badges) |
+| 6 | Refresh `docs/TEST-COVERAGE-ANALYSIS.md` coverage numbers | 3 | 1 | 2 | 2 | 3.0 | Doc still cites the 2026-06-11 baseline (1010 tests / 41 files); repo now has 56 `*.test.ts` files — re-run `npm run test:coverage` and update the module coverage table |
 
 ## Dependencies
 
 - Item 1 (M1 TTS-cache→R2) requires provisioning a new Cloudflare R2 bucket + scoped API token — an external action outside agent control. It reuses the KV-fallback pattern shipped for idempotency (`server/kv.ts`) but needs an R2-specific client since KV isn't suited to binary blobs; see the follow-up note in `server/tts-cache.ts`.
 - Item 2 (EAS) requires all API keys to be set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md)
 - Item 3 (audit) is blocked on upstream releasing fixes for the `tmp`/`undici` and `@expo/config*` transitive chains
-- Item 4 (auth) would require significant architecture changes
 
 ## Known Audit Issues
 

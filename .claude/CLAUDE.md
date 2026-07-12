@@ -11,8 +11,8 @@ custom superhero and get personalized, AI-generated adventures with scene illust
 ElevenLabs narration, and gamification (badges, streaks, trophies). Three story modes:
 Classic (adventure), Mad Libs (silly), and Sleep (calming).
 
-**Shape:** a single repo with an **Expo / React Native client** (Expo Router v6, file-based
-routing under `app/`) and a **production-hardened Express 5 server** (`server/`). The server
+**Shape:** a single repo with an **Expo / React Native client** (Expo Router, package major 56,
+file-based routing under `app/`) and a **production-hardened Express 5 server** (`server/`). The server
 is notably mature — it ships circuit breakers, retry-with-jitter, rate limiting, load
 shedding, idempotency caching, feature flags, structured pino logging, and in-process
 metrics, each with its own test. AI generation goes through a **multi-provider router**
@@ -47,6 +47,12 @@ shared across client and server.
   (`SUPABASE_SERVICE_ROLE_KEY` + Supabase URL); client uses `EXPO_PUBLIC_SUPABASE_URL` +
   `EXPO_PUBLIC_SUPABASE_ANON_KEY` (`lib/AuthContext.tsx`). Older docs mentioning
   `FIREBASE_SERVICE_ACCOUNT_KEY` are historical.
+- **Doc-vs-code audit (2026-07-12)**: `server/replit_integrations/chat/routes.ts`
+  (`registerChatRoutes()`) is implemented but never called from `server/routes.ts` —
+  it's dead code, not a live endpoint; don't document it as one. `docs/API.md`,
+  `../CLAUDE.md`, and this file were reconciled against actual `server/routes/*` and
+  `package.json` in the same pass — see `docs/ROADMAP.md` for anything that came out
+  of it as a backlog item.
 
 ## AI Context
 
@@ -59,7 +65,7 @@ project:
   status: active (canonical v5); separate from the dormant local "infinity-heroes" repo
 stack:
   language: TypeScript (strict; tsconfig)
-  client: Expo ~55 / React Native 0.86 (New Arch) / Expo Router v6 / react-native-web
+  client: Expo ~55 / React Native 0.86 (New Arch) / Expo Router 56 / react-native-web
   state: TanStack React Query v5 + React Context; AsyncStorage for local persistence
   server: Express 5 (server/index.ts) — esbuild bundle → server_dist; tsx for dev
   db: PostgreSQL + Drizzle ORM (drizzle-kit push); voice-chat features only
