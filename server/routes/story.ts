@@ -30,6 +30,7 @@ export function registerStoryRoutes(app: Express): void {
       return res.json(result);
     }
 
+    let resolvedFromKv = false;
     const generationPromise = (async () => {
       // KV-backed cross-invocation dedup: catches a duplicate request that
       // landed on a different serverless invocation than the one that already
@@ -39,10 +40,11 @@ export function registerStoryRoutes(app: Express): void {
       // an await there would open a window where two concurrent identical
       // requests both miss the in-memory cache before either registers a
       // promise, and both end up starting their own generation.
-      const resolvedFromKv = await idempotencyCache.getResolved(idempotencyKey);
-      if (resolvedFromKv !== undefined) {
+      const kvResolvedStory = await idempotencyCache.getResolved(idempotencyKey);
+      if (kvResolvedStory !== undefined) {
+        resolvedFromKv = true;
         req.log?.info('story request deduplicated (KV hit)');
-        return resolvedFromKv;
+        return kvResolvedStory;
       }
 
       const partCount = getPartCount(duration);
@@ -101,7 +103,9 @@ export function registerStoryRoutes(app: Express): void {
 
     try {
       const story = await generationPromise;
-      idempotencyCache.setResolved(idempotencyKey, story);
+      if (!resolvedFromKv) {
+        idempotencyCache.setResolved(idempotencyKey, story);
+      }
       res.json(story);
     } catch (error: unknown) {
       idempotencyCache.delete(idempotencyKey);

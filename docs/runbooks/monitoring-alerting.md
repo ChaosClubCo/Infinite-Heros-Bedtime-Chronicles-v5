@@ -119,7 +119,7 @@ Only in an emergency (e.g., KV contains corrupted entries):
 }
 ```
 
-`ttsLive`/`aiProvidersLive` come from a background-refreshed, ~45s-TTL cache (`server/health-checks.ts`) — a genuine reachability probe (ElevenLabs `GET /v1/user`, Anthropic `GET /v1/models`), never a synchronous call on the request path, so the endpoint never blocks waiting on an outbound network call. `reachable: null` means "not probed yet" (expected right after a cold start) — don't treat it as unhealthy. `breakers` exposes each AI provider's circuit-breaker state (`closed`/`open`/`half-open`) from `server/ai/router.ts`.
+`ttsLive`/`aiProvidersLive` come from a background-refreshed, ~45s-TTL cache (`server/health-checks.ts`) — a genuine reachability probe (ElevenLabs `GET /v1/user`, Gemini `GET /v1beta/models`, Anthropic `GET /v1/models`), never a synchronous call on the request path, so the endpoint never blocks waiting on an outbound network call. `reachable: null` means "not probed yet" (expected right after a cold start) — don't treat it as unhealthy. `breakers` exposes each AI provider's circuit-breaker state (`closed`/`open`/`half-open`) from `server/ai/router.ts`.
 
 Monitor this endpoint from an external uptime tool (e.g., UptimeRobot, BetterUptime) with a 1-minute check interval. Alert when `status !== "ok"`, when `ttsLive.reachable === false` or `aiProvidersLive.reachable === false` for more than one consecutive check, when any `breakers` entry reports `"open"`, or when response time exceeds 5 seconds.
 
@@ -127,7 +127,7 @@ Monitor this endpoint from an external uptime tool (e.g., UptimeRobot, BetterUpt
 
 ## 4. Alerting Thresholds
 
-`server/alerting.ts` automates the two request-rate thresholds below: `checkAlertThresholds()` reads `server/metrics.ts` counters and fires `Sentry.captureMessage()` (level `warning` or `error`) plus a `logger.warn`, rate-limited by a cooldown (`ALERT_COOLDOWN_MS`, default 15 min) so a sustained outage doesn't spam. It's invoked periodically from the request-finish hook in `server/index.ts` (every ~20th request), so no separate process/cron is needed on either Replit or Vercel. Thresholds are env-tunable (`ALERT_5XX_RATE_WARN_PCT`/`_CRIT_PCT`, `ALERT_TTS_FAILURE_WARN_PCT`/`_CRIT_PCT`); it skips evaluation until a minimum sample size is reached (≥20 requests / ≥10 TTS calls) to avoid noise from tiny denominators.
+`server/alerting.ts` automates the two request-rate thresholds below: `checkAlertThresholds()` reads `server/metrics.ts` counters and fires `Sentry.captureMessage()` (level `warning` or `error`) plus a severity-matched logger call (`logger.warn` or `logger.error`), rate-limited by a cooldown (`ALERT_COOLDOWN_MS`, default 15 min) so a sustained outage doesn't spam. It's invoked periodically from the request-finish hook in `server/index.ts` (every ~20th request), so no separate process/cron is needed on either Replit or Vercel. Thresholds are env-tunable (`ALERT_5XX_RATE_WARN_PCT`/`_CRIT_PCT`, `ALERT_TTS_FAILURE_WARN_PCT`/`_CRIT_PCT`); it skips evaluation until a minimum sample size is reached (≥20 requests / ≥10 TTS calls) to avoid noise from tiny denominators.
 
 **Known limitations:**
 - `server/metrics.ts` counters are lifetime-cumulative for the process (only test code calls `resetMetrics()`), not a rolling window, and reset to zero on every Vercel cold start — so the computed rate is "since this process/invocation started," not "in the last N minutes." A true sliding-window metric store would be a larger follow-up.
