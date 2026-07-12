@@ -4,10 +4,20 @@ import { chatStorage } from "./storage";
 import { requireAuth } from "../../auth";
 import { sanitizePromptInput } from "../../validation";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+// Construct the OpenAI client lazily so a missing AI_INTEGRATIONS_OPENAI_API_KEY
+// does not throw at module load — that would crash the serverless function on
+// cold start before any request or graceful degradation can run. Voice-chat
+// routes are only reachable when the key (and DATABASE_URL) are configured.
+let _openai: OpenAI | null = null;
+function getOpenAIClient(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    });
+  }
+  return _openai;
+}
 
 const MAX_TITLE_LENGTH = 200;
 const MAX_MESSAGE_LENGTH = 10000;
@@ -144,7 +154,7 @@ export function registerChatRoutes(app: Express): void {
       res.setHeader("Connection", "keep-alive");
 
       // Stream response from OpenAI
-      const stream = await openai.chat.completions.create({
+      const stream = await getOpenAIClient().chat.completions.create({
         model: "gpt-4o",
         messages: chatMessages,
         stream: true,
