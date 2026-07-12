@@ -3,6 +3,11 @@ import express from "express";
 import request from "supertest";
 import type { Express } from "express";
 import type { Server } from "node:http";
+// IdempotencyCache is imported dynamically inside the test that needs it,
+// not statically here: it pulls in server/kv.ts, whose KV_ENABLED constant
+// is computed once at module-evaluation time from CLOUDFLARE_* env vars. A
+// static import is evaluated before beforeAll sets those vars, which would
+// permanently freeze KV_ENABLED at `false` for this whole file.
 
 // Exercises the KV-backed idempotency wiring added for M1: when Cloudflare
 // KV is configured, a successful /api/generate-story response should be
@@ -105,6 +110,53 @@ describe("POST /api/generate-story KV-backed cross-invocation dedup", () => {
     const kvKeys = Object.keys(kvStore).filter((k) => k.startsWith("idem:"));
     expect(kvKeys.length).toBe(1);
     expect((kvStore[kvKeys[0]] as { body: unknown }).body).toEqual(validStoryPayload);
+  });
+
+  it("does not re-write to KV (or extend its TTL) when a duplicate is served from a KV hit", async () => {
+    // Regression test: setResolved() must only mirror a freshly-generated
+    // result, not re-mirror one that was itself read from KV — otherwise a
+    // steady trickle of duplicate requests would keep sliding the TTL
+    // forward and the entry would never expire on schedule.
+    const { idempotencyCache } = await import("./context");
+    const { IdempotencyCache } = await import("../idempotency");
+    const keySpy = vi.spyOn(IdempotencyCache, "keyFromBody");
+
+    try {
+      mockGenerateText.mockResolvedValueOnce({
+        text: JSON.stringify(validStoryPayload),
+        parsedJson: validStoryPayload,
+        provider: "gemini",
+        model: "gemini-test",
+        usage: { inputTokens: 10, outputTokens: 10 },
+      });
+
+      const body = { heroName: "KvHitNoRewriteHero", heroTitle: "unique-kv-hit-no-rewrite" };
+      const first = await request(app).post("/api/generate-story").send(body);
+      expect(first.status).toBe(200);
+
+      const idempotencyKey = keySpy.mock.results[0]?.value;
+      expect(idempotencyKey).toBeTypeOf("string");
+
+      // Simulate the duplicate landing on a different invocation: clear the
+      // in-memory entry so the second request must go through the KV check
+      // inside the generation promise rather than the in-memory get() hit.
+      idempotencyCache.delete(idempotencyKey);
+      // Only the idem: entry is under test here — the rate-limiter has its
+      // own KV-backed per-IP counter that legitimately changes on every
+      // request, so snapshot just the idempotency key, not the whole store.
+      const idemEntryBefore = JSON.stringify(kvStore[`idem:${idempotencyKey}`]);
+
+      const second = await request(app).post("/api/generate-story").send(body);
+      expect(second.status).toBe(200);
+      expect(second.body.title).toBe(validStoryPayload.title);
+
+      // Still only one generation call — the second was served from KV.
+      expect(mockGenerateText).toHaveBeenCalledTimes(1);
+      // And the idempotency entry itself was not re-written (same createdAt).
+      expect(JSON.stringify(kvStore[`idem:${idempotencyKey}`])).toBe(idemEntryBefore);
+    } finally {
+      keySpy.mockRestore();
+    }
   });
 
   it("does not write to KV when generation fails", async () => {

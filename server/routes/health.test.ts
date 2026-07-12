@@ -74,23 +74,23 @@ describe("GET /api/health", () => {
     }
   });
 
-  it("prefers gemini over anthropic for the live probe when both are available", async () => {
+  it("prefers anthropic over gemini for the live probe when both are available, matching the story fallback chain", async () => {
     const getLiveStatus = (await import("../health-checks")).getLiveStatus as ReturnType<typeof vi.fn>;
     getLiveStatus.mockClear();
     await request(app).get("/api/health");
-    expect(getLiveStatus).toHaveBeenCalledWith("gemini", expect.anything());
+    expect(getLiveStatus).toHaveBeenCalledWith("anthropic", expect.anything());
   });
 
-  it("falls back to anthropic for the live probe when gemini is unavailable", async () => {
-    const geminiEntry = mockProviders.find((p) => p.name === "gemini")!;
+  it("falls back to gemini for the live probe when anthropic is unavailable", async () => {
+    const anthropicEntry = mockProviders.find((p) => p.name === "anthropic")!;
     const getLiveStatus = (await import("../health-checks")).getLiveStatus as ReturnType<typeof vi.fn>;
-    geminiEntry.available = false;
+    anthropicEntry.available = false;
     getLiveStatus.mockClear();
     try {
       await request(app).get("/api/health");
-      expect(getLiveStatus).toHaveBeenCalledWith("anthropic", expect.anything());
+      expect(getLiveStatus).toHaveBeenCalledWith("gemini", expect.anything());
     } finally {
-      geminiEntry.available = true;
+      anthropicEntry.available = true;
     }
   });
 

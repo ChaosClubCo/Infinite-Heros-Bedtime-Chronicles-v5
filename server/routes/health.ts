@@ -9,13 +9,16 @@ import { pingElevenLabs } from "../elevenlabs";
 import { pingGemini } from "../ai/providers/gemini";
 import { pingAnthropic } from "../ai/providers/anthropic";
 
-// Gemini first: it's this repo's documented minimum-required provider, so
-// probing only Anthropic would leave aiProvidersLive stuck at null forever
-// on the common Gemini-only deployment. Falls through to the next configured
-// provider with a ping implemented.
+// Anthropic first, matching DEFAULT_CHAINS's "story" fallback order in
+// server/ai/router.ts (Anthropic → Gemini → ...) — probing whichever
+// provider the story chain actually prefers means an Anthropic-specific
+// outage still surfaces here even when Gemini (this repo's documented
+// minimum-required provider) is also configured and healthy. Falls through
+// to Gemini when Anthropic isn't configured, so a Gemini-only deployment
+// still gets a live probe instead of aiProvidersLive being stuck at null.
 const LIVE_PROBE_PROVIDERS: { name: string; ping: () => Promise<boolean> }[] = [
-  { name: "gemini", ping: pingGemini },
   { name: "anthropic", ping: pingAnthropic },
+  { name: "gemini", ping: pingGemini },
 ];
 
 export function registerHealthRoutes(app: Express): void {
