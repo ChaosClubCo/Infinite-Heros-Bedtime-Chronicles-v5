@@ -1,4 +1,4 @@
-type CircuitState = 'closed' | 'open' | 'half-open';
+export type CircuitState = 'closed' | 'open' | 'half-open';
 
 interface CircuitBreakerOptions {
   failureThreshold: number;

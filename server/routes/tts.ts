@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { generateSpeech, VOICE_MAP, MODE_DEFAULT_VOICES } from "../elevenlabs";
 import { TtsPreviewRequestSchema, TtsRequestSchema } from "../validation";
+import { recordTTS } from "../metrics";
 import { TTS_CACHE_DIR } from "./context";
 import { rateLimited, sendRouteError, ttsCachePathFor } from "./helpers";
 
@@ -33,17 +34,21 @@ export function registerTtsRoutes(app: Express): void {
     }
 
     const { text, voice: voiceKey, mode: storyMode } = parsed.data;
+    let cacheHit = false;
 
     try {
       const { fileName, filePath } = ttsCachePathFor(`${voiceKey}:${storyMode || ""}:${text}`);
 
-      if (!(await fileExists(filePath))) {
+      cacheHit = await fileExists(filePath);
+      if (!cacheHit) {
         const audioBuffer = await generateSpeech(text, voiceKey, storyMode);
         await writeWithLock(filePath, audioBuffer);
       }
 
+      recordTTS(cacheHit, true);
       res.json({ audioUrl: `/api/tts-audio/${fileName}` });
     } catch (error: unknown) {
+      recordTTS(cacheHit, false);
       sendRouteError(req, res, error, 'TTS generation failed', 'Failed to generate speech');
     }
   });
@@ -74,6 +79,8 @@ export function registerTtsRoutes(app: Express): void {
       return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
     }
 
+    let cacheHit = false;
+
     try {
       const voiceKey = parsed.data.voice;
       const voiceInfo = VOICE_MAP[voiceKey];
@@ -84,13 +91,16 @@ export function registerTtsRoutes(app: Express): void {
       const previewText = voiceInfo.previewText;
       const { fileName, filePath } = ttsCachePathFor(`preview:${voiceKey}:${previewText}`);
 
-      if (!(await fileExists(filePath))) {
+      cacheHit = await fileExists(filePath);
+      if (!cacheHit) {
         const audioBuffer = await generateSpeech(previewText, voiceKey);
         await writeWithLock(filePath, audioBuffer);
       }
 
+      recordTTS(cacheHit, true);
       res.json({ audioUrl: `/api/tts-audio/${fileName}` });
     } catch (error: unknown) {
+      recordTTS(cacheHit, false);
       sendRouteError(req, res, error, 'TTS preview failed', 'Failed to generate preview');
     }
   });

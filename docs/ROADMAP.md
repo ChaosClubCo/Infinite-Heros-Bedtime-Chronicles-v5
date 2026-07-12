@@ -1,6 +1,6 @@
 # Development Roadmap
 
-**Last Updated:** 2026-06-19
+**Last Updated:** 2026-07-12
 
 Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Time Criticality + Risk Reduction) / Job Size`
 
@@ -50,6 +50,11 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 | Story playback cleanup + stale-closure fix in app/story.tsx (#245) | Code Quality | 2026-06-19 |
 | Refactor badge system into lib/badges.ts; fix vocab_5 & all_heroes bugs (#247) | Bug Fix | 2026-06-19 |
 | Custom hero storage + Trophies screen progress UI (#247) | Feature | 2026-06-19 |
+| Add Sentry error tracking (server + client) | Observability | 2026-06-13 |
+| Add Cloudflare KV persistent rate limiting | Infrastructure | 2026-06-13 |
+| M2 — Live health checks: circuit-breaker status + cached non-blocking live reachability probes on `/api/health` and `/api/ai-providers` | Reliability | 2026-07-12 |
+| M3 — Wire alerting thresholds: `server/alerting.ts` fires Sentry alerts on 5xx-rate/TTS-failure-rate breaches (server-side Sentry itself already shipped 2026-06-13) | Observability | 2026-07-12 |
+| M1 (idempotency half) — KV-backed idempotency cache: `/api/generate-story` dedup now survives across Vercel serverless invocations, not just within one warm process | Infrastructure | 2026-07-12 |
 
 ## Backlog (Prioritized)
 
@@ -57,25 +62,23 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 1 | M1 — KV-backed idempotency + TTS cache | 8 | 8 | 6 | 3 | 7.3 | Serverless gate: in-memory dedup + /tmp TTS cache are per-invocation → duplicate generations / re-synth cost. Move to Cloudflare KV / object storage. See docs/PRODUCTION-READINESS-AUDIT-2026-06-19.md |
-| 2 | M3 — Wire alerting + server-side Sentry | 8 | 7 | 4 | 2 | 9.5 | Serverless gate: alarm thresholds documented but not wired; no server-side Sentry. Add cost/latency/failure-rate alarms |
-| 3 | M2 — Live health checks (liveness/readiness) | 5 | 5 | 3 | 1 | 13.0 | /api/health checks env-var presence, not live reachability. Add cached, non-blocking dependency pings |
-| 4 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/PLAY_STORE_DEPLOYMENT.md |
-| 5 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | 42 advisories (2 high: `tmp`, `undici`; 40 moderate, mostly `@expo/config*`); 0 critical. Blocked on upstream Expo/transitive fixes |
+| 1 | M1 (TTS-cache half) — Move `/tmp` TTS cache to Cloudflare R2 (or equivalent object storage) | 8 | 8 | 6 | 5 | 4.4 | Serverless gate: TTS cache is filesystem/`/tmp`, lost across cold starts → re-synth cost. Idempotency half of M1 already shipped 2026-07-12 (Cloudflare KV) — binary audio needs object storage (R2), not KV, and needs a human to provision the bucket/token first. See docs/ROADMAP.md M1 follow-up note in `server/tts-cache.ts` |
+| 2 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/PLAY_STORE_DEPLOYMENT.md |
+| 3 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | 42 advisories (2 high: `tmp`, `undici`; 40 moderate, mostly `@expo/config*`); 0 critical. Blocked on upstream Expo/transitive fixes |
 
 ### Low Priority
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 6 | Add authentication (anonymous sessions) | 5 | 1 | 3 | 8 | 1.1 | Only needed if API cost abuse becomes a concern |
-| 7 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | Stored data is non-sensitive (story text, badges) |
+| 4 | Add authentication (anonymous sessions) | 5 | 1 | 3 | 8 | 1.1 | Only needed if API cost abuse becomes a concern |
+| 5 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | Stored data is non-sensitive (story text, badges) |
 
 ## Dependencies
 
-- Items 1–3 (M1/M3/M2) are the audit's "before scaling past beta" gates — see docs/PRODUCTION-READINESS-AUDIT-2026-06-19.md §Go/No-Go. M1 requires the `CLOUDFLARE_*` KV vars to be set in the live Vercel env (verify; falls back to in-memory silently otherwise).
-- Item 4 (EAS) requires all API keys to be set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md)
-- Item 5 (audit) is blocked on upstream releasing fixes for the `tmp`/`undici` and `@expo/config*` transitive chains
-- Item 6 (auth) would require significant architecture changes
+- Item 1 (M1 TTS-cache→R2) requires provisioning a new Cloudflare R2 bucket + scoped API token — an external action outside agent control. It reuses the KV-fallback pattern shipped for idempotency (`server/kv.ts`) but needs an R2-specific client since KV isn't suited to binary blobs; see the follow-up note in `server/tts-cache.ts`.
+- Item 2 (EAS) requires all API keys to be set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md)
+- Item 3 (audit) is blocked on upstream releasing fixes for the `tmp`/`undici` and `@expo/config*` transitive chains
+- Item 4 (auth) would require significant architecture changes
 
 ## Known Audit Issues
 

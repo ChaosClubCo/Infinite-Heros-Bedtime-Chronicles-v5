@@ -18,7 +18,7 @@ export interface SceneGenerationState {
   sceneError: boolean;
   loadSceneImage: (partText: string, partIndex: number) => Promise<void>;
   clearSceneImage: () => void;
-  /** Per-part image cache; the completion screen receives it as scenesJson. */
+  /** Per-part image cache; handed to the completion screen via lib/scene-handoff.ts. */
   sceneCacheRef: MutableRefObject<Record<number, string>>;
 }
 
