@@ -149,13 +149,17 @@ lib/                    # Client utilities and state management
   AuthContext.tsx       # Supabase authentication context
   storage.ts            # AsyncStorage helpers (stories, profiles, badges, streaks)
   query-client.ts       # TanStack React Query config
+  useStoryAudio.ts      # TTS narration playback hook (expo-av)
+  narration.ts          # resolveNarrationUri(): on-device cache hit → offline; miss → fetch + cache
+  tts-cache.ts          # On-device narration MP3 cache (expo-file-system; LRU + size budget)
 server/                 # Express backend
   index.ts              # Server bootstrap, security middleware, CORS, shutdown
   routes.ts             # All API route registrations
-  prompts.ts            # Story system/user prompt builders + CHILD_SAFETY_RULES
+  prompts.ts            # Story system/user prompt builders + CHILD_SAFETY_RULES + buildStricterSystemPrompt
   validation.ts         # Zod schemas + sanitizeString()
   auth.ts               # Supabase bearer-token (JWT) middleware
   rate-limit.ts         # Per-IP sliding-window rate limiter
+  safety/               # AI output moderation: moderateStory → regenerate once → known-safe fallback
   ai/                   # Multi-provider AI abstraction layer
     router.ts           # AIRouter: fallback chains, circuit breakers, retry
     index.ts            # Provider registration + status
@@ -168,6 +172,7 @@ server/                 # Express backend
 shared/                 # Shared between client and server
   schema.ts             # Drizzle ORM table definitions
   models/chat.ts        # conversations + messages tables
+  safety-terms.ts       # Canonical banned-term list shared by server moderation + client fail-safe
 docs/                   # All project documentation
   ARCHITECTURE.md       # System design and data flow
   API.md                # API endpoint reference (40+ endpoints)

@@ -84,6 +84,9 @@ lib/                    # Client utilities
   query-client.ts       # TanStack React Query config (staleTime: Infinity, retry: false)
   query-client.test.ts  # Query client unit tests
   useNetworkStatus.ts   # NetInfo hook returning { isConnected, isInternetReachable } (used by app/_layout.tsx to gate OfflineBanner)
+  useStoryAudio.ts      # TTS narration playback hook (expo-av); resolves the play URI via lib/narration.ts
+  narration.ts          # resolveNarrationUri(): on-device cache hit → local file (offline); miss → POST /api/tts, download, cache; + prefetchNarration()
+  tts-cache.ts          # On-device narration MP3 cache (expo-file-system + expo-crypto MD5 key mirroring the server); LRU eviction under a size budget
 server/                 # Express.js backend
   index.ts              # Server bootstrap, security middleware, CORS, graceful shutdown
   routes.ts             # Route composer: auth gate + registers domain modules, returns HTTP server (~50 lines)
@@ -98,12 +101,14 @@ server/                 # Express.js backend
   idempotency.ts        # Idempotency cache (TTL 5 min, keyed by request hash)
   logger.ts             # pino structured logger
   metrics.ts            # In-process metrics (request/provider counters)
-  feature-flags.ts      # Runtime feature flag resolver
+  feature-flags.ts      # Runtime feature flag resolver (incl. contentSafety* flags)
   tts-cache.ts          # TTS file cache with size + age limits
   utils.ts              # toErrorMessage, classifyError, createErrorResponse
+  safety/               # AI OUTPUT moderation (post-generation): content-safety.ts (moderateStory), terms.ts (server SOFT terms + allowlist), story-guard.ts (moderate→regenerate-once→fallback), fallback-stories.ts (known-safe stories per mode)
   ai/                   # Multi-provider AI router
     index.ts            # Provider registration & status checking
     router.ts           # AIRouter class with fallback chain, circuit breakers, retry
+    json.ts             # extractFirstJson (balanced-brace JSON scan) — shared by router + buffered SSE
     types.ts            # AI provider interface definitions
     providers/          # Gemini, OpenAI, Anthropic, OpenRouter
   elevenlabs.ts         # TTS voice definitions & generation
@@ -116,6 +121,7 @@ server/                 # Express.js backend
 shared/                 # Shared between client & server
   schema.ts             # Drizzle ORM schema (users table, re-exports models/chat.ts)
   models/chat.ts        # Conversation & message tables
+  safety-terms.ts       # Canonical HARD banned-term list + containsUnsafeContent() — one source of truth for the server moderator and the client render fail-safe
 docs/                   # Project documentation
   ARCHITECTURE.md       # System design & data flow
   API.md                # API endpoint reference (40+ endpoints)
@@ -201,7 +207,8 @@ npm test                    # Vitest unit tests
                                     ├→ [Load shedding] — active-request ceiling
                                     ├→ [Idempotency cache] — 5-min dedup on POSTs
                                     ├→ [AI Router] → Anthropic → Gemini → OpenAI → OpenRouter (circuit-broken + retried)
-                                    ├→ [ElevenLabs TTS] → /tmp/tts-cache (size + age bounded)
+                                    ├→ [Output safety] — moderateStory → regenerate once → known-safe fallback (server/safety/*)
+                                    ├→ [ElevenLabs TTS] → /tmp/tts-cache (size + age bounded); client also caches MP3s on-device (lib/tts-cache.ts)
                                     ├→ [PostgreSQL + Drizzle] (voice chat history)
                                     └→ [OpenAI Sora] (video generation)
 ```
@@ -545,7 +552,7 @@ npm run test:coverage   # vitest run --coverage
 - Server uses esbuild for production bundling to `server_dist/`
 - Voice chat routes only registered when `AI_INTEGRATIONS_OPENAI_API_KEY` and `DATABASE_URL` are set and the `voiceChatEnabled` feature flag is on (`server/routes.ts`)
 - React Query configured with `staleTime: Infinity`, `retry: false`, `refetchOnWindowFocus: false`
-- TTS audio cached at `/tmp/tts-cache` with configurable max age and max size
+- TTS audio cached server-side at `/tmp/tts-cache` (max age + size) AND on-device by the client (`lib/tts-cache.ts`, expo-file-system) so replays are instant and work offline — see `lib/narration.ts` for the resolve-or-fetch flow
 - 12 randomized art styles for scene illustrations (watercolor, cel-shaded, paper cutout, gouache, crayon, digital, retro storybook, ink wash, pastel, pop art, chalk, flat design)
 - Runbooks for deploy, incident response, provider outage, and rollback live in `docs/runbooks/`
 
@@ -557,6 +564,8 @@ npm run test:coverage   # vitest run --coverage
 - **Never use `./gradlew` or `gradlew`** — EAS Build manages Gradle internally; use `npx expo` or `eas` CLI commands instead
 - **`expo:dev` requires Replit env vars** — outside Replit, use `npx expo start` directly
 - AI router automatically falls back through providers, with circuit breakers and retry — check `server/ai/router.ts`
+- **AI OUTPUT safety is now enforced, not just prompt-side.** `server/routes/story.ts` runs every generated story through `guardStory` (`server/safety/story-guard.ts`): `moderateStory` (`content-safety.ts`) → on a block, regenerate ONCE with `buildStricterSystemPrompt` → if still unsafe, serve a known-safe fallback (`fallback-stories.ts`). The child never sees flagged text or a raw error. Gated by `FEATURE_CONTENT_SAFETY_ENABLED` (default on). HARD terms live in `shared/safety-terms.ts` (shared with the client fail-safe in `components/StoryTextDisplay.tsx`); SOFT/contextual terms are server-only in `server/safety/terms.ts`. When safety is on, `/api/generate-story-stream` buffers-then-emits (a single `complete` event) instead of streaming raw tokens.
+- **On-device TTS cache**: `lib/useStoryAudio.ts` no longer re-fetches narration every play — it calls `resolveNarrationUri` (`lib/narration.ts`), which returns a cached `file://` clip when present (offline-capable) or fetches + caches on a miss (`lib/tts-cache.ts`, keyed by md5 of `voice:mode:text` to mirror the server). Any FS/crypto failure degrades gracefully to streaming. `prefetchNarration()` is available to warm the next part but is not wired into the story screen yet.
 - ElevenLabs voices are hardcoded in `server/elevenlabs.ts` with specific voice IDs
 - Expo Router v6 file-based routing — screen paths map to file paths in `app/`
 - `postinstall` runs `patch-package || true` — currently a no-op (`patches/` was removed after the SDK 55 upgrade) but kept so future patches apply automatically

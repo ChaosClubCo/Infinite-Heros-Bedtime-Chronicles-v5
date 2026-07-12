@@ -86,9 +86,12 @@ User selects hero + mode + settings
     → Server builds system prompt + user prompt
     → AI Router calls provider chain until success
     → Server parses JSON response and normalizes parts
-    → Client receives story and begins playback
+    → Output safety gate (server/safety): moderate the generated text
+      → if unsafe, regenerate once with a stricter prompt
+      → if still unsafe, serve a known-safe fallback story
+    → Client receives (guaranteed-safe) story and begins playback
       → Per-part optional scene generation
-      → Per-part optional TTS narration
+      → Per-part optional TTS narration (served from on-device cache when available)
     → On completion: save story + scenes to AsyncStorage
     → Award badges based on profile history
 ```
@@ -139,10 +142,27 @@ SettingsContext (lib/SettingsContext.tsx)
 
 ### TTS Caching
 
+**Server-side** (`server/routes/tts.ts`, `server/tts-cache.ts`):
 - Audio cached to `/tmp/tts-cache/`
 - Cache key: MD5 of `voice:mode:text`
 - Expired files cleaned hourly
 - Max age via `TTS_CACHE_MAX_AGE_MS` (default 24h)
+- Note: ephemeral on serverless (lost on cold start); a durable Cloudflare R2 backend is a roadmap item.
+
+**On-device** (`lib/tts-cache.ts`, `lib/narration.ts`):
+- Each narration clip is also persisted on the device (`expo-file-system`), keyed by the same MD5 of `voice:mode:text`.
+- `resolveNarrationUri()` returns the local `file://` clip on a hit — instant, offline-capable, no network — and downloads + caches on a miss. Any filesystem/crypto failure degrades gracefully to streaming the server URL.
+- LRU eviction (`TTS_CACHE_MAX_BYTES`, default 50 MB). `prefetchNarration()` can warm the next part.
+
+## Output Content Safety
+
+Every generated story passes a server-authoritative moderation gate before it reaches the client (`server/routes/story.ts` → `server/safety/story-guard.ts`):
+
+1. `moderateStory()` (`content-safety.ts`) scans all child-facing text with HARD terms (single hit blocks) and SOFT/contextual terms (block on co-occurrence), plus structural, model-leakage, and PII checks.
+2. On a block, the story is regenerated **once** with a stricter prompt (`buildStricterSystemPrompt`).
+3. If still unsafe, a pre-written known-safe fallback (`fallback-stories.ts`) is served.
+
+The child never sees flagged text or a raw error. Gated by `FEATURE_CONTENT_SAFETY_ENABLED` (default on). The HARD term list lives in `shared/safety-terms.ts` and is reused by a client render fail-safe (`components/StoryTextDisplay.tsx`). Leak-safe metrics (category counts only) are exposed via `/api/metrics`.
 
 ## Authentication Flow
 
