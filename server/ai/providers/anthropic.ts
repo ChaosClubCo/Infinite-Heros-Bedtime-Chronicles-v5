@@ -19,6 +19,7 @@ export async function pingAnthropic(): Promise<boolean> {
   const baseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL || "https://api.anthropic.com";
   const res = await fetch(`${baseURL}/v1/models`, {
     headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+    signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
   });
   return res.ok;
 }
