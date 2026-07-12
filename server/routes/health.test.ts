@@ -21,6 +21,7 @@ vi.mock("../health-checks", () => ({
   getLiveStatus: vi.fn((key: string) => ({ reachable: true, checkedAt: Date.now(), latencyMs: 12, key })),
 }));
 vi.mock("../elevenlabs", () => ({ pingElevenLabs: vi.fn() }));
+vi.mock("../ai/providers/gemini", () => ({ pingGemini: vi.fn() }));
 vi.mock("../ai/providers/anthropic", () => ({ pingAnthropic: vi.fn() }));
 vi.mock("../feature-flags", () => ({ getFeatureFlags: () => ({ videoEnabled: false, voiceChatEnabled: true, streamingEnabled: true }) }));
 vi.mock("../metrics", () => ({ getMetrics: () => ({ requests: { total: 0, errors: 0, byStatus: {} } }) }));
@@ -73,14 +74,37 @@ describe("GET /api/health", () => {
     }
   });
 
-  it("reports aiProvidersLive as {reachable: null} without probing when anthropic is unavailable", async () => {
+  it("prefers gemini over anthropic for the live probe when both are available", async () => {
+    const getLiveStatus = (await import("../health-checks")).getLiveStatus as ReturnType<typeof vi.fn>;
+    getLiveStatus.mockClear();
+    await request(app).get("/api/health");
+    expect(getLiveStatus).toHaveBeenCalledWith("gemini", expect.anything());
+  });
+
+  it("falls back to anthropic for the live probe when gemini is unavailable", async () => {
+    const geminiEntry = mockProviders.find((p) => p.name === "gemini")!;
+    const getLiveStatus = (await import("../health-checks")).getLiveStatus as ReturnType<typeof vi.fn>;
+    geminiEntry.available = false;
+    getLiveStatus.mockClear();
+    try {
+      await request(app).get("/api/health");
+      expect(getLiveStatus).toHaveBeenCalledWith("anthropic", expect.anything());
+    } finally {
+      geminiEntry.available = true;
+    }
+  });
+
+  it("reports aiProvidersLive as {reachable: null} without probing when no live-probe provider is available", async () => {
     const anthropicEntry = mockProviders.find((p) => p.name === "anthropic")!;
+    const geminiEntry = mockProviders.find((p) => p.name === "gemini")!;
     anthropicEntry.available = false;
+    geminiEntry.available = false;
     try {
       const res = await request(app).get("/api/health");
       expect(res.body.aiProvidersLive).toEqual({ reachable: null, checkedAt: null });
     } finally {
       anthropicEntry.available = true;
+      geminiEntry.available = true;
     }
   });
 });

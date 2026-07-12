@@ -6,7 +6,13 @@ export interface LiveCheckResult {
 }
 
 const CHECK_TTL_MS = parseInt(process.env.HEALTH_CHECK_TTL_MS || String(45 * 1000), 10);
-const CHECK_TIMEOUT_MS = 2000;
+
+// Exported so individual probes (server/elevenlabs.ts, server/ai/providers/*)
+// can pass a matching AbortSignal.timeout() into their own fetch() calls —
+// otherwise a stalled probe's Promise.race here "times out" from the caller's
+// perspective while the underlying request keeps the socket open in the
+// background, leaking a connection per stalled health check.
+export const CHECK_TIMEOUT_MS = 2000;
 
 const cache = new Map<string, LiveCheckResult>();
 const inFlight = new Set<string>();

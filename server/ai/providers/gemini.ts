@@ -1,5 +1,24 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import type { AIProvider, TextGenerationRequest, TextGenerationResponse, ImageGenerationRequest, ImageGenerationResponse, StreamingTextChunk } from "../types";
+import { CHECK_TIMEOUT_MS } from "../../health-checks";
+
+/**
+ * Cheap reachability probe for health checks: lists available models rather
+ * than generating content, so it costs nothing and still validates the API
+ * key. Gemini is checked ahead of Anthropic for the health endpoint's live
+ * probe since it's this repo's documented minimum-required provider — many
+ * deployments configure only Gemini, so probing Anthropic alone would leave
+ * aiProvidersLive stuck at null forever on those deployments.
+ */
+export async function pingGemini(): Promise<boolean> {
+  const apiKey = process.env.AI_INTEGRATIONS_GEMINI_API_KEY;
+  if (!apiKey) return false;
+  const baseUrl = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL || "https://generativelanguage.googleapis.com";
+  const res = await fetch(`${baseUrl}/v1beta/models?key=${apiKey}`, {
+    signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+  });
+  return res.ok;
+}
 
 let client: GoogleGenAI | null = null;
 

@@ -22,7 +22,8 @@ function maybeFire(key: string, level: "warning" | "error", message: string, ext
   const last = lastFired.get(key) ?? 0;
   if (now - last < ALERT_COOLDOWN_MS) return;
   lastFired.set(key, now);
-  logger.warn({ alertKey: key, level, ...extra }, message);
+  const logFn = level === "error" ? logger.error : logger.warn;
+  logFn.call(logger, { alertKey: key, level, ...extra }, message);
   Sentry.captureMessage(message, { level, extra });
 }
 

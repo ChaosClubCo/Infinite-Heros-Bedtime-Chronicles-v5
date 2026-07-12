@@ -115,4 +115,67 @@ describe("POST /api/generate-story KV-backed cross-invocation dedup", () => {
     const kvKeys = Object.keys(kvStore).filter((k) => k.startsWith("idem:"));
     expect(kvKeys.length).toBe(0);
   });
+
+  it("only generates once for two concurrent identical requests even when the KV lookup is slow", async () => {
+    // Regression test: the KV getResolved() check must stay inside the
+    // generationPromise IIFE in story.ts, not between the in-memory get()
+    // and set(). If it were awaited in between, two requests racing through
+    // that gap would both miss the in-memory cache and both start their own
+    // generation. A slow/delayed KV GET (as simulated here) is exactly the
+    // condition that would expose that window.
+    const originalFetchImpl = global.fetch;
+    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (!init?.method || init.method === "GET" || init.method === undefined) {
+        await new Promise((resolve) => setTimeout(resolve, 30));
+      }
+      return originalFetchImpl(url, init);
+    }) as unknown as typeof fetch;
+
+    let resolveGeneration: (v: unknown) => void = () => {};
+    let generationStarted = false;
+    mockGenerateText.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          generationStarted = true;
+          resolveGeneration = () =>
+            resolve({
+              text: JSON.stringify(validStoryPayload),
+              parsedJson: validStoryPayload,
+              provider: "gemini",
+              model: "gemini-test",
+              usage: { inputTokens: 10, outputTokens: 10 },
+            });
+        }),
+    );
+
+    try {
+      const body = { heroName: "ConcurrentHero", heroTitle: "unique-concurrent-case" };
+      // Fire the first request, then a second "concurrent" one 5ms later —
+      // long after the fixed code's synchronous set() would have run, but
+      // short enough that the buggy version (which awaited the 30ms-delayed
+      // KV lookup before its set()) would still see an empty in-memory cache.
+      // supertest's Test object is lazy — it doesn't dispatch until awaited/
+      // then'd — so each must be explicitly kicked off with .then() rather
+      // than left as a bare reference, or it never actually hits the route.
+      const firstReqPromise = request(app).post("/api/generate-story").send(body).then((r) => r);
+      const secondReqPromise = new Promise<void>((resolve) => setTimeout(resolve, 5)).then(() =>
+        request(app).post("/api/generate-story").send(body).then((r) => r),
+      );
+
+      // Wait for the (single, if the fix holds) generation call to actually
+      // start, rather than guessing a fixed delay — the request also passes
+      // through the rate-limiter's own KV check first, so the exact timing
+      // isn't worth hardcoding.
+      await vi.waitFor(() => expect(generationStarted).toBe(true), { timeout: 2000 });
+      resolveGeneration(undefined);
+
+      const [first, second] = await Promise.all([firstReqPromise, secondReqPromise]);
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    } finally {
+      global.fetch = originalFetchImpl;
+    }
+  });
 });

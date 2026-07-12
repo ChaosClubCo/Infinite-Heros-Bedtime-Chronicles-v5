@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AIProvider, TextGenerationRequest, TextGenerationResponse, StreamingTextChunk } from "../types";
+import { CHECK_TIMEOUT_MS } from "../../health-checks";
 
 function getClient(): Anthropic | null {
   const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
