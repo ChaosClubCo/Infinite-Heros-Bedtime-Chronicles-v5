@@ -8,6 +8,20 @@ function getClient(): Anthropic | null {
   return new Anthropic({ apiKey, baseURL: baseURL || undefined });
 }
 
+/**
+ * Cheap reachability probe for health checks: lists available models rather
+ * than generating text, so it costs nothing and still validates the API key.
+ */
+export async function pingAnthropic(): Promise<boolean> {
+  const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+  if (!apiKey) return false;
+  const baseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL || "https://api.anthropic.com";
+  const res = await fetch(`${baseURL}/v1/models`, {
+    headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+  });
+  return res.ok;
+}
+
 export const anthropicProvider: AIProvider = {
   name: "anthropic",
   displayName: "Anthropic Claude",

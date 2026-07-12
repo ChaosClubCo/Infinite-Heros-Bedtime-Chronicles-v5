@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { IdempotencyCache } from './idempotency';
 
+const mockKvGet = vi.fn();
+const mockKvSet = vi.fn();
+let mockKvEnabled = false;
+vi.mock('./kv', () => ({
+  get KV_ENABLED() { return mockKvEnabled; },
+  kvGet: (...args: unknown[]) => mockKvGet(...args),
+  kvSet: (...args: unknown[]) => mockKvSet(...args),
+}));
+
 describe('IdempotencyCache', () => {
   let cache: IdempotencyCache;
 
@@ -51,5 +60,53 @@ describe('IdempotencyCache', () => {
     cache.set('key1', Promise.resolve('result'));
     cache.delete('key1');
     expect(cache.get('key1')).toBeUndefined();
+  });
+});
+
+describe('IdempotencyCache KV-backed resolved cache', () => {
+  let cache: IdempotencyCache;
+
+  beforeEach(() => {
+    cache = new IdempotencyCache({ ttlMs: 5 * 60 * 1000, maxEntries: 100 });
+    mockKvGet.mockReset();
+    mockKvSet.mockReset();
+    mockKvEnabled = false;
+  });
+
+  it('getResolved returns undefined when KV is disabled, without calling kvGet', async () => {
+    mockKvEnabled = false;
+    const result = await cache.getResolved('key1');
+    expect(result).toBeUndefined();
+    expect(mockKvGet).not.toHaveBeenCalled();
+  });
+
+  it('getResolved returns the stored body on a KV hit', async () => {
+    mockKvEnabled = true;
+    mockKvGet.mockResolvedValue({ body: { title: 'Cached Story' }, createdAt: Date.now() });
+    const result = await cache.getResolved('key1');
+    expect(result).toEqual({ title: 'Cached Story' });
+    expect(mockKvGet).toHaveBeenCalledWith('idem:key1');
+  });
+
+  it('getResolved returns undefined on a KV miss', async () => {
+    mockKvEnabled = true;
+    mockKvGet.mockResolvedValue(null);
+    expect(await cache.getResolved('key1')).toBeUndefined();
+  });
+
+  it('setResolved is a no-op when KV is disabled', () => {
+    mockKvEnabled = false;
+    cache.setResolved('key1', { title: 'Story' });
+    expect(mockKvSet).not.toHaveBeenCalled();
+  });
+
+  it('setResolved fire-and-forgets a KV write with the TTL in seconds', () => {
+    mockKvEnabled = true;
+    cache.setResolved('key1', { title: 'Story' });
+    expect(mockKvSet).toHaveBeenCalledWith(
+      'idem:key1',
+      expect.objectContaining({ body: { title: 'Story' } }),
+      300,
+    );
   });
 });

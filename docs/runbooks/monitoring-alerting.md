@@ -1,8 +1,8 @@
 # Runbook: Monitoring & Alerting
 
-<!-- Last verified: 2026-06-18 -->
+<!-- Last verified: 2026-07-12 -->
 
-This runbook covers how to investigate and respond to alerts from the two observability systems provisioned for Infinity Heroes: Bedtime Chronicles — **Sentry** (client error tracking) and **Cloudflare KV** (rate-limit state monitoring).
+This runbook covers how to investigate and respond to alerts from the observability systems provisioned for Infinity Heroes: Bedtime Chronicles — **Sentry** (server + client error tracking, plus threshold-based alerting), and **Cloudflare KV** (rate-limit state monitoring).
 
 ---
 
@@ -10,14 +10,15 @@ This runbook covers how to investigate and respond to alerts from the two observ
 
 ### Architecture
 
-- **Server:** No Sentry integration yet. Server errors are captured via pino structured logging and the Express global error handler. See server logs in your deployment dashboard.
+- **Server:** `@sentry/node` is initialized in `server/index.ts` (`initSentry()`) when `SENTRY_DSN` is set. It captures 5xx errors from the global error handler, `unhandledRejection`/`uncaughtException` process events, per-generation cost anomalies (`server/ai/cost.ts`), and the threshold-based alerts described in §4 (`server/alerting.ts`).
 - **Client:** `@sentry/react-native` initialized in `app/_layout.tsx`. Captures JS errors and React component crashes.
-- **No-op behavior:** the client SDK gracefully no-ops when `EXPO_PUBLIC_SENTRY_DSN` is unset.
+- **No-op behavior:** both SDKs gracefully no-op when their DSN env var is unset — `Sentry.captureException`/`captureMessage` are safe to call unconditionally.
 
 ### Configuration
 
 | Env Var | Where Set | Notes |
 |---------|-----------|-------|
+| `SENTRY_DSN` | Server env (Vercel/Replit secret) | Server-only — never bundle into the client |
 | `EXPO_PUBLIC_SENTRY_DSN` | EAS secret | Bundled into APK — not a secret, but should match project DSN |
 
 ### Responding to a Sentry Alert
@@ -63,15 +64,7 @@ This runbook covers how to investigate and respond to alerts from the two observ
 
 ### Verifying KV is Active
 
-Check server startup logs — a log line confirms KV mode vs. in-memory fallback:
-
-```
-# KV active:
-{"level":"info","msg":"rate limiter: cloudflare KV mode"}
-
-# Fallback (env vars missing):
-{"level":"info","msg":"rate limiter: in-memory mode"}
-```
+There is no dedicated "KV mode" startup log line. Instead, `validateEnvironment()` in `server/index.ts` logs a warning only when the three `CLOUDFLARE_*` vars are *partially* set (likely misconfiguration); when all three are absent it silently falls back to in-memory state (expected for local/Replit dev), and when all three are present KV is used with no explicit log. To confirm KV is actually active, check the namespace via the Cloudflare API (below) after issuing a few requests, or read the `KV_ENABLED` check in `server/kv.ts`.
 
 ### Viewing Rate Limit State
 
@@ -115,26 +108,36 @@ Only in an emergency (e.g., KV contains corrupted entries):
 ```json
 {
   "status": "ok",
-  "ai": { "available": true, "providers": ["anthropic", "gemini", "openai"] },
-  "tts": { "available": true },
+  "timestamp": 1752000000000,
+  "aiProvidersAvailable": true,
+  "ttsAvailable": true,
+  "ttsLive": { "reachable": true, "checkedAt": 1752000000000, "latencyMs": 120 },
+  "aiProvidersLive": { "reachable": true, "checkedAt": 1752000000000, "latencyMs": 80 },
+  "breakers": [{ "provider": "anthropic", "state": "closed" }, { "provider": "gemini", "state": "open" }],
   "features": { "voiceChatEnabled": false },
   "activeRequests": 2
 }
 ```
 
-Monitor this endpoint from an external uptime tool (e.g., UptimeRobot, BetterUptime) with a 1-minute check interval. Alert when `status !== "ok"` or when response time exceeds 5 seconds.
+`ttsLive`/`aiProvidersLive` come from a background-refreshed, ~45s-TTL cache (`server/health-checks.ts`) — a genuine reachability probe (ElevenLabs `GET /v1/user`, Anthropic `GET /v1/models`), never a synchronous call on the request path, so the endpoint never blocks waiting on an outbound network call. `reachable: null` means "not probed yet" (expected right after a cold start) — don't treat it as unhealthy. `breakers` exposes each AI provider's circuit-breaker state (`closed`/`open`/`half-open`) from `server/ai/router.ts`.
+
+Monitor this endpoint from an external uptime tool (e.g., UptimeRobot, BetterUptime) with a 1-minute check interval. Alert when `status !== "ok"`, when `ttsLive.reachable === false` or `aiProvidersLive.reachable === false` for more than one consecutive check, when any `breakers` entry reports `"open"`, or when response time exceeds 5 seconds.
 
 ---
 
 ## 4. Alerting Thresholds
 
-| Metric | Warning | Critical | Response |
-|--------|---------|----------|----------|
-| `/api/health` response time | > 3s | > 10s | Check AI provider latency; restart if needed |
-| Sentry error rate | > 10/min | > 50/min | Investigate top error; may need rollback |
-| `/api/generate-story` 5xx rate | > 5% | > 20% | Check AI chain; follow provider-outage runbook |
-| TTS failures | > 10% | > 50% | ElevenLabs outage; stories still work without audio |
-| Rate limit hits | Sudden spike | — | May indicate abuse; check request patterns |
+`server/alerting.ts` automates the two request-rate thresholds below: `checkAlertThresholds()` reads `server/metrics.ts` counters and fires `Sentry.captureMessage()` (level `warning` or `error`) plus a `logger.warn`, rate-limited by a cooldown (`ALERT_COOLDOWN_MS`, default 15 min) so a sustained outage doesn't spam. It's invoked periodically from the request-finish hook in `server/index.ts` (every ~20th request), so no separate process/cron is needed on either Replit or Vercel. Thresholds are env-tunable (`ALERT_5XX_RATE_WARN_PCT`/`_CRIT_PCT`, `ALERT_TTS_FAILURE_WARN_PCT`/`_CRIT_PCT`); it skips evaluation until a minimum sample size is reached (≥20 requests / ≥10 TTS calls) to avoid noise from tiny denominators.
+
+**Known limitation:** `server/metrics.ts` counters are lifetime-cumulative for the process (only test code calls `resetMetrics()`), not a rolling window, and reset to zero on every Vercel cold start — so the computed rate is "since this process/invocation started," not "in the last N minutes." A true sliding-window metric store would be a larger follow-up.
+
+| Metric | Warning | Critical | Automated? | Response |
+|--------|---------|----------|------------|----------|
+| `/api/health` response time | > 3s | > 10s | No — external uptime tool | Check AI provider latency; restart if needed |
+| Sentry error rate | > 10/min | > 50/min | No — configure in Sentry's own alert rules | Investigate top error; may need rollback |
+| `/api/generate-story` 5xx rate | > 5% | > 20% | Yes — `server/alerting.ts` | Check AI chain; follow provider-outage runbook |
+| TTS failures | > 10% | > 50% | Yes — `server/alerting.ts` | ElevenLabs outage; stories still work without audio |
+| Rate limit hits | Sudden spike | — | No | May indicate abuse; check request patterns |
 
 ---
 
