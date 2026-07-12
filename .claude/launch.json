@@ -4,7 +4,7 @@
     {
       "name": "backend",
       "runtimeExecutable": "cmd",
-      "runtimeArgs": ["/c", "set NODE_ENV=development&& set SUPABASE_URL=&& set SUPABASE_SERVICE_ROLE_KEY=&& set OPENAI_API_KEY=&& set GEMINI_API_KEY=&& node --env-file-if-exists=.env --import tsx server/index.ts"],
+      "runtimeArgs": ["/c", "if exist .env (set NODE_ENV=development&& set SUPABASE_URL=&& set SUPABASE_SERVICE_ROLE_KEY=&& set OPENAI_API_KEY=&& set GEMINI_API_KEY=&& node --env-file=.env --import tsx server/index.ts) else (set NODE_ENV=development&& set SUPABASE_URL=&& set SUPABASE_SERVICE_ROLE_KEY=&& set OPENAI_API_KEY=&& set GEMINI_API_KEY=&& node --import tsx server/index.ts)"],
       "port": 5000
     },
     {
