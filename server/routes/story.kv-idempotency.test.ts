@@ -3,6 +3,11 @@ import express from "express";
 import request from "supertest";
 import type { Express } from "express";
 import type { Server } from "node:http";
+// IdempotencyCache is imported dynamically inside the test that needs it,
+// not statically here: it pulls in server/kv.ts, whose KV_ENABLED constant
+// is computed once at module-evaluation time from CLOUDFLARE_* env vars. A
+// static import is evaluated before beforeAll sets those vars, which would
+// permanently freeze KV_ENABLED at `false` for this whole file.
 
 // Exercises the KV-backed idempotency wiring added for M1: when Cloudflare
 // KV is configured, a successful /api/generate-story response should be
@@ -107,6 +112,53 @@ describe("POST /api/generate-story KV-backed cross-invocation dedup", () => {
     expect((kvStore[kvKeys[0]] as { body: unknown }).body).toEqual(validStoryPayload);
   });
 
+  it("does not re-write to KV (or extend its TTL) when a duplicate is served from a KV hit", async () => {
+    // Regression test: setResolved() must only mirror a freshly-generated
+    // result, not re-mirror one that was itself read from KV — otherwise a
+    // steady trickle of duplicate requests would keep sliding the TTL
+    // forward and the entry would never expire on schedule.
+    const { idempotencyCache } = await import("./context");
+    const { IdempotencyCache } = await import("../idempotency");
+    const keySpy = vi.spyOn(IdempotencyCache, "keyFromBody");
+
+    try {
+      mockGenerateText.mockResolvedValueOnce({
+        text: JSON.stringify(validStoryPayload),
+        parsedJson: validStoryPayload,
+        provider: "gemini",
+        model: "gemini-test",
+        usage: { inputTokens: 10, outputTokens: 10 },
+      });
+
+      const body = { heroName: "KvHitNoRewriteHero", heroTitle: "unique-kv-hit-no-rewrite" };
+      const first = await request(app).post("/api/generate-story").send(body);
+      expect(first.status).toBe(200);
+
+      const idempotencyKey = keySpy.mock.results[0]?.value;
+      expect(idempotencyKey).toBeTypeOf("string");
+
+      // Simulate the duplicate landing on a different invocation: clear the
+      // in-memory entry so the second request must go through the KV check
+      // inside the generation promise rather than the in-memory get() hit.
+      idempotencyCache.delete(idempotencyKey);
+      // Only the idem: entry is under test here — the rate-limiter has its
+      // own KV-backed per-IP counter that legitimately changes on every
+      // request, so snapshot just the idempotency key, not the whole store.
+      const idemEntryBefore = JSON.stringify(kvStore[`idem:${idempotencyKey}`]);
+
+      const second = await request(app).post("/api/generate-story").send(body);
+      expect(second.status).toBe(200);
+      expect(second.body.title).toBe(validStoryPayload.title);
+
+      // Still only one generation call — the second was served from KV.
+      expect(mockGenerateText).toHaveBeenCalledTimes(1);
+      // And the idempotency entry itself was not re-written (same createdAt).
+      expect(JSON.stringify(kvStore[`idem:${idempotencyKey}`])).toBe(idemEntryBefore);
+    } finally {
+      keySpy.mockRestore();
+    }
+  });
+
   it("does not write to KV when generation fails", async () => {
     mockGenerateText.mockRejectedValueOnce(new Error("provider unavailable"));
     const res = await request(app).post("/api/generate-story").send({ heroName: "KvFailHero", heroTitle: "unique-kv-fail-case" });
@@ -114,5 +166,68 @@ describe("POST /api/generate-story KV-backed cross-invocation dedup", () => {
 
     const kvKeys = Object.keys(kvStore).filter((k) => k.startsWith("idem:"));
     expect(kvKeys.length).toBe(0);
+  });
+
+  it("only generates once for two concurrent identical requests even when the KV lookup is slow", async () => {
+    // Regression test: the KV getResolved() check must stay inside the
+    // generationPromise IIFE in story.ts, not between the in-memory get()
+    // and set(). If it were awaited in between, two requests racing through
+    // that gap would both miss the in-memory cache and both start their own
+    // generation. A slow/delayed KV GET (as simulated here) is exactly the
+    // condition that would expose that window.
+    const originalFetchImpl = global.fetch;
+    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (!init?.method || init.method === "GET" || init.method === undefined) {
+        await new Promise((resolve) => setTimeout(resolve, 30));
+      }
+      return originalFetchImpl(url, init);
+    }) as unknown as typeof fetch;
+
+    let resolveGeneration: (v: unknown) => void = () => {};
+    let generationStarted = false;
+    mockGenerateText.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          generationStarted = true;
+          resolveGeneration = () =>
+            resolve({
+              text: JSON.stringify(validStoryPayload),
+              parsedJson: validStoryPayload,
+              provider: "gemini",
+              model: "gemini-test",
+              usage: { inputTokens: 10, outputTokens: 10 },
+            });
+        }),
+    );
+
+    try {
+      const body = { heroName: "ConcurrentHero", heroTitle: "unique-concurrent-case" };
+      // Fire the first request, then a second "concurrent" one 5ms later —
+      // long after the fixed code's synchronous set() would have run, but
+      // short enough that the buggy version (which awaited the 30ms-delayed
+      // KV lookup before its set()) would still see an empty in-memory cache.
+      // supertest's Test object is lazy — it doesn't dispatch until awaited/
+      // then'd — so each must be explicitly kicked off with .then() rather
+      // than left as a bare reference, or it never actually hits the route.
+      const firstReqPromise = request(app).post("/api/generate-story").send(body).then((r) => r);
+      const secondReqPromise = new Promise<void>((resolve) => setTimeout(resolve, 5)).then(() =>
+        request(app).post("/api/generate-story").send(body).then((r) => r),
+      );
+
+      // Wait for the (single, if the fix holds) generation call to actually
+      // start, rather than guessing a fixed delay — the request also passes
+      // through the rate-limiter's own KV check first, so the exact timing
+      // isn't worth hardcoding.
+      await vi.waitFor(() => expect(generationStarted).toBe(true), { timeout: 2000 });
+      resolveGeneration(undefined);
+
+      const [first, second] = await Promise.all([firstReqPromise, secondReqPromise]);
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    } finally {
+      global.fetch = originalFetchImpl;
+    }
   });
 });

@@ -30,18 +30,23 @@ export function registerStoryRoutes(app: Express): void {
       return res.json(result);
     }
 
-    // KV-backed cross-invocation dedup: catches a duplicate request that
-    // landed on a different serverless invocation than the one that already
-    // completed the generation (the in-memory check above only dedups
-    // requests within this same warm process). No-ops when Cloudflare KV
-    // isn't configured, so local/Replit dev behavior is unchanged.
-    const resolvedFromKv = await idempotencyCache.getResolved(idempotencyKey);
-    if (resolvedFromKv !== undefined) {
-      req.log?.info('story request deduplicated (KV hit)');
-      return res.json(resolvedFromKv);
-    }
-
+    let resolvedFromKv = false;
     const generationPromise = (async () => {
+      // KV-backed cross-invocation dedup: catches a duplicate request that
+      // landed on a different serverless invocation than the one that already
+      // completed the generation. No-ops when Cloudflare KV isn't configured,
+      // so local/Replit dev behavior is unchanged. This check must stay
+      // *inside* this IIFE, not between the in-memory get() and set() below —
+      // an await there would open a window where two concurrent identical
+      // requests both miss the in-memory cache before either registers a
+      // promise, and both end up starting their own generation.
+      const kvResolvedStory = await idempotencyCache.getResolved(idempotencyKey);
+      if (kvResolvedStory !== undefined) {
+        resolvedFromKv = true;
+        req.log?.info('story request deduplicated (KV hit)');
+        return kvResolvedStory;
+      }
+
       const partCount = getPartCount(duration);
       const wordCount = getWordCount(duration);
 
@@ -98,7 +103,9 @@ export function registerStoryRoutes(app: Express): void {
 
     try {
       const story = await generationPromise;
-      idempotencyCache.setResolved(idempotencyKey, story);
+      if (!resolvedFromKv) {
+        idempotencyCache.setResolved(idempotencyKey, story);
+      }
       res.json(story);
     } catch (error: unknown) {
       idempotencyCache.delete(idempotencyKey);
