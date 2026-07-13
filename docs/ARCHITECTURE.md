@@ -173,7 +173,9 @@ Optional, parent-opt-in cloud backup/continuity of kid data (stories + gamificat
 - **Storage** (`supabase/migrations/0001_sync_tables.sql`): a single `sync_records` table keyed by `(user_id, entity, id)`, with **RLS** (`auth.uid() = user_id`) and `on delete cascade` from `auth.users` so deleting the account purges all synced data.
 - **PII boundary**: badges/streaks key on `profileId`; to line them up across devices without leaking names/ages, only a minimal profile stub (`id` + `createdAt`) syncs. Story base64 blobs (avatar/scenes) are stripped before sync (regenerable, would bloat Postgres).
 
-**Status**: the schema, contract, reconcile core, and mappers are built and tested. The Supabase network client, opt-in settings toggle, and deletion propagation are Phase 2 (not yet built); nothing syncs until then.
+- **Flow** (`lib/sync/engine.ts` + `supabase-sync.ts`): for each entity, pull the cloud copy, reconcile vs local, push local winners, apply remote winners. Gated by `runSync()` (`lib/sync/runSync.ts`) on the parent opt-in flag (`cloudSyncEnabled`, default off) + a signed-in session. `purgeCloudData()` is wired into "delete all data" (`app/settings.tsx`).
+
+**Status**: schema (applied to the `Bedtime-chronicles` project), contract, reconcile, mappers, engine, I/O, and the **stories** adapter (blob-preserving) are built and tested. Remaining (Phase 2b): the settings UI toggle + sync triggers, and adapters for badges/streaks/profileStub + favorites/read (the latter need a change-time sidecar). Only `stories` syncs today, only when a parent enables the flag while signed in.
 
 ## Authentication Flow
 

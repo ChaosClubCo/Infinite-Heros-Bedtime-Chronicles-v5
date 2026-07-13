@@ -131,3 +131,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
+
+/**
+ * The shared Supabase client singleton, or null when auth isn't configured.
+ * Exposed for non-auth features that must issue authenticated queries (e.g. the
+ * cloud-sync engine reading/writing `sync_records` under the user's session).
+ */
+export function getSupabaseClient(): SupabaseClient | null {
+  return supabase;
+}

@@ -78,7 +78,7 @@ lib/                    # Client utilities
   storage-migration.test.ts      # Storage migration tests
   launch-gate.ts        # resolveLaunchRoute(): single source of truth for the cold-start consent/onboarding decision; also runs runStorageMigrations() first
   launch-gate.test.ts   # Launch-gate unit tests
-  sync/                 # Cloud-sync engine (M3): reconcile.ts (pure last-write-wins + tombstones), mappers.ts (local shapes ⇄ SyncRecord, strips base64 blobs). See supabase/migrations/0001_sync_tables.sql
+  sync/                 # Cloud-sync engine (M3): reconcile.ts (pure last-write-wins + tombstones), mappers.ts (local⇄SyncRecord, strips base64 blobs), supabase-sync.ts (pull/push/purge on sync_records), engine.ts (syncEntity/syncAll via EntityAdapter), storage-adapters.ts (stories adapter), runSync.ts (gated runSync()/purgeCloudData()). See supabase/migrations/0001_sync_tables.sql
   ConsentContext.tsx    # Reactive consent state driving the root layout's Stack.Protected guard
   scene-handoff.ts      # In-memory handoff of scene images from story → completion (too large for nav params)
   replay-params.ts      # buildStoryReplayParams(): shared /story replay params for all replay entry points
@@ -491,7 +491,8 @@ Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: 
   isMuted: false,
   reducedMotion: false,
   fontSize: "normal",        // normal | large
-  sleepTheme: "Cloud Kingdom"
+  sleepTheme: "Cloud Kingdom",
+  cloudSyncEnabled: false     // M3 parent opt-in for cloud sync/backup (off by default)
 }
 ```
 
@@ -569,7 +570,7 @@ npm run test:coverage   # vitest run --coverage
 - **AI OUTPUT safety is now enforced, not just prompt-side.** `server/routes/story.ts` runs every generated story through `guardStory` (`server/safety/story-guard.ts`): `moderateStory` (`content-safety.ts`) → on a block, regenerate ONCE with `buildStricterSystemPrompt` → if still unsafe, serve a known-safe fallback (`fallback-stories.ts`). The child never sees flagged text or a raw error. Gated by `FEATURE_CONTENT_SAFETY_ENABLED` (default on). HARD terms live in `shared/safety-terms.ts` (shared with the client fail-safe in `components/StoryTextDisplay.tsx`); SOFT/contextual terms are server-only in `server/safety/terms.ts`. When safety is on, `/api/generate-story-stream` buffers-then-emits (a single `complete` event) instead of streaming raw tokens.
 - **On-device TTS cache**: `lib/useStoryAudio.ts` no longer re-fetches narration every play — it calls `resolveNarrationUri` (`lib/narration.ts`), which returns a cached `file://` clip when present (offline-capable) or fetches + caches on a miss (`lib/tts-cache.ts`, keyed by md5 of `voice:mode:text` to mirror the server). Any FS/crypto failure degrades gracefully to streaming. `prefetchNarration()` is available to warm the next part but is not wired into the story screen yet.
 - **Storage migrations are now wired**: `runStorageMigrations()` (`lib/storage-migration.ts`) runs at the start of `resolveLaunchRoute()` (`lib/launch-gate.ts`) — the earliest cold-start storage touch — so it was previously defined-but-never-called.
-- **Cloud sync (M3) — Phase 1 foundation only, OFF by default.** The pure reconcile core (`lib/sync/reconcile.ts`, last-write-wins + tombstones), transport contract (`shared/sync-types.ts`), mappers (`lib/sync/mappers.ts`), and the Supabase schema+RLS (`supabase/migrations/0001_sync_tables.sql`) exist and are tested, but the network client, opt-in settings toggle, and deletion propagation are **not built yet** (Phase 2). Nothing syncs until then. Decisions: parent opt-in, stories+gamification only (NO profile PII — a minimal profile stub anchors per-profile records), LWW, local-wipe→cloud-purge. The migration must be applied to the app's Supabase project before Phase 2 (`supabase db push` or the SQL editor).
+- **Cloud sync (M3) — OFF by default (`cloudSyncEnabled` setting, default false).** Decisions: parent opt-in, stories+gamification only (NO profile PII — a minimal profile stub anchors per-profile records), last-write-wins, local-wipe→cloud-purge. Built + tested: schema+RLS (`supabase/migrations/0001_sync_tables.sql`, **applied to the Bedtime-chronicles Supabase project**), reconcile/mappers/engine/IO (`lib/sync/*`), the **stories** adapter (blob-preserving), gated `runSync()` + `purgeCloudData()` (`lib/sync/runSync.ts`), and cloud-purge wired into the "delete all data" flow (`app/settings.tsx`). **Remaining (Phase 2b):** the settings UI toggle + sync triggers (after-save / foreground), and adapters for badges/streaks/profileStub (profile-identity nuance) + favorites/read (need a per-item change-time sidecar). Only `stories` syncs today, and only when a parent enables the flag while signed in.
 - ElevenLabs voices are hardcoded in `server/elevenlabs.ts` with specific voice IDs
 - Expo Router v6 file-based routing — screen paths map to file paths in `app/`
 - `postinstall` runs `patch-package || true` — currently a no-op (`patches/` was removed after the SDK 55 upgrade) but kept so future patches apply automatically

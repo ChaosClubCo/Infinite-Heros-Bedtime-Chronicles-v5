@@ -20,6 +20,7 @@ import { useSettings, AppSettings } from "@/lib/SettingsContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useConsent } from "@/lib/ConsentContext";
 import { clearAllData } from "@/lib/storage";
+import { purgeCloudData } from "@/lib/sync/runSync";
 
 const VOICES = [
   { id: "moonbeam", label: "Moonbeam" },
@@ -171,6 +172,10 @@ export default function SettingsScreen() {
           text: "Delete Everything",
           style: "destructive",
           onPress: async () => {
+            // Purge the cloud copy first (needs the session), then wipe local,
+            // then sign out. purgeCloudData is a safe no-op when sync is off /
+            // not signed in.
+            await purgeCloudData();
             await clearAllData();
             await signOut();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);

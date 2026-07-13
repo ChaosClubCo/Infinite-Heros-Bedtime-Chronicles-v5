@@ -70,6 +70,7 @@ import {
   awardBadge,
   getStreak,
   updateStreak,
+  mergeSyncedStories,
 } from './storage';
 
 const makeStoryFull = (title = 'Test Story') => ({
@@ -222,6 +223,31 @@ describe('deleteStory', () => {
     await expect(deleteStory('nonexistent')).resolves.not.toThrow();
     const stories = await getAllStories();
     expect(stories).toHaveLength(1);
+  });
+});
+
+describe('mergeSyncedStories (cloud sync)', () => {
+  const STORIES_KEY = '@infinity_heroes_stories';
+  const synced = (id: string, timestamp: number) => ({
+    id, timestamp, story: makeStoryFull(id), heroId: 'h', mode: 'classic', voice: 'moonbeam', speed: 'medium',
+  });
+
+  it('preserves local-only base64 blobs when an incoming (blob-less) story wins', async () => {
+    mockStorage[STORIES_KEY] = JSON.stringify([
+      { ...synced('s1', 1000), avatar: 'LOCAL_AV', scenes: { 0: 'LOCAL_SCENE' } },
+    ]);
+    await mergeSyncedStories([synced('s1', 2000)], []);
+    const [s1] = await getAllStories();
+    expect(s1.timestamp).toBe(2000);       // newer metadata applied
+    expect(s1.avatar).toBe('LOCAL_AV');    // local blobs preserved
+    expect(s1.scenes).toEqual({ 0: 'LOCAL_SCENE' });
+  });
+
+  it('adds new stories and removes tombstoned ids', async () => {
+    mockStorage[STORIES_KEY] = JSON.stringify([synced('keep', 1), synced('gone', 1)]);
+    await mergeSyncedStories([synced('new', 5)], ['gone']);
+    const ids = (await getAllStories()).map((s) => s.id).sort();
+    expect(ids).toEqual(['keep', 'new']);
   });
 });
 

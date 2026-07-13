@@ -172,6 +172,31 @@ export async function deleteStory(id: string): Promise<void> {
   await AsyncStorage.setItem(STORIES_KEY, JSON.stringify(filtered));
 }
 
+/**
+ * Bulk-merge stories pulled from cloud sync (M3). Upserts by id and removes the
+ * given ids (tombstones). Synced stories arrive WITHOUT base64 blobs
+ * (`avatar`/`scenes` are stripped before sync), so when an incoming story lacks
+ * them we preserve any blobs already on the local copy — the newer metadata
+ * shouldn't wipe locally-generated images.
+ */
+export async function mergeSyncedStories(
+  upserts: CachedStory[],
+  deletedIds: string[],
+): Promise<void> {
+  const existing = await getAllStories();
+  const byId = new Map(existing.map((s) => [s.id, s]));
+  for (const incoming of upserts) {
+    const prev = byId.get(incoming.id);
+    byId.set(incoming.id, {
+      ...incoming,
+      avatar: incoming.avatar ?? prev?.avatar,
+      scenes: incoming.scenes ?? prev?.scenes,
+    });
+  }
+  for (const id of deletedIds) byId.delete(id);
+  await AsyncStorage.setItem(STORIES_KEY, JSON.stringify([...byId.values()]));
+}
+
 export async function saveStoryScene(
   id: string,
   partIndex: number,
