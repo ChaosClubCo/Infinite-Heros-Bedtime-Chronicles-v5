@@ -1,4 +1,5 @@
 import { getConsentGiven, getOnboardingComplete } from "@/lib/storage";
+import { runStorageMigrations } from "@/lib/storage-migration";
 
 export type LaunchRoute = "/parental-consent" | "/welcome" | "/(tabs)";
 
@@ -15,6 +16,12 @@ export type LaunchRoute = "/parental-consent" | "/welcome" | "/(tabs)";
  */
 export async function resolveLaunchRoute(): Promise<LaunchRoute> {
   try {
+    // Run any pending AsyncStorage schema migrations before reading state — this
+    // is the earliest storage touch on cold start, so migrating here guarantees
+    // every downstream read (consent, onboarding, stories, …) sees the current
+    // schema. Idempotent (version-checked), so repeat calls are no-ops.
+    await runStorageMigrations();
+
     const [consented, onboarded] = await Promise.all([
       getConsentGiven(),
       getOnboardingComplete(),

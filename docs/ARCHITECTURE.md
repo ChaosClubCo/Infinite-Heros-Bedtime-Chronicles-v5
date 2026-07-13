@@ -164,6 +164,17 @@ Every generated story passes a server-authoritative moderation gate before it re
 
 The child never sees flagged text or a raw error. Gated by `FEATURE_CONTENT_SAFETY_ENABLED` (default on). The HARD term list lives in `shared/safety-terms.ts` and is reused by a client render fail-safe (`components/StoryTextDisplay.tsx`). Leak-safe metrics (category counts only) are exposed via `/api/metrics`.
 
+## Cloud Sync (Milestone 3 — foundation)
+
+Optional, parent-opt-in cloud backup/continuity of kid data (stories + gamification only — **never** child-profile PII). Off by default; the app remains offline-first-local.
+
+- **Model**: every synced item is a `SyncRecord` envelope (`shared/sync-types.ts`) — `{ id, updatedAt, deleted, payload }`. Conflicts resolve **last-write-wins** by `updatedAt`; deletions are soft tombstones so they propagate instead of being resurrected.
+- **Reconcile** (`lib/sync/reconcile.ts`, pure/tested): diffs local vs cloud record maps into `{ applyLocal, pushRemote }`.
+- **Storage** (`supabase/migrations/0001_sync_tables.sql`): a single `sync_records` table keyed by `(user_id, entity, id)`, with **RLS** (`auth.uid() = user_id`) and `on delete cascade` from `auth.users` so deleting the account purges all synced data.
+- **PII boundary**: badges/streaks key on `profileId`; to line them up across devices without leaking names/ages, only a minimal profile stub (`id` + `createdAt`) syncs. Story base64 blobs (avatar/scenes) are stripped before sync (regenerable, would bloat Postgres).
+
+**Status**: the schema, contract, reconcile core, and mappers are built and tested. The Supabase network client, opt-in settings toggle, and deletion propagation are Phase 2 (not yet built); nothing syncs until then.
+
 ## Authentication Flow
 
 1. `AuthProvider` in `app/_layout.tsx` initializes Supabase Auth when `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` are configured.

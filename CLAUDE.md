@@ -76,8 +76,9 @@ lib/                    # Client utilities
   storage.comprehensive.test.ts  # Extended storage test suite
   storage-migration.ts  # Versioned AsyncStorage migration runner (see Known Gotchas)
   storage-migration.test.ts      # Storage migration tests
-  launch-gate.ts        # resolveLaunchRoute(): single source of truth for the cold-start consent/onboarding decision
+  launch-gate.ts        # resolveLaunchRoute(): single source of truth for the cold-start consent/onboarding decision; also runs runStorageMigrations() first
   launch-gate.test.ts   # Launch-gate unit tests
+  sync/                 # Cloud-sync engine (M3): reconcile.ts (pure last-write-wins + tombstones), mappers.ts (local shapes ⇄ SyncRecord, strips base64 blobs). See supabase/migrations/0001_sync_tables.sql
   ConsentContext.tsx    # Reactive consent state driving the root layout's Stack.Protected guard
   scene-handoff.ts      # In-memory handoff of scene images from story → completion (too large for nav params)
   replay-params.ts      # buildStoryReplayParams(): shared /story replay params for all replay entry points
@@ -122,6 +123,7 @@ shared/                 # Shared between client & server
   schema.ts             # Drizzle ORM schema (users table, re-exports models/chat.ts)
   models/chat.ts        # Conversation & message tables
   safety-terms.ts       # Canonical HARD banned-term list + containsUnsafeContent() — one source of truth for the server moderator and the client render fail-safe
+  sync-types.ts         # Cloud-sync transport contract (SyncRecord envelope, SyncEntity union) — dependency-free, shared by client + any Edge function
 docs/                   # Project documentation
   ARCHITECTURE.md       # System design & data flow
   API.md                # API endpoint reference (40+ endpoints)
@@ -566,6 +568,8 @@ npm run test:coverage   # vitest run --coverage
 - AI router automatically falls back through providers, with circuit breakers and retry — check `server/ai/router.ts`
 - **AI OUTPUT safety is now enforced, not just prompt-side.** `server/routes/story.ts` runs every generated story through `guardStory` (`server/safety/story-guard.ts`): `moderateStory` (`content-safety.ts`) → on a block, regenerate ONCE with `buildStricterSystemPrompt` → if still unsafe, serve a known-safe fallback (`fallback-stories.ts`). The child never sees flagged text or a raw error. Gated by `FEATURE_CONTENT_SAFETY_ENABLED` (default on). HARD terms live in `shared/safety-terms.ts` (shared with the client fail-safe in `components/StoryTextDisplay.tsx`); SOFT/contextual terms are server-only in `server/safety/terms.ts`. When safety is on, `/api/generate-story-stream` buffers-then-emits (a single `complete` event) instead of streaming raw tokens.
 - **On-device TTS cache**: `lib/useStoryAudio.ts` no longer re-fetches narration every play — it calls `resolveNarrationUri` (`lib/narration.ts`), which returns a cached `file://` clip when present (offline-capable) or fetches + caches on a miss (`lib/tts-cache.ts`, keyed by md5 of `voice:mode:text` to mirror the server). Any FS/crypto failure degrades gracefully to streaming. `prefetchNarration()` is available to warm the next part but is not wired into the story screen yet.
+- **Storage migrations are now wired**: `runStorageMigrations()` (`lib/storage-migration.ts`) runs at the start of `resolveLaunchRoute()` (`lib/launch-gate.ts`) — the earliest cold-start storage touch — so it was previously defined-but-never-called.
+- **Cloud sync (M3) — Phase 1 foundation only, OFF by default.** The pure reconcile core (`lib/sync/reconcile.ts`, last-write-wins + tombstones), transport contract (`shared/sync-types.ts`), mappers (`lib/sync/mappers.ts`), and the Supabase schema+RLS (`supabase/migrations/0001_sync_tables.sql`) exist and are tested, but the network client, opt-in settings toggle, and deletion propagation are **not built yet** (Phase 2). Nothing syncs until then. Decisions: parent opt-in, stories+gamification only (NO profile PII — a minimal profile stub anchors per-profile records), LWW, local-wipe→cloud-purge. The migration must be applied to the app's Supabase project before Phase 2 (`supabase db push` or the SQL editor).
 - ElevenLabs voices are hardcoded in `server/elevenlabs.ts` with specific voice IDs
 - Expo Router v6 file-based routing — screen paths map to file paths in `app/`
 - `postinstall` runs `patch-package || true` — currently a no-op (`patches/` was removed after the SDK 55 upgrade) but kept so future patches apply automatically
