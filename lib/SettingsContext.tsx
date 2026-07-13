@@ -24,6 +24,8 @@ export interface AppSettings {
   isMuted: boolean;
   reducedMotion: boolean;
   fontSize: "normal" | "large";
+  /** Parent opt-in for cloud sync/backup of stories + gamification (M3). Off by default. */
+  cloudSyncEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -45,6 +47,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   isMuted: false,
   reducedMotion: false,
   fontSize: "normal",
+  cloudSyncEnabled: false,
 };
 
 type SettingsAction =

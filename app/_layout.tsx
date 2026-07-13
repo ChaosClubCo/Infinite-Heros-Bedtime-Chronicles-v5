@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { SyncManager } from "@/components/SyncManager";
 import { useNetworkStatus } from "@/lib/useNetworkStatus";
 import { queryClient, setAuthTokenGetter } from "@/lib/query-client";
 import { ConsentProvider, useConsent } from "@/lib/ConsentContext";

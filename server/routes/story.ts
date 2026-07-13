@@ -4,12 +4,104 @@ import { getStorySystemPrompt, getStoryUserPrompt, getPartCount, getWordCount, S
 import { classifyError, createErrorResponse, parsePositiveIntEnv } from "../utils";
 import { IdempotencyCache } from "../idempotency";
 import { estimateCostUsd, reportCostAnomaly } from "../ai/cost";
+import { extractFirstJson } from "../ai/json";
+import { isFeatureEnabled } from "../feature-flags";
+import { guardStory } from "../safety/story-guard";
 import { aiRouter, idempotencyCache } from "./context";
 import { rateLimited, sendRouteError } from "./helpers";
 
 // Per-call token ceiling — configurable so a runaway generation can be capped
 // without a code change (cost guard). Invalid env values fall back to the default.
 const STORY_MAX_TOKENS = parsePositiveIntEnv(process.env.STORY_MAX_TOKENS, 8192);
+
+/**
+ * Normalize a parsed AI response into the wire story shape: coerce part text,
+ * strip choices in sleep mode, drop the final part's choices otherwise, and
+ * re-index parts. Throws if the response is not a usable story object.
+ */
+function mapStoryStructure(parsedJson: unknown, mode: string): Record<string, unknown> {
+  if (!parsedJson || typeof parsedJson !== "object") {
+    throw new Error("Invalid story response");
+  }
+  const story = parsedJson as Record<string, unknown>;
+  if (!story.parts || !Array.isArray(story.parts)) {
+    throw new Error("Invalid story structure");
+  }
+  story.parts = (story.parts as { text?: string; choices?: string[] }[]).map((part, i) => ({
+    text: part.text || "",
+    choices: mode === "sleep" ? undefined : (part.choices || undefined),
+    partIndex: i,
+  }));
+  if ((story.parts as unknown[]).length > 0 && mode !== "sleep") {
+    delete (story.parts as Record<string, unknown>[])[(story.parts as unknown[]).length - 1].choices;
+  }
+  return story;
+}
+
+/**
+ * Run the freshly generated story through the safety guard: moderate, regenerate
+ * once with a stricter prompt on a block, then fall back to a known-safe story.
+ * A no-op passthrough when the content-safety flag is disabled. `requestId` is
+ * threaded so a regeneration reuses the caller's request context.
+ */
+async function applySafetyGuard(
+  story: Record<string, unknown>,
+  params: { mode: string; partCount: number; userPrompt: string; requestId?: string; log?: { warn(o: object, m?: string): void; info(o: object, m?: string): void } },
+): Promise<Record<string, unknown>> {
+  if (!isFeatureEnabled("contentSafetyEnabled")) return story;
+  const { mode, partCount, userPrompt, requestId, log } = params;
+
+  const result = await guardStory({
+    story,
+    mode,
+    strict: isFeatureEnabled("contentSafetyStrict"),
+    llmClassify: isFeatureEnabled("contentSafetyLlmLayer")
+      ? (candidate) => llmModerate(candidate, requestId)
+      : undefined,
+    regenerate: async (flaggedCategories) => {
+      const strictSystem = buildStricterSystemPrompt(mode, partCount, flaggedCategories);
+      const retry = await aiRouter.generateText("story", {
+        systemPrompt: strictSystem,
+        userPrompt,
+        // Lower temperature on the retry to keep it firmly inside the rules.
+        temperature: mode === "sleep" ? 0.5 : 0.6,
+        maxTokens: STORY_MAX_TOKENS,
+        jsonMode: true,
+        responseSchema: STORY_RESPONSE_SCHEMA,
+        timeoutMs: 60_000,
+        requestId,
+      });
+      return mapStoryStructure(retry.parsedJson, mode);
+    },
+    log,
+    requestId,
+  });
+  return result.story;
+}
+
+/**
+ * Optional LLM moderation pass. Returns true (safe) unless the classifier
+ * explicitly says otherwise, so a provider error/timeout never blocks a story.
+ */
+async function llmModerate(story: Record<string, unknown>, requestId?: string): Promise<boolean> {
+  const systemPrompt =
+    'You are a strict child-safety classifier for a bedtime story app (ages 3-9). ' +
+    'Given a story as JSON, respond with ONLY {"safe": true} or {"safe": false}. ' +
+    'Mark it unsafe if it contains violence, weapons, death, scary or horror elements, ' +
+    'bullying, real-world brands or characters, or anxiety-inducing content.';
+  const userPrompt = `Story JSON: ${JSON.stringify(story).slice(0, 6000)}`;
+  const resp = await aiRouter.generateText("story", {
+    systemPrompt,
+    userPrompt,
+    temperature: 0,
+    maxTokens: 32,
+    jsonMode: true,
+    timeoutMs: 8_000,
+    requestId,
+  });
+  const parsed = resp.parsedJson as { safe?: unknown } | undefined;
+  return parsed?.safe !== false;
+}
 
 export function registerStoryRoutes(app: Express): void {
   app.post("/api/generate-story", rateLimited(), async (req, res) => {
@@ -80,23 +172,12 @@ export function registerStoryRoutes(app: Express): void {
       }, 'story generated');
       reportCostAnomaly(estCostUsd, { provider: aiResponse.provider, endpoint: '/api/generate-story' });
 
-      const story = aiResponse.parsedJson as Record<string, unknown>;
+      const story = mapStoryStructure(aiResponse.parsedJson, mode);
 
-      if (!story.parts || !Array.isArray(story.parts)) {
-        throw new Error("Invalid story structure");
-      }
-
-      story.parts = (story.parts as Array<{ text?: string; choices?: string[] }>).map((part, i) => ({
-        text: part.text || "",
-        choices: mode === "sleep" ? undefined : (part.choices || undefined),
-        partIndex: i,
-      }));
-
-      if ((story.parts as unknown[]).length > 0 && mode !== "sleep") {
-        delete (story.parts as Record<string, unknown>[])[(story.parts as unknown[]).length - 1].choices;
-      }
-
-      return story;
+      // Server-authoritative safety gate: moderate → regenerate once → fallback.
+      // Runs inside this IIFE so the guarded (safe) story is what the
+      // idempotency cache stores — an unsafe payload is never cached or served.
+      return await applySafetyGuard(story, { mode, partCount, userPrompt, requestId: req.requestId, log: req.log });
     })();
 
     idempotencyCache.set(idempotencyKey, generationPromise);
@@ -139,17 +220,37 @@ export function registerStoryRoutes(app: Express): void {
         maxTokens: STORY_MAX_TOKENS,
       });
 
+      // When content safety is on, the stream cannot be judged mid-flight, so we
+      // buffer the tokens server-side and emit the story only after moderation
+      // (a `complete` event instead of per-token `chunk`s). This defers — but
+      // never forwards — unmoderated text. The live client uses the JSON
+      // endpoint; SSE is FEATURE_STREAMING_ENABLED-gated. When safety is off,
+      // the legacy token-by-token passthrough is preserved.
+      const safetyOn = isFeatureEnabled("contentSafetyEnabled");
       let providerInfo = "";
+      let buffered = "";
       for await (const chunk of stream) {
         if (!providerInfo) {
           providerInfo = `${chunk.provider}`;
           res.write(`data: ${JSON.stringify({ type: "provider", provider: chunk.provider, model: chunk.model })}\n\n`);
         }
         if (chunk.done) {
-          res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+          if (!safetyOn) res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+        } else if (safetyOn) {
+          buffered += chunk.text;
         } else {
           res.write(`data: ${JSON.stringify({ type: "chunk", text: chunk.text })}\n\n`);
         }
+      }
+
+      if (safetyOn) {
+        const cleaned = buffered.trim().replace(/```json\s*/g, "").replace(/```\s*/g, "");
+        const jsonStr = extractFirstJson(cleaned);
+        if (!jsonStr) throw new Error("Invalid story response");
+        const story = mapStoryStructure(JSON.parse(jsonStr), mode);
+        const safeStory = await applySafetyGuard(story, { mode, partCount, userPrompt, requestId: req.requestId, log: req.log });
+        res.write(`data: ${JSON.stringify({ type: "complete", story: safeStory })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
       }
 
       req.log?.info({ provider: providerInfo }, 'story stream completed');

@@ -102,8 +102,9 @@ lib/                    # Client utilities
   storage.comprehensive.test.ts  # Extended storage test suite
   storage-migration.ts  # Versioned AsyncStorage migration runner (see Known Gotchas)
   storage-migration.test.ts      # Storage migration tests
-  launch-gate.ts        # resolveLaunchRoute(): single source of truth for the cold-start consent/onboarding decision
+  launch-gate.ts        # resolveLaunchRoute(): single source of truth for the cold-start consent/onboarding decision; also runs runStorageMigrations() first
   launch-gate.test.ts   # Launch-gate unit tests
+  sync/                 # Cloud-sync engine (M3): reconcile.ts (pure last-write-wins + tombstones), mappers.ts (local⇄SyncRecord, strips base64 blobs), supabase-sync.ts (pull/push/purge on sync_records), engine.ts (syncEntity/syncAll via EntityAdapter), storage-adapters.ts (all six entity adapters), runSync.ts (gated runSync()/purgeCloudData()). Triggered by components/SyncManager.tsx (foreground) + app/completion.tsx (after save). See supabase/migrations/0001_sync_tables.sql
   ConsentContext.tsx    # Reactive consent state driving the root layout's Stack.Protected guard
   scene-handoff.ts      # In-memory handoff of scene images from story → completion (too large for nav params)
   replay-params.ts      # buildStoryReplayParams(): shared /story replay params for all replay entry points
@@ -134,7 +135,7 @@ server/                 # Express.js backend
   idempotency.ts        # Idempotency cache (TTL 5 min, keyed by request hash; KV-backed for cross-invocation survival — see kv.ts)
   logger.ts             # pino structured logger
   metrics.ts            # In-process metrics (request/provider counters)
-  feature-flags.ts      # Runtime feature flag resolver
+  feature-flags.ts      # Runtime feature flag resolver (incl. contentSafety* flags)
   tts-cache.ts          # TTS file cache with size + age limits
   utils.ts              # toErrorMessage, classifyError, createErrorResponse
   alerting.ts           # Fires Sentry alerts on 5xx-rate / TTS-failure-rate threshold breaches
@@ -143,6 +144,7 @@ server/                 # Express.js backend
   ai/                   # Multi-provider AI router
     index.ts            # Provider registration & status checking
     router.ts           # AIRouter class with fallback chain, circuit breakers, retry
+    json.ts             # extractFirstJson (balanced-brace JSON scan) — shared by router + buffered SSE
     types.ts            # AI provider interface definitions
     cost.ts             # Per-provider token cost estimation
     providers/          # Gemini, OpenAI, Anthropic, OpenRouter
@@ -156,6 +158,8 @@ server/                 # Express.js backend
 shared/                 # Shared between client & server
   schema.ts             # Drizzle ORM schema (users table, re-exports models/chat.ts)
   models/chat.ts        # Conversation & message tables
+  safety-terms.ts       # Canonical HARD banned-term list + containsUnsafeContent() — one source of truth for the server moderator and the client render fail-safe
+  sync-types.ts         # Cloud-sync transport contract (SyncRecord envelope, SyncEntity union) — dependency-free, shared by client + any Edge function
 docs/                   # Project documentation
   ARCHITECTURE.md       # System design & data flow
   API.md                # API endpoint reference (40+ endpoints)
@@ -246,7 +250,8 @@ npm test                    # Vitest unit tests
                                     ├→ [Load shedding] — active-request ceiling
                                     ├→ [Idempotency cache] — 5-min dedup on POSTs
                                     ├→ [AI Router] → Anthropic → Gemini → OpenAI → OpenRouter (circuit-broken + retried)
-                                    ├→ [ElevenLabs TTS] → /tmp/tts-cache (size + age bounded)
+                                    ├→ [Output safety] — moderateStory → regenerate once → known-safe fallback (server/safety/*)
+                                    ├→ [ElevenLabs TTS] → /tmp/tts-cache (size + age bounded); client also caches MP3s on-device (lib/tts-cache.ts)
                                     ├→ [PostgreSQL + Drizzle] (voice chat history)
                                     └→ [OpenAI Sora] (video generation)
 ```
@@ -535,7 +540,8 @@ Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: 
   isMuted: false,
   reducedMotion: false,
   fontSize: "normal",        // normal | large
-  sleepTheme: "Cloud Kingdom"
+  sleepTheme: "Cloud Kingdom",
+  cloudSyncEnabled: false     // M3 parent opt-in for cloud sync/backup (off by default)
 }
 ```
 
@@ -598,7 +604,7 @@ npm run test:coverage   # vitest run --coverage
 - Server uses esbuild for production bundling to `server_dist/`
 - Voice chat routes only registered when `AI_INTEGRATIONS_OPENAI_API_KEY` and `DATABASE_URL` are set and the `voiceChatEnabled` feature flag is on (`server/routes.ts`)
 - React Query configured with `staleTime: Infinity`, `retry: false`, `refetchOnWindowFocus: false`
-- TTS audio cached at `/tmp/tts-cache` with configurable max age and max size
+- TTS audio cached server-side at `/tmp/tts-cache` (max age + size) AND on-device by the client (`lib/tts-cache.ts`, expo-file-system) so replays are instant and work offline — see `lib/narration.ts` for the resolve-or-fetch flow
 - 12 randomized art styles for scene illustrations (watercolor, cel-shaded, paper cutout, gouache, crayon, digital, retro storybook, ink wash, pastel, pop art, chalk, flat design)
 - Runbooks for deploy, incident response, provider outage, and rollback live in `docs/runbooks/`
 
@@ -610,6 +616,10 @@ npm run test:coverage   # vitest run --coverage
 - **Never use `./gradlew` or `gradlew`** — EAS Build manages Gradle internally; use `npx expo` or `eas` CLI commands instead
 - **`expo:dev` requires Replit env vars** — outside Replit, use `npx expo start` directly
 - AI router automatically falls back through providers, with circuit breakers and retry — check `server/ai/router.ts`
+- **AI OUTPUT safety is now enforced, not just prompt-side.** `server/routes/story.ts` runs every generated story through `guardStory` (`server/safety/story-guard.ts`): `moderateStory` (`content-safety.ts`) → on a block, regenerate ONCE with `buildStricterSystemPrompt` → if still unsafe, serve a known-safe fallback (`fallback-stories.ts`). The child never sees flagged text or a raw error. Gated by `FEATURE_CONTENT_SAFETY_ENABLED` (default on). HARD terms live in `shared/safety-terms.ts` (shared with the client fail-safe in `components/StoryTextDisplay.tsx`); SOFT/contextual terms are server-only in `server/safety/terms.ts`. When safety is on, `/api/generate-story-stream` buffers-then-emits (a single `complete` event) instead of streaming raw tokens.
+- **On-device TTS cache**: `lib/useStoryAudio.ts` no longer re-fetches narration every play — it calls `resolveNarrationUri` (`lib/narration.ts`), which returns a cached `file://` clip when present (offline-capable) or fetches + caches on a miss (`lib/tts-cache.ts`, keyed by md5 of `voice:mode:text` to mirror the server). Any FS/crypto failure degrades gracefully to streaming. `prefetchNarration()` is available to warm the next part but is not wired into the story screen yet.
+- **Storage migrations are now wired**: `runStorageMigrations()` (`lib/storage-migration.ts`) runs at the start of `resolveLaunchRoute()` (`lib/launch-gate.ts`) — the earliest cold-start storage touch — so it was previously defined-but-never-called.
+- **Cloud sync (M3) — OFF by default (`cloudSyncEnabled` setting, default false).** Decisions: parent opt-in, stories+gamification only (NO profile PII), last-write-wins, local-wipe→cloud-purge. Built + tested end-to-end (all six entities): schema+RLS (`supabase/migrations/0001_sync_tables.sql`, **applied to the Bedtime-chronicles Supabase project** `aeraxfupuvwiskmfjliq`), reconcile/mappers/engine/IO (`lib/sync/*`), adapters for **stories** (blob-preserving), **badges**, **streaks**, **favorites**/**read** (via a change-time sidecar `@infinity_heroes_sync_meta` stamped by `toggleFavorite`/`markStoryRead`), and **profileStub** (creates an editable placeholder profile for an unknown id so gamification anchors across devices — name/age never sync; `mergeSyncedProfileStubs`). Gated `runSync()`/`purgeCloudData()` (`lib/sync/runSync.ts`), opt-in **toggle** in `app/settings.tsx`, **triggers** (`components/SyncManager.tsx` foreground + `app/completion.tsx` after-save), cloud-purge in "delete all data". **NOT yet verified on a device** — the toggle/triggers/placeholder behavior need an end-to-end pass. M4 (native Kotlin audio) remains gated on the V2 repo + ejecting managed Expo.
 - ElevenLabs voices are hardcoded in `server/elevenlabs.ts` with specific voice IDs
 - Expo Router (file-based routing, package major 56) — screen paths map to file paths in `app/`
 - `postinstall` runs `patch-package || true` — currently a no-op (`patches/` was removed after the SDK 55 upgrade) but kept so future patches apply automatically

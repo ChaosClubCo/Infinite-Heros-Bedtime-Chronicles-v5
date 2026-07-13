@@ -138,9 +138,14 @@ describe("POST /api/generate-story error paths", () => {
 });
 
 describe("POST /api/generate-story-stream", () => {
-  it("streams provider info and chunk/done events over SSE", async () => {
+  // With content safety ON (the default), the SSE endpoint buffers the stream,
+  // moderates the assembled story, and emits a single `complete` event — it
+  // never forwards unmoderated per-token `chunk`s.
+  it("buffers, moderates, and emits provider + complete + done", async () => {
+    const storyJson = JSON.stringify(validStoryPayload);
     mockGenerateTextStream.mockReturnValueOnce((async function* () {
-      yield { text: "Once", done: false, provider: "gemini", model: "gemini-test" };
+      yield { text: storyJson.slice(0, 15), done: false, provider: "gemini", model: "gemini-test" };
+      yield { text: storyJson.slice(15), done: false, provider: "gemini", model: "gemini-test" };
       yield { text: "", done: true, provider: "gemini", model: "gemini-test" };
     })());
 
@@ -149,8 +154,11 @@ describe("POST /api/generate-story-stream", () => {
     expect(res.status).toBe(200);
     expect(res.headers["content-type"]).toContain("text/event-stream");
     expect(res.text).toContain('"type":"provider"');
-    expect(res.text).toContain('"type":"chunk"');
+    expect(res.text).toContain('"type":"complete"');
     expect(res.text).toContain('"type":"done"');
+    // Never leaks raw tokens as chunk events.
+    expect(res.text).not.toContain('"type":"chunk"');
+    expect(res.text).toContain("A Test Story");
   });
 
   it("returns a JSON error when the stream throws before any bytes are written", async () => {
@@ -171,14 +179,15 @@ describe("POST /api/generate-story-stream", () => {
 
   it("writes an SSE error event when the stream fails after headers are already sent", async () => {
     mockGenerateTextStream.mockReturnValueOnce((async function* () {
-      yield { text: "Once upon a time", done: false, provider: "gemini", model: "gemini-test" };
+      // First chunk flushes the provider event (headers sent), then it throws.
+      yield { text: "{\"title\":\"partial", done: false, provider: "gemini", model: "gemini-test" };
       throw new Error("stream interrupted mid-flight");
     })());
 
     const res = await request(app).post("/api/generate-story-stream").send({ heroName: "StreamFailLateHero" });
 
     expect(res.status).toBe(200);
-    expect(res.text).toContain('"type":"chunk"');
+    expect(res.text).toContain('"type":"provider"');
     expect(res.text).toContain('"type":"error"');
   });
 });
