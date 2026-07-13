@@ -11,14 +11,21 @@
 import { getSupabaseClient } from '@/lib/AuthContext';
 import { syncAll, type EntityAdapter } from './engine';
 import { purgeCloud } from './supabase-sync';
-import { storiesAdapter, badgesAdapter, streaksAdapter } from './storage-adapters';
+import {
+  storiesAdapter, badgesAdapter, streaksAdapter,
+  favoritesAdapter, readAdapter, profileStubAdapter,
+} from './storage-adapters';
 import type { SyncEntity } from '@shared/sync-types';
 
-/** Entities wired for sync today (favorites/read/profileStub are staged). */
+/** All six synced entities. profileStub runs first so its placeholder profiles
+ *  exist before badges/streaks that reference them are applied. */
 const ADAPTERS: Partial<Record<SyncEntity, EntityAdapter>> = {
+  profileStub: profileStubAdapter,
   stories: storiesAdapter,
   badges: badgesAdapter,
   streaks: streaksAdapter,
+  favorites: favoritesAdapter,
+  read: readAdapter,
 };
 
 /** Resolve the signed-in user id, or null when auth isn't configured / no session. */

@@ -7,7 +7,13 @@ import { purgeCloud } from './supabase-sync';
 vi.mock('@/lib/AuthContext', () => ({ getSupabaseClient: vi.fn() }));
 vi.mock('./engine', () => ({ syncAll: vi.fn() }));
 vi.mock('./supabase-sync', () => ({ purgeCloud: vi.fn() }));
-vi.mock('./storage-adapters', () => ({ storiesAdapter: { readLocal: vi.fn(), applyLocal: vi.fn() } }));
+vi.mock('./storage-adapters', () => {
+  const stub = () => ({ readLocal: vi.fn(), applyLocal: vi.fn() });
+  return {
+    storiesAdapter: stub(), badgesAdapter: stub(), streaksAdapter: stub(),
+    favoritesAdapter: stub(), readAdapter: stub(), profileStubAdapter: stub(),
+  };
+});
 
 function clientWithUser(userId: string | null) {
   return { auth: { getUser: vi.fn(async () => ({ data: { user: userId ? { id: userId } : null } })) } };

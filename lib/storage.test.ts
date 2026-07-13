@@ -75,6 +75,9 @@ import {
   mergeSyncedBadges,
   getAllStreaks,
   mergeSyncedStreaks,
+  getSyncSetRecords,
+  applySyncedSet,
+  mergeSyncedProfileStubs,
 } from './storage';
 
 const makeStoryFull = (title = 'Test Story') => ({
@@ -277,6 +280,65 @@ describe('mergeSyncedStreaks (cloud sync)', () => {
     const all = await getAllStreaks();
     expect(all.map((s) => s.profileId).sort()).toEqual(['p1']);
     expect(all.find((s) => s.profileId === 'p1')?.currentStreak).toBe(9);
+  });
+});
+
+describe('favorites/read sync sidecar', () => {
+  it('toggleFavorite stamps the sidecar (add then remove → tombstone)', async () => {
+    await toggleFavorite('story1');
+    let records = await getSyncSetRecords('favorites');
+    expect(records.find((r) => r.id === 'story1')).toMatchObject({ deleted: false });
+
+    await toggleFavorite('story1'); // remove
+    records = await getSyncSetRecords('favorites');
+    expect(records.find((r) => r.id === 'story1')).toMatchObject({ deleted: true });
+  });
+
+  it('markStoryRead stamps the read sidecar', async () => {
+    await markStoryRead('story2');
+    const records = await getSyncSetRecords('read');
+    expect(records.find((r) => r.id === 'story2')).toMatchObject({ deleted: false });
+  });
+
+  it('applySyncedSet adds/removes membership and updates the sidecar', async () => {
+    await applySyncedSet('favorites', [
+      { id: 'a', updatedAt: 10, deleted: false },
+      { id: 'b', updatedAt: 20, deleted: true },
+    ]);
+    expect((await getFavorites()).sort()).toEqual(['a']);
+    const records = await getSyncSetRecords('favorites');
+    expect(records.find((r) => r.id === 'b')).toMatchObject({ deleted: true, updatedAt: 20 });
+  });
+});
+
+describe('mergeSyncedProfileStubs', () => {
+  const PROFILES_KEY = '@infinity_heroes_profiles';
+
+  it('creates an editable placeholder for an unknown id (no PII)', async () => {
+    await mergeSyncedProfileStubs([{ id: 'p1', createdAt: 123 }], []);
+    const profiles = await getProfiles();
+    const p1 = profiles.find((p) => p.id === 'p1');
+    expect(p1).toMatchObject({ id: 'p1', createdAt: 123 });
+    expect(p1?.name).toBe('New Profile');
+  });
+
+  it('preserves an existing profile\'s PII (only createdAt reconciled)', async () => {
+    mockStorage[PROFILES_KEY] = JSON.stringify([
+      { id: 'p1', name: 'Ada', age: 7, favoriteHeroId: 'hero1', avatarEmoji: '🦸', createdAt: 100 },
+    ]);
+    await mergeSyncedProfileStubs([{ id: 'p1', createdAt: 200 }], []);
+    const p1 = (await getProfiles()).find((p) => p.id === 'p1');
+    expect(p1?.name).toBe('Ada'); // local PII kept
+    expect(p1?.createdAt).toBe(200);
+  });
+
+  it('removes tombstoned profile ids', async () => {
+    mockStorage[PROFILES_KEY] = JSON.stringify([
+      { id: 'keep', name: 'K', age: 6, favoriteHeroId: 'hero1', avatarEmoji: '🌟', createdAt: 1 },
+      { id: 'gone', name: 'G', age: 6, favoriteHeroId: 'hero1', avatarEmoji: '🌟', createdAt: 1 },
+    ]);
+    await mergeSyncedProfileStubs([], ['gone']);
+    expect((await getProfiles()).map((p) => p.id)).toEqual(['keep']);
   });
 });
 

@@ -175,7 +175,7 @@ Optional, parent-opt-in cloud backup/continuity of kid data (stories + gamificat
 
 - **Flow** (`lib/sync/engine.ts` + `supabase-sync.ts`): for each entity, pull the cloud copy, reconcile vs local, push local winners, apply remote winners. Gated by `runSync()` (`lib/sync/runSync.ts`) on the parent opt-in flag (`cloudSyncEnabled`, default off) + a signed-in session. Triggered on app open/foreground (`components/SyncManager.tsx`) and after a story completes (`app/completion.tsx`). Opt-in toggle lives in Settings (Cloud Backup section). `purgeCloudData()` is wired into "delete all data".
 
-**Status**: schema (applied to the `Bedtime-chronicles` project), contract, reconcile, mappers, engine, I/O, adapters for **stories** (blob-preserving) + **badges** + **streaks**, the opt-in toggle, and triggers are built and tested. Remaining (Phase 2b): `favorites`/`read` adapters (need a change-time sidecar) and `profileStub` (cross-device profile-identity strategy). Badges/streaks key on a per-install `profileId`, so their cross-device value is bounded until profile identity syncs — still good for same-account backup/restore.
+**Status**: built and tested for **all six entities** — stories (blob-preserving), badges, streaks, favorites/read (change-time sidecar `@infinity_heroes_sync_meta`), and profileStub (creates an editable placeholder profile for unknown ids so gamification anchors across devices; name/age never sync). Not yet verified on a device — the opt-in toggle, triggers, and placeholder behavior need an end-to-end pass.
 
 ## Authentication Flow
 

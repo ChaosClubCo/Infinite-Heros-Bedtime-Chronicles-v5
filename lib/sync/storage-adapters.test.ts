@@ -1,11 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { storiesAdapter, badgesAdapter, streaksAdapter } from './storage-adapters';
+import {
+  storiesAdapter, badgesAdapter, streaksAdapter,
+  favoritesAdapter, readAdapter, profileStubAdapter,
+} from './storage-adapters';
 import {
   getAllStories, mergeSyncedStories,
   getAllBadges, mergeSyncedBadges,
   getAllStreaks, mergeSyncedStreaks,
+  getSyncSetRecords, applySyncedSet,
+  getProfiles, mergeSyncedProfileStubs,
 } from '@/lib/storage';
-import type { CachedStory, EarnedBadge, StreakData } from '@/constants/types';
+import type { CachedStory, EarnedBadge, StreakData, ChildProfile } from '@/constants/types';
 import type { SyncRecord } from '@shared/sync-types';
 import type { SyncedStory } from './mappers';
 
@@ -16,6 +21,10 @@ vi.mock('@/lib/storage', () => ({
   mergeSyncedBadges: vi.fn(),
   getAllStreaks: vi.fn(),
   mergeSyncedStreaks: vi.fn(),
+  getSyncSetRecords: vi.fn(),
+  applySyncedSet: vi.fn(),
+  getProfiles: vi.fn(),
+  mergeSyncedProfileStubs: vi.fn(),
 }));
 
 const baseStory: CachedStory = {
@@ -94,6 +103,41 @@ describe('streaksAdapter', () => {
     ]);
     const [upserts, deletes] = vi.mocked(mergeSyncedStreaks).mock.calls[0];
     expect(upserts.map((s) => s.profileId)).toEqual(['p1']);
+    expect(deletes).toEqual(['p2']);
+  });
+});
+
+describe('favoritesAdapter / readAdapter (presence sets)', () => {
+  it('readLocal wraps sidecar records with an empty payload', async () => {
+    vi.mocked(getSyncSetRecords).mockResolvedValue([{ id: 'a', updatedAt: 5, deleted: false }]);
+    const records = await favoritesAdapter.readLocal();
+    expect(records).toEqual([{ id: 'a', updatedAt: 5, deleted: false, payload: {} }]);
+    expect(getSyncSetRecords).toHaveBeenCalledWith('favorites');
+  });
+
+  it('applyLocal forwards id/updatedAt/deleted to applySyncedSet', async () => {
+    await readAdapter.applyLocal([{ id: 'a', updatedAt: 5, deleted: true, payload: {} }]);
+    expect(applySyncedSet).toHaveBeenCalledWith('read', [{ id: 'a', updatedAt: 5, deleted: true }]);
+  });
+});
+
+describe('profileStubAdapter', () => {
+  const profile: ChildProfile = { id: 'p1', name: 'Ada', age: 6, favoriteHeroId: 'h', avatarEmoji: '🦸', createdAt: 999 };
+
+  it('readLocal emits stubs with no PII (id + createdAt only)', async () => {
+    vi.mocked(getProfiles).mockResolvedValue([profile]);
+    const records = await profileStubAdapter.readLocal();
+    expect(records[0]).toEqual({ id: 'p1', updatedAt: 999, deleted: false, payload: { createdAt: 999 } });
+    expect(JSON.stringify(records)).not.toContain('Ada');
+  });
+
+  it('applyLocal merges stubs and forwards tombstones', async () => {
+    await profileStubAdapter.applyLocal([
+      { id: 'p1', updatedAt: 999, deleted: false, payload: { createdAt: 999 } },
+      { id: 'p2', updatedAt: 1, deleted: true, payload: {} },
+    ]);
+    const [stubs, deletes] = vi.mocked(mergeSyncedProfileStubs).mock.calls[0];
+    expect(stubs).toEqual([{ id: 'p1', createdAt: 999 }]);
     expect(deletes).toEqual(['p2']);
   });
 });
