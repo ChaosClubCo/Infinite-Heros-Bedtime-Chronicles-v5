@@ -71,6 +71,10 @@ import {
   getStreak,
   updateStreak,
   mergeSyncedStories,
+  getAllBadges,
+  mergeSyncedBadges,
+  getAllStreaks,
+  mergeSyncedStreaks,
 } from './storage';
 
 const makeStoryFull = (title = 'Test Story') => ({
@@ -248,6 +252,31 @@ describe('mergeSyncedStories (cloud sync)', () => {
     await mergeSyncedStories([synced('new', 5)], ['gone']);
     const ids = (await getAllStories()).map((s) => s.id).sort();
     expect(ids).toEqual(['keep', 'new']);
+  });
+});
+
+describe('mergeSyncedBadges (cloud sync)', () => {
+  const BADGES_KEY = '@infinity_heroes_badges';
+  const badge = (id: string) => ({ id, emoji: 'x', title: id, description: 'd', earnedAt: 1, profileId: 'p1' });
+
+  it('upserts by id and removes tombstones', async () => {
+    mockStorage[BADGES_KEY] = JSON.stringify([badge('keep'), badge('gone')]);
+    await mergeSyncedBadges([badge('new')], ['gone']);
+    const ids = (await getAllBadges()).map((b) => b.id).sort();
+    expect(ids).toEqual(['keep', 'new']);
+  });
+});
+
+describe('mergeSyncedStreaks (cloud sync)', () => {
+  const STREAKS_KEY = '@infinity_heroes_streaks';
+  const streak = (pid: string, cur: number) => ({ profileId: pid, currentStreak: cur, longestStreak: cur, lastStoryDate: '2026-07-12' });
+
+  it('upserts by profileId and removes tombstoned profiles', async () => {
+    mockStorage[STREAKS_KEY] = JSON.stringify([streak('p1', 1), streak('p2', 2)]);
+    await mergeSyncedStreaks([streak('p1', 9)], ['p2']);
+    const all = await getAllStreaks();
+    expect(all.map((s) => s.profileId).sort()).toEqual(['p1']);
+    expect(all.find((s) => s.profileId === 'p1')?.currentStreak).toBe(9);
   });
 });
 

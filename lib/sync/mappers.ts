@@ -49,6 +49,10 @@ export function badgeToRecord(badge: EarnedBadge): SyncRecord<EarnedBadge> {
   return { id: badge.id, updatedAt: badge.earnedAt, deleted: false, payload: badge };
 }
 
+export function recordToBadge(rec: SyncRecord<EarnedBadge>): EarnedBadge {
+  return rec.payload;
+}
+
 // ---- streaks (id = profileId) ----------------------------------------------
 
 export function streakToRecord(streak: StreakData): SyncRecord<StreakData> {
@@ -59,6 +63,10 @@ export function streakToRecord(streak: StreakData): SyncRecord<StreakData> {
     deleted: false,
     payload: streak,
   };
+}
+
+export function recordToStreak(rec: SyncRecord<StreakData>): StreakData {
+  return rec.payload;
 }
 
 // ---- profile stub (id + createdAt ONLY — no name/age/avatar PII) ------------

@@ -11,12 +11,14 @@
 import { getSupabaseClient } from '@/lib/AuthContext';
 import { syncAll, type EntityAdapter } from './engine';
 import { purgeCloud } from './supabase-sync';
-import { storiesAdapter } from './storage-adapters';
+import { storiesAdapter, badgesAdapter, streaksAdapter } from './storage-adapters';
 import type { SyncEntity } from '@shared/sync-types';
 
-/** Entities wired for sync today. Add badges/streaks/… here as Phase 2b lands. */
+/** Entities wired for sync today (favorites/read/profileStub are staged). */
 const ADAPTERS: Partial<Record<SyncEntity, EntityAdapter>> = {
   stories: storiesAdapter,
+  badges: badgesAdapter,
+  streaks: streaksAdapter,
 };
 
 /** Resolve the signed-in user id, or null when auth isn't configured / no session. */

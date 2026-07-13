@@ -1,20 +1,33 @@
 /**
- * EntityAdapters bind the sync engine to local AsyncStorage. Phase 2 ships the
- * flagship `stories` adapter end-to-end (backup/restore of the story library).
+ * EntityAdapters bind the sync engine to local AsyncStorage. Wired today:
+ * `stories` (blob-preserving), `badges`, and `streaks`.
  *
- * The other entities are staged (Phase 2b):
- *   - badges / streaks: clean array merges, but they key on a per-device
- *     `profileId`, so cross-device value depends on syncing profile identity;
- *   - profileStub: applying a stub for an unknown id needs a placeholder-profile
- *     UX decision;
+ * Known limitation: badges/streaks key on a per-install `profileId`, so their
+ * cross-device / post-reinstall value is bounded by the no-PII decision (profile
+ * identity itself isn't synced). Still valuable for same-account backup/restore.
+ *
+ * Staged:
+ *   - profileStub: syncing profile identity across devices without leaking
+ *     name/age needs a placeholder-profile UX decision;
  *   - favorites / read: timestamp-less sets that need a per-item change-time
  *     sidecar before last-write-wins is meaningful.
  */
 
-import { getAllStories, mergeSyncedStories } from '@/lib/storage';
+import {
+  getAllStories, mergeSyncedStories,
+  getAllBadges, mergeSyncedBadges,
+  getAllStreaks, mergeSyncedStreaks,
+} from '@/lib/storage';
+import type { EarnedBadge, StreakData } from '@/constants/types';
 import type { SyncRecord } from '@shared/sync-types';
 import type { EntityAdapter } from './engine';
-import { storyToRecord, recordToStory, type SyncedStory } from './mappers';
+import {
+  storyToRecord, recordToStory, type SyncedStory,
+  badgeToRecord, recordToBadge,
+  streakToRecord, recordToStreak,
+} from './mappers';
+
+const deletedIds = (records: SyncRecord[]) => records.filter((r) => r.deleted).map((r) => r.id);
 
 export const storiesAdapter: EntityAdapter = {
   async readLocal(): Promise<SyncRecord[]> {
@@ -25,7 +38,28 @@ export const storiesAdapter: EntityAdapter = {
     const upserts = records
       .filter((r) => !r.deleted)
       .map((r) => recordToStory(r as SyncRecord<SyncedStory>));
-    const deletedIds = records.filter((r) => r.deleted).map((r) => r.id);
-    await mergeSyncedStories(upserts, deletedIds);
+    await mergeSyncedStories(upserts, deletedIds(records));
+  },
+};
+
+export const badgesAdapter: EntityAdapter = {
+  async readLocal(): Promise<SyncRecord[]> {
+    const badges = await getAllBadges();
+    return badges.map(badgeToRecord);
+  },
+  async applyLocal(records: SyncRecord[]): Promise<void> {
+    const upserts = records.filter((r) => !r.deleted).map((r) => recordToBadge(r as SyncRecord<EarnedBadge>));
+    await mergeSyncedBadges(upserts, deletedIds(records));
+  },
+};
+
+export const streaksAdapter: EntityAdapter = {
+  async readLocal(): Promise<SyncRecord[]> {
+    const streaks = await getAllStreaks();
+    return streaks.map(streakToRecord);
+  },
+  async applyLocal(records: SyncRecord[]): Promise<void> {
+    const upserts = records.filter((r) => !r.deleted).map((r) => recordToStreak(r as SyncRecord<StreakData>));
+    await mergeSyncedStreaks(upserts, deletedIds(records));
   },
 };

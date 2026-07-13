@@ -337,6 +337,46 @@ export async function awardBadge(badge: EarnedBadge): Promise<boolean> {
   return true;
 }
 
+/**
+ * Bulk-merge badges pulled from cloud sync (M3). Upserts by badge id and removes
+ * tombstoned ids. Badges carry all their fields, so no blob-preservation needed.
+ */
+export async function mergeSyncedBadges(
+  upserts: EarnedBadge[],
+  deletedIds: string[],
+): Promise<void> {
+  const existing = await getAllBadges();
+  const byId = new Map(existing.map((b) => [b.id, b]));
+  for (const badge of upserts) byId.set(badge.id, badge);
+  for (const id of deletedIds) byId.delete(id);
+  await AsyncStorage.setItem(BADGES_KEY, JSON.stringify([...byId.values()]));
+}
+
+/**
+ * Bulk-merge streaks pulled from cloud sync (M3). Streaks are keyed by
+ * profileId (one per profile), so that is the record/merge key.
+ */
+export async function mergeSyncedStreaks(
+  upserts: StreakData[],
+  deletedProfileIds: string[],
+): Promise<void> {
+  const data = await AsyncStorage.getItem(STREAKS_KEY);
+  const existing: StreakData[] = data ? JSON.parse(data) : [];
+  const byProfile = new Map(existing.map((s) => [s.profileId, s]));
+  for (const streak of upserts) byProfile.set(streak.profileId, streak);
+  for (const pid of deletedProfileIds) byProfile.delete(pid);
+  await AsyncStorage.setItem(STREAKS_KEY, JSON.stringify([...byProfile.values()]));
+}
+
+export async function getAllStreaks(): Promise<StreakData[]> {
+  try {
+    const data = await AsyncStorage.getItem(STREAKS_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getStreak(profileId: string): Promise<StreakData> {
   try {
     const data = await AsyncStorage.getItem(STREAKS_KEY);

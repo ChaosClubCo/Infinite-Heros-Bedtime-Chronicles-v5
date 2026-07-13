@@ -1,13 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { storiesAdapter } from './storage-adapters';
-import { getAllStories, mergeSyncedStories } from '@/lib/storage';
-import type { CachedStory } from '@/constants/types';
+import { storiesAdapter, badgesAdapter, streaksAdapter } from './storage-adapters';
+import {
+  getAllStories, mergeSyncedStories,
+  getAllBadges, mergeSyncedBadges,
+  getAllStreaks, mergeSyncedStreaks,
+} from '@/lib/storage';
+import type { CachedStory, EarnedBadge, StreakData } from '@/constants/types';
 import type { SyncRecord } from '@shared/sync-types';
 import type { SyncedStory } from './mappers';
 
 vi.mock('@/lib/storage', () => ({
   getAllStories: vi.fn(),
   mergeSyncedStories: vi.fn(),
+  getAllBadges: vi.fn(),
+  mergeSyncedBadges: vi.fn(),
+  getAllStreaks: vi.fn(),
+  mergeSyncedStreaks: vi.fn(),
 }));
 
 const baseStory: CachedStory = {
@@ -46,5 +54,46 @@ describe('storiesAdapter.applyLocal', () => {
     const [upserts, deletes] = vi.mocked(mergeSyncedStories).mock.calls[0];
     expect(upserts.map((s) => s.id)).toEqual(['s1']);
     expect(deletes).toEqual(['gone']);
+  });
+});
+
+describe('badgesAdapter', () => {
+  const badge: EarnedBadge = { id: 'b1', emoji: 'x', title: 't', description: 'd', earnedAt: 42, profileId: 'p1' };
+
+  it('readLocal maps badges to records keyed by id', async () => {
+    vi.mocked(getAllBadges).mockResolvedValue([badge]);
+    const records = await badgesAdapter.readLocal();
+    expect(records).toEqual([{ id: 'b1', updatedAt: 42, deleted: false, payload: badge }]);
+  });
+
+  it('applyLocal upserts non-deleted and removes tombstones', async () => {
+    await badgesAdapter.applyLocal([
+      { id: 'b1', updatedAt: 42, deleted: false, payload: badge },
+      { id: 'b2', updatedAt: 50, deleted: true, payload: {} },
+    ]);
+    const [upserts, deletes] = vi.mocked(mergeSyncedBadges).mock.calls[0];
+    expect(upserts.map((b) => b.id)).toEqual(['b1']);
+    expect(deletes).toEqual(['b2']);
+  });
+});
+
+describe('streaksAdapter', () => {
+  const streak: StreakData = { profileId: 'p1', currentStreak: 3, longestStreak: 5, lastStoryDate: '2026-07-12' };
+
+  it('readLocal maps streaks to records keyed by profileId', async () => {
+    vi.mocked(getAllStreaks).mockResolvedValue([streak]);
+    const records = await streaksAdapter.readLocal();
+    expect(records[0].id).toBe('p1');
+    expect(records[0].payload).toEqual(streak);
+  });
+
+  it('applyLocal upserts non-deleted and removes tombstones', async () => {
+    await streaksAdapter.applyLocal([
+      { id: 'p1', updatedAt: 1, deleted: false, payload: streak },
+      { id: 'p2', updatedAt: 2, deleted: true, payload: {} },
+    ]);
+    const [upserts, deletes] = vi.mocked(mergeSyncedStreaks).mock.calls[0];
+    expect(upserts.map((s) => s.profileId)).toEqual(['p1']);
+    expect(deletes).toEqual(['p2']);
   });
 });
