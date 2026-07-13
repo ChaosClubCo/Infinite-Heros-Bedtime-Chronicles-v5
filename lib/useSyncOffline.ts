@@ -4,19 +4,24 @@ import { getQueuedInteractions, syncOfflineInteractions } from "./sync-queue";
 import { useQueryClient } from "@tanstack/react-query";
 
 export function useSyncOffline() {
-  const { isConnected } = useNetworkStatus();
+  const { isConnected, isInternetReachable } = useNetworkStatus();
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncCount, setLastSyncCount] = useState(0);
   const wasOffline = useRef(false);
   const queryClient = useQueryClient();
 
+  // isInternetReachable is tri-state (null while NetInfo is still probing), so
+  // only treat an explicit `false` as offline - null/true both allow a sync attempt.
+  const isOnline = isConnected && isInternetReachable !== false;
+
   useEffect(() => {
-    if (!isConnected) {
+    if (!isOnline) {
       wasOffline.current = true;
       return;
     }
 
-    // Trigger sync when connected (either on startup if online, or when connection is restored)
+    // Trigger sync when online (either on startup, when connectivity is restored,
+    // or when reachability flips true without a connectivity bounce)
     const executeSync = async () => {
       try {
         const queued = await getQueuedInteractions();
@@ -25,7 +30,7 @@ export function useSyncOffline() {
         setIsSyncing(true);
         setLastSyncCount(queued.length);
 
-        // 1.5-second artificial delay so children can enjoy the beautiful cosmic synching flow/animation
+        // 1.5-second artificial delay so children can enjoy the beautiful cosmic syncing flow/animation
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
         const success = await syncOfflineInteractions();
@@ -44,7 +49,7 @@ export function useSyncOffline() {
 
     executeSync();
     wasOffline.current = false;
-  }, [isConnected, queryClient]);
+  }, [isOnline, queryClient]);
 
   return { isSyncing, lastSyncCount };
 }

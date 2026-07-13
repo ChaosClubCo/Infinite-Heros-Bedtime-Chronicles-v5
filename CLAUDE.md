@@ -113,6 +113,7 @@ lib/                    # Client utilities
   useNetworkStatus.ts   # NetInfo hook returning { isConnected, isInternetReachable } (used by app/_layout.tsx to gate OfflineBanner)
   sync-queue.ts         # Offline interaction queue (like/unlike/story_completion) — ported from bedtime_chronicles-v2, see Merge Provenance
   useSyncOffline.ts     # Drains lib/sync-queue.ts on reconnect via POST /api/sync/interactions, invalidates stories/favorites/readStories queries
+  SyncOfflineContext.tsx # Mounts useSyncOffline() once at app root (app/_layout.tsx); screens read status via useSyncOfflineStatus()
   sync-queue.test.ts    # Sync-queue unit tests
   badges.ts             # Centralized badge-award evaluation (see Badge System)
   badges.test.ts        # Badge logic unit tests
@@ -624,7 +625,7 @@ npm run test:coverage   # vitest run --coverage
 - **COPPA consent gate** — two layers: `app/index.tsx` (the "/" launch gate) resolves the cold-start route via `lib/launch-gate.ts` (`resolveLaunchRoute()`: consent before onboarding, fail-safe to consent), and `app/_layout.tsx` wraps every screen except `index`/`parental-consent`/`privacy` in `Stack.Protected` guarded by `lib/ConsentContext.tsx` — so deep links and restored navigation state can't mount protected screens un-consented either. Consent is keyed by `CONSENT_VERSION` (`constants/types.ts`) — bump it to re-prompt existing installs when privacy practices change
 - **AI router JSON extraction** — `router.ts` uses `extractFirstJson()` (balanced-brace scan that skips string literals), not a greedy regex; callers consume `response.parsedJson` when `jsonMode` is set
 - **Streaming model field** — `router.ts` reports the provider's `textModel` (the concrete model ID) on streaming chunks, falling back to `provider.name` only when `textModel` is unset
-- **Offline sync-queue is best-effort, not durable** — `POST /api/sync/interactions` (see `lib/sync-queue.ts`) currently logs and echoes each interaction; nothing is persisted server-side yet. Don't assume synced interactions survive a server restart or are queryable later.
+- **Offline sync-queue is best-effort, not durable** — `POST /api/sync/interactions` (see `lib/sync-queue.ts`) currently logs and echoes each interaction; nothing is persisted server-side yet. Don't assume synced interactions survive a server restart or are queryable later. Each item is Zod-validated (`SyncInteractionSchema` in `server/validation.ts`); malformed items come back `status: "rejected"` rather than crashing the batch or being marked processed. `useSyncOffline()` is mounted exactly once, in `app/_layout.tsx` via `lib/SyncOfflineContext.tsx` — screens read `useSyncOfflineStatus()` instead of calling the hook directly, so the reconnect drain can't run more than once concurrently.
 - **`archive/android-kotlin-rewrite/`** — docs-only pointer to a native Android/Kotlin client that was developed in a sibling repo and archived rather than merged; see its `README.md` for retrieval instructions. Not part of the active app.
 
 ## Files/Directories — Do Not Modify Without Explicit Approval

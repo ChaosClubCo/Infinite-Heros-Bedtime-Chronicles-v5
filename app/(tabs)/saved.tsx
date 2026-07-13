@@ -21,7 +21,7 @@ import { HEROES } from "@/constants/heroes";
 import { CachedStory } from "@/constants/types";
 import { getAllStories, getFavorites, toggleFavorite } from "@/lib/storage";
 import { queueInteraction } from "@/lib/sync-queue";
-import { useSyncOffline } from "@/lib/useSyncOffline";
+import { useSyncOfflineStatus } from "@/lib/SyncOfflineContext";
 import { confirmDestructive } from "@/lib/confirmDestructive";
 import { buildStoryReplayParams } from "@/lib/replay-params";
 
@@ -47,7 +47,7 @@ export default function SavedScreen() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const [savedStories, setSavedStories] = useState<CachedStory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { isSyncing } = useSyncOffline();
+  const { isSyncing } = useSyncOfflineStatus();
 
   useFocusEffect(
     useCallback(() => {

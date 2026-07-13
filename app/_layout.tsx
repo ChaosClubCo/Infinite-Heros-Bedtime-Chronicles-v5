@@ -13,6 +13,7 @@ import { ConsentProvider, useConsent } from "@/lib/ConsentContext";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { ProfileProvider } from "@/lib/ProfileContext";
 import { SettingsProvider } from "@/lib/SettingsContext";
+import { SyncOfflineProvider } from "@/lib/SyncOfflineContext";
 import { StatusBar } from "expo-status-bar";
 import {
   Nunito_400Regular,
@@ -165,13 +166,15 @@ export default function RootLayout() {
           <QueryClientProvider client={queryClient}>
             <ProfileProvider>
               <SettingsProvider>
-                <GestureHandlerRootView style={{ flex: 1 }}>
-                  <KeyboardProvider>
-                    <StatusBar style="light" />
-                    <OfflineIndicator />
-                    <RootLayoutNav />
-                  </KeyboardProvider>
-                </GestureHandlerRootView>
+                <SyncOfflineProvider>
+                  <GestureHandlerRootView style={{ flex: 1 }}>
+                    <KeyboardProvider>
+                      <StatusBar style="light" />
+                      <OfflineIndicator />
+                      <RootLayoutNav />
+                    </KeyboardProvider>
+                  </GestureHandlerRootView>
+                </SyncOfflineProvider>
               </SettingsProvider>
             </ProfileProvider>
           </QueryClientProvider>

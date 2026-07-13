@@ -21,7 +21,7 @@ import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
 import { useProfile } from "@/lib/ProfileContext";
 import { getAllStories } from "@/lib/storage";
-import { useSyncOffline } from "@/lib/useSyncOffline";
+import { useSyncOfflineStatus } from "@/lib/SyncOfflineContext";
 import { buildStoryReplayParams } from "@/lib/replay-params";
 import { CachedStory } from "@/constants/types";
 import { HEROES } from "@/constants/heroes";
@@ -112,7 +112,7 @@ export default function HomeScreen() {
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
   const [searchText, setSearchText] = useState("");
   const { activeProfile } = useProfile();
-  const { isSyncing } = useSyncOffline();
+  const { isSyncing } = useSyncOfflineStatus();
   const [recentStories, setRecentStories] = useState<CachedStory[]>([]);
   useFocusEffect(
     useCallback(() => {

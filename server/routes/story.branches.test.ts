@@ -209,4 +209,26 @@ describe("POST /api/sync/interactions", () => {
     expect(res.body.results[1].id).toBeTruthy();
     expect(res.body.results[1].timestamp).toBeGreaterThan(0);
   });
+
+  it("rejects malformed items instead of 500ing or marking them processed", async () => {
+    const res = await request(app)
+      .post("/api/sync/interactions")
+      .send({
+        interactions: [
+          null,
+          { type: "bogus", storyId: "story-1" },
+          { type: "like" },
+          { id: "act_ok", type: "like", storyId: "story-1", timestamp: 1700000000000 },
+        ],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.syncedCount).toBe(1);
+    expect(res.body.results).toHaveLength(4);
+    expect(res.body.results[0]).toMatchObject({ status: "rejected" });
+    expect(res.body.results[1]).toMatchObject({ status: "rejected" });
+    expect(res.body.results[2]).toMatchObject({ status: "rejected" });
+    expect(res.body.results[3]).toMatchObject({ id: "act_ok", status: "processed" });
+  });
 });

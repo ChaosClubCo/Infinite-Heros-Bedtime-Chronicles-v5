@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { StoryRequestSchema } from "../validation";
+import { StoryRequestSchema, SyncInteractionSchema } from "../validation";
 import { getStorySystemPrompt, getStoryUserPrompt, getPartCount, getWordCount, STORY_RESPONSE_SCHEMA } from "../prompts";
 import { classifyError, createErrorResponse, parsePositiveIntEnv } from "../utils";
 import { IdempotencyCache } from "../idempotency";
@@ -182,24 +182,31 @@ export function registerStoryRoutes(app: Express): void {
 
       req.log?.info({ count: interactions.length }, "Syncing interactions batch from client");
 
-      const validated = interactions.map((inter: any) => {
-        req.log?.info(
-          { type: inter.type, storyId: inter.storyId, timestamp: inter.timestamp },
-          "Synced offline interaction"
-        );
+      const results = interactions.map((inter: unknown) => {
+        const parsed = SyncInteractionSchema.safeParse(inter);
+        if (!parsed.success) {
+          return {
+            id: undefined,
+            status: "rejected" as const,
+            reason: parsed.error.issues[0]?.message || "Invalid interaction",
+          };
+        }
+
+        const { id, type, storyId, timestamp } = parsed.data;
+        req.log?.info({ type, storyId, timestamp }, "Synced offline interaction");
         return {
-          id: inter.id || `act_${Math.random().toString(36).substring(2, 11)}`,
-          type: inter.type,
-          storyId: inter.storyId,
-          timestamp: inter.timestamp || Date.now(),
-          status: "processed",
+          id: id || `act_${Math.random().toString(36).substring(2, 11)}`,
+          type,
+          storyId,
+          timestamp: timestamp || Date.now(),
+          status: "processed" as const,
         };
       });
 
       return res.json({
         success: true,
-        syncedCount: validated.length,
-        results: validated,
+        syncedCount: results.filter((r) => r.status === "processed").length,
+        results,
       });
     } catch (error: unknown) {
       sendRouteError(req, res, error, "interactions sync failed", "Failed to sync offline interactions");

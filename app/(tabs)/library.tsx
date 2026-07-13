@@ -22,7 +22,7 @@ import { HEROES } from "@/constants/heroes";
 import { CachedStory } from "@/constants/types";
 import { getStoriesForProfile, getAllStories, deleteStory, getFavorites, toggleFavorite, getReadStories, markStoryRead } from "@/lib/storage";
 import { queueInteraction } from "@/lib/sync-queue";
-import { useSyncOffline } from "@/lib/useSyncOffline";
+import { useSyncOfflineStatus } from "@/lib/SyncOfflineContext";
 import { confirmDestructive } from "@/lib/confirmDestructive";
 import { buildStoryReplayParams } from "@/lib/replay-params";
 
@@ -54,7 +54,7 @@ export default function LibraryScreen() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [readStories, setReadStories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { isSyncing } = useSyncOffline();
+  const { isSyncing } = useSyncOfflineStatus();
 
   useFocusEffect(
     useCallback(() => {

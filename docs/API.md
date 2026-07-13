@@ -155,6 +155,13 @@ connectivity is restored (`lib/useSyncOffline.ts`). The server currently
 logs and echoes each interaction rather than persisting it — there is no
 backing datastore for this endpoint yet.
 
+Each element of `interactions` is validated against `SyncInteractionSchema`
+(`server/validation.ts`): `type` must be `like`/`unlike`/`story_completion` and
+`storyId` must be a non-empty string. Malformed items are not persisted or
+echoed as processed — they come back with `status: "rejected"` and a `reason`,
+while the request as a whole still returns `200`/`success: true` (partial
+failure doesn't fail the batch).
+
 **Request Body:**
 ```json
 {
@@ -170,7 +177,8 @@ backing datastore for this endpoint yet.
   "success": true,
   "syncedCount": 1,
   "results": [
-    { "id": "act_abc123", "type": "like", "storyId": "story-1", "timestamp": 1700000000000, "status": "processed" }
+    { "id": "act_abc123", "type": "like", "storyId": "story-1", "timestamp": 1700000000000, "status": "processed" },
+    { "status": "rejected", "reason": "Invalid interaction type" }
   ]
 }
 ```
