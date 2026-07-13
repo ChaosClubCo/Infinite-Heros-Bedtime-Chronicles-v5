@@ -2,7 +2,7 @@
 
 ## Current State
 
-**The codebase has a substantial and growing test suite.** Vitest v4 is fully configured (`vitest.config.ts`) with `@vitest/coverage-v8`. As of the 2026-06-11 code-quality pass, **1010 tests pass** across 41 test files. The `npm test` / `npm run test:coverage` scripts work.
+**The codebase has a substantial and growing test suite.** Vitest v4 is fully configured (`vitest.config.ts`) with `@vitest/coverage-v8`. As of the 2026-06-11 code-quality pass, **1010 tests pass** across 41 test files; a 2026-07-12 doc audit counted **56 `*.test.ts` files** in the repo now (test/coverage numbers below are the 2026-06-11 baseline and have not been re-run since — see `docs/ROADMAP.md` backlog item "Refresh docs/TEST-COVERAGE-ANALYSIS.md coverage numbers"). The `npm test` / `npm run test:coverage` scripts work.
 
 **Test file inventory:**
 
@@ -221,7 +221,7 @@ PIN-based access control, bedtime scheduling, and theme filtering.
 - Theme toggle prevents empty selection (at least one theme required)
 - Story length selection persists immediately
 
-**Known risk:** No brute force protection on PIN — unlimited attempts with no lockout or delay.
+**Fixed (2026-07-06):** PIN brute-force protection now exists — 5 failed attempts trigger a 30s lockout (`isPinLockedOut` / `recordFailedPinAttempt` / `resetPinAttempts` in `lib/storage.ts`, enforced in `components/ParentControlsModal.tsx`). Update or remove the "no PIN brute force protection" row in the Bugs table below.
 
 ---
 
@@ -357,7 +357,7 @@ Complex state management in screen components that could be extracted and tested
 | No error handling in TTS | `server/elevenlabs.ts` | Medium | `generateSpeech()` has no try/catch — API failures propagate as unhandled errors |
 | Race condition in video | `server/video.ts:174` | Low | File existence check is non-atomic with `sendFile()` — cache cleanup could delete between check and serve |
 | Silent data loss | `lib/storage.ts`, `lib/SettingsContext.tsx` | Medium | All storage errors silently caught with empty catch blocks — users never know when data is lost |
-| No PIN brute force protection | `components/ParentControlsModal.tsx` | Medium | Unlimited PIN attempts with no lockout, delay, or logging |
+| ~~No PIN brute force protection~~ | `components/ParentControlsModal.tsx` | — | **Fixed 2026-07-06:** 5 failed attempts now trigger a 30s lockout (`lib/storage.ts` + `ParentControlsModal.tsx`) |
 | No delete confirmation | `components/ProfileModal.tsx` | Low | Profile deletion is immediate with no confirmation dialog |
 | Relative path in suno.ts | `server/suno.ts` | Low | `path.resolve()` with relative paths depends on CWD — fragile if server started from different directory |
 

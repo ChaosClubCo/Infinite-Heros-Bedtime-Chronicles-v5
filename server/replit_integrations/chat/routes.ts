@@ -4,10 +4,22 @@ import { chatStorage } from "./storage";
 import { requireAuth } from "../../auth";
 import { sanitizePromptInput } from "../../validation";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+// Construct the OpenAI client lazily so a missing AI_INTEGRATIONS_OPENAI_API_KEY
+// does not throw at module load — that would crash the serverless function on
+// cold start before any request or graceful degradation can run. Voice-chat
+// routes are only reachable when the key (and DATABASE_URL) are configured.
+let _openai: OpenAI | null = null;
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY?.trim();
+  if (!apiKey) return null;
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    });
+  }
+  return _openai;
+}
 
 const MAX_TITLE_LENGTH = 200;
 const MAX_MESSAGE_LENGTH = 10000;
@@ -122,6 +134,11 @@ export function registerChatRoutes(app: Express): void {
         return res.status(404).json({ error: "Conversation not found" });
       }
 
+      const openai = getOpenAIClient();
+      if (!openai) {
+        return res.status(503).json({ error: "Voice chat is not configured" });
+      }
+
       // Save user message (sanitized: strip control chars / defang injection markers)
       const safeContent = sanitizePromptInput(content, MAX_MESSAGE_LENGTH);
       await chatStorage.createMessage(conversationId, "user", safeContent);
@@ -138,11 +155,6 @@ export function registerChatRoutes(app: Express): void {
         })),
       ];
 
-      // Set up SSE
-      res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache");
-      res.setHeader("Connection", "keep-alive");
-
       // Stream response from OpenAI
       const stream = await openai.chat.completions.create({
         model: "gpt-4o",
@@ -150,6 +162,12 @@ export function registerChatRoutes(app: Express): void {
         stream: true,
         max_completion_tokens: 8192,
       });
+
+      // Set up SSE only after the stream is created successfully so early errors
+      // can still return a normal JSON response with the correct content type.
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
 
       let fullResponse = "";
 
@@ -178,4 +196,3 @@ export function registerChatRoutes(app: Express): void {
     }
   });
 }
-

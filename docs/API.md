@@ -21,19 +21,35 @@ Rate limiting uses the authenticated user's UID when available, falling back to 
 ## Health & Status
 
 ### `GET /api/health`
-Returns server health status.
+Returns server health status, including AI/TTS availability, circuit-breaker state, and feature flags. `ttsLive`/`aiProvidersLive` come from a short-TTL background-refreshed cache (see `server/health-checks.ts`) — never a synchronous network probe — so they read `{ reachable: null, checkedAt: null }` until the first background check completes (e.g. right after a serverless cold start).
 
 **Response:**
 ```json
-{ "status": "ok", "timestamp": 1710000000000 }
+{
+  "status": "ok",
+  "timestamp": 1710000000000,
+  "aiProvidersAvailable": true,
+  "ttsAvailable": true,
+  "ttsLive": { "reachable": true, "checkedAt": 1710000000000 },
+  "aiProvidersLive": { "reachable": true, "checkedAt": 1710000000000 },
+  "breakers": { "gemini": "closed", "openai": "closed" },
+  "features": { "voiceChatEnabled": false },
+  "activeRequests": 0
+}
 ```
 
 ### `GET /api/ai-providers`
-Returns availability status of all configured AI providers.
+Returns availability status of all configured AI providers plus circuit-breaker state. `providers` is an array of status objects, not a boolean map.
 
 **Response:**
 ```json
-{ "providers": { "gemini": true, "openai": true, "anthropic": false, "openrouter": true } }
+{
+  "providers": [
+    { "name": "anthropic", "available": true, "capabilities": { "text": true, "image": false, "streaming": true } },
+    { "name": "gemini", "available": true, "capabilities": { "text": true, "image": true, "streaming": true } }
+  ],
+  "breakers": { "anthropic": "closed", "gemini": "closed" }
+}
 ```
 
 ### `GET /api/metrics`
@@ -125,6 +141,46 @@ data: {"type":"provider","provider":"gemini","model":"gemini-2.5-flash"}
 data: {"type":"chunk","text":"Once upon..."}
 data: {"type":"chunk","text":" a time..."}
 data: {"type":"done"}
+```
+
+---
+
+## Sync
+
+### `POST /api/sync/interactions`
+Best-effort drain target for the client's offline interaction queue
+(`lib/sync-queue.ts`). The client queues `like`/`unlike`/`story_completion`
+interactions in AsyncStorage while offline and posts the batch here once
+connectivity is restored (`lib/useSyncOffline.ts`). The server currently
+logs and echoes each interaction rather than persisting it — there is no
+backing datastore for this endpoint yet.
+
+Each element of `interactions` is validated against `SyncInteractionSchema`
+(`server/validation.ts`): `type` must be `like`/`unlike`/`story_completion` and
+`storyId` must be a non-empty string. Malformed items are not persisted or
+echoed as processed — they come back with `status: "rejected"` and a `reason`,
+while the request as a whole still returns `200`/`success: true` (partial
+failure doesn't fail the batch).
+
+**Request Body:**
+```json
+{
+  "interactions": [
+    { "id": "act_abc123", "type": "like", "storyId": "story-1", "timestamp": 1700000000000 }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "syncedCount": 1,
+  "results": [
+    { "id": "act_abc123", "type": "like", "storyId": "story-1", "timestamp": 1700000000000, "status": "processed" },
+    { "status": "rejected", "reason": "Invalid interaction type" }
+  ]
+}
 ```
 
 ---
@@ -391,24 +447,7 @@ data: {"type":"audio","data":"<base64-pcm16-chunk>"}
 data: {"type":"done","transcript":"Hi there! How are you?"}
 ```
 
-### `POST /api/conversations/:id/messages` (text chat variant)
-Sends a text message and receives a streaming AI response.
-
-**Request Body:**
-```json
-{ "content": "Tell me a bedtime story!" }
-```
-
-| Field | Type | Required | Constraints |
-|-------|------|----------|-------------|
-| content | string | Yes | Non-empty, max 10,000 characters |
-
-**SSE Response Events:**
-```
-data: {"content":"Once upon..."}
-data: {"content":" a time..."}
-data: {"done":true}
-```
+> **Not currently live:** `server/replit_integrations/chat/routes.ts` implements a text-chat variant of this endpoint (`{ content }` request → `{content}`/`{done}` SSE events), but `registerChatRoutes()` is never called from `server/routes.ts` — there is no code path that registers it on the running server. Treat it as dead code, not a documented API surface, until something wires it up.
 
 ---
 
