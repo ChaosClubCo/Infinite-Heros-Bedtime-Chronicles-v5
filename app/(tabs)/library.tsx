@@ -8,18 +8,21 @@ import {
   Pressable,
   Dimensions,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, router } from "expo-router";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
 import { useProfile } from "@/lib/ProfileContext";
 import { HEROES } from "@/constants/heroes";
 import { CachedStory } from "@/constants/types";
 import { getStoriesForProfile, getAllStories, deleteStory, getFavorites, toggleFavorite, getReadStories, markStoryRead } from "@/lib/storage";
+import { queueInteraction } from "@/lib/sync-queue";
+import { useSyncOfflineStatus } from "@/lib/SyncOfflineContext";
 import { confirmDestructive } from "@/lib/confirmDestructive";
 import { buildStoryReplayParams } from "@/lib/replay-params";
 
@@ -51,6 +54,7 @@ export default function LibraryScreen() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [readStories, setReadStories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { isSyncing } = useSyncOfflineStatus();
 
   useFocusEffect(
     useCallback(() => {
@@ -74,9 +78,10 @@ export default function LibraryScreen() {
     }, [activeProfile])
   );
 
-  const handleFavorite = async (id: string) => {
+  const handleFavorite = async (id: string, wasFavorite: boolean) => {
     const updated = await toggleFavorite(id);
     setFavorites(updated);
+    void queueInteraction(wasFavorite ? "unlike" : "like", id);
   };
 
   const handleDelete = (id: string, title: string) => {
@@ -149,7 +154,7 @@ export default function LibraryScreen() {
             )}
             <Pressable
               style={styles.favBtn}
-              onPress={() => handleFavorite(item.id)}
+              onPress={() => handleFavorite(item.id, isFav)}
               hitSlop={12}
               testID={`fav-${item.id}`}
               accessibilityLabel={isFav ? "Remove from favorites" : "Add to favorites"}
@@ -179,6 +184,12 @@ export default function LibraryScreen() {
         <Text style={styles.headerCount}>
           {stories.length} {stories.length === 1 ? "story" : "stories"}
         </Text>
+        {isSyncing && (
+          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.syncPill} testID="library_sync_indicator">
+            <ActivityIndicator size="small" color={Colors.accent} />
+            <Text style={styles.syncPillText}>Syncing Chronicles...</Text>
+          </Animated.View>
+        )}
       </View>
 
       {!isLoading && stories.length === 0 ? (
@@ -222,6 +233,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "rgba(255,255,255,0.4)",
     marginTop: 2,
+  },
+  syncPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: "rgba(99,102,241,0.12)",
+  },
+  syncPillText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    color: Colors.accent,
   },
   grid: {
     paddingHorizontal: 16,

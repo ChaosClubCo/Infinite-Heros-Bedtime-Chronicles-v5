@@ -182,3 +182,53 @@ describe("POST /api/generate-story-stream", () => {
     expect(res.text).toContain('"type":"error"');
   });
 });
+
+describe("POST /api/sync/interactions", () => {
+  it("rejects a missing or non-array interactions field", async () => {
+    const res = await request(app).post("/api/sync/interactions").send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it("processes a batch of offline interactions and echoes a synced count", async () => {
+    const res = await request(app)
+      .post("/api/sync/interactions")
+      .send({
+        interactions: [
+          { id: "act_1", type: "like", storyId: "story-1", timestamp: 1700000000000 },
+          { type: "story_completion", storyId: "story-2" },
+        ],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.syncedCount).toBe(2);
+    expect(res.body.results).toHaveLength(2);
+    expect(res.body.results[0]).toMatchObject({ id: "act_1", type: "like", storyId: "story-1", status: "processed" });
+    // The second interaction omits id/timestamp — the handler must backfill both.
+    expect(res.body.results[1].id).toBeTruthy();
+    expect(res.body.results[1].timestamp).toBeGreaterThan(0);
+  });
+
+  it("rejects malformed items instead of 500ing or marking them processed", async () => {
+    const res = await request(app)
+      .post("/api/sync/interactions")
+      .send({
+        interactions: [
+          null,
+          { type: "bogus", storyId: "story-1" },
+          { type: "like" },
+          { id: "act_ok", type: "like", storyId: "story-1", timestamp: 1700000000000 },
+        ],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.syncedCount).toBe(1);
+    expect(res.body.results).toHaveLength(4);
+    expect(res.body.results[0]).toMatchObject({ status: "rejected" });
+    expect(res.body.results[1]).toMatchObject({ status: "rejected" });
+    expect(res.body.results[2]).toMatchObject({ status: "rejected" });
+    expect(res.body.results[3]).toMatchObject({ id: "act_ok", status: "processed" });
+  });
+});

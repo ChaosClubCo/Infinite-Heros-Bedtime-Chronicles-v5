@@ -30,6 +30,7 @@ import { HEROES } from "@/constants/heroes";
 import { StarField } from "@/components/StarField";
 import { StoryFull, EarnedBadge } from "@/constants/types";
 import { saveStory, saveStoryWithProfile, saveStoryScene, updateStreak, checkAndAwardBadges, markStoryRead, updateFeedback } from "@/lib/storage";
+import { queueInteraction } from "@/lib/sync-queue";
 import { takePendingScenes } from "@/lib/scene-handoff";
 import { useProfile } from "@/lib/ProfileContext";
 
@@ -204,6 +205,7 @@ export default function CompletionScreen() {
           } catch (e) {
             if (__DEV__) console.log("Error marking story as read:", e);
           }
+          void queueInteraction("story_completion", storyId);
         }
         const earned = await checkAndAwardBadges(
           activeProfile.id,

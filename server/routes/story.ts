@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { StoryRequestSchema } from "../validation";
+import { StoryRequestSchema, SyncInteractionSchema } from "../validation";
 import { getStorySystemPrompt, getStoryUserPrompt, getPartCount, getWordCount, STORY_RESPONSE_SCHEMA } from "../prompts";
 import { classifyError, createErrorResponse, parsePositiveIntEnv } from "../utils";
 import { IdempotencyCache } from "../idempotency";
@@ -168,6 +168,48 @@ export function registerStoryRoutes(app: Express): void {
         // mislabeled as an SSE stream (see the same fix in routes/video.ts).
         res.status(kind === 'transient' ? 503 : 500).set("Content-Type", "application/json").json(createErrorResponse('Failed to generate story', kind));
       }
+    }
+  });
+
+  // Best-effort drain target for lib/sync-queue.ts: currently logs/echoes each
+  // interaction rather than persisting it — see CLAUDE.md Known Gotchas.
+  app.post("/api/sync/interactions", rateLimited(), async (req, res) => {
+    try {
+      const { interactions } = req.body;
+      if (!interactions || !Array.isArray(interactions)) {
+        return res.status(400).json({ error: "Missing or invalid interactions array" });
+      }
+
+      req.log?.info({ count: interactions.length }, "Syncing interactions batch from client");
+
+      const results = interactions.map((inter: unknown) => {
+        const parsed = SyncInteractionSchema.safeParse(inter);
+        if (!parsed.success) {
+          return {
+            id: undefined,
+            status: "rejected" as const,
+            reason: parsed.error.issues[0]?.message || "Invalid interaction",
+          };
+        }
+
+        const { id, type, storyId, timestamp } = parsed.data;
+        req.log?.info({ type, storyId, timestamp }, "Synced offline interaction");
+        return {
+          id: id || `act_${Math.random().toString(36).substring(2, 11)}`,
+          type,
+          storyId,
+          timestamp: timestamp || Date.now(),
+          status: "processed" as const,
+        };
+      });
+
+      return res.json({
+        success: true,
+        syncedCount: results.filter((r) => r.status === "processed").length,
+        results,
+      });
+    } catch (error: unknown) {
+      sendRouteError(req, res, error, "interactions sync failed", "Failed to sync offline interactions");
     }
   });
 }
