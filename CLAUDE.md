@@ -170,6 +170,7 @@ docs/                   # Project documentation
   COPPA-COMPLIANCE.md   # COPPA audit and privacy analysis
   BETA_TESTING.md       # Beta testing plan
   TEST-COVERAGE-ANALYSIS.md  # Test coverage status + known bugs
+  VERIFICATION-M1-M3.md # On-device/manual verification checklist for the safety + audio-cache + cloud-sync work
   GITHUB-CUSTOM-AGENTS.md    # GitHub Copilot custom agent configurations
   AUDIT-SECURITY-2026-03-27.md      # Security audit findings (2026-03-27) — historical; written against the since-removed Firebase auth, see supersession note
   COMPREHENSIVE-AUDIT-2026-03-27.md # Full codebase audit (2026-03-27) — historical, same caveat
