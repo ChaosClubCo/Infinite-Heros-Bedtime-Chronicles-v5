@@ -71,7 +71,7 @@ describe('resolveNarrationUri', () => {
 
   it('throws when the server returns no audioUrl', async () => {
     vi.mocked(getCachedNarrationUri).mockReturnValue(null);
-    fetchMock.mockResolvedValue(okResponse(undefined));
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ audioUrl: undefined }) } as unknown as Response);
     await expect(resolveNarrationUri(req)).rejects.toThrow('No audio URL returned');
   });
 });

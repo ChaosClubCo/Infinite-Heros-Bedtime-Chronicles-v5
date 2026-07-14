@@ -172,6 +172,7 @@ export default function RootLayout() {
                     <KeyboardProvider>
                       <StatusBar style="light" />
                       <OfflineIndicator />
+                      <SyncManager />
                       <RootLayoutNav />
                     </KeyboardProvider>
                   </GestureHandlerRootView>
