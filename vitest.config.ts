@@ -27,6 +27,7 @@ export default defineConfig({
         branches: 80,
       },
     },
-    testTimeout: 10000,
+    testTimeout: 30000,
+    hookTimeout: 30000,
   },
 });

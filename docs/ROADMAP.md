@@ -57,6 +57,11 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 | Voice-chat IDOR fix — ownership (`userId`) checks on all conversation reads/writes in `server/replit_integrations/audio/routes.ts` | Security | 2026-07-06 |
 | Parent-controls PIN brute-force lockout (5 attempts → 30s lockout, `lib/storage.ts` + `ParentControlsModal.tsx`) | Security | 2026-07-06 |
 | Doc/code audit — reconciled `CLAUDE.md`, `.claude/CLAUDE.md`, `docs/API.md` project structure, endpoint list, tech-stack versions, and middleware description against actual source | Docs | 2026-07-12 |
+| Secure Gemini API Key URL leakage in pingGemini() | Security | 2026-07-14 |
+| Extend health checks live probes to OpenAI/OpenRouter | Reliability | 2026-07-14 |
+| Remove dead text chat routes (routes.ts, routes.test.ts) | Code Quality | 2026-07-14 |
+| Add integration tests for request-finish alerting + TTS metrics | Testing | 2026-07-14 |
+| Refresh docs/TEST-COVERAGE-ANALYSIS.md coverage numbers | Docs | 2026-07-14 |
 
 ## Backlog (Prioritized)
 
@@ -72,9 +77,7 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 4 | Remove or wire up `server/replit_integrations/chat/routes.ts` | 2 | 1 | 2 | 2 | 2.5 | `registerChatRoutes()` implements a text-chat variant of `POST /api/conversations/:id/messages` but is never called from `server/routes.ts` — dead code flagged in the 2026-07-12 doc audit. Either delete it or register it behind a feature flag like the audio routes |
-| 5 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | Stored data is non-sensitive (story text, badges) |
-| 6 | Refresh `docs/TEST-COVERAGE-ANALYSIS.md` coverage numbers | 3 | 1 | 2 | 2 | 3.0 | Doc still cites the 2026-06-11 baseline (1010 tests / 41 files); repo now has 56 `*.test.ts` files — re-run `npm run test:coverage` and update the module coverage table |
+| 4 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | Stored data is non-sensitive (story text, badges) |
 
 ## Dependencies
 

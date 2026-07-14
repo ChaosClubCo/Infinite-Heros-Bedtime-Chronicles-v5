@@ -30,6 +30,7 @@
     "**/*.test.tsx",
     "jest.setup.ts",
     "__tests__/**",
-    ".agents/**"
+    ".agents/**",
+    "scripts/**"
   ]
 }

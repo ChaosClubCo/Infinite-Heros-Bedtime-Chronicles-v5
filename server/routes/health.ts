@@ -8,6 +8,8 @@ import { getLiveStatus } from "../health-checks";
 import { pingElevenLabs } from "../elevenlabs";
 import { pingGemini } from "../ai/providers/gemini";
 import { pingAnthropic } from "../ai/providers/anthropic";
+import { pingOpenAI } from "../ai/providers/openai";
+import { pingOpenRouter } from "../ai/providers/openrouter";
 
 // Anthropic first, matching DEFAULT_CHAINS's "story" fallback order in
 // server/ai/router.ts (Anthropic → Gemini → ...) — probing whichever
@@ -19,6 +21,11 @@ import { pingAnthropic } from "../ai/providers/anthropic";
 const LIVE_PROBE_PROVIDERS: { name: string; ping: () => Promise<boolean> }[] = [
   { name: "anthropic", ping: pingAnthropic },
   { name: "gemini", ping: pingGemini },
+  { name: "openai", ping: pingOpenAI },
+  { name: "xai", ping: pingOpenRouter },
+  { name: "mistral", ping: pingOpenRouter },
+  { name: "cohere", ping: pingOpenRouter },
+  { name: "meta-llama", ping: pingOpenRouter },
 ];
 
 export function registerHealthRoutes(app: Express): void {
