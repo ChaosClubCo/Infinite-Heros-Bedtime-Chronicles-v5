@@ -3,10 +3,12 @@ import { runSync, purgeCloudData } from './runSync';
 import { getSupabaseClient } from '@/lib/AuthContext';
 import { syncAll } from './engine';
 import { purgeCloud } from './supabase-sync';
+import { reportSyncError } from './report';
 
 vi.mock('@/lib/AuthContext', () => ({ getSupabaseClient: vi.fn() }));
 vi.mock('./engine', () => ({ syncAll: vi.fn() }));
 vi.mock('./supabase-sync', () => ({ purgeCloud: vi.fn() }));
+vi.mock('./report', () => ({ reportSyncError: vi.fn() }));
 vi.mock('./storage-adapters', () => {
   const stub = () => ({ readLocal: vi.fn(), applyLocal: vi.fn() });
   return {
@@ -51,6 +53,28 @@ describe('runSync', () => {
     vi.mocked(syncAll).mockRejectedValue(new Error('network down'));
     expect(await runSync(true)).toBe(false);
   });
+
+  it('reports each per-entity error (still returns true — a run happened)', async () => {
+    vi.mocked(getSupabaseClient).mockReturnValue(clientWithUser('user1') as never);
+    vi.mocked(syncAll).mockResolvedValue({
+      results: [],
+      errors: [
+        { entity: 'stories', error: 'boom' },
+        { entity: 'badges', error: 'kaboom' },
+      ],
+    });
+    expect(await runSync(true)).toBe(true);
+    expect(reportSyncError).toHaveBeenCalledWith('syncAll:stories', 'boom');
+    expect(reportSyncError).toHaveBeenCalledWith('syncAll:badges', 'kaboom');
+  });
+
+  it('reports the top-level failure when the sync throws', async () => {
+    vi.mocked(getSupabaseClient).mockReturnValue(clientWithUser('user1') as never);
+    const err = new Error('network down');
+    vi.mocked(syncAll).mockRejectedValue(err);
+    expect(await runSync(true)).toBe(false);
+    expect(reportSyncError).toHaveBeenCalledWith('runSync', err);
+  });
 });
 
 describe('purgeCloudData', () => {
@@ -65,5 +89,13 @@ describe('purgeCloudData', () => {
     vi.mocked(getSupabaseClient).mockReturnValue(clientWithUser(null) as never);
     expect(await purgeCloudData()).toBe(false);
     expect(purgeCloud).not.toHaveBeenCalled();
+  });
+
+  it('reports the failure and returns false when the purge throws', async () => {
+    vi.mocked(getSupabaseClient).mockReturnValue(clientWithUser('user1') as never);
+    const err = new Error('purge failed');
+    vi.mocked(purgeCloud).mockRejectedValue(err);
+    expect(await purgeCloudData()).toBe(false);
+    expect(reportSyncError).toHaveBeenCalledWith('purgeCloudData', err);
   });
 });

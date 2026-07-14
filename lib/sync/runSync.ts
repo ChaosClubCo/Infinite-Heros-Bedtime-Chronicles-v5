@@ -11,6 +11,7 @@
 import { getSupabaseClient } from '@/lib/AuthContext';
 import { syncAll, type EntityAdapter } from './engine';
 import { purgeCloud } from './supabase-sync';
+import { reportSyncError } from './report';
 import {
   storiesAdapter, badgesAdapter, streaksAdapter,
   favoritesAdapter, readAdapter, profileStubAdapter,
@@ -47,9 +48,16 @@ export async function runSync(enabled: boolean): Promise<boolean> {
   try {
     const ctx = await currentUserId();
     if (!ctx) return false;
-    await syncAll(ctx.sb, ctx.userId, ADAPTERS);
+    // A run happened (still return true even if some entities failed, so the
+    // `didSync` contract holds), but surface each per-entity failure — otherwise
+    // a partially-broken sync is silent.
+    const { errors } = await syncAll(ctx.sb, ctx.userId, ADAPTERS);
+    for (const { entity, error } of errors) {
+      reportSyncError(`syncAll:${entity}`, error);
+    }
     return true;
-  } catch {
+  } catch (err) {
+    reportSyncError('runSync', err);
     return false;
   }
 }
@@ -64,7 +72,8 @@ export async function purgeCloudData(): Promise<boolean> {
     if (!ctx) return false;
     await purgeCloud(ctx.sb, ctx.userId);
     return true;
-  } catch {
+  } catch (err) {
+    reportSyncError('purgeCloudData', err);
     return false;
   }
 }
