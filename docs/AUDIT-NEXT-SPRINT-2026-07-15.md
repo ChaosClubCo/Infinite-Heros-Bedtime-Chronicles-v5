@@ -23,8 +23,9 @@ a locally cached checkout — see finding 4).
   steady stream of Dependabot merges; also stale, finding 5). Remaining 15 are two
   transitive chains: `esbuild` (via `@esbuild-kit/*` → `drizzle-kit`) and `uuid` (via
   `@expo/config-plugins` → `expo-splash-screen`/`@expo/cli`). Both have `--force` fixes
-  available but each is a breaking major bump (drizzle-kit 0.31→0.18, i.e. a downgrade;
-  expo-splash-screen major bump) — not a blind-apply, needs its own scoped pass.
+  available, but each resolves the advisory by forcing a breaking major-version
+  change (drizzle-kit 0.31→0.18, i.e. a downgrade; expo-splash-screen jumps forward
+  a major) — not a blind-apply, needs its own scoped pass.
 - No open PRs exist yet against `claude/next-sprint-audit-09d8qx` in any of the three
   repos as of this audit.
 

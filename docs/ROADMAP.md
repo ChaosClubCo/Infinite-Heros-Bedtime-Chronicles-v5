@@ -75,7 +75,7 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
 | 6 | Fix `krosebrook/infinite-heros-bedtime-chronicles-v5-main` CI (package-lock.json drift) and run it through the same convergence PR `v2` got | 5 | 3 | 5 | 5 | 2.6 | Live CI (run 29221776371, 2026-07-13) fails at the lockfile-sync check before lint/test/typecheck/audit run. The repo's `main` is still the pre-merge Firebase/Expo-54 codebase, contradicting the Merge Provenance claim that it "contributed nothing beyond receiving the merged tree." See finding 3 |
-| 7 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | 15 moderate, 0 high, 0 critical as of 2026-07-15 (down from 42/2-high — the `tmp`/`undici` high-severity pair is already resolved, presumably via routine Dependabot merges). Remaining 15 are two transitive chains (`esbuild`→`drizzle-kit`, `uuid`→`@expo/config-plugins`); both `--force` fixes are breaking-change major bumps, not a blind-apply |
+| 7 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | 15 moderate, 0 high, 0 critical as of 2026-07-15 (down from 42/2-high — the `tmp`/`undici` high-severity pair is already resolved, presumably via routine Dependabot merges). Remaining 15 are two transitive chains (`esbuild`→`drizzle-kit`, `uuid`→`@expo/config-plugins`); both `--force` fixes force a breaking major-version change to resolve the advisory, not a blind-apply |
 
 ### Low Priority
 
@@ -100,9 +100,10 @@ via routine Dependabot merges since then; the "tighten to `--audit-level=high`" 
 can now happen):
 - **Moderate:** two transitive chains — `esbuild` (via `@esbuild-kit/*` → `drizzle-kit`)
   and `uuid` (via `xcode`/`@expo/config-plugins` → `expo-splash-screen`/`@expo/cli`).
-  Both have `npm audit fix --force` fixes available, but each is a breaking major bump
-  (drizzle-kit 0.31→0.18 is a downgrade; expo-splash-screen jumps a major) — needs a
-  scoped dependency-upgrade pass, not a blind `--force` apply.
+  Both have `npm audit fix --force` fixes available, but each resolves the advisory by
+  forcing a breaking major-version change (drizzle-kit 0.31→0.18 is a downgrade;
+  expo-splash-screen jumps forward a major) — needs a scoped dependency-upgrade pass,
+  not a blind `--force` apply.
 
 CI uses `--audit-level=critical`. Now that the `tmp`/`undici` high-severity pair is
 resolved, tighten to `--audit-level=high` — nothing currently outstanding is high or
