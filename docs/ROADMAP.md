@@ -1,6 +1,6 @@
 # Development Roadmap
 
-**Last Updated:** 2026-07-12 (doc/code audit pass)
+**Last Updated:** 2026-07-15 (audit + next-sprint pass — see `docs/AUDIT-NEXT-SPRINT-2026-07-15.md`)
 
 Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Time Criticality + Risk Reduction) / Job Size`
 
@@ -64,17 +64,27 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 1 | M1 (TTS-cache half) — Move `/tmp` TTS cache to Cloudflare R2 (or equivalent object storage) | 8 | 8 | 6 | 5 | 4.4 | Serverless gate: TTS cache is filesystem/`/tmp`, lost across cold starts → re-synth cost. Idempotency half of M1 already shipped 2026-07-12 (Cloudflare KV) — binary audio needs object storage (R2), not KV, and needs a human to provision the bucket/token first. See docs/ROADMAP.md M1 follow-up note in `server/tts-cache.ts` |
-| 2 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/PLAY_STORE_DEPLOYMENT.md |
-| 3 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | 42 advisories (2 high: `tmp`, `undici`; 40 moderate, mostly `@expo/config*`); 0 critical. Blocked on upstream Expo/transitive fixes |
+| 1 | Real tests for `server/auth.ts` — the "comprehensive" suite never imports the module | 8 | 5 | 8 | 2 | 10.5 | `server/auth.comprehensive.test.ts` reimplements logic as inline literals instead of calling `requireAuth`; the integration suite mocks `requireAuth` out entirely. Coverage confirms 4.08% stmt / 0% branch on the app's entire Supabase-auth boundary. See `docs/AUDIT-NEXT-SPRINT-2026-07-15.md` finding 1 |
+| 2 | Write and execute the missing `docs/VERIFICATION-M1-M3.md` cloud-sync verification checklist | 5 | 5 | 5 | 2 | 7.5 | Referenced by commit `0e31e77` ("Still needs on-device verification") but never committed. That commit fixed `SyncManager` never being mounted — cloud sync was a silent no-op since the M3 merge. Off by default (`cloudSyncEnabled: false`) so no current user impact, but needs verification before it's ever toggled on. See finding 2 |
+| 3 | M1 (TTS-cache half) — Move `/tmp` TTS cache to Cloudflare R2 (or equivalent object storage) | 8 | 8 | 6 | 5 | 4.4 | Serverless gate: TTS cache is filesystem/`/tmp`, lost across cold starts → re-synth cost. Idempotency half of M1 already shipped 2026-07-12 (Cloudflare KV) — binary audio needs object storage (R2), not KV, and needs a human to provision the bucket/token first. See docs/ROADMAP.md M1 follow-up note in `server/tts-cache.ts` |
+| 4 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/PLAY_STORE_DEPLOYMENT.md |
+| 5 | Port the 19 missing M1–M3 files (`server/safety/*`, `lib/sync/*`, `lib/tts-cache.ts`, `lib/narration.ts`, etc.) into `krosebrook/bedtime_chronicles-v2` so its code matches its own docs | 8 | 5 | 8 | 5 | 4.2 | `v2`'s convergence PR (#3) copied this repo's `CLAUDE.md` — which now describes the content-safety guard, on-device TTS cache, and cloud sync as shipped — but never ported the corresponding source. `v2`'s docs currently claim a child-safety moderation control exists where it doesn't. See finding 4. Cross-repo item, tracked here since this repo owns the merge narrative |
+
+### Medium Priority
+
+| # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
+|---|------|-------|-------------|------|------|------|-------|
+| 6 | Fix `krosebrook/infinite-heros-bedtime-chronicles-v5-main` CI (package-lock.json drift) and run it through the same convergence PR `v2` got | 5 | 3 | 5 | 5 | 2.6 | Live CI (run 29221776371, 2026-07-13) fails at the lockfile-sync check before lint/test/typecheck/audit run. The repo's `main` is still the pre-merge Firebase/Expo-54 codebase, contradicting the Merge Provenance claim that it "contributed nothing beyond receiving the merged tree." See finding 3 |
+| 7 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | 15 moderate, 0 high, 0 critical as of 2026-07-15 (down from 42/2-high — the `tmp`/`undici` high-severity pair is already resolved, presumably via routine Dependabot merges). Remaining 15 are two transitive chains (`esbuild`→`drizzle-kit`, `uuid`→`@expo/config-plugins`); both `--force` fixes are breaking-change major bumps, not a blind-apply |
 
 ### Low Priority
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 4 | Remove or wire up `server/replit_integrations/chat/routes.ts` | 2 | 1 | 2 | 2 | 2.5 | `registerChatRoutes()` implements a text-chat variant of `POST /api/conversations/:id/messages` but is never called from `server/routes.ts` — dead code flagged in the 2026-07-12 doc audit. Either delete it or register it behind a feature flag like the audio routes |
-| 5 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | Stored data is non-sensitive (story text, badges) |
-| 6 | Refresh `docs/TEST-COVERAGE-ANALYSIS.md` coverage numbers | 3 | 1 | 2 | 2 | 3.0 | Doc still cites the 2026-06-11 baseline (1010 tests / 41 files); repo now has 56 `*.test.ts` files — re-run `npm run test:coverage` and update the module coverage table |
+| 8 | Remove or wire up `server/replit_integrations/chat/routes.ts` | 2 | 1 | 2 | 2 | 2.5 | `registerChatRoutes()` implements a text-chat variant of `POST /api/conversations/:id/messages` but is never called from `server/routes.ts` — dead code flagged in the 2026-07-12 doc audit. Either delete it or register it behind a feature flag like the audio routes |
+| 9 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | Stored data is non-sensitive (story text, badges) |
+| 10 | Refresh `docs/TEST-COVERAGE-ANALYSIS.md` coverage numbers | 3 | 1 | 2 | 2 | 3.0 | As of 2026-07-15: 1280 tests / 70 files passing (was 1010/41), 72.49% stmt / 67.78% branch coverage overall (was ~59%/55%). See `docs/AUDIT-NEXT-SPRINT-2026-07-15.md` finding 5 for the full table |
+| 11 | Expo SDK 55 → 57 upgrade | 3 | 2 | 3 | 8 | 1.0 | Root cause of most remaining moderate npm-audit findings (`@expo/config*` chain). Not urgent — no actively-exploited CVE — but a two-major jump on Expo/Expo Router has a track record of multi-day breakage per `docs/CHANGELOG.md`; deserves its own dedicated upgrade sprint, not a slot alongside routine work |
 
 ## Dependencies
 
@@ -84,13 +94,21 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 
 ## Known Audit Issues
 
-`npm audit` as of 2026-06-19 reports **42 advisories: 2 high, 40 moderate, 0 critical**:
-- **High:** `tmp` (arbitrary file/dir write via symlink) and `undici` — both pulled in transitively.
-- **Moderate:** mostly `@expo/config*` and related Expo tooling chains; tracked against Expo SDK updates.
-- All are transitive; no direct-dependency fixes available yet. Tracked in Dependabot.
+`npm audit` as of 2026-07-15 reports **15 moderate, 0 high, 0 critical** (the 2026-06-19
+baseline of 42 advisories including 2 high — `tmp`, `undici` — is resolved, presumably
+via routine Dependabot merges since then; the "tighten to `--audit-level=high`" note below
+can now happen):
+- **Moderate:** two transitive chains — `esbuild` (via `@esbuild-kit/*` → `drizzle-kit`)
+  and `uuid` (via `xcode`/`@expo/config-plugins` → `expo-splash-screen`/`@expo/cli`).
+  Both have `npm audit fix --force` fixes available, but each is a breaking major bump
+  (drizzle-kit 0.31→0.18 is a downgrade; expo-splash-screen jumps a major) — needs a
+  scoped dependency-upgrade pass, not a blind `--force` apply.
 
-CI uses `--audit-level=critical`. Tighten to `--audit-level=high` once the `tmp`/`undici` chains resolve upstream.
+CI uses `--audit-level=critical`. Now that the `tmp`/`undici` high-severity pair is
+resolved, tighten to `--audit-level=high` — nothing currently outstanding is high or
+critical, so this is a safe, immediate tightening.
 
 ## Tracked TODOs in Code
 
-No open `// TODO` comments found in source files as of last scan (2026-06-19).
+No open `// TODO` comments found in source files as of last scan (2026-06-19). Not
+re-verified in the 2026-07-15 pass.
