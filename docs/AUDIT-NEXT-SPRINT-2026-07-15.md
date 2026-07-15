@@ -118,12 +118,16 @@ only a partial convergence.
 **Fix:** regenerate `v5-main`'s `package-lock.json` to unblock CI visibility, then run
 it through the same convergence process `v2` went through in PR #3.
 
-### 4. `bedtime_chronicles-v2` converged its docs but not its code (MEDIUM)
+### 4. `bedtime_chronicles-v2` never received the M1–M3 work — code or docs (MEDIUM)
 
-`v2`'s PR #3 copied this repo's `CLAUDE.md` wholesale — it now describes the
-content-safety guard, on-device TTS cache, and cloud-sync engine as present. But
-diffing the actual file trees (`git ls-tree` on both repos' current `main`/audit
-branch) shows **19 files never made it over**, including:
+*Corrected after review — the original version of this finding claimed `v2`'s
+`CLAUDE.md` describes these features as shipped. That was wrong: `v2`'s PR #3
+copied a `CLAUDE.md` snapshot that predates this repo's M1–M3 work, so `v2`'s
+docs don't claim them either. Thanks to a review comment on the companion PR
+in that repo for catching it.*
+
+Diffing the actual file trees (`git ls-tree` on both repos' current
+`main`/audit branch) shows **19 files never made it over** to `v2`:
 
 - `server/safety/*` (`content-safety.ts`, `story-guard.ts`, `fallback-stories.ts`,
   `terms.ts`) and `shared/safety-terms.ts` — the entire AI-output child-safety
@@ -134,15 +138,18 @@ branch) shows **19 files never made it over**, including:
   `supabase/migrations/0001_sync_tables.sql` — the whole M3 cloud-sync engine.
 - `lib/tts-cache.ts`, `lib/narration.ts` — the on-device narration cache.
 
-So `v2`'s own `CLAUDE.md` currently claims an output-side content-safety guard exists
-in a tree where it does not. That's the finding that matters most here: it's not just
-missing features, it's **documentation asserting a safety control is present when
-it isn't**, in a children's app repo.
+The real gap: `v2` still has only the long-standing **prompt-side**
+`CHILD_SAFETY_RULES` (`server/prompts.ts`) — present and correctly included in
+every generation prompt — but not the newer **output-side** re-check this repo
+added (moderate the actual AI response, regenerate once, fall back to a
+known-safe story as a last resort). That's a real safety-posture gap between
+the two repos, just not a docs-vs-code mismatch.
 
-**Fix:** either port the 19 files (mirroring what's already proven to work in the
-canonical repo) or, if `v2` is intentionally being left behind pending a full
-convergence, correct its `CLAUDE.md` to stop claiming shipped features it doesn't have
-until that convergence happens.
+**Fix:** port the 19 files (mirroring what's already proven to work in the
+canonical repo) — this is a copy + wire-up + test-run, not new development.
+Prioritize the output-side safety guard first since it closes the actual
+capability gap; the TTS cache and cloud-sync engine are lower urgency (cloud
+sync is opt-in and off by default even here).
 
 ### 5. Stale numbers across `docs/ROADMAP.md`, `TODO.md`, `docs/TEST-COVERAGE-ANALYSIS.md` (LOW)
 
