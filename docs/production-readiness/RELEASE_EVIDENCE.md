@@ -8,19 +8,19 @@
 
 | Control | Status | Evidence |
 |---|---|---|
-| Existing CI gates at PR #354 head `8a65b4b9` | Passed | GitHub PR verification comment: install, lint, tests, critical audit, typecheck, server build, security agent, link check |
-| Supabase preview migrations | Passed | Healthy preview `iujaxqhdfzddvoojduau`; migrations and services reported healthy |
-| Transcript retention probe | Passed | Expired synthetic row removed and current row retained on rollback-only preview probe |
-| User A/User B RLS isolation | Passed | Live transactional probe on 2026-07-16: A saw only A; B select/update/delete/insert blocked; chat tables denied direct authenticated access; transaction rolled back |
-| Deletion receipt contract | Implemented, CI pending | PII-free receipt returned only after chat, sync cascade, and Auth deletion complete |
-| Expo dependency compatibility/export | CI pending | Required by `Expo Compatibility and Web Build` job |
-| EAS internal Android build | Pending | Must attach EAS build URL, artifact ID, candidate SHA, and profile |
-| Physical-device matrix | Pending | Android minimum/target device plus iOS device; consent, story, offline, sync, deletion, accessibility, audio-disabled verification |
-| Deployed smoke | Pending | Exact SHA from `/api/health`, HTTPS health/privacy responses, authenticated happy path, fail-closed provider gates |
+| Required repository CI gates | Passed | Run [29508270776](https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5/actions/runs/29508270776) on `6ff560d73b466133639ac3b63a96b5bca19c84b4`: strict install, preflight, lint, tests, critical audit, typecheck, production install smoke, server build |
+| Expo dependency compatibility/export | Passed | Same exact run: `expo install --check`, production web export, and artifact upload passed after the Expo SDK 55 graph was reconciled atomically |
+| Supabase preview migrations | Passed | Healthy preview `iujaxqhdfzddvoojduau`; database, services, APIs, configurations, migrations, seeding, and Edge Functions reported healthy |
+| Transcript retention probe | Passed | Expired synthetic row removed and current row retained on a rollback-only preview probe |
+| User A/User B RLS isolation | Passed | Live transactional probe on 2026-07-16: A saw only A; B select/update/delete/insert blocked; chat tables denied direct authenticated access; transaction rolled back; reproducible assertions are in `supabase/tests/rls_isolation.sql` |
+| Deletion receipt contract | Passed in repository CI | PII-free receipt is returned only after chat and Auth deletion complete; sync records cascade from identity deletion; ordering, failure, and receipt-shape tests passed |
+| EAS internal Android build | Pending | Must attach EAS build URL, artifact ID/checksum, exact candidate SHA, and profile |
+| Physical-device matrix | Pending | Android minimum/target device plus iOS device; consent, story, offline, sync, deletion, accessibility, and audio-disabled verification |
+| Deployed smoke | Pending | Exact SHA from `/api/health`, HTTPS health/privacy responses, authenticated happy path, and fail-closed provider gates |
 | Alert delivery | Pending | Sentry event ID plus notification destination receipt |
 | Backup restore | Pending | Disposable preview backup/restore proof with row counts and isolation re-test |
-| Rollback drill | Pending | Prior release restored, health/smoke rerun, recovery time recorded |
-| Privacy/legal/provider evidence | Pending external owner | Approved notice, consent version, provider agreements/settings, store declarations |
+| Rollback drill | Pending | Prior release restored, health/smoke rerun, and recovery time recorded |
+| Privacy/legal/provider evidence | Pending external owner | Approved notice, consent version, provider agreements/settings, and store declarations |
 
 ## Physical-device matrix
 
