@@ -8,6 +8,7 @@ export interface VoiceChatComplianceStatus {
   missing: string[];
 }
 
+export const MAX_VOICE_CHAT_RETENTION_DAYS = 30;
 const DEFAULT_NON_PRODUCTION_RETENTION_DAYS = 30;
 
 function envTrue(name: string): boolean {
@@ -18,14 +19,15 @@ function parseRetentionDays(): number | null {
   const raw = process.env.VOICE_CHAT_TRANSCRIPT_RETENTION_DAYS?.trim();
   if (!raw) return null;
   const value = Number(raw);
-  return Number.isInteger(value) && value >= 1 && value <= 90 ? value : null;
+  return Number.isInteger(value) && value >= 1 && value <= MAX_VOICE_CHAT_RETENTION_DAYS
+    ? value
+    : null;
 }
 
 /**
- * Return the retention window used by database cleanup. Production callers get
- * null unless an explicit 1-90 day value is configured; development/test use a
- * conservative 30-day default so the behavior remains testable without turning
- * an absent production attestation into an implicit approval.
+ * Return the retention window used by request-time database cleanup. Production
+ * callers get null unless an explicit 1-30 day value is configured;
+ * development/test use the same 30-day hard cap by default.
  */
 export function getVoiceChatTranscriptRetentionDays(): number | null {
   const configured = parseRetentionDays();
@@ -59,7 +61,9 @@ export function getVoiceChatComplianceStatus(): VoiceChatComplianceStatus {
   if (!childDataProcessingApproved) missing.push('AI_PROVIDER_CHILD_DATA_PROCESSING_APPROVED');
   if (!privacyPolicyPublished) missing.push('PRIVACY_POLICY_PUBLISHED');
   if (!appStoreDataSafetyReviewed) missing.push('APP_STORE_DATA_SAFETY_REVIEWED');
-  if (transcriptRetentionDays === null) missing.push('VOICE_CHAT_TRANSCRIPT_RETENTION_DAYS (integer 1-90)');
+  if (transcriptRetentionDays === null) {
+    missing.push(`VOICE_CHAT_TRANSCRIPT_RETENTION_DAYS (integer 1-${MAX_VOICE_CHAT_RETENTION_DAYS})`);
+  }
 
   return {
     approved: missing.length === 0,
