@@ -78,7 +78,16 @@ jobs:
         run: npm audit --audit-level=critical
 
       - name: Type check
-        run: npm run typecheck
+        id: typecheck
+        run: npm run typecheck 2>&1 | tee typecheck.log
+
+      - name: Upload typecheck diagnostics
+        if: failure() && steps.typecheck.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: typecheck-diagnostics
+          path: typecheck.log
+          retention-days: 7
 
   # Smoke-test that production install (omitting devDependencies, as Vercel does
   # when NODE_ENV=production) succeeds. This job would have caught the
