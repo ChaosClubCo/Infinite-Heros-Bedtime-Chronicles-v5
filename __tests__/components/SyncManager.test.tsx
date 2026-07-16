@@ -7,6 +7,7 @@ import { useSettings } from '@/lib/SettingsContext';
 import { useNetworkStatus } from '@/lib/useNetworkStatus';
 import { useProfile } from '@/lib/ProfileContext';
 import { useAuth } from '@/lib/AuthContext';
+import { useConsent } from '@/lib/ConsentContext';
 
 // SyncManager is pure trigger wiring — mock everything it consumes and assert
 // when it calls runSync. runSync itself is exercised by lib/sync/runSync.test.ts.
@@ -15,12 +16,14 @@ jest.mock('@/lib/SettingsContext', () => ({ useSettings: jest.fn() }));
 jest.mock('@/lib/useNetworkStatus', () => ({ useNetworkStatus: jest.fn() }));
 jest.mock('@/lib/ProfileContext', () => ({ useProfile: jest.fn() }));
 jest.mock('@/lib/AuthContext', () => ({ useAuth: jest.fn() }));
+jest.mock('@/lib/ConsentContext', () => ({ useConsent: jest.fn() }));
 
 const mockedRunSync = runSync as jest.MockedFunction<typeof runSync>;
 const mockedUseSettings = useSettings as jest.Mock;
 const mockedUseNetwork = useNetworkStatus as jest.Mock;
 const mockedUseProfile = useProfile as jest.Mock;
 const mockedUseAuth = useAuth as jest.Mock;
+const mockedUseConsent = useConsent as jest.Mock;
 
 const refreshProfiles = jest.fn().mockResolvedValue(undefined);
 
@@ -28,14 +31,23 @@ interface HookOpts {
   enabled?: boolean;
   online?: boolean;
   user?: { id: string } | null;
+  consentLoaded?: boolean;
+  consented?: boolean;
 }
 
-function setHooks({ enabled = true, online = true, user = { id: 'u1' } }: HookOpts = {}) {
+function setHooks({
+  enabled = true,
+  online = true,
+  user = { id: 'u1' },
+  consentLoaded = true,
+  consented = true,
+}: HookOpts = {}) {
   mockedUseSettings.mockReturnValue({ settings: { cloudSyncEnabled: enabled } });
   // isOnline = isConnected && isInternetReachable !== false
   mockedUseNetwork.mockReturnValue({ isConnected: online, isInternetReachable: online });
   mockedUseProfile.mockReturnValue({ refreshProfiles });
   mockedUseAuth.mockReturnValue({ user });
+  mockedUseConsent.mockReturnValue({ isLoaded: consentLoaded, isConsented: consented });
 }
 
 let changeHandler: ((s: AppStateStatus) => void) | undefined;
@@ -68,6 +80,29 @@ describe('SyncManager', () => {
   it('does not sync on mount when offline', async () => {
     setHooks({ enabled: true, online: false });
     await render(<SyncManager />);
+    expect(mockedRunSync).not.toHaveBeenCalled();
+  });
+
+  it('does not sync while parental consent is still loading (cold-start race)', async () => {
+    setHooks({ enabled: true, online: true, consentLoaded: false, consented: false });
+    await render(<SyncManager />);
+    expect(mockedRunSync).not.toHaveBeenCalled();
+  });
+
+  it('does not sync when parental consent is not granted (COPPA gate)', async () => {
+    setHooks({ enabled: true, online: true, consentLoaded: true, consented: false });
+    await render(<SyncManager />);
+    expect(mockedRunSync).not.toHaveBeenCalled();
+  });
+
+  it('does not sync on foreground when consent is not granted', async () => {
+    setHooks({ enabled: true, online: true, consented: false });
+    await render(<SyncManager />);
+    mockedRunSync.mockClear();
+
+    await act(async () => {
+      changeHandler?.('active');
+    });
     expect(mockedRunSync).not.toHaveBeenCalled();
   });
 
