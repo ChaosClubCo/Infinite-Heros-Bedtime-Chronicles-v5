@@ -1,6 +1,6 @@
 # Development Roadmap
 
-**Last Updated:** 2026-07-12 (doc/code audit pass)
+**Last Updated:** 2026-07-15 (R2 completion reconciliation + backlog renumber)
 
 Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Time Criticality + Risk Reduction) / Job Size`
 
@@ -62,7 +62,7 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 | Remove dead text chat routes (routes.ts, routes.test.ts) | Code Quality | 2026-07-14 |
 | Add integration tests for request-finish alerting + TTS metrics | Testing | 2026-07-14 |
 | Refresh docs/TEST-COVERAGE-ANALYSIS.md coverage numbers | Docs | 2026-07-14 |
-| M1 (TTS-cache half) — Cloudflare R2 object storage caching for binary TTS MP3 blobs with local filesystem fallback | Infrastructure | 2026-07-16 |
+| M1 (TTS-cache half) — Cloudflare R2 object storage caching for binary TTS MP3 blobs with local filesystem fallback | Infrastructure | 2026-07-15 |
 
 ## Backlog (Prioritized)
 
@@ -70,20 +70,24 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 1 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/PLAY_STORE_DEPLOYMENT.md |
-| 2 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | 42 advisories (2 high: `tmp`, `undici`; 40 moderate, mostly `@expo/config*`); 0 critical. Blocked on upstream Expo/transitive fixes |
+| 1 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + `EXPO_TOKEN` (ChaosClubCo org CI) + AAB build; Android-only; see docs/operations/PLAY_STORE_DEPLOYMENT.md |
+| 2 | Verify M3 cloud sync end-to-end on a device | 5 | 5 | 8 | 3 | 6.0 | Built + unit-tested (all six entities) but flagged "NOT yet verified on a device" in CLAUDE.md; depends on Item 1 for an installable build; harness at scripts/verify-sync.ts |
+| 3 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | 42 advisories (2 high: `tmp`, `undici`; 40 moderate, mostly `@expo/config*`); 0 critical. Blocked on upstream Expo/transitive fixes |
 
 ### Low Priority
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
 | 4 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | Stored data is non-sensitive (story text, badges) |
+| 5 | M4 — native Kotlin audio engine | 3 | 1 | 1 | 8 | 0.6 | Blocked/future: requires ejecting managed Expo + retrieving the archived Kotlin rewrite (archive/android-kotlin-rewrite/); see CLAUDE.md "Merge Provenance" |
 
 ## Dependencies
 
-- Item 1 (M1 TTS-cache→R2) requires provisioning a new Cloudflare R2 bucket + scoped API token — an external action outside agent control. It reuses the KV-fallback pattern shipped for idempotency (`server/kv.ts`) but needs an R2-specific client since KV isn't suited to binary blobs; see the follow-up note in `server/tts-cache.ts`.
-- Item 2 (EAS) requires all API keys to be set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md)
-- Item 3 (audit) is blocked on upstream releasing fixes for the `tmp`/`undici` and `@expo/config*` transitive chains
+- Item 1 (EAS) requires all API keys set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md) plus an `EXPO_TOKEN` in the ChaosClubCo-org CI.
+- Item 2 (M3 device-verify) depends on Item 1 for an installable Android build; run `scripts/verify-sync.ts` against it.
+- Item 3 (npm audit) is blocked on upstream releasing fixes for the `tmp`/`undici` and `@expo/config*` transitive chains.
+- Item 5 (M4 native audio) is blocked on ejecting the managed Expo client + retrieving `archive/android-kotlin-rewrite/`.
+- (Resolved) M1 TTS-cache → Cloudflare R2 shipped 2026-07-15 (see Completed); the former bucket/token provisioning dependency is satisfied. R2 uses its own S3-compatible client (`server/r2.ts`) since KV isn't suited to binary blobs.
 
 ## Known Audit Issues
 

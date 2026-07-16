@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-07-12 -->
+<!-- Last verified: 2026-07-15 -->
 <!-- Generated from codebase scan + docs/ROADMAP.md. Re-run scan to refresh TODO signals. -->
 <!-- docs/ROADMAP.md is the actively-maintained backlog; this file lags behind it — reconcile against ROADMAP.md before trusting stale-looking rows. -->
 
@@ -16,14 +16,16 @@ Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 
 
 | Priority | Item | Category | Business Value | Time Criticality | Risk/Opportunity | Job Size | WSJF | Status | Issue/Notes |
 |----------|------|----------|---------------|-----------------|-----------------|----------|------|--------|-------------|
-| 1 | EAS build & Play Store submission | Deployment | H | H | H | M | 4.8 | ready | eas.json + build-android.sh + PLAY_STORE_DEPLOYMENT.md all set; needs EAS secrets + AAB build |
-| 2 | Resolve remaining npm audit vulnerabilities | Security | M | M | M | S | 5.0 | blocked | 2 high in `tmp`/`undici` transitive chain (not firebase-admin — app has no Firebase dependency; blocked on upstream); CI at --audit-level=critical |
+| 1 | EAS build & Play Store submission | Deployment | H | H | H | M | 4.8 | ready | eas.json + build-android.sh + PLAY_STORE_DEPLOYMENT.md all set; needs EAS secrets + `EXPO_TOKEN` (ChaosClubCo) + AAB build |
+| 2 | Verify M3 cloud sync end-to-end on a device | Reliability | M | M | H | S | 6.0 | ready | Built + unit-tested but "NOT yet verified on a device" (CLAUDE.md); needs an installable build (Item 1); harness scripts/verify-sync.ts |
+| 3 | Resolve remaining npm audit vulnerabilities | Security | M | M | M | S | 5.0 | blocked | 2 high in `tmp`/`undici` transitive chain (not firebase-admin — app has no Firebase dependency; blocked on upstream); CI at --audit-level=critical |
 
 ### Low Priority
 
 | Priority | Item | Category | Business Value | Time Criticality | Risk/Opportunity | Job Size | WSJF | Status | Issue/Notes |
 |----------|------|----------|---------------|-----------------|-----------------|----------|------|--------|-------------|
-| 3 | Encrypt client-side AsyncStorage | Security | S | S | S | L | 9.0 | low-priority | Stored data is non-sensitive (story text, badges); not a current risk |
+| 4 | Encrypt client-side AsyncStorage | Security | S | S | S | L | 1.1 | low-priority | Stored data is non-sensitive (story text, badges); not a current risk |
+| 5 | M4 — native Kotlin audio engine | Feature | S | L | L | L | 0.6 | blocked | Requires ejecting managed Expo + archive/android-kotlin-rewrite/; see CLAUDE.md Merge Provenance |
 
 ---
 
@@ -31,6 +33,7 @@ Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 
 
 | Item | Category | Completed | Notes |
 |------|----------|-----------|-------|
+| Cloudflare R2 TTS-audio cache (M1 TTS-cache half) | Infrastructure | 2026-07-15 | server/r2.ts (S3-compatible @aws-sdk/client-s3), wired into server/routes/tts.ts behind writeWithLock; /tmp fallback; gated on R2_ENABLED |
 | Remove dead text chat routes (routes.ts, routes.test.ts) | Code Quality | 2026-07-14 | Removed dead routes file and its test file, and disabled it in chat/index.ts |
 | Secure Gemini API Key URL leakage in pingGemini() | Security | 2026-07-14 | Pass API key in x-goog-api-key header instead of query string |
 | Extend health checks live probes to OpenAI/OpenRouter | Reliability | 2026-07-14 | Wired up OpenAI and OpenRouter pings to /api/health LIVE_PROBE_PROVIDERS |
