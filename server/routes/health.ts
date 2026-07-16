@@ -21,6 +21,13 @@ const LIVE_PROBE_PROVIDERS: { name: string; ping: () => Promise<boolean> }[] = [
   { name: "gemini", ping: pingGemini },
 ];
 
+function getReleaseSha(): string | null {
+  const value = process.env.APP_RELEASE_SHA
+    || process.env.VERCEL_GIT_COMMIT_SHA
+    || process.env.GITHUB_SHA;
+  return value && /^[0-9a-f]{7,40}$/i.test(value) ? value : null;
+}
+
 export function registerHealthRoutes(app: Express): void {
   app.get("/api/metrics", (_req, res) => {
     res.json(getMetrics());
@@ -40,6 +47,7 @@ export function registerHealthRoutes(app: Express): void {
     res.json({
       status: "ok",
       timestamp: Date.now(),
+      releaseSha: getReleaseSha(),
       aiProvidersAvailable: aiAvailable,
       ttsAvailable,
       ttsLive: ttsAvailable ? getLiveStatus("elevenlabs", pingElevenLabs) : { reachable: null, checkedAt: null },
