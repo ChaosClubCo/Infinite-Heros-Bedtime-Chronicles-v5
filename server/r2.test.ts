@@ -3,11 +3,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const s3SendMock = vi.fn();
 vi.mock("@aws-sdk/client-s3", () => {
   return {
-    S3Client: vi.fn().mockImplementation(() => ({
-      send: s3SendMock,
-    })),
-    GetObjectCommand: vi.fn().mockImplementation((args) => ({ type: "GetObject", ...args })),
-    PutObjectCommand: vi.fn().mockImplementation((args) => ({ type: "PutObject", ...args })),
+    S3Client: class {
+      send = s3SendMock;
+    },
+    GetObjectCommand: class {
+      constructor(public args: any) {}
+    },
+    PutObjectCommand: class {
+      constructor(public args: any) {}
+    },
   };
 });
 
