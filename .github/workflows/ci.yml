@@ -25,6 +25,12 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
+      # package.json engines require npm 11.x, and the lockfile is generated with
+      # it — but node 22 (.nvmrc) ships npm 10, whose stricter `npm ci` rejects the
+      # 11-generated lock. Align npm so install/lock-verify match how it was built.
+      - name: Align npm with repo engines (npm 11.x)
+        run: npm i -g npm@11
+
       - name: Verify package-lock.json is in sync with package.json
         # Lockfile drift has broken `npm ci` twice. This catches it early with a
         # readable diff instead of npm ci's cryptic EUSAGE: regenerate the lock
@@ -78,6 +84,9 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
+      - name: Align npm with repo engines (npm 11.x)
+        run: npm i -g npm@11
+
       - name: Simulate Vercel production install (omit devDependencies)
         run: npm install --omit=dev
 
@@ -98,6 +107,9 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
+
+      - name: Align npm with repo engines (npm 11.x)
+        run: npm i -g npm@11
 
       - name: Install dependencies
         run: npm ci
