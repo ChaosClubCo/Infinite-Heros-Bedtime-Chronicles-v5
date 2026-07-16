@@ -8,10 +8,15 @@ describe('voice chat compliance gate', () => {
 
   it('fails closed in production when attestations are missing', async () => {
     vi.stubEnv('NODE_ENV', 'production');
-    const { getVoiceChatComplianceStatus, isVoiceChatComplianceApproved } = await import('./compliance');
+    const {
+      getVoiceChatComplianceStatus,
+      getVoiceChatTranscriptCutoff,
+      isVoiceChatComplianceApproved,
+    } = await import('./compliance');
 
     expect(isVoiceChatComplianceApproved()).toBe(false);
     expect(getVoiceChatComplianceStatus().missing).toContain('AI_PROVIDER_DPA_CONFIRMED');
+    expect(getVoiceChatTranscriptCutoff()).toBeNull();
   });
 
   it('approves production only when every attestation and retention limit is present', async () => {
@@ -22,13 +27,20 @@ describe('voice chat compliance gate', () => {
     vi.stubEnv('APP_STORE_DATA_SAFETY_REVIEWED', 'true');
     vi.stubEnv('VOICE_CHAT_TRANSCRIPT_RETENTION_DAYS', '30');
 
-    const { getVoiceChatComplianceStatus, isVoiceChatComplianceApproved } = await import('./compliance');
+    const {
+      getVoiceChatComplianceStatus,
+      getVoiceChatTranscriptCutoff,
+      isVoiceChatComplianceApproved,
+    } = await import('./compliance');
     expect(isVoiceChatComplianceApproved()).toBe(true);
     expect(getVoiceChatComplianceStatus()).toMatchObject({
       approved: true,
       transcriptRetentionDays: 30,
       missing: [],
     });
+    expect(getVoiceChatTranscriptCutoff(Date.UTC(2026, 6, 16))).toEqual(
+      new Date(Date.UTC(2026, 5, 16)),
+    );
   });
 
   it('rejects an absent, zero, or excessive retention window', async () => {
@@ -39,13 +51,18 @@ describe('voice chat compliance gate', () => {
     vi.stubEnv('APP_STORE_DATA_SAFETY_REVIEWED', 'true');
     vi.stubEnv('VOICE_CHAT_TRANSCRIPT_RETENTION_DAYS', '365');
 
-    const { getVoiceChatComplianceStatus } = await import('./compliance');
+    const { getVoiceChatComplianceStatus, getVoiceChatTranscriptRetentionDays } = await import('./compliance');
     expect(getVoiceChatComplianceStatus().approved).toBe(false);
+    expect(getVoiceChatTranscriptRetentionDays()).toBeNull();
   });
 
-  it('allows implementation testing outside production', async () => {
+  it('allows implementation testing with a conservative default retention window', async () => {
     vi.stubEnv('NODE_ENV', 'test');
-    const { isVoiceChatComplianceApproved } = await import('./compliance');
+    const {
+      getVoiceChatTranscriptRetentionDays,
+      isVoiceChatComplianceApproved,
+    } = await import('./compliance');
     expect(isVoiceChatComplianceApproved()).toBe(true);
+    expect(getVoiceChatTranscriptRetentionDays()).toBe(30);
   });
 });
