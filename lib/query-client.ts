@@ -1,4 +1,4 @@
-import { fetch } from "expo/fetch";
+// React Native, Expo web, and Node 22 provide the standards-based global fetch.
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 let _getAuthToken: (() => Promise<string | null>) | null = null;

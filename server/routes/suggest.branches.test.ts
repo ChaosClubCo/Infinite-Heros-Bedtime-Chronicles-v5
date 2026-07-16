@@ -76,9 +76,14 @@ describe("POST /api/suggest-settings validation", () => {
     expect(res.body.error).toBeDefined();
   });
 
-  it("returns 400 for an out-of-range childAge", async () => {
-    const res = await request(app).post("/api/suggest-settings").send({ heroName: "Nova", childAge: 50 });
-    expect(res.status).toBe(400);
+  it("discards an out-of-range childAge instead of sending it to AI", async () => {
+    mockAiResponse(suggestionPayload());
+    const res = await request(app)
+      .post("/api/suggest-settings")
+      .send({ heroName: "Nova", childAge: 987654 });
+
+    expect(res.status).toBe(200);
+    expect(mockGenerateText.mock.calls[0]?.[1]?.userPrompt).not.toContain("987654");
   });
 });
 

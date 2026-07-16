@@ -69,7 +69,7 @@ export function registerChatRoutes(app: Express): void {
     }
   });
 
-  app.post("/api/conversations", async (req: Request, res: Response) => {
+  app.post("/api/conversations", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = req.user?.uid ?? "anonymous";
       const { title } = req.body;
@@ -84,7 +84,7 @@ export function registerChatRoutes(app: Express): void {
     }
   });
 
-  app.delete("/api/conversations/:id", async (req: Request, res: Response) => {
+  app.delete("/api/conversations/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const id = parseIdParam(req.params.id);
       if (id === null) {
@@ -99,7 +99,7 @@ export function registerChatRoutes(app: Express): void {
     }
   });
 
-  app.post("/api/conversations/:id/messages", async (req: Request, res: Response) => {
+  app.post("/api/conversations/:id/messages", requireAuth, async (req: Request, res: Response) => {
     try {
       const conversationId = parseIdParam(req.params.id);
       if (conversationId === null) {
