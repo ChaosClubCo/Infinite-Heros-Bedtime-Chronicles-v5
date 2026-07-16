@@ -128,7 +128,7 @@ export default function ParentalConsentScreen() {
             <Text style={styles.cardLabel}>What you’re agreeing to</Text>
             <ConsentPoint
               icon="phone-portrait-outline"
-              text="Child profile details such as name and age stay on this device. If you choose to personalize a story, the details needed for that request are sent to approved AI providers."
+              text="Child profile name and age stay on this device. The server accepts older client fields for compatibility but discards those values before story or suggestion prompts are built for AI providers."
             />
             <ConsentPoint
               icon="cloud-outline"
