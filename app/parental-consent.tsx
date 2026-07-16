@@ -136,7 +136,7 @@ export default function ParentalConsentScreen() {
             />
             <ConsentPoint
               icon="mic-outline"
-              text="Voice Chat is optional and disabled by default. When an approved production configuration enables it, recorded audio is sent for transcription. We do not intentionally retain the raw recording, but sanitized text transcripts and replies are stored in the parent’s private chat history for a configured period of no more than 90 days or until deleted sooner."
+              text="Voice Chat is optional and disabled by default. When an approved production configuration enables it, recorded audio is sent for transcription. We do not intentionally retain the raw recording, but sanitized text transcripts and replies are stored in the parent’s private chat history and automatically deleted no later than 30 days after creation or sooner when you delete them."
             />
             <ConsentPoint
               icon="shield-checkmark-outline"
