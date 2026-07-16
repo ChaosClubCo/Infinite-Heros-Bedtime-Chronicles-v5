@@ -89,7 +89,7 @@ export async function clearAllData(): Promise<void> {
   const keys = await AsyncStorage.getAllKeys();
   const appKeys = keys.filter((k) => k.startsWith('@infinity_heroes_'));
   if (appKeys.length > 0) {
-    await AsyncStorage.removeMany(appKeys);
+    await AsyncStorage.multiRemove(appKeys);
   }
 }
 
