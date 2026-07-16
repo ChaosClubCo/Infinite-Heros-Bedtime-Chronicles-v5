@@ -165,3 +165,40 @@ jobs:
           name: server-build
           path: server_dist/
           retention-days: 7
+
+  expo-compatibility-build:
+    name: Expo Compatibility and Web Build
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: "1"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install repository npm version
+        run: npm install --global npm@11
+
+      - name: Install locked dependencies
+        run: bash scripts/npm-ci-retry.sh expo-npm-ci.log
+
+      - name: Verify Expo SDK dependency compatibility
+        run: npm run expo:check
+
+      - name: Export production web bundle
+        run: npm run expo:build:ci
+
+      - name: Upload Expo web bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: expo-web-build
+          path: static-build/
+          retention-days: 7
