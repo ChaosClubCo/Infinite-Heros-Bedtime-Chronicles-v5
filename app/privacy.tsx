@@ -133,7 +133,7 @@ export default function PrivacyScreen() {
         <Section title="5. Data Retention">
           <Bullet>Device data remains until the parent deletes it, resets the app, or uninstalls the app</Bullet>
           <Bullet>Cloud-backup records remain until deleted by the parent or the parent account is deleted</Bullet>
-          <Bullet>Voice Chat transcripts are limited by the configured production retention period, which may not exceed 90 days, and can be deleted sooner from the app</Bullet>
+          <Bullet>Voice Chat transcripts use the approved production retention period and are automatically purged no later than 30 days after creation; they can be deleted sooner from the app</Bullet>
           <Bullet>Parent authentication records remain until the parent account is deleted</Bullet>
           <Bullet>Operational logs and provider records follow the documented production retention settings and applicable provider agreements</Bullet>
         </Section>
