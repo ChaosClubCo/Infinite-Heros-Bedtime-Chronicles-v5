@@ -3,9 +3,24 @@ import type { AIProvider, TextGenerationRequest, TextGenerationResponse, ImageGe
 import { CHECK_TIMEOUT_MS } from "../../health-checks";
 
 export async function pingOpenAI(): Promise<boolean> {
-  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
-  if (!apiKey) return false;
-  const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || "https://api.openai.com/v1";
+  // Mirror the client selection in generateText (getIntegrationsClient →
+  // getDirectClient): the integrations key uses its base URL, but the direct
+  // OPENAI_API_KEY always targets api.openai.com. Pairing the direct key with a
+  // stray AI_INTEGRATIONS_OPENAI_BASE_URL would probe the wrong host and report
+  // a false outage.
+  const integrationsKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const directKey = process.env.OPENAI_API_KEY;
+  let apiKey: string;
+  let baseURL: string;
+  if (integrationsKey) {
+    apiKey = integrationsKey;
+    baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || "https://api.openai.com/v1";
+  } else if (directKey) {
+    apiKey = directKey;
+    baseURL = "https://api.openai.com/v1";
+  } else {
+    return false;
+  }
   try {
     const res = await fetch(`${baseURL}/models`, {
       headers: {

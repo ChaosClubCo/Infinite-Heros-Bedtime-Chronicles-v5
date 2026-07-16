@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import request from "supertest";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createApp } from "./index";
 
 vi.mock("./alerting", () => ({
@@ -8,26 +9,46 @@ vi.mock("./alerting", () => ({
 }));
 
 vi.mock("./auth", () => ({
-  requireAuth: vi.fn((req: any, res: any, next: any) => {
-    req.user = { uid: "test-user-id", isAnonymous: false };
+  requireAuth: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+    (req as Request & { user: { uid: string; isAnonymous: boolean } }).user = {
+      uid: "test-user-id",
+      isAnonymous: false,
+    };
     next();
   }),
   isAuthEnabled: vi.fn(() => true),
 }));
 
-vi.mock("./metrics", () => ({
-  recordTTS: vi.fn(),
-  getMetrics: vi.fn(() => ({
-    requests: { total: 20, errors: 0, byStatus: {} },
-    tts: { calls: 0, failures: 0, cacheHits: 0, cacheHitRate: "0%" },
-  })),
-  recordRequest: vi.fn(),
-  recordError: vi.fn(),
-  recordCacheHit: vi.fn(),
-}));
+// Spread the real module so every export the route modules import (e.g.
+// recordContentBlock / recordSafetyLlm / recordRegeneration used by guardStory)
+// is present — a partial mock leaves those undefined and breaks route loading.
+// Only getMetrics (drives the "every 20th request" alerting) and recordTTS
+// (asserted below) are overridden.
+vi.mock("./metrics", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./metrics")>();
+  return {
+    ...actual,
+    getMetrics: vi.fn(() => ({
+      requests: { total: 20, errors: 0, byStatus: {} },
+      tts: { calls: 0, failures: 0, cacheHits: 0, cacheHitRate: "0%" },
+    })),
+    recordTTS: vi.fn(),
+  };
+});
+
+// The TTS test hits the real tts route → generateSpeech(); mock ElevenLabs so it
+// never calls the network. Spread the real module to keep VOICE_MAP / MODE_*
+// (also imported by the route) intact.
+vi.mock("./elevenlabs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./elevenlabs")>();
+  return {
+    ...actual,
+    generateSpeech: vi.fn(async () => Buffer.from("mock-audio")),
+  };
+});
 
 describe("Server index integration", () => {
-  let app: any;
+  let app: Express;
 
   beforeAll(async () => {
     vi.stubEnv("AI_INTEGRATIONS_GEMINI_API_KEY", "mock-gemini-key");

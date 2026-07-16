@@ -35,8 +35,8 @@ const storyRecord = storyToRecord(mockStory);
 console.log('Story mapped to record:');
 console.log(' - ID:', storyRecord.id);
 console.log(' - Deleted:', storyRecord.deleted);
-console.log(' - Stripped avatar:', (storyRecord.payload as any).avatar === undefined);
-console.log(' - Stripped scenes:', (storyRecord.payload as any).scenes === undefined);
+console.log(' - Stripped avatar:', !('avatar' in storyRecord.payload));
+console.log(' - Stripped scenes:', !('scenes' in storyRecord.payload));
 
 const restoredStory = recordToStory(storyRecord);
 console.log('Restored Story id matches:', restoredStory.id === mockStory.id);
