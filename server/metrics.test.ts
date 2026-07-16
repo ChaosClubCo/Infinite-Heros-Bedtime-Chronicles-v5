@@ -3,6 +3,10 @@ import {
   recordRequest,
   recordAICall,
   recordTTS,
+  recordContentBlock,
+  recordRegeneration,
+  recordFallback,
+  recordSafetyLlm,
   getMetrics,
   resetMetrics,
 } from './metrics';
@@ -130,6 +134,47 @@ describe('recordTTS', () => {
   });
 });
 
+describe('safety metrics', () => {
+  it('counts blocks and tallies categories without recording story text', () => {
+    recordContentBlock(['weapons', 'scary']);
+    recordContentBlock(['weapons']);
+    const { safety } = getMetrics();
+    expect(safety.blocks).toBe(2);
+    expect(safety.byCategory.weapons).toBe(2);
+    expect(safety.byCategory.scary).toBe(1);
+  });
+
+  it('tracks regeneration attempts and success rate', () => {
+    recordRegeneration(true);
+    recordRegeneration(false);
+    const { safety } = getMetrics();
+    expect(safety.regenerations).toBe(2);
+    expect(safety.regenerationSuccesses).toBe(1);
+    expect(safety.regenerationSuccessRate).toBe('50.0%');
+  });
+
+  it('returns 0% regeneration success rate when none attempted', () => {
+    expect(getMetrics().safety.regenerationSuccessRate).toBe('0%');
+  });
+
+  it('counts fallbacks and LLM checks/failures', () => {
+    recordFallback();
+    recordSafetyLlm(true);
+    recordSafetyLlm(false);
+    const { safety } = getMetrics();
+    expect(safety.fallbacks).toBe(1);
+    expect(safety.llmChecks).toBe(2);
+    expect(safety.llmFailures).toBe(1);
+  });
+
+  it('exposes byCategory as a copy (mutation-safe)', () => {
+    recordContentBlock(['death']);
+    const snapshot = getMetrics().safety.byCategory;
+    snapshot.death = 999;
+    expect(getMetrics().safety.byCategory.death).toBe(1);
+  });
+});
+
 describe('getMetrics — latency percentiles', () => {
   it('returns 0 for all percentiles when no AI calls recorded', () => {
     const { latency } = getMetrics().ai;
@@ -192,6 +237,22 @@ describe('resetMetrics', () => {
     expect(m.tts.calls).toBe(0);
     expect(m.tts.cacheHits).toBe(0);
     expect(m.tts.failures).toBe(0);
+  });
+
+  it('clears safety counters and category map', () => {
+    recordContentBlock(['weapons']);
+    recordRegeneration(true);
+    recordFallback();
+    recordSafetyLlm(true);
+    resetMetrics();
+    const { safety } = getMetrics();
+    expect(safety.blocks).toBe(0);
+    expect(safety.regenerations).toBe(0);
+    expect(safety.regenerationSuccesses).toBe(0);
+    expect(safety.fallbacks).toBe(0);
+    expect(safety.llmChecks).toBe(0);
+    expect(safety.llmFailures).toBe(0);
+    expect(Object.keys(safety.byCategory)).toHaveLength(0);
   });
 
   it('clears byStatus and byProvider maps', () => {

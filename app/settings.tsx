@@ -20,6 +20,7 @@ import { useSettings, AppSettings } from "@/lib/SettingsContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useConsent } from "@/lib/ConsentContext";
 import { clearAllData } from "@/lib/storage";
+import { purgeCloudData, runSync } from "@/lib/sync/runSync";
 
 const VOICES = [
   { id: "moonbeam", label: "Moonbeam" },
@@ -140,7 +141,7 @@ export default function SettingsScreen() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
   const { settings, updateSetting, resetSettings } = useSettings();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { markUnconsented } = useConsent();
 
   const handleReset = () => {
@@ -171,6 +172,10 @@ export default function SettingsScreen() {
           text: "Delete Everything",
           style: "destructive",
           onPress: async () => {
+            // Purge the cloud copy first (needs the session), then wipe local,
+            // then sign out. purgeCloudData is a safe no-op when sync is off /
+            // not signed in.
+            await purgeCloudData();
             await clearAllData();
             await signOut();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -346,6 +351,29 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.card}>
+          <SectionHeader title="Cloud Backup" icon="cloud-outline" />
+
+          <SettingRow label="Sync stories & progress" last>
+            <Switch
+              value={settings.cloudSyncEnabled}
+              disabled={!user}
+              onValueChange={(v) => {
+                updateSetting("cloudSyncEnabled", v);
+                // Kick an immediate sync when turning it on (best-effort).
+                if (v) void runSync(true);
+              }}
+              trackColor={{ false: "rgba(255,255,255,0.1)", true: `${Colors.accent}80` }}
+              thumbColor={settings.cloudSyncEnabled && user ? Colors.accent : "rgba(255,255,255,0.5)"}
+            />
+          </SettingRow>
+          {!user && (
+            <Text style={styles.syncHint}>
+              Sign in to back up your stories and progress across devices.
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.card}>
           <SectionHeader title="Legal" icon="document-text-outline" />
 
           <Pressable
@@ -480,6 +508,13 @@ const styles = StyleSheet.create({
   settingControl: {
     flex: 1,
     alignItems: "flex-end",
+  },
+  syncHint: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.45)",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   chipRow: {
     flexDirection: "row",

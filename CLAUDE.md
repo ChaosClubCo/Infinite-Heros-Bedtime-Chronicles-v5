@@ -1,5 +1,26 @@
 # CLAUDE.md - Infinity Heroes: Bedtime Chronicles v5
 
+## Merge Provenance
+
+This codebase is the result of consolidating three sibling repos into one canonical
+"super version" (2026-07-13):
+- **`chaosclubco/infinite-heros-bedtime-chronicles-v5`** — this repo; the canonical base
+  (clean, modular, most feature-complete of the three).
+- **`krosebrook/bedtime_chronicles-v2`** — contributed one ported feature (the offline
+  sync-queue, see below). Its repo also contained an actively-developed native
+  Android/Kotlin rewrite (Jetpack Compose, Room DB) that was **archived, not carried
+  forward** — Expo/React Native remains the sole canonical client. See
+  `archive/android-kotlin-rewrite/README.md` for what it was and how to retrieve the
+  full source (preserved on the `archive/android-kotlin-rewrite-2026-07-13` branch in
+  that repo). Its Firebase auth was likewise not ported — Supabase auth (already in this
+  repo) remains canonical.
+- **`krosebrook/infinite-heros-bedtime-chronicles-v5-main`** — had no application source
+  in its git history (only docs/config); contributed nothing beyond receiving the merged
+  tree so all three repos converge on identical content.
+- **Ported from v2:** the offline interaction sync-queue (`lib/sync-queue.ts`,
+  `lib/useSyncOffline.ts`, `POST /api/sync/interactions`) — see the `lib/` and
+  "Key API Endpoints" sections below.
+
 ## Project Overview
 
 AI-powered interactive bedtime story app for children ages 3-9. Kids create custom superheroes and experience personalized, AI-generated adventures with illustrations, narration, and gamification. Full-stack mobile-first app using Expo (React Native) frontend with Express.js backend.
@@ -81,8 +102,9 @@ lib/                    # Client utilities
   storage.comprehensive.test.ts  # Extended storage test suite
   storage-migration.ts  # Versioned AsyncStorage migration runner (see Known Gotchas)
   storage-migration.test.ts      # Storage migration tests
-  launch-gate.ts        # resolveLaunchRoute(): single source of truth for the cold-start consent/onboarding decision
+  launch-gate.ts        # resolveLaunchRoute(): single source of truth for the cold-start consent/onboarding decision; also runs runStorageMigrations() first
   launch-gate.test.ts   # Launch-gate unit tests
+  sync/                 # Cloud-sync engine (M3): reconcile.ts (pure last-write-wins + tombstones), mappers.ts (local⇄SyncRecord, strips base64 blobs), supabase-sync.ts (pull/push/purge on sync_records), engine.ts (syncEntity/syncAll via EntityAdapter), storage-adapters.ts (all six entity adapters), runSync.ts (gated runSync()/purgeCloudData()). Triggered by components/SyncManager.tsx (mounted in app/_layout.tsx; runs on app open, foreground, and reconnect) + app/completion.tsx (after save). See supabase/migrations/0001_sync_tables.sql
   ConsentContext.tsx    # Reactive consent state driving the root layout's Stack.Protected guard
   scene-handoff.ts      # In-memory handoff of scene images from story → completion (too large for nav params)
   replay-params.ts      # buildStoryReplayParams(): shared /story replay params for all replay entry points
@@ -90,6 +112,10 @@ lib/                    # Client utilities
   query-client.ts       # TanStack React Query config (staleTime: Infinity, retry: false)
   query-client.test.ts  # Query client unit tests
   useNetworkStatus.ts   # NetInfo hook returning { isConnected, isInternetReachable } (used by app/_layout.tsx to gate OfflineBanner)
+  sync-queue.ts         # Offline interaction queue (like/unlike/story_completion) — ported from bedtime_chronicles-v2, see Merge Provenance
+  useSyncOffline.ts     # Drains lib/sync-queue.ts on reconnect via POST /api/sync/interactions, invalidates stories/favorites/readStories queries
+  SyncOfflineContext.tsx # Mounts useSyncOffline() once at app root (app/_layout.tsx); screens read status via useSyncOfflineStatus()
+  sync-queue.test.ts    # Sync-queue unit tests
   badges.ts             # Centralized badge-award evaluation (see Badge System)
   badges.test.ts        # Badge logic unit tests
   customHeroStorage.ts  # AsyncStorage helpers for user-created custom heroes
@@ -109,7 +135,7 @@ server/                 # Express.js backend
   idempotency.ts        # Idempotency cache (TTL 5 min, keyed by request hash; KV-backed for cross-invocation survival — see kv.ts)
   logger.ts             # pino structured logger
   metrics.ts            # In-process metrics (request/provider counters)
-  feature-flags.ts      # Runtime feature flag resolver
+  feature-flags.ts      # Runtime feature flag resolver (incl. contentSafety* flags)
   tts-cache.ts          # TTS file cache with size + age limits
   utils.ts              # toErrorMessage, classifyError, createErrorResponse
   alerting.ts           # Fires Sentry alerts on 5xx-rate / TTS-failure-rate threshold breaches
@@ -118,6 +144,7 @@ server/                 # Express.js backend
   ai/                   # Multi-provider AI router
     index.ts            # Provider registration & status checking
     router.ts           # AIRouter class with fallback chain, circuit breakers, retry
+    json.ts             # extractFirstJson (balanced-brace JSON scan) — shared by router + buffered SSE
     types.ts            # AI provider interface definitions
     cost.ts             # Per-provider token cost estimation
     providers/          # Gemini, OpenAI, Anthropic, OpenRouter
@@ -131,6 +158,8 @@ server/                 # Express.js backend
 shared/                 # Shared between client & server
   schema.ts             # Drizzle ORM schema (users table, re-exports models/chat.ts)
   models/chat.ts        # Conversation & message tables
+  safety-terms.ts       # Canonical HARD banned-term list + containsUnsafeContent() — one source of truth for the server moderator and the client render fail-safe
+  sync-types.ts         # Cloud-sync transport contract (SyncRecord envelope, SyncEntity union) — dependency-free, shared by client + any Edge function
 docs/                   # Project documentation
   ARCHITECTURE.md       # System design & data flow
   API.md                # API endpoint reference (40+ endpoints)
@@ -221,7 +250,8 @@ npm test                    # Vitest unit tests
                                     ├→ [Load shedding] — active-request ceiling
                                     ├→ [Idempotency cache] — 5-min dedup on POSTs
                                     ├→ [AI Router] → Anthropic → Gemini → OpenAI → OpenRouter (circuit-broken + retried)
-                                    ├→ [ElevenLabs TTS] → /tmp/tts-cache (size + age bounded)
+                                    ├→ [Output safety] — moderateStory → regenerate once → known-safe fallback (server/safety/*)
+                                    ├→ [ElevenLabs TTS] → /tmp/tts-cache (size + age bounded); client also caches MP3s on-device (lib/tts-cache.ts)
                                     ├→ [PostgreSQL + Drizzle] (voice chat history)
                                     └→ [OpenAI Sora] (video generation)
 ```
@@ -283,6 +313,9 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 - `GET /api/ai-providers` — Provider availability status
 - `GET /api/metrics` — In-process metrics
 - `GET /privacy` — Privacy policy HTML
+
+**Sync:**
+- `POST /api/sync/interactions` — Drain target for the client's offline interaction queue (`lib/sync-queue.ts`); currently logs/echoes each interaction, no backing datastore yet
 
 **Video (optional):**
 - `GET /api/video-available` — Whether video generation is configured
@@ -485,6 +518,7 @@ Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: 
 - `@infinity_heroes_preferences` — Legacy key (auto-migrates to app_settings)
 - `@infinity_heroes_settings_migrated` — Migration flag for legacy → new settings
 - `@infinity_heroes_storage_version` — Storage-schema version tracked by `lib/storage-migration.ts`
+- `@infinity_heroes_offline_queue` — Pending offline interaction queue (like/unlike/story_completion), drained by `lib/sync-queue.ts` on reconnect
 
 ## App Settings (defaults)
 ```typescript
@@ -506,7 +540,8 @@ Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: 
   isMuted: false,
   reducedMotion: false,
   fontSize: "normal",        // normal | large
-  sleepTheme: "Cloud Kingdom"
+  sleepTheme: "Cloud Kingdom",
+  cloudSyncEnabled: false     // M3 parent opt-in for cloud sync/backup (off by default)
 }
 ```
 
@@ -569,7 +604,7 @@ npm run test:coverage   # vitest run --coverage
 - Server uses esbuild for production bundling to `server_dist/`
 - Voice chat routes only registered when `AI_INTEGRATIONS_OPENAI_API_KEY` and `DATABASE_URL` are set and the `voiceChatEnabled` feature flag is on (`server/routes.ts`)
 - React Query configured with `staleTime: Infinity`, `retry: false`, `refetchOnWindowFocus: false`
-- TTS audio cached at `/tmp/tts-cache` with configurable max age and max size
+- TTS audio cached server-side at `/tmp/tts-cache` (max age + size) AND on-device by the client (`lib/tts-cache.ts`, expo-file-system) so replays are instant and work offline — see `lib/narration.ts` for the resolve-or-fetch flow
 - 12 randomized art styles for scene illustrations (watercolor, cel-shaded, paper cutout, gouache, crayon, digital, retro storybook, ink wash, pastel, pop art, chalk, flat design)
 - Runbooks for deploy, incident response, provider outage, and rollback live in `docs/runbooks/`
 
@@ -581,6 +616,10 @@ npm run test:coverage   # vitest run --coverage
 - **Never use `./gradlew` or `gradlew`** — EAS Build manages Gradle internally; use `npx expo` or `eas` CLI commands instead
 - **`expo:dev` requires Replit env vars** — outside Replit, use `npx expo start` directly
 - AI router automatically falls back through providers, with circuit breakers and retry — check `server/ai/router.ts`
+- **AI OUTPUT safety is now enforced, not just prompt-side.** `server/routes/story.ts` runs every generated story through `guardStory` (`server/safety/story-guard.ts`): `moderateStory` (`content-safety.ts`) → on a block, regenerate ONCE with `buildStricterSystemPrompt` → if still unsafe, serve a known-safe fallback (`fallback-stories.ts`). The child never sees flagged text or a raw error. Gated by `FEATURE_CONTENT_SAFETY_ENABLED` (default on). HARD terms live in `shared/safety-terms.ts` (shared with the client fail-safe in `components/StoryTextDisplay.tsx`); SOFT/contextual terms are server-only in `server/safety/terms.ts`. When safety is on, `/api/generate-story-stream` buffers-then-emits (a single `complete` event) instead of streaming raw tokens.
+- **On-device TTS cache**: `lib/useStoryAudio.ts` no longer re-fetches narration every play — it calls `resolveNarrationUri` (`lib/narration.ts`), which returns a cached `file://` clip when present (offline-capable) or fetches + caches on a miss (`lib/tts-cache.ts`, keyed by md5 of `voice:mode:text` to mirror the server). Any FS/crypto failure degrades gracefully to streaming. `prefetchNarration()` is available to warm the next part but is not wired into the story screen yet.
+- **Storage migrations are now wired**: `runStorageMigrations()` (`lib/storage-migration.ts`) runs at the start of `resolveLaunchRoute()` (`lib/launch-gate.ts`) — the earliest cold-start storage touch — so it was previously defined-but-never-called.
+- **Cloud sync (M3) — OFF by default (`cloudSyncEnabled` setting, default false).** Decisions: parent opt-in, stories+gamification only (NO profile PII), last-write-wins, local-wipe→cloud-purge. Built + tested end-to-end (all six entities): schema+RLS (`supabase/migrations/0001_sync_tables.sql`, **applied to the Bedtime-chronicles Supabase project** `aeraxfupuvwiskmfjliq`), reconcile/mappers/engine/IO (`lib/sync/*`), adapters for **stories** (blob-preserving), **badges**, **streaks**, **favorites**/**read** (via a change-time sidecar `@infinity_heroes_sync_meta` stamped by `toggleFavorite`/`markStoryRead`), and **profileStub** (creates an editable placeholder profile for an unknown id so gamification anchors across devices — name/age never sync; `mergeSyncedProfileStubs`). Gated `runSync()`/`purgeCloudData()` (`lib/sync/runSync.ts`), opt-in **toggle** in `app/settings.tsx`, **triggers** (`components/SyncManager.tsx` — mounted in `_layout`, runs on open/foreground/reconnect — + `app/completion.tsx` after-save), cloud-purge in "delete all data". Note: this is the durable Supabase *state* sync, distinct from the ported offline interaction *event* queue (`lib/sync-queue.ts` / `useSyncOffline`); they coexist by design and overlap on favorites/completions. **NOT yet verified on a device** — the toggle/triggers/placeholder behavior need an end-to-end pass. M4 (native Kotlin audio) remains gated on the V2 repo + ejecting managed Expo.
 - ElevenLabs voices are hardcoded in `server/elevenlabs.ts` with specific voice IDs
 - Expo Router (file-based routing, package major 56) — screen paths map to file paths in `app/`
 - `postinstall` runs `patch-package || true` — currently a no-op (`patches/` was removed after the SDK 55 upgrade) but kept so future patches apply automatically
@@ -596,6 +635,8 @@ npm run test:coverage   # vitest run --coverage
 - **COPPA consent gate** — two layers: `app/index.tsx` (the "/" launch gate) resolves the cold-start route via `lib/launch-gate.ts` (`resolveLaunchRoute()`: consent before onboarding, fail-safe to consent), and `app/_layout.tsx` wraps every screen except `index`/`parental-consent`/`privacy` in `Stack.Protected` guarded by `lib/ConsentContext.tsx` — so deep links and restored navigation state can't mount protected screens un-consented either. Consent is keyed by `CONSENT_VERSION` (`constants/types.ts`) — bump it to re-prompt existing installs when privacy practices change
 - **AI router JSON extraction** — `router.ts` uses `extractFirstJson()` (balanced-brace scan that skips string literals), not a greedy regex; callers consume `response.parsedJson` when `jsonMode` is set
 - **Streaming model field** — `router.ts` reports the provider's `textModel` (the concrete model ID) on streaming chunks, falling back to `provider.name` only when `textModel` is unset
+- **Offline sync-queue is best-effort, not durable** — `POST /api/sync/interactions` (see `lib/sync-queue.ts`) currently logs and echoes each interaction; nothing is persisted server-side yet. Don't assume synced interactions survive a server restart or are queryable later. Each item is Zod-validated (`SyncInteractionSchema` in `server/validation.ts`); malformed items come back `status: "rejected"` rather than crashing the batch or being marked processed. `useSyncOffline()` is mounted exactly once, in `app/_layout.tsx` via `lib/SyncOfflineContext.tsx` — screens read `useSyncOfflineStatus()` instead of calling the hook directly, so the reconnect drain can't run more than once concurrently.
+- **`archive/android-kotlin-rewrite/`** — docs-only pointer to a native Android/Kotlin client that was developed in a sibling repo and archived rather than merged; see its `README.md` for retrieval instructions. Not part of the active app.
 
 ## Files/Directories — Do Not Modify Without Explicit Approval
 

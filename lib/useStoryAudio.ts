@@ -1,8 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Audio } from "expo-av";
 import * as Haptics from "expo-haptics";
-import { fetch } from "expo/fetch";
-import { getApiUrl } from "@/lib/query-client";
+import { resolveNarrationUri } from "@/lib/narration";
 import { SPEED_RATES, type ModeVoice, type StoryMode } from "@/constants/story-theme";
 import type { StoryPart } from "@/constants/types";
 
@@ -59,25 +58,13 @@ export function useStoryAudio({ currentPart, storyMode, initialVoice, initialSpe
 
     setAudioLoading(true);
     try {
-      const baseUrl = getApiUrl();
-      const ttsUrl = new URL("/api/tts", baseUrl);
-
-      const response = await fetch(ttsUrl.toString(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: currentPart.text,
-          voice: currentVoice,
-          mode: storyMode,
-        }),
+      // Resolves to a cached on-device file when available (instant, offline),
+      // otherwise fetches from the server and caches for next time.
+      const audioFileUrl = await resolveNarrationUri({
+        text: currentPart.text,
+        voice: currentVoice,
+        mode: storyMode,
       });
-
-      if (!response.ok) throw new Error("TTS request failed");
-
-      const data = await response.json();
-      if (!data.audioUrl) throw new Error("No audio URL returned");
-
-      const audioFileUrl = new URL(data.audioUrl, baseUrl).toString();
 
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,

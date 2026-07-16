@@ -9,17 +9,19 @@ import {
   TextInput,
   Image,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
 import { useProfile } from "@/lib/ProfileContext";
 import { getAllStories } from "@/lib/storage";
+import { useSyncOfflineStatus } from "@/lib/SyncOfflineContext";
 import { buildStoryReplayParams } from "@/lib/replay-params";
 import { CachedStory } from "@/constants/types";
 import { HEROES } from "@/constants/heroes";
@@ -110,6 +112,7 @@ export default function HomeScreen() {
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
   const [searchText, setSearchText] = useState("");
   const { activeProfile } = useProfile();
+  const { isSyncing } = useSyncOfflineStatus();
   const [recentStories, setRecentStories] = useState<CachedStory[]>([]);
   useFocusEffect(
     useCallback(() => {
@@ -152,6 +155,12 @@ export default function HomeScreen() {
               <Text style={styles.headerName}>
                 {activeProfile?.name || "Little Explorer"} ✨
               </Text>
+              {isSyncing && (
+                <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.syncPill} testID="home_sync_indicator">
+                  <ActivityIndicator size="small" color={Colors.accent} />
+                  <Text style={styles.syncPillText}>Syncing Chronicles...</Text>
+                </Animated.View>
+              )}
             </View>
             <View style={styles.headerRight}>
               <Pressable
@@ -388,6 +397,22 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: "#FFFFFF",
     letterSpacing: -0.3,
+  },
+  syncPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: "rgba(99,102,241,0.12)",
+  },
+  syncPillText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    color: Colors.accent,
   },
   headerRight: {
     flexDirection: "row",

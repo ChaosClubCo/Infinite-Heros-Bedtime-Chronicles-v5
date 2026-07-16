@@ -21,6 +21,21 @@ describe('feature-flags', () => {
       const { getFeatureFlags } = await import('./feature-flags');
       expect(getFeatureFlags().streamingEnabled).toBe(true);
     });
+
+    it('contentSafetyEnabled defaults to true (env var absent)', async () => {
+      const { getFeatureFlags } = await import('./feature-flags');
+      expect(getFeatureFlags().contentSafetyEnabled).toBe(true);
+    });
+
+    it('contentSafetyLlmLayer defaults to false (env var absent)', async () => {
+      const { getFeatureFlags } = await import('./feature-flags');
+      expect(getFeatureFlags().contentSafetyLlmLayer).toBe(false);
+    });
+
+    it('contentSafetyStrict defaults to false (env var absent)', async () => {
+      const { getFeatureFlags } = await import('./feature-flags');
+      expect(getFeatureFlags().contentSafetyStrict).toBe(false);
+    });
   });
 
   describe('env var overrides', () => {
@@ -58,6 +73,24 @@ describe('feature-flags', () => {
       vi.stubEnv('FEATURE_STREAMING_ENABLED', 'true');
       const { getFeatureFlags } = await import('./feature-flags');
       expect(getFeatureFlags().streamingEnabled).toBe(true);
+    });
+
+    it('contentSafetyEnabled is false when FEATURE_CONTENT_SAFETY_ENABLED=false', async () => {
+      vi.stubEnv('FEATURE_CONTENT_SAFETY_ENABLED', 'false');
+      const { getFeatureFlags } = await import('./feature-flags');
+      expect(getFeatureFlags().contentSafetyEnabled).toBe(false);
+    });
+
+    it('contentSafetyLlmLayer is true when FEATURE_CONTENT_SAFETY_LLM=true', async () => {
+      vi.stubEnv('FEATURE_CONTENT_SAFETY_LLM', 'true');
+      const { getFeatureFlags } = await import('./feature-flags');
+      expect(getFeatureFlags().contentSafetyLlmLayer).toBe(true);
+    });
+
+    it('contentSafetyStrict is true when FEATURE_CONTENT_SAFETY_STRICT=true', async () => {
+      vi.stubEnv('FEATURE_CONTENT_SAFETY_STRICT', 'true');
+      const { getFeatureFlags } = await import('./feature-flags');
+      expect(getFeatureFlags().contentSafetyStrict).toBe(true);
     });
   });
 

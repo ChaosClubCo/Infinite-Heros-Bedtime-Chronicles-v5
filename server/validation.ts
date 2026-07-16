@@ -148,3 +148,12 @@ export type SuggestSettingsRequest = z.output<typeof SuggestSettingsRequestSchem
 export function parseStoryRequest(body: unknown): ReturnType<typeof StoryRequestSchema.safeParse> {
   return StoryRequestSchema.safeParse(body);
 }
+
+export const SyncInteractionSchema = z.object({
+  id: truncated(100).optional(),
+  type: z.enum(['like', 'unlike', 'story_completion'], { message: 'Invalid interaction type' }),
+  storyId: truncated(MAX_INPUT_STRING_LENGTH).refine((s) => s.length > 0, { message: 'storyId is required' }),
+  timestamp: z.number().optional(),
+});
+
+export type SyncInteraction = z.output<typeof SyncInteractionSchema>;

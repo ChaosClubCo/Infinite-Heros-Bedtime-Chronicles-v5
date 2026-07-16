@@ -7,18 +7,21 @@ import {
   FlatList,
   Pressable,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, router } from "expo-router";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
 import { HEROES } from "@/constants/heroes";
 
 import { CachedStory } from "@/constants/types";
 import { getAllStories, getFavorites, toggleFavorite } from "@/lib/storage";
+import { queueInteraction } from "@/lib/sync-queue";
+import { useSyncOfflineStatus } from "@/lib/SyncOfflineContext";
 import { confirmDestructive } from "@/lib/confirmDestructive";
 import { buildStoryReplayParams } from "@/lib/replay-params";
 
@@ -44,6 +47,7 @@ export default function SavedScreen() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const [savedStories, setSavedStories] = useState<CachedStory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { isSyncing } = useSyncOfflineStatus();
 
   useFocusEffect(
     useCallback(() => {
@@ -68,7 +72,10 @@ export default function SavedScreen() {
   const handleUnfavorite = (id: string, title: string) => {
     confirmDestructive("Remove from Saved", `Remove "${title}" from your saved stories?`, "Remove", () => {
       toggleFavorite(id)
-        .then(() => setSavedStories((prev) => prev.filter((s) => s.id !== id)))
+        .then(() => {
+          setSavedStories((prev) => prev.filter((s) => s.id !== id));
+          void queueInteraction("unlike", id);
+        })
         .catch((err) => console.error("Failed to remove favorite", err));
     });
   };
@@ -144,6 +151,12 @@ export default function SavedScreen() {
             <Text style={styles.countText}>{savedStories.length}</Text>
           </View>
         )}
+        {isSyncing && (
+          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.syncPill} testID="saved_sync_indicator">
+            <ActivityIndicator size="small" color="#f43f5e" />
+            <Text style={styles.syncPillText}>Syncing...</Text>
+          </Animated.View>
+        )}
       </View>
 
       {!isLoading && savedStories.length === 0 ? (
@@ -198,6 +211,20 @@ const styles = StyleSheet.create({
   countText: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 13,
+    color: "#f43f5e",
+  },
+  syncPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: "rgba(244,63,94,0.1)",
+  },
+  syncPillText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
     color: "#f43f5e",
   },
   list: {
