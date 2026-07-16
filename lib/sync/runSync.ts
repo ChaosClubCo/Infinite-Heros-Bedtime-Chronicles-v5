@@ -2,15 +2,11 @@
  * Gated entry points for cloud sync. These are the ONLY functions app code
  * should call — they enforce the guardrails (parent opt-in + a signed-in
  * session + configured Supabase) so nothing ever syncs by accident.
- *
- * Wire `runSync(settings.cloudSyncEnabled)` to sync triggers (e.g. after a story
- * is saved, or on app foreground) and `purgeCloudData()` into the "clear all
- * data" flow so a local wipe also removes the cloud copy.
  */
 
 import { getSupabaseClient } from '@/lib/AuthContext';
+import { apiRequest } from '@/lib/query-client';
 import { syncAll, type EntityAdapter } from './engine';
-import { purgeCloud } from './supabase-sync';
 import {
   storiesAdapter, badgesAdapter, streaksAdapter,
   favoritesAdapter, readAdapter, profileStubAdapter,
@@ -55,16 +51,17 @@ export async function runSync(enabled: boolean): Promise<boolean> {
 }
 
 /**
- * Purge every synced record for the signed-in user (local-wipe → cloud-purge).
- * No-op when auth isn't configured / not signed in. Returns whether a purge ran.
+ * Permanently delete every server-side record owned by the signed-in parent.
+ *
+ * The settings screen already calls this before clearing local storage. The
+ * server endpoint deletes PostgreSQL conversation transcripts, then deletes the
+ * Supabase Auth identity; the auth.users cascade removes sync_records. Unlike
+ * background sync, deletion intentionally throws on failure so the caller does
+ * not wipe the device and sign out while retained server data still exists.
  */
 export async function purgeCloudData(): Promise<boolean> {
-  try {
-    const ctx = await currentUserId();
-    if (!ctx) return false;
-    await purgeCloud(ctx.sb, ctx.userId);
-    return true;
-  } catch {
-    return false;
-  }
+  const ctx = await currentUserId();
+  if (!ctx) return false;
+  await apiRequest('DELETE', 'api/account');
+  return true;
 }
