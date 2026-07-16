@@ -1,6 +1,10 @@
 name: Release Proof
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/release-proof.yml
   workflow_dispatch:
     inputs:
       release_sha:
@@ -11,29 +15,50 @@ on:
         description: HTTPS URL of the deployed candidate
         required: true
         type: string
-      physical_device_evidence_url:
-        description: Private evidence URL for the completed device matrix
+      proof_phase:
+        description: Run automated proof first; finalize only after manual evidence exists
         required: true
+        default: automated
+        type: choice
+        options:
+          - automated
+          - finalize
+      evidence_issue:
+        description: Canonical GitHub issue number that receives the run result
+        required: true
+        default: "355"
+        type: string
+      physical_device_evidence_url:
+        description: Private evidence URL for the completed device matrix (required only for finalize)
+        required: false
         type: string
       backup_restore_evidence_url:
-        description: Private evidence URL for disposable backup/restore proof
-        required: true
+        description: Private evidence URL for disposable backup/restore proof (required only for finalize)
+        required: false
         type: string
       rollback_evidence_url:
-        description: Private evidence URL for the rollback drill
-        required: true
+        description: Private evidence URL for the rollback drill (required only for finalize)
+        required: false
         type: string
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
-  group: release-proof-${{ inputs.release_sha }}
+  group: release-proof-${{ github.event_name == 'workflow_dispatch' && inputs.release_sha || github.event.before }}
   cancel-in-progress: false
+
+env:
+  RELEASE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.release_sha || github.event.before }}
+  BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || 'https://www.bedtime-chronicles.com' }}
+  PROOF_PHASE: ${{ github.event_name == 'workflow_dispatch' && inputs.proof_phase || 'automated' }}
+  EVIDENCE_ISSUE: ${{ github.event_name == 'workflow_dispatch' && inputs.evidence_issue || '355' }}
 
 jobs:
   validate-candidate:
     name: Validate exact candidate
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run-release-proof]')
     runs-on: ubuntu-latest
     env:
       CI: true
@@ -41,20 +66,26 @@ jobs:
     steps:
       - name: Validate inputs
         env:
-          RELEASE_SHA: ${{ inputs.release_sha }}
-          BASE_URL: ${{ inputs.base_url }}
+          DEVICE_EVIDENCE: ${{ inputs.physical_device_evidence_url }}
+          BACKUP_EVIDENCE: ${{ inputs.backup_restore_evidence_url }}
+          ROLLBACK_EVIDENCE: ${{ inputs.rollback_evidence_url }}
         run: |
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$BASE_URL" =~ ^https://[^[:space:]]+$ ]]
+          if [[ "$PROOF_PHASE" == "finalize" ]]; then
+            [[ "$DEVICE_EVIDENCE" =~ ^https://[^[:space:]]+$ ]]
+            [[ "$BACKUP_EVIDENCE" =~ ^https://[^[:space:]]+$ ]]
+            [[ "$ROLLBACK_EVIDENCE" =~ ^https://[^[:space:]]+$ ]]
+          fi
 
       - name: Checkout exact candidate
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.release_sha }}
+          ref: ${{ env.RELEASE_SHA }}
 
       - name: Verify checked-out SHA
         env:
-          RELEASE_SHA: ${{ inputs.release_sha }}
+          RELEASE_SHA: ${{ env.RELEASE_SHA }}
         run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
 
       - name: Setup Node.js
@@ -88,7 +119,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.release_sha }}
+          ref: ${{ env.RELEASE_SHA }}
 
       - uses: actions/setup-node@v6
         with:
@@ -117,12 +148,12 @@ jobs:
 
   deployed-smoke:
     name: Deployed SHA and HTTPS smoke
-    needs: [validate-candidate, eas-internal-android]
+    needs: validate-candidate
     runs-on: ubuntu-latest
     steps:
       - name: Fetch deployed health and privacy notice
         env:
-          BASE_URL: ${{ inputs.base_url }}
+          BASE_URL: ${{ env.BASE_URL }}
         run: |
           curl --fail --silent --show-error --proto '=https' --tlsv1.2             "$BASE_URL/api/health" --output health.json
           curl --fail --silent --show-error --proto '=https' --tlsv1.2             "$BASE_URL/privacy" --output privacy.html
@@ -130,7 +161,7 @@ jobs:
 
       - name: Verify deployed release SHA
         env:
-          RELEASE_SHA: ${{ inputs.release_sha }}
+          RELEASE_SHA: ${{ env.RELEASE_SHA }}
         run: |
           node -e '
             const fs = require("node:fs");
@@ -158,7 +189,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.release_sha }}
+          ref: ${{ env.RELEASE_SHA }}
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
@@ -169,7 +200,7 @@ jobs:
       - name: Send and flush test event
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          RELEASE_SHA: ${{ inputs.release_sha }}
+          RELEASE_SHA: ${{ env.RELEASE_SHA }}
         run: |
           test -n "$SENTRY_DSN"
           node <<'NODE'
@@ -194,13 +225,14 @@ jobs:
 
   evidence-manifest:
     name: Record manual evidence references
-    needs: [deployed-smoke, alert-delivery]
+    needs: [eas-internal-android, deployed-smoke, alert-delivery]
+    if: inputs.proof_phase == 'finalize'
     runs-on: ubuntu-latest
     steps:
       - name: Build evidence manifest
         env:
-          RELEASE_SHA: ${{ inputs.release_sha }}
-          BASE_URL: ${{ inputs.base_url }}
+          RELEASE_SHA: ${{ env.RELEASE_SHA }}
+          BASE_URL: ${{ env.BASE_URL }}
           DEVICE_EVIDENCE: ${{ inputs.physical_device_evidence_url }}
           BACKUP_EVIDENCE: ${{ inputs.backup_restore_evidence_url }}
           ROLLBACK_EVIDENCE: ${{ inputs.rollback_evidence_url }}
@@ -228,3 +260,48 @@ jobs:
           name: release-evidence-manifest
           path: release-evidence.json
           retention-days: 90
+
+  report-results:
+    name: Attach proof result to evidence ledger
+    needs: [validate-candidate, eas-internal-android, deployed-smoke, alert-delivery, evidence-manifest]
+    if: always() && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run-release-proof]'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment canonical evidence issue
+        uses: actions/github-script@v7
+        env:
+          VALIDATE_RESULT: ${{ needs.validate-candidate.result }}
+          EAS_RESULT: ${{ needs.eas-internal-android.result }}
+          SMOKE_RESULT: ${{ needs.deployed-smoke.result }}
+          ALERT_RESULT: ${{ needs.alert-delivery.result }}
+          MANIFEST_RESULT: ${{ needs.evidence-manifest.result }}
+        with:
+          script: |
+            const issueNumber = Number(process.env.EVIDENCE_ISSUE);
+            if (!Number.isInteger(issueNumber) || issueNumber < 1) {
+              core.setFailed('EVIDENCE_ISSUE must be a positive issue number');
+              return;
+            }
+            const body = [
+              '## Automated Release Proof result',
+              '',
+              `- Candidate: \`${process.env.RELEASE_SHA}\``,
+              `- Phase: \`${process.env.PROOF_PHASE}\``,
+              `- Exact candidate validation: **${process.env.VALIDATE_RESULT}**`,
+              `- EAS internal Android build: **${process.env.EAS_RESULT}**`,
+              `- Deployed SHA/HTTPS smoke: **${process.env.SMOKE_RESULT}**`,
+              `- Sentry test event: **${process.env.ALERT_RESULT}**`,
+              `- Manual evidence manifest: **${process.env.MANIFEST_RESULT}**`,
+              `- Workflow run: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              process.env.PROOF_PHASE === 'finalize'
+                ? '**Promotion remains NO GO unless every linked manual artifact is independently reviewed.**'
+                : '**Automated phase only. Release remains NO GO; device, restore, rollback, and external compliance evidence are still required.**',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body,
+            });
+
