@@ -2,133 +2,132 @@
 
 **Application:** Infinity Heroes: Bedtime Chronicles  
 **Repository:** `ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5`  
-**Assessed baseline:** `main` at `eb00e2dd2ab82e885fa98b4db50b118964f19deb`  
-**Assessment date:** 2026-07-11  
+**Assessed baseline:** `main` at `0e31e776b4c4817e3d67b174fd9177791a2c5238`  
+**Assessment date:** 2026-07-15  
 **Assessment type:** High-level production-readiness and release-engineering audit  
 **Release recommendation:** **NO GO**  
-**Estimated production readiness:** **55%**  
-**Overall confidence:** **Medium-high for code and repository findings; low-to-medium for deployed cloud configuration**
+**Estimated production readiness:** **62%**  
+**Confidence:** **High for inspected code/configuration; medium for repository workflow state; low for cloud consoles, legal approvals, provider contracts, and real-device behavior**
 
 ## Purpose
 
-This documentation package provides a current, evidence-backed production snapshot for developers, QA, operations, leadership, legal/privacy reviewers, release managers, and future AI agents. It reconciles implemented code, existing documentation, GitHub state, deployment configuration, and open release work.
+This package is the current handoff snapshot for engineering, QA, operations, security, privacy/legal, product leadership, release management, and future AI agents. It distinguishes code that exists from behavior that has been operationally proven.
 
-This assessment does not treat existing documentation as authoritative when it conflicts with code. Every major conclusion is labeled as:
+Finding labels:
 
-- **Verified:** directly supported by current repository code, configuration, or GitHub state.
-- **Inferred:** a reasonable engineering conclusion from verified evidence; operational confirmation is still required.
-- **Unknown:** not available through the repository or connected GitHub metadata.
-- **Requires Manual Validation:** must be confirmed in a cloud console, app-store console, provider dashboard, legal review, device test, or production environment.
+- **Verified:** directly supported by repository code, configuration, commit, or pull-request evidence.
+- **Inferred:** a defensible engineering conclusion from verified evidence.
+- **Unable to Verify:** the repository does not contain enough evidence.
+- **Requires Manual Validation:** must be checked in a cloud/provider/app-store console, a deployed environment, or a physical device.
 
 ## Executive Summary
 
-Infinity Heroes is an AI-powered bedtime-story application for children ages 3–9. The product supports personalized heroes, three story modes, AI-generated stories and illustrations, text-to-speech narration, local profiles and progress, optional voice chat, optional video generation, parental controls, and a parental-consent gate.
+Infinity Heroes is an Expo/React Native and web application for children ages 3–9. It creates personalized bedtime stories, illustrations, narration, heroes, local libraries, achievements, parental controls, optional accounts, optional cloud backup, optional voice conversation, and optional video.
 
-The codebase is materially beyond a disposable prototype. It has a modular Express backend, Expo Router client, strict TypeScript configuration, Zod validation, Supabase authentication, multi-provider AI routing, circuit breakers, retry logic, structured logging, Sentry integration, feature flags, rate limiting, idempotency, test suites, CI definitions, deployment manifests, runbooks, ADRs, and extensive project documentation.
+The repository is well beyond a disposable prototype. Current `main` includes a modular Express API, strict TypeScript, Zod validation, Supabase authentication, PostgreSQL/Drizzle persistence, multi-provider AI routing, retry and circuit breaking, output moderation for generated stories, safe-story fallback, client-side render defense, idempotency, feature flags, structured logs, Sentry integration, health probes, alert thresholds, local narration caching, optional RLS-protected cloud sync, test suites, CI definitions, deployment manifests, ADRs, and runbooks.
 
-The project is not production-ready today. The release is blocked by five categories of risk:
+The project remains **NO GO for a public child-directed release**. The remaining critical problems are concentrated rather than systemic:
 
-1. **Compliance truthfulness and deletion:** the in-app privacy and consent copy states that there are no accounts and no server-side user-data retention, while the implementation supports Supabase accounts and persists voice-chat transcripts in PostgreSQL. “Delete All Data” clears local AsyncStorage and signs out, but does not delete the Supabase identity or PostgreSQL conversations/messages.
-2. **Voice-chat child safety:** the current voice-chat request path sends stored conversation history to `gpt-audio` without the documented child-safety system prompt.
-3. **Primary deployment failure:** open PR #314 documents repeated Cloud Run startup failures because the buildpack runs the Expo development server instead of the production Express process.
-4. **Release governance not proven:** CI is defined, but no workflow runs were returned for the assessed `main` commit, and the commit status only shows Vercel deployment checks.
-5. **Operational controls are incomplete or non-durable:** rate limiting is non-atomic and fail-open under Cloudflare KV errors, metrics are in-memory and publicly exposed, health can report `status: "ok"` with no AI provider available, and no working alert path was verified.
+1. **Parent-facing consent and privacy statements are materially false for the current implementation.** They say there are no accounts, no retained server data, and no stored voice data, while the app includes Supabase sign-in, optional Supabase cloud backup, and PostgreSQL conversation transcripts.
+2. **The audio Voice Chat path is not protected like the text-chat path.** Text chat adds a child-safe system message, sanitizes content, and caps replayed history. Audio Voice Chat transcribes and persists child speech, sends transcript history to `gpt-audio`, and does not add that system guard or a history cap.
+3. **Deletion is only partially complete.** “Delete All Data” now purges optional `sync_records`, clears device storage, and signs out, but does not delete PostgreSQL conversations/messages or the Supabase identity.
+4. **Release governance is not proven.** The workflow definition exists, but no workflow runs or combined status checks were returned for the assessed `main` commit.
+5. **Production operation is not demonstrated.** The Cloud Run entrypoint defect was fixed and merged, but a successful post-merge Cloud Run revision, EAS build, app-store track, device test, external alerts, backup restore, and rollback drill remain unverified.
+
+Major improvements since the original audit baseline include the merged Cloud Run boot fix, server-authoritative story output moderation, regenerate-once and known-safe fallback behavior, client fail-safe rendering, local narration caching, live provider health probes, Sentry threshold alerting, KV-backed idempotency, optional RLS-protected cloud sync, and mounted sync triggers on open/foreground/reconnect.
 
 ## Business Purpose and Target Users
 
-### Business purpose
+**Business purpose:** deliver a calming, personalized bedtime-story experience while giving parents control over content, duration, data use, and optional cloud features.
 
-Provide a child-directed, personalized bedtime experience that combines AI-generated stories, images, narration, optional conversational voice interaction, and parent-managed controls.
+**Users:**
 
-### Target users
+- Children ages 3–9: story and playback experience.
+- Parents/guardians: consent, accounts, settings, deletion, and feature control.
+- Operators: AI cost, safety, privacy, availability, incident response, and app-store compliance.
 
-- Children ages 3–9 as the primary experience users.
-- Parents and guardians as consent, account, settings, and control owners.
-- Operators responsible for AI-provider costs, content safety, privacy, uptime, and app-store compliance.
+**Maturity:** advanced pre-production beta. Core architecture is credible; product truthfulness, audio safety, account/data lifecycle, and operational verification are not release-ready.
 
-### Maturity
+## Production Readiness Scorecard
 
-**Classification:** advanced prototype / pre-production beta requiring compliance and operational hardening.
-
-The application has credible production architecture but lacks sufficient evidence for a safe public launch to children.
-
-## Current Health
-
-| Area | Score | Status | Summary |
+| Area | Score | Status | Current assessment |
 |---|---:|---|---|
-| Architecture | 72/100 | Conditional | Modular client/server design and AI abstraction; deployment topology and domains are inconsistent. |
-| Security | 48/100 | Blocked | Good validation/auth controls; compliance, voice safety, rate limiting, TLS, and public diagnostics require remediation. |
-| Testing | 62/100 | Conditional | Large reported suite; execution not independently verified on current `main`; E2E and deployed smoke coverage remain weak. |
-| Performance | 58/100 | Conditional | Streaming, caching, retries, and load shedding exist; external-call latency, local caches, large audio bodies, and serverless limits remain. |
-| Scalability | 42/100 | Blocked | Instance-local metrics/caches/circuit state and non-atomic KV limiter limit safe horizontal scale. |
-| Reliability | 50/100 | Blocked | Provider fallback is strong; primary Cloud Run path fails and health/readiness semantics are shallow. |
-| Monitoring | 45/100 | Blocked | Pino, Sentry, metrics, and health exist; durable export, dashboards, alerts, SLOs, and proof of operation are missing. |
-| Documentation | 68/100 | Conditional | Extensive documentation exists, but several high-impact documents are stale or contradictory. |
-| Deployment | 35/100 | Blocked | Vercel deploys succeed; Cloud Run is failing; EAS and store submission remain unverified. |
-| Maintainability | 70/100 | Conditional | Modular route structure and conventions are good; generated/scaffolded areas and doc drift remain. |
-| Developer Experience | 66/100 | Conditional | Scripts and guides exist; preflight documentation is inaccurate and environment setup is platform-fragmented. |
-| Operational Readiness | 38/100 | Blocked | No verified on-call, SLO, backup restore test, incident drill, or production rollback validation. |
+| Architecture | 78 | Conditional | Modular client/server/provider/sync design; multiple deployment targets and two sync mechanisms require explicit ownership. |
+| Security | 58 | Blocked | Strong auth/input/story-output controls; audio Voice Chat, TLS, rate limiting, diagnostics, and lifecycle gaps remain. |
+| Testing | 68 | Conditional | Broad unit/integration evidence and reported 1,102+ passing tests; current-main CI and real-device E2E are unproven. |
+| Performance | 63 | Conditional | Streaming, local TTS cache, timeouts, load shedding, idempotency; large audio JSON bodies and long provider chains remain. |
+| Scalability | 50 | Blocked | Cloud sync is durable; metrics/circuit state remain per-process and rate limiting is non-atomic. |
+| Reliability | 60 | Conditional | Provider fallback, health probes, safe-story fallback, graceful shutdown; deployment and rollback proof absent. |
+| Monitoring | 55 | Conditional | Pino, Sentry, metrics, health probes, threshold alerts; counters are process-local and destinations/SLOs are unverified. |
+| Documentation | 62 | Blocked | Extensive technical docs; parent-facing privacy/consent and several operational claims are stale. |
+| Deployment | 55 | Conditional | Cloud Run code path fixed; Vercel/EAS/Cloud Run production evidence and canonical target remain unresolved. |
+| Maintainability | 74 | Conditional | Good modularization and tests; scaffolded integration code, duplicate chat paths, and doc drift add risk. |
+| Developer Experience | 70 | Conditional | Reproducible scripts and runbooks; current workflow execution and environment parity need proof. |
+| Operational Readiness | 45 | Blocked | No verified on-call, SLO, backup restore, incident drill, store rollout, or rollback exercise. |
 
-**Weighted overall:** **55/100**
+**Weighted overall:** **62/100**
 
 ## Release Recommendation
 
 ### NO GO
 
-A production launch directed at children should not proceed until all critical blockers and the required high-severity blockers in `RISK_AND_RELEASE_PLAN.md` are closed and validated.
+Do not release publicly to children until every critical blocker in [RISK_AND_RELEASE_PLAN.md](./RISK_AND_RELEASE_PLAN.md) is closed and independently validated.
 
-A limited internal or parent-only test may proceed only when:
+A restricted internal/parent-only technical beta is acceptable only with these conditions:
 
-- Voice Chat and Video are disabled.
-- Production auth is configured and tested.
-- No child name/age is transmitted until privacy and parental-consent posture is legally approved.
-- The deployment target is explicitly selected and passes smoke tests.
-- Test, lint, typecheck, build, dependency audit, and privacy-copy checks run successfully in CI.
-- Production monitoring and cost alerts are active.
+- Audio Voice Chat and Video disabled.
+- Child name/age removed from provider-bound payloads, or legally approved consent/provider controls completed.
+- Parent-facing privacy/consent copy updated and consent version bumped.
+- Production auth configured and tested.
+- Cloud backup remains opt-in and is device-tested for sync, tombstones, purge, and account isolation.
+- The chosen deployment target passes build, boot, health, functional smoke, rollback, and alert tests.
+- CI checks are visible and required before merge.
 
 ## Documentation Map
 
 | Document | Purpose |
 |---|---|
-| [SYSTEM_ASSESSMENT.md](./SYSTEM_ASSESSMENT.md) | Architecture, technology inventory, repository structure, features, API, authentication, database and data lifecycle. |
-| [SECURITY_QUALITY_OPERATIONS.md](./SECURITY_QUALITY_OPERATIONS.md) | Security, privacy/COPPA, performance, testing, CI/CD, observability and operational readiness. |
-| [RISK_AND_RELEASE_PLAN.md](./RISK_AND_RELEASE_PLAN.md) | Risk register, technical debt, release blockers, phased remediation and release-manager checklist. |
-| [EVIDENCE_INDEX.md](./EVIDENCE_INDEX.md) | Repository evidence, confidence levels, unknowns and manual-validation requirements. |
+| [SYSTEM_ASSESSMENT.md](./SYSTEM_ASSESSMENT.md) | Architecture, technology/repository inventory, features, APIs, authentication, database, sync, and deployment flow. |
+| [SECURITY_QUALITY_OPERATIONS.md](./SECURITY_QUALITY_OPERATIONS.md) | Security, privacy/COPPA, performance, testing, CI/CD, observability, and operational readiness. |
+| [RISK_AND_RELEASE_PLAN.md](./RISK_AND_RELEASE_PLAN.md) | Risk/debt registers, release blockers, phased remediation, roadmap, and release-manager checklist. |
+| [EVIDENCE_INDEX.md](./EVIDENCE_INDEX.md) | Evidence matrix, contradictions, confidence, unknowns, and manual validation commands. |
 
 ## Implementation Considerations
 
-The fastest safe route is not to fix every architectural imperfection before launch. It is to reduce scope and make the remaining product truthful, testable, and observable:
+Recommended release shape is a data-minimized beta rather than a full-feature launch:
 
-1. Disable Voice Chat and Video in production.
-2. Remove child name and age from server-bound requests, or obtain legally reviewed verifiable parental consent and provider DPAs.
-3. Merge and validate the Cloud Run entrypoint fix, or formally designate Vercel as the only production API/web target.
-4. Reconcile all privacy, consent, security, observability, README, and deployment documentation.
-5. Make CI and branch protection demonstrably enforce the release gate.
-6. Add deployed smoke tests and external uptime/cost/error alerts.
+1. Disable audio Voice Chat and Video at configuration and UI levels.
+2. Keep core story generation, illustration, narration, local profiles/library, and parent controls.
+3. Keep cloud backup off by default; require parent sign-in and opt-in.
+4. Do not send child name/age to generation providers until legal and provider terms are approved.
+5. Implement one authenticated “delete my account and all remote data” workflow covering chat rows, sync rows, auth identity, telemetry policy, and provider disclosures.
+6. Select one canonical web/API production target and treat other targets as tested fallbacks, not co-equal undocumented paths.
 
 ## Performance and Security Notes
 
-The AI-provider fallback chain improves availability but can multiply latency and cost. Rate limiting, provider timeouts, per-request token caps, cost anomaly reporting, and load shedding are positive controls; they are not yet sufficient for a child-directed public launch because the distributed limiter is non-atomic and can fail open.
+Story generation now has an actual output-safety gate; this materially improves the child-safety posture. It does not cover audio Voice Chat, images, or provider-side retention. The provider fallback chain improves availability but may amplify latency and cost; per-user/day budgets and atomic distributed limiting are still required.
 
-The privacy risk is not merely documentation quality. Statements shown to parents are part of the consent mechanism. A mismatch between those statements and actual account/transcript/error-telemetry behavior is a release blocker.
+Cloudflare KV currently provides persistence, not atomicity. Its GET-then-fire-and-forget-PUT pattern can lose increments under concurrency, and a failed GET appears as a fresh window. Treat it as a beta guardrail, not a production billing/security boundary.
 
 ## Recommended Next Steps
 
-Follow Phase 0 and Phase 1 in [RISK_AND_RELEASE_PLAN.md](./RISK_AND_RELEASE_PLAN.md). Do not promote a public build until the release manager has evidence for every critical checklist item.
+Execute Phase 0 and Phase 1 in [RISK_AND_RELEASE_PLAN.md](./RISK_AND_RELEASE_PLAN.md), then produce a signed release-evidence packet containing current CI runs, deployed smoke results, device/EAS results, privacy approval, provider review, backup/restore evidence, and rollback proof.
 
 ## Claims Check
 
-- **Verified:** Expo/React Native client, Express server, Supabase auth, PostgreSQL voice-chat persistence, AI provider routing, ElevenLabs, Sentry, Cloudflare KV option, feature flags, CI definition, Vercel configuration, EAS configuration.
-- **Verified:** current consent/privacy copy conflicts with current account and voice-chat persistence code.
-- **Verified:** local deletion does not delete remote conversations or Supabase account data.
-- **Verified:** the voice-chat route does not include the documented child-safety system prompt.
-- **Verified:** PR #314 is open and describes repeated Cloud Run failures.
-- **Verified:** Vercel status checks are successful on assessed `main`.
-- **Unable to verify:** current deployed environment variables, Supabase RLS policies, backups, alerts, app-store listing, provider DPAs, legal approval, Cloud Run state after PR #314, and current real-device behavior.
-- **Counterpoint:** a PR reports 1,102 passing tests and successful local production boot. This is meaningful evidence, but it is not equivalent to an enforced CI run or production validation.
+- **Verified:** Cloud Run production-start code fix is merged; local build/boot/test results were reported in the merged change.
+- **Not claimed:** a successful current Cloud Run revision was not independently observed.
+- **Verified:** generated stories now pass server moderation with regenerate-once and safe fallback behavior.
+- **Counterexample:** audio Voice Chat bypasses the safer text-chat system-prompt/history design.
+- **Verified:** local deletion now also purges optional cloud-sync records before sign-out.
+- **Counterexample:** it does not delete PostgreSQL chat history or the Supabase user.
+- **Verified:** the repository contains CI workflows.
+- **Unable to Verify:** any CI run/status attached to assessed `main`.
+- **Requires Manual Validation:** provider DPAs, legal approval, deployed secrets, RLS in the live project, backups, alerts, app-store configuration, and device behavior.
 
 ## Version History
 
 | Version | Date | Change |
 |---|---|---|
-| 1.0 | 2026-07-11 | Initial production-readiness assessment against `main` commit `eb00e2d`. |
+| 1.1 | 2026-07-15 | Re-baselined to `0e31e776`; incorporated 22 subsequent commits and closed obsolete blockers. |
+| 1.0 | 2026-07-11 | Initial audit against `eb00e2d`; superseded by version 1.1. |
