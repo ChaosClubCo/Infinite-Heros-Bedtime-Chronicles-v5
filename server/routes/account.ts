@@ -1,4 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import type { Express, Request, Response } from 'express';
+import {
+  ACCOUNT_DELETION_RECEIPT_VERSION,
+  type ServerDeletionReceipt,
+} from '@shared/account-deletion';
 import { deleteAuthenticatedUser } from '../auth';
 import { logger } from '../logger';
 
@@ -10,6 +15,11 @@ import { logger } from '../logger';
  * identity. Deleting auth.users cascades to sync_records. If the identity step
  * fails, the caller remains signed in and can retry; the already-purged chat
  * deletion is idempotent.
+ *
+ * The successful response is a PII-free receipt. It confirms server-side
+ * deletion only; the client marks local cleanup complete after clearing device
+ * storage. The receipt deliberately contains no user id, email, profile, story,
+ * or transcript data.
  *
  * Chat storage is imported inside the request handler so deployments that do
  * not configure DATABASE_URL can still start normally with Voice Chat disabled.
@@ -26,8 +36,24 @@ export function registerAccountRoutes(app: Express): void {
       await chatStorage.deleteAllConversationsForUser(user.uid);
       await deleteAuthenticatedUser(user.uid);
 
-      logger.info({ event: 'account_deleted' }, 'parent account and retained server data deleted');
-      return res.status(204).send();
+      const receipt: ServerDeletionReceipt = {
+        version: ACCOUNT_DELETION_RECEIPT_VERSION,
+        receiptId: randomUUID(),
+        completedAt: new Date().toISOString(),
+        status: 'completed',
+        deletedScopes: [
+          'voice_chat_history',
+          'cloud_sync_records',
+          'parent_auth_identity',
+        ],
+        localDeviceData: 'pending_client_cleanup',
+      };
+
+      logger.info(
+        { event: 'account_deleted', receiptId: receipt.receiptId },
+        'parent account and retained server data deleted',
+      );
+      return res.status(200).json(receipt);
     } catch (error) {
       logger.error({
         event: 'account_delete_failed',
