@@ -1,7 +1,8 @@
 /**
  * Gated entry points for cloud sync. These are the ONLY functions app code
- * should call — they enforce the guardrails (parent opt-in + a signed-in
- * session + configured Supabase) so nothing ever syncs by accident.
+ * should call — they enforce the guardrails (parent opt-in + valid parental
+ * consent + a signed-in session + configured Supabase) so nothing ever syncs
+ * by accident.
  *
  * Wire `runSync(settings.cloudSyncEnabled)` to sync triggers (e.g. after a story
  * is saved, or on app foreground) and `purgeCloudData()` into the "clear all
@@ -10,14 +11,18 @@
 
 import { getSupabaseClient } from '@/lib/AuthContext';
 import { getConsentGiven } from '@/lib/storage';
+import { apiRequest } from '@/lib/query-client';
 import { syncAll, type EntityAdapter } from './engine';
-import { purgeCloud } from './supabase-sync';
 import { reportSyncError } from './report';
 import {
   storiesAdapter, badgesAdapter, streaksAdapter,
   favoritesAdapter, readAdapter, profileStubAdapter,
 } from './storage-adapters';
 import type { SyncEntity } from '@shared/sync-types';
+import {
+  isServerDeletionReceipt,
+  type ServerDeletionReceipt,
+} from '@shared/account-deletion';
 
 /** All six synced entities. profileStub runs first so its placeholder profiles
  *  exist before badges/streaks that reference them are applied. */
@@ -40,9 +45,9 @@ async function currentUserId(): Promise<{ sb: NonNullable<ReturnType<typeof getS
 }
 
 /**
- * Run a full sync when enabled + signed in; otherwise a no-op. Never throws —
- * sync is best-effort background work and must not break the app flow that
- * triggered it. Returns whether a sync actually ran.
+ * Run a full sync when enabled + consented + signed in; otherwise a no-op. Never
+ * throws — sync is best-effort background work and must not break the app flow
+ * that triggered it. Returns whether a sync actually ran.
  */
 export async function runSync(enabled: boolean): Promise<boolean> {
   if (!enabled) return false;
@@ -71,17 +76,22 @@ export async function runSync(enabled: boolean): Promise<boolean> {
 }
 
 /**
- * Purge every synced record for the signed-in user (local-wipe → cloud-purge).
- * No-op when auth isn't configured / not signed in. Returns whether a purge ran.
+ * Permanently delete every server-side record owned by the signed-in parent.
+ *
+ * The settings screen already calls this before clearing local storage. The
+ * server endpoint deletes PostgreSQL conversation transcripts, then deletes the
+ * Supabase Auth identity; the auth.users cascade removes sync_records. Unlike
+ * background sync, deletion intentionally throws on failure so the caller does
+ * not wipe the device and sign out while retained server data still exists.
  */
-export async function purgeCloudData(): Promise<boolean> {
-  try {
-    const ctx = await currentUserId();
-    if (!ctx) return false;
-    await purgeCloud(ctx.sb, ctx.userId);
-    return true;
-  } catch (err) {
-    reportSyncError('purgeCloudData', err);
-    return false;
+export async function purgeCloudData(): Promise<ServerDeletionReceipt | null> {
+  const ctx = await currentUserId();
+  if (!ctx) return null;
+
+  const response = await apiRequest('DELETE', 'api/account');
+  const payload: unknown = await response.json();
+  if (!isServerDeletionReceipt(payload)) {
+    throw new Error('Account deletion completed without a valid verification receipt');
   }
+  return payload;
 }

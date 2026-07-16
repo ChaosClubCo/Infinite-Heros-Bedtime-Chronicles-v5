@@ -2,8 +2,15 @@ import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { logProviderStatus } from "./ai";
 import { requireAuth } from "./auth";
+import {
+  getAiProviderComplianceStatus,
+  getVoiceChatComplianceStatus,
+  isAiProviderProcessingApproved,
+  isVoiceChatComplianceApproved,
+} from "./compliance";
 import { isFeatureEnabled } from "./feature-flags";
 import { logger } from "./logger";
+import { registerAccountRoutes } from "./routes/account";
 import { registerHealthRoutes } from "./routes/health";
 import { registerStoryRoutes } from "./routes/story";
 import { registerImageGenRoutes } from "./routes/images";
@@ -16,15 +23,6 @@ import { registerGithubWebhookRoute } from "./routes/github-webhook";
 /**
  * Auth-gate predicate for `/api/*` requests (paths are relative to the `/api` mount,
  * e.g. `/conversations/1`, not `/api/conversations/1`).
- *
- * GET requests skip auth by default since most GETs (health, voices, music, etc.)
- * serve public catalog data. GET /api/conversations* is the exception: it returns
- * per-user voice-chat history, so it must go through requireAuth like the writes do
- * — otherwise every caller resolves to the same "anonymous" identity and can read
- * anyone else's conversations.
- *
- * /github/webhook is exempt: GitHub cannot supply a Supabase bearer token, and
- * the route authenticates the caller itself via HMAC (X-Hub-Signature-256).
  */
 export function requiresAuthGate(method: string, path: string): boolean {
   if (path === '/github/webhook' || path === '/github/webhook/') return false;
@@ -33,10 +31,18 @@ export function requiresAuthGate(method: string, path: string): boolean {
 }
 
 /**
- * Route composer. Installs the auth gate, then registers each domain module.
- * Handlers live in server/routes/<domain>.ts; shared singletons in
- * server/routes/context.ts; per-route plumbing in server/routes/helpers.ts.
+ * Child-directed routes that send content to an AI, transcription, image, video,
+ * or speech provider. Static health/catalog routes and account deletion remain
+ * available even while provider processing is fail-closed.
  */
+export function requiresAiProviderCompliance(path: string): boolean {
+  return path.startsWith('/generate-')
+    || path.startsWith('/suggest-settings')
+    || path.startsWith('/tts')
+    || path.startsWith('/conversations');
+}
+
+/** Route composer. */
 export async function registerRoutes(app: Express): Promise<Server> {
   logProviderStatus();
 
@@ -45,7 +51,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return requireAuth(req, res, next);
   });
 
+  app.use('/api', (req, res, next) => {
+    if (!requiresAiProviderCompliance(req.path) || isAiProviderProcessingApproved()) {
+      return next();
+    }
+
+    const compliance = getAiProviderComplianceStatus();
+    logger.warn({
+      event: 'ai_provider_processing_blocked',
+      path: req.path,
+      missingCompliance: compliance.missing,
+    }, 'production AI processing blocked by compliance gate');
+    return res.status(503).json({
+      error: 'AI features are temporarily unavailable pending required privacy and provider approvals',
+    });
+  });
+
   registerHealthRoutes(app);
+  registerAccountRoutes(app);
   registerStoryRoutes(app);
   registerImageGenRoutes(app);
   registerTtsRoutes(app);
@@ -54,10 +77,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerVideoRoutes(app);
   registerGithubWebhookRoute(app);
 
-  if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.DATABASE_URL && isFeatureEnabled('voiceChatEnabled')) {
+  const voiceFeatureEnabled = isFeatureEnabled('voiceChatEnabled');
+  const voiceComplianceApproved = isVoiceChatComplianceApproved();
+  const voiceDependenciesConfigured = !!(
+    process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.DATABASE_URL
+  );
+
+  if (voiceFeatureEnabled && voiceComplianceApproved && voiceDependenciesConfigured) {
     const { registerAudioRoutes } = await import("./replit_integrations/audio");
     registerAudioRoutes(app);
     logger.info('voice chat & conversation routes registered');
+  } else if (voiceFeatureEnabled) {
+    const compliance = getVoiceChatComplianceStatus();
+    logger.warn({
+      event: 'voice_chat_disabled',
+      complianceApproved: voiceComplianceApproved,
+      missingCompliance: compliance.missing,
+      dependenciesConfigured: voiceDependenciesConfigured,
+    }, 'voice chat requested but fail-closed release requirements were not met');
   }
 
   if (process.env.AI_INTEGRATIONS_GEMINI_API_KEY) {

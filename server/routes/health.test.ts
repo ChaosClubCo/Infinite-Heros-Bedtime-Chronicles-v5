@@ -33,9 +33,11 @@ vi.mock("../load-shedding", () => ({ getActiveRequests: () => 0 }));
 let app: Express;
 let server: Server;
 const previousElevenLabsKey = process.env.ELEVENLABS_API_KEY;
+const previousReleaseSha = process.env.APP_RELEASE_SHA;
 
 beforeAll(async () => {
   process.env.ELEVENLABS_API_KEY = "test-key";
+  process.env.APP_RELEASE_SHA = "8a65b4b98aff49177853165aac7b54979c9119f9";
   const { registerHealthRoutes } = await import("./health");
   app = express();
   registerHealthRoutes(app);
@@ -52,6 +54,11 @@ afterAll(async () => {
   } else {
     process.env.ELEVENLABS_API_KEY = previousElevenLabsKey;
   }
+  if (previousReleaseSha === undefined) {
+    delete process.env.APP_RELEASE_SHA;
+  } else {
+    process.env.APP_RELEASE_SHA = previousReleaseSha;
+  }
 });
 
 describe("GET /api/health", () => {
@@ -59,6 +66,7 @@ describe("GET /api/health", () => {
     const res = await request(app).get("/api/health");
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("ok");
+    expect(res.body.releaseSha).toBe("8a65b4b98aff49177853165aac7b54979c9119f9");
     expect(res.body.aiProvidersAvailable).toBe(true);
     expect(res.body.ttsAvailable).toBe(true);
     expect(res.body.breakers).toEqual(mockBreakers);

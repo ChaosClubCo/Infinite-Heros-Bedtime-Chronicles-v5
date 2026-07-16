@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main, develop]
 
-# Minimal permissions — this workflow only reads code and uploads artifacts.
+# Minimal permissions — this workflow reads code and uploads diagnostic/build artifacts.
 permissions:
   contents: read
 
@@ -25,24 +25,34 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
-      # package.json engines require npm 11.x, and the lockfile is generated with
-      # it — but node 22 (.nvmrc) ships npm 10, whose stricter `npm ci` rejects the
-      # 11-generated lock. Align npm so install/lock-verify match how it was built.
-      - name: Align npm with repo engines (npm 11.x)
-        run: npm i -g npm@11
+      - name: Install repository npm version
+        run: npm install --global npm@11
 
-      - name: Verify package-lock.json is in sync with package.json
-        # Lockfile drift has broken `npm ci` twice. This catches it early with a
-        # readable diff instead of npm ci's cryptic EUSAGE: regenerate the lock
-        # from package.json metadata only (no install, no scripts) and fail if it
-        # would change. If this step fails, run `npm install` locally and commit
-        # the regenerated package-lock.json.
-        run: |
-          npm install --package-lock-only --ignore-scripts
-          git diff --exit-code package-lock.json
+      - name: Install dependencies and verify lockfile integrity
+        id: npm-ci
+        # `npm ci` remains strict. The helper retries transient registry/cache
+        # failures but a deterministic manifest/lockfile error fails every attempt.
+        run: bash scripts/npm-ci-retry.sh npm-ci.log
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Upload npm install diagnostics
+        if: failure() && steps.npm-ci.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-ci-diagnostics
+          path: npm-ci.log
+          retention-days: 7
+
+      - name: Generate synchronized lockfile diagnostic
+        if: failure() && steps.npm-ci.outcome == 'failure'
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Upload synchronized lockfile diagnostic
+        if: failure() && steps.npm-ci.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: synchronized-package-lock
+          path: package-lock.json
+          retention-days: 7
 
       - name: Run preflight checks
         run: npm run preflight
@@ -50,13 +60,34 @@ jobs:
         # The env-var section warns but does not fail when keys are absent.
 
       - name: Run ESLint
-        run: npm run lint
-        continue-on-error: false
+        id: eslint
+        run: |
+          set -o pipefail
+          npm run lint 2>&1 | tee eslint.log
+
+      - name: Upload ESLint diagnostics
+        if: failure() && steps.eslint.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: eslint-diagnostics
+          path: eslint.log
+          retention-days: 7
 
       - name: Run tests
-        run: npm test
+        id: tests
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee tests.log
         env:
           CI: true
+
+      - name: Upload test diagnostics
+        if: failure() && steps.tests.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-diagnostics
+          path: tests.log
+          retention-days: 7
 
       - name: Security audit
         # Fail on critical vulnerabilities only; high-severity issues in transitive
@@ -65,11 +96,19 @@ jobs:
         run: npm audit --audit-level=critical
 
       - name: Type check
-        run: npm run typecheck
+        id: typecheck
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee typecheck.log
 
-  # Smoke-test that production install (omitting devDependencies, as Vercel does
-  # when NODE_ENV=production) succeeds.  This job would have caught the
-  # patch-package-not-found failure before it reached Vercel.
+      - name: Upload typecheck diagnostics
+        if: failure() && steps.typecheck.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: typecheck-diagnostics
+          path: typecheck.log
+          retention-days: 7
+
   production-install-smoke:
     name: Production Install Smoke Test
     runs-on: ubuntu-latest
@@ -84,8 +123,8 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
-      - name: Align npm with repo engines (npm 11.x)
-        run: npm i -g npm@11
+      - name: Install repository npm version
+        run: npm install --global npm@11
 
       - name: Simulate Vercel production install (omit devDependencies)
         run: npm install --omit=dev
@@ -108,11 +147,20 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
-      - name: Align npm with repo engines (npm 11.x)
-        run: npm i -g npm@11
+      - name: Install repository npm version
+        run: npm install --global npm@11
 
       - name: Install dependencies
-        run: npm ci
+        id: build-npm-ci
+        run: bash scripts/npm-ci-retry.sh build-npm-ci.log
+
+      - name: Upload build install diagnostics
+        if: failure() && steps.build-npm-ci.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-npm-ci-diagnostics
+          path: build-npm-ci.log
+          retention-days: 7
 
       - name: Build server
         run: npm run server:build
@@ -124,3 +172,39 @@ jobs:
           path: server_dist/
           retention-days: 7
 
+  expo-compatibility-build:
+    name: Expo Compatibility and Web Build
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: "1"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install repository npm version
+        run: npm install --global npm@11
+
+      - name: Install locked dependencies
+        run: bash scripts/npm-ci-retry.sh expo-npm-ci.log
+
+      - name: Verify Expo SDK dependency compatibility
+        run: npm run expo:check
+
+      - name: Export production web bundle
+        run: npm run expo:build:ci
+
+      - name: Upload Expo web bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: expo-web-build
+          path: static-build/
+          retention-days: 7

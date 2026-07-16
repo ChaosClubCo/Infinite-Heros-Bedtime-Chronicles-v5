@@ -1,12 +1,14 @@
 import { db } from "../../db";
 import { conversations, messages } from "@shared/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, inArray, lt } from "drizzle-orm";
 
 export interface IChatStorage {
   getConversation(id: number, userId: string): Promise<typeof conversations.$inferSelect | undefined>;
   getAllConversations(userId: string): Promise<(typeof conversations.$inferSelect)[]>;
   createConversation(title: string, userId: string): Promise<typeof conversations.$inferSelect>;
   deleteConversation(id: number, userId: string): Promise<void>;
+  deleteAllConversationsForUser(userId: string): Promise<void>;
+  deleteExpiredMessagesForUser(userId: string, olderThan: Date): Promise<number>;
   getMessagesByConversation(conversationId: number): Promise<(typeof messages.$inferSelect)[]>;
   createMessage(conversationId: number, role: string, content: string): Promise<typeof messages.$inferSelect>;
 }
@@ -34,7 +36,6 @@ export const chatStorage: IChatStorage = {
   },
 
   async deleteConversation(id: number, userId: string) {
-    // Verify ownership before deleting
     const [conversation] = await db
       .select()
       .from(conversations)
@@ -42,6 +43,31 @@ export const chatStorage: IChatStorage = {
     if (!conversation) return;
     await db.delete(messages).where(eq(messages.conversationId, id));
     await db.delete(conversations).where(eq(conversations.id, id));
+  },
+
+  async deleteAllConversationsForUser(userId: string) {
+    // messages.conversation_id has ON DELETE CASCADE in the canonical schema, so
+    // deleting the owned conversations removes every retained transcript in one
+    // server-side operation. This is deliberately keyed by the authenticated uid.
+    await db.delete(conversations).where(eq(conversations.userId, userId));
+  },
+
+  async deleteExpiredMessagesForUser(userId: string, olderThan: Date) {
+    const owned = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(eq(conversations.userId, userId));
+    const conversationIds = owned.map((row) => row.id);
+    if (conversationIds.length === 0) return 0;
+
+    const deleted = await db
+      .delete(messages)
+      .where(and(
+        inArray(messages.conversationId, conversationIds),
+        lt(messages.createdAt, olderThan),
+      ))
+      .returning({ id: messages.id });
+    return deleted.length;
   },
 
   async getMessagesByConversation(conversationId: number) {
@@ -53,4 +79,3 @@ export const chatStorage: IChatStorage = {
     return message;
   },
 };
-

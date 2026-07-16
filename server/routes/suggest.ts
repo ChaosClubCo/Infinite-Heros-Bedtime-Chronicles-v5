@@ -16,7 +16,9 @@ export function registerSuggestRoutes(app: Express): void {
       return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
     }
 
-    const { heroName, heroPower, heroDescription, hour, childAge, childName } = parsed.data;
+    // Explicit child profile name/age fields are discarded by the schema before
+    // this handler. Suggestions rely on time of day and fictional hero context.
+    const { heroName, heroPower, hour } = parsed.data;
 
     try {
       const timeOfDay = hour >= 19 || hour < 6 ? "nighttime/bedtime" : hour >= 17 ? "evening" : hour >= 12 ? "afternoon" : "morning";
@@ -26,16 +28,10 @@ export function registerSuggestRoutes(app: Express): void {
       const classicVoices = getVoicesForMode("classic").join(", ");
       const funVoices = getVoicesForMode("madlibs").join(", ");
 
-      // Sanitize user-provided strings before prompt inclusion (prompt-injection
-      // defense) — schema truncation alone does not strip control chars / role markers.
       const safeHeroName = sanitizePromptInput(heroName, 500);
       const safeHeroPower = sanitizePromptInput(heroPower, 500);
-      const safeChildName = childName ? sanitizePromptInput(childName, 500) : "";
 
-      const ageContext = childAge ? ` Child age: ${childAge} years old.${childAge <= 5 ? " For younger kids, prefer shorter, gentler stories with sleep mode." : " For older kids, classic and madlibs modes with longer stories work great."}` : "";
-      const nameContext = safeChildName ? ` Child name: ${safeChildName}.` : "";
-
-      const userPrompt = `Suggest bedtime story settings as JSON. Time: ${timeOfDay}.${ageContext}${nameContext} Hero: ${safeHeroName} (${safeHeroPower}). Modes: classic, madlibs, sleep. Durations: short, medium-short, medium, long, epic. Speeds: gentle, medium, normal. Voice categories - Sleep voices: ${sleepVoices}. Classic voices: ${classicVoices}. Fun/madlibs voices: ${funVoices}. IMPORTANT: Match voice to mode (sleep voices for sleep, classic voices for classic, fun voices for madlibs). Night=sleep+gentle+short. Afternoon=classic/madlibs+medium/normal. Reply ONLY with: {"mode":"...","duration":"...","speed":"...","voice":"...","tip":"short parent-friendly reason"}`;
+      const userPrompt = `Suggest bedtime story settings as JSON. Time: ${timeOfDay}. Hero: ${safeHeroName} (${safeHeroPower}). Modes: classic, madlibs, sleep. Durations: short, medium-short, medium, long, epic. Speeds: gentle, medium, normal. Voice categories - Sleep voices: ${sleepVoices}. Classic voices: ${classicVoices}. Fun/madlibs voices: ${funVoices}. IMPORTANT: Match voice to mode (sleep voices for sleep, classic voices for classic, fun voices for madlibs). Night=sleep+gentle+short. Afternoon=classic/madlibs+medium/normal. Reply ONLY with: {"mode":"...","duration":"...","speed":"...","voice":"...","tip":"short parent-friendly reason"}`;
 
       const aiResponse = await aiRouter.generateText("suggestion", {
         systemPrompt: "You are a helpful assistant that suggests bedtime story settings. Respond with valid JSON only.",
@@ -56,8 +52,6 @@ export function registerSuggestRoutes(app: Express): void {
       }, 'suggestion generated');
       reportCostAnomaly(estCostUsd, { provider: aiResponse.provider, endpoint: '/api/suggest-settings' });
 
-      // The router parses + validates JSON (via extractFirstJson) when jsonMode is set,
-      // so consume parsedJson directly rather than re-parsing the raw text here.
       if (
         !aiResponse.parsedJson ||
         typeof aiResponse.parsedJson !== "object" ||
@@ -75,9 +69,7 @@ export function registerSuggestRoutes(app: Express): void {
       const voice = voiceKeys.includes(raw.voice as string) ? (raw.voice as string) : (MODE_DEFAULT_VOICES[mode] || "moonbeam");
       const tip = (typeof raw.tip === "string" ? raw.tip : "A great story awaits!").slice(0, 120);
 
-      const suggestion = { mode, duration, speed, voice, tip };
-
-      res.json(suggestion);
+      res.json({ mode, duration, speed, voice, tip });
     } catch (error: unknown) {
       sendRouteError(req, res, error, 'suggest settings failed', 'Failed to generate suggestion');
     }
