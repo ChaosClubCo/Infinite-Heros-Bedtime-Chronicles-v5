@@ -53,6 +53,15 @@ shared across client and server.
   `../CLAUDE.md`, and this file were reconciled against actual `server/routes/*` and
   `package.json` in the same pass — see `docs/ROADMAP.md` for anything that came out
   of it as a backlog item.
+- **Three-repo merge (2026-07-13)**: this repo was consolidated with two siblings
+  (`krosebrook/bedtime_chronicles-v2`, `krosebrook/infinite-heros-bedtime-chronicles-v5-main`)
+  into one super version, with this repo as the canonical base. `v2`'s offline
+  sync-queue was ported in (`lib/sync-queue.ts`, `lib/useSyncOffline.ts`,
+  `POST /api/sync/interactions`); `v2`'s in-progress native Android/Kotlin rewrite was
+  archived rather than merged (see `../CLAUDE.md` "Merge Provenance" and
+  `archive/android-kotlin-rewrite/README.md`); `v5-main` had no application code to
+  contribute. Both sibling repos' branches were then fast-forwarded to this exact tree
+  via a two-parent merge commit, so their own history stays intact and reachable.
 
 ## AI Context
 

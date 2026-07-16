@@ -1,16 +1,28 @@
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { containsUnsafeContent, SAFE_PLACEHOLDER_TEXT } from "@shared/safety-terms";
 
 interface StoryTextDisplayProps {
   text: string;
   isSleep: boolean;
   accent: string;
   partIndex: number;
+  /** Fired if the client fail-safe substitutes placeholder text for this part. */
+  onUnsafe?: () => void;
 }
 
-export function StoryTextDisplay({ text, isSleep, accent, partIndex }: StoryTextDisplayProps) {
-  const paragraphs = text
+export function StoryTextDisplay({ text, isSleep, accent, partIndex, onUnsafe }: StoryTextDisplayProps) {
+  // Client-side fail-safe (defense in depth): the server already moderates every
+  // story, but if unsafe text ever reaches render (e.g. an older cached story),
+  // swap in a gentle placeholder rather than showing it to a child.
+  const flagged = useMemo(() => containsUnsafeContent(text), [text]);
+
+  useEffect(() => {
+    if (flagged) onUnsafe?.();
+  }, [flagged, onUnsafe]);
+
+  const paragraphs = (flagged ? SAFE_PLACEHOLDER_TEXT : text)
     .split(/\n\n+/)
     .map((p) => p.trim())
     .filter((p) => p.length > 0);

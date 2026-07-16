@@ -148,6 +148,29 @@ The story MUST have exactly ${partCount} parts. ${choiceInstructions}
 Parts should have partIndex starting from 0.`;
 }
 
+/**
+ * Build a stricter system prompt for a single safety regeneration. Reuses the
+ * base system prompt (which already contains CHILD_SAFETY_RULES and the JSON
+ * schema) and appends an escalation notice naming the violated categories. Never
+ * echoes the flagged story text — only category names — so nothing unsafe is fed
+ * back into the model.
+ */
+export function buildStricterSystemPrompt(
+  mode: string,
+  partCount: number,
+  flaggedCategories: string[],
+): string {
+  const base = getStorySystemPrompt(mode, partCount);
+  const cats = flaggedCategories.filter((c) => c !== 'structural' && c !== 'leakage' && c !== 'pii');
+  const safetyLine = cats.length
+    ? `The previous attempt was rejected by an automated child-safety filter for content in these categories: ${cats.join(', ')}. You MUST NOT include anything from those categories.`
+    : `The previous attempt was rejected by an automated safety filter.`;
+  return `${base}
+
+RETRY NOTICE (do not mention this in the story): ${safetyLine}
+Re-read the CRITICAL SAFETY RULES above and follow them exactly. Keep the story gentle, positive, and 100% appropriate for children ages 3-9, and return ONLY valid JSON in the exact structure specified above with every required field filled in.`;
+}
+
 export function getStoryUserPrompt(
   mode: string,
   heroName: string,
