@@ -60,12 +60,13 @@ export default function PrivacyScreen() {
 
         <View style={styles.highlight}>
           <Text style={styles.highlightText}>
-            <Text style={styles.bold}>Summary for parents:</Text> Most child-profile
-            information stays on the device. A parent may create an optional account
-            for cloud backup and Voice Chat. Story inputs and Voice Chat audio are sent
-            to service providers to produce the requested feature. We retain only the
-            server data described below, and Delete All Data removes the account,
-            cloud records, Voice Chat history, and local device data.
+            <Text style={styles.bold}>Summary for parents:</Text> Child profile name
+            and age stay on the device and are discarded by the server before AI
+            requests are built. A parent may create an optional account for cloud
+            backup and Voice Chat. Fictional story inputs and Voice Chat audio are
+            sent to service providers to produce the requested feature. We retain
+            only the server data described below, and Delete All Data removes the
+            account, cloud records, Voice Chat history, and local device data.
           </Text>
         </View>
 
@@ -81,8 +82,8 @@ export default function PrivacyScreen() {
           <Bullet>Cloud backup uses a profile stub and does not upload the child profile name or age</Bullet>
 
           <Text style={styles.label}>Sent to our services and AI providers:</Text>
-          <Bullet>Hero details and story preferences needed to create a story</Bullet>
-          <Bullet>A child first name or age range only when the parent chooses to include it for personalization</Bullet>
+          <Bullet>Fictional hero details and parent-selected story preferences needed to create a story</Bullet>
+          <Bullet>Explicit child profile name and age fields are discarded by the server and are not included in story or suggestion provider prompts</Bullet>
           <Bullet>Voice Chat audio, when enabled and used, for speech transcription</Bullet>
           <Bullet>Approved text for narration or other requested media generation</Bullet>
 
