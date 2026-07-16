@@ -1,432 +1,431 @@
 # System Assessment
 
-**Assessment baseline:** `eb00e2dd2ab82e885fa98b4db50b118964f19deb`  
-**Confidence:** High for inspected code/configuration; medium for complete repository enumeration and live cloud state.
+**Application:** Infinity Heroes: Bedtime Chronicles  
+**Baseline:** `0e31e776b4c4817e3d67b174fd9177791a2c5238`  
+**Assessment date:** 2026-07-15
 
 ## Purpose
 
-Document the current architecture, technology stack, repository organization, application features, APIs, authentication, database model, data flows, infrastructure and deployment topology. This document supplements the existing architecture and API documents and records release-significant discrepancies found during code verification.
+Document the current architecture, repository structure, technology inventory, feature implementation, API surface, authentication, data model, sync behavior, and deployment design from repository evidence.
 
 ## Scope
 
-- Expo client application and web export.
-- Express API and static web delivery.
-- AI, image, TTS and optional video providers.
-- Supabase authentication and PostgreSQL voice-chat persistence.
-- Vercel, Cloud Run/Replit-style long-running server and EAS mobile builds.
-- GitHub Actions release checks.
+Included: Expo client, web export, Express API, AI/media integrations, Supabase Auth/Postgres/cloud sync, local storage, build/deployment configuration, CI definition, and operational interfaces. Cloud-console state and real-device behavior are called out as manual validation.
 
 ## Current State
 
-### System context
+Infinity Heroes is an offline-first Expo application with server-assisted AI generation. Core stories, profiles, progress, settings, and media references are primarily local. Optional account-backed features add PostgreSQL voice transcripts and opt-in Supabase `sync_records` for stories/gamification.
+
+### System Context
 
 ```mermaid
 flowchart LR
-    Parent[Parent or Guardian]
-    Child[Child User]
-    App[Expo React Native / Web App]
-    API[Express API]
-    Auth[Supabase Auth]
-    DB[(Supabase PostgreSQL)]
-    AI[Anthropic / Gemini / OpenAI / OpenRouter]
-    TTS[ElevenLabs]
-    Video[OpenAI Video]
-    KV[Cloudflare KV]
-    Sentry[Sentry]
-    Local[(AsyncStorage)]
-
-    Parent --> App
-    Child --> App
-    App --> Local
-    App -->|Bearer token| API
-    App --> Auth
-    API -->|verify token| Auth
-    API --> AI
-    API --> TTS
-    API --> Video
-    API --> DB
-    API --> KV
-    App --> Sentry
-    API --> Sentry
+  Parent[Parent / Guardian] --> App[Expo React Native / Web App]
+  Child[Child age 3-9] --> App
+  App --> Local[(AsyncStorage + device file cache)]
+  App -->|Bearer JWT| API[Express API]
+  App -->|Opt-in sync| Supa[(Supabase Auth + sync_records)]
+  API --> Router[AI Router]
+  Router --> Anthropic[Anthropic]
+  Router --> Gemini[Google Gemini]
+  Router --> OpenAI[OpenAI]
+  Router --> OpenRouter[OpenRouter]
+  API --> Eleven[ElevenLabs TTS]
+  API --> ChatDB[(PostgreSQL conversations/messages)]
+  API --> Sentry[Sentry]
+  API --> KV[Cloudflare KV]
+  API --> Media[(Instance-local TTS/video cache)]
 ```
 
-### Runtime pipeline
+### Runtime Components
 
-```mermaid
-flowchart TD
-    Request[Client Request]
-    Headers[Security Headers]
-    CORS[CORS]
-    Parser[Body Parsing]
-    Logging[Request ID + Pino]
-    Load[Load Shedding]
-    Static[Static / Expo Routing]
-    Gate[API Auth Gate]
-    Routes[Domain Route Modules]
-    Validate[Zod + Prompt Sanitization]
-    Limit[Rate Limit + Idempotency]
-    Router[AI Router]
-    Providers[External Providers]
-    Error[Sanitized Error Handler]
+| Component | Responsibility | Evidence | State |
+|---|---|---|---|
+| Expo Router client | Navigation, story UI, profiles, settings, consent | `app/`, `components/` | Implemented |
+| Local storage | Stories, profiles, badges, streaks, settings, consent | `lib/storage.ts`, `SettingsContext.tsx` | Implemented |
+| Device narration cache | Reuse/offline replay of TTS audio | `lib/narration.ts`, `lib/tts-cache.ts` | Implemented; device validation required |
+| Express API | Security middleware, static web, routes, errors | `server/index.ts`, `server/routes.ts` | Implemented |
+| AI router | Task-specific provider chain, retry, circuit breakers | `server/ai/` | Implemented |
+| Story safety gate | Moderate → regenerate once → safe fallback | `server/safety/`, `server/routes/story.ts` | Implemented |
+| Text conversation | Sanitized/capped child-safe chat | `server/replit_integrations/chat/routes.ts` | Implemented |
+| Audio Voice Chat | STT + `gpt-audio` + transcript persistence | `server/replit_integrations/audio/routes.ts` | Implemented but blocked |
+| Cloud backup | Parent opt-in, RLS-scoped records, tombstones | `lib/sync/`, `SyncManager.tsx`, `supabase/migrations/0001_sync_tables.sql` | Implemented; device validation required |
+| Offline event queue | Deferred interaction event delivery | `lib/sync-queue.ts`, `useSyncOffline.ts` | Implemented; overlap requires tests |
+| Observability | Pino, metrics, health probes, Sentry alerts | `server/logger.ts`, `metrics.ts`, `health-checks.ts`, `alerting.ts` | Implemented; operations unverified |
 
-    Request --> Headers --> CORS --> Parser --> Logging --> Load --> Static
-    Static --> Gate --> Routes --> Validate --> Limit --> Router --> Providers
-    Providers --> Routes --> Error
-```
+## Architecture Flows
 
-Verified middleware order is security headers, CORS, parsers, request logging, load shedding, static/Expo routing, route registration/auth gate, then the global error handler.
-
-### Story generation
+### Story Generation
 
 ```mermaid
 sequenceDiagram
-    participant C as Client
-    participant A as Express API
-    participant V as Validation
-    participant I as Idempotency / Limit
-    participant R as AI Router
-    participant P as AI Provider
-    participant L as AsyncStorage
-
-    C->>A: POST /api/generate-story
-    A->>V: Validate and normalize
-    V->>I: Bind request to user
-    I->>R: Structured generation request
-    R->>P: Timeout, retry and fallback
-    P-->>R: JSON response
-    R-->>A: Parsed story
-    A-->>C: Story JSON
-    C->>L: Save story and progress
+  participant C as Client
+  participant A as Express API
+  participant R as AI Router
+  participant S as Story Guard
+  participant P as AI Provider
+  C->>A: POST /api/generate-story + Bearer token
+  A->>A: Zod validation + prompt sanitization + rate limit
+  A->>A: idempotency lookup
+  A->>R: generateText(story)
+  R->>P: preferred provider, retry/fallback
+  P-->>R: structured story JSON
+  R-->>A: parsed response
+  A->>S: moderateStory
+  alt safe
+    S-->>A: approved
+  else blocked
+    A->>R: regenerate with stricter prompt
+    R-->>A: replacement
+    A->>S: moderate again
+    alt still blocked
+      S-->>A: known-safe fallback
+    end
+  end
+  A-->>C: safe story
+  C->>C: save locally; optional sync; optional narration/images
 ```
 
-### Voice Chat
+### Text Chat vs Audio Voice Chat
 
 ```mermaid
-sequenceDiagram
-    participant C as Client
-    participant A as Express API
-    participant S as Supabase Auth
-    participant D as PostgreSQL
-    participant O as OpenAI Audio
-
-    C->>A: POST /api/conversations/:id/messages
-    A->>S: Verify token
-    A->>D: Verify conversation owner
-    A->>O: Transcribe child audio
-    A->>D: Store child transcript
-    A->>D: Load history
-    A->>O: Stream audio/text response
-    A->>D: Store assistant transcript
-    A-->>C: SSE transcript/audio
+flowchart TB
+  subgraph SaferText[Text Chat]
+    T1[Sanitize user text] --> T2[Ownership check]
+    T2 --> T3[Last 20 messages]
+    T3 --> T4[Child-safe system prompt]
+    T4 --> T5[GPT-4o stream]
+    T5 --> T6[Persist transcripts]
+  end
+  subgraph BlockedAudio[Audio Voice Chat]
+    A1[Parse up to 50 MB JSON] --> A2[Decode / max 25 MB]
+    A2 --> A3[Transcribe child audio]
+    A3 --> A4[Persist transcript]
+    A4 --> A5[Replay uncapped history without system guard]
+    A5 --> A6[gpt-audio stream]
+    A6 --> A7[Persist assistant transcript]
+  end
 ```
 
-**Release-significant fact:** transcripts are durable server data, and the inspected handler does not add the child-safety system prompt claimed by existing security documentation.
+### Optional Cloud Sync
+
+```mermaid
+flowchart LR
+  Settings[Parent enables Cloud Backup] --> Gate{Signed in?}
+  Gate -- no --> Stop[Disabled]
+  Gate -- yes --> SyncManager[Open / foreground / reconnect]
+  SyncManager --> Pull[Pull sync_records]
+  Pull --> Reconcile[Last-write-wins + tombstones]
+  Reconcile --> Local[Apply local adapters]
+  Reconcile --> Push[Push winning records]
+  Delete[Delete All Data] --> Purge[purgeCloudData]
+  Purge --> LocalWipe[Clear AsyncStorage]
+  LocalWipe --> SignOut[Sign out]
+```
 
 ## Technology Inventory
 
-| Category | Technology | Version / Configuration | Status |
+### Core Stack
+
+| Layer | Technology | Version / constraint | Evidence |
 |---|---|---|---|
-| Language | TypeScript | `~6.0.3`, strict | Verified |
-| Client | Expo | `~55.0.27` | Verified |
-| UI runtime | React | `19.2.7` | Verified |
-| Native runtime | React Native | `0.86.0` | Verified |
-| Router | Expo Router | `~56.2.11`, typed routes | Verified |
-| Backend | Express | `^5.0.1` | Verified |
-| Validation | Zod | `^4.4.3` | Verified |
-| Server state | TanStack React Query | `^5.101.2` | Verified |
-| ORM | Drizzle ORM | `^0.45.2` | Verified |
-| PostgreSQL driver | `pg` | `^8.22.0` | Verified |
-| Server build | esbuild | `^0.28.1` | Verified |
-| Unit/integration tests | Vitest / Jest / Supertest | Configured | Verified tooling |
-| Mobile builds | EAS | CLI `>=16.0.0` | Verified configuration |
-| Package manager | npm | `>=10`, lockfile required | Verified |
+| Language | TypeScript | `~6.0.3`, strict | `package.json`, `tsconfig.json` |
+| Client | Expo | `~55.0.27` | `package.json` |
+| UI runtime | React / React Native | `19.2.7` / `0.86.0` | `package.json` |
+| Routing | Expo Router | `~56.2.11` | `package.json`, `app/` |
+| Web | React Native Web | `^0.21.0` | `package.json` |
+| Backend | Express | `^5.0.1` | `package.json` |
+| Validation | Zod | `^4.4.3` | `server/validation.ts` |
+| Server state | TanStack Query | `^5.101.2` | `lib/query-client.ts` |
+| Auth/client DB | Supabase JS | `^2.110.2` | `lib/AuthContext.tsx`, `server/auth.ts` |
+| ORM/DB | Drizzle ORM + PostgreSQL | `^0.45.2`, `pg ^8.22.0` | `shared/`, `server/db.ts` |
+| Logging | Pino | `^10.3.1` | `server/logger.ts` |
+| Error tracking | Sentry Node/RN | `^10.65.0` / `^8.18.0` | `server/index.ts`, `app/_layout.tsx` |
+| Testing | Vitest / Jest / Supertest / MSW | current lockfile | `package.json`, test files |
+| Build | esbuild / Expo export | `^0.28.1` | scripts and deployment configs |
+| Runtime | Node / npm | Node 20.19 or 22.13; npm 11 | `package.json` |
 
-### AI and media
+### AI and Media
 
-| Capability | Provider / SDK | Current use |
+| Capability | Provider/model layer | Current use |
 |---|---|---|
-| Story text | Anthropic | First story fallback priority when configured |
-| Text and images | Google GenAI | Story/settings and primary image generation |
-| Text/images/audio/video | OpenAI | Text/image fallback, Voice Chat, optional video |
-| Additional text | OpenRouter | Meta Llama, xAI, Mistral and Cohere fallbacks |
-| Narration | ElevenLabs | TTS and previews |
-| Error telemetry | Sentry Node / React Native | Optional client/server reporting |
+| Story text | Anthropic → Gemini → OpenAI → OpenRouter chain | Structured generation with safety guard |
+| Settings suggestions | Gemini-first fallback chain | Optional personalized suggestions |
+| Images | Gemini / OpenAI | Avatars and story scenes |
+| Narration | ElevenLabs | Server synthesis + server/device caches |
+| Text conversation | OpenAI GPT-4o | Child-safe system prompt and capped history |
+| Audio conversation | OpenAI transcription + `gpt-audio` | Blocked pending equivalent safety/lifecycle controls |
+| Video | OpenAI video path | Feature-flagged; do not enable for first release |
 
-### Storage and state
+### Storage and State
 
-| Data | Storage | Durability | Finding |
+| Store | Data | Durability | Risk |
 |---|---|---|---|
-| Profiles, stories, settings, badges, consent | AsyncStorage | Device local | Not encrypted by app code |
-| Auth session | AsyncStorage via Supabase | Device local | Access/refresh tokens persist |
-| Voice conversations/messages | PostgreSQL | Durable | Contains child and assistant transcripts |
-| TTS cache | `/tmp/tts-cache` | Instance local | Not shared across instances |
-| Rate-limit state | Memory or Cloudflare KV | Local/eventually consistent | KV update is non-atomic |
-| Metrics | Process memory | Non-durable | Resets on restart/invocation |
-| Idempotency/circuit state | Process memory | Non-durable | Per-instance behavior |
+| AsyncStorage | Profiles, stories, badges, streaks, consent, settings | Device-local | Capacity, plaintext, backup behavior |
+| Device file cache | Narration MP3 | Best-effort local cache | Eviction and device compatibility |
+| PostgreSQL | Conversations/messages | Durable | Child transcripts, retention, indexes, TLS |
+| Supabase `sync_records` | Stories/gamification/profile stubs | Durable, opt-in, RLS | Device validation and deletion lifecycle |
+| Cloudflare KV | Rate-limit/idempotency state | Durable eventual KV | Non-atomic limiter; fail-open reads |
+| `/tmp`/instance files | Server TTS/video cache | Ephemeral per instance | Cost and inconsistent retrieval |
+| Sentry | Error/alert events | Provider-managed | PII scrubbing and retention unverified |
 
-### Infrastructure inventory
+### Licenses
 
-| Component | Configuration found | Operational state |
-|---|---|---|
-| Vercel | `vercel.json`, serverless wrapper, Expo static export | Successful status checks on assessed commit; functional smoke not independently verified |
-| Cloud Run | Long-running Express target | Blocked on `main`; PR #314 supplies start/build fix |
-| Replit | Scripts and documentation remain | Requires Manual Validation |
-| Android EAS | Dev/preview APK and production AAB profiles | Build/signing/store state unverified |
-| iOS EAS | Bundle identifier configured | Submission state unverified |
-| Supabase | Auth and PostgreSQL | Secrets, RLS, backups and live data unverified |
-| Cloudflare KV | Optional limiter persistence | Active configuration unverified |
-| Sentry | Optional client/server DSNs | Alerting, scrubbing and retention unverified |
-| Docker | Not Found in inspected manifests | Manual full-tree validation required |
-| Kubernetes | Not Found | Manual validation required |
-| Queue/worker | Not Found | Long-running work remains request-path oriented |
-| Object storage/CDN | Not Found for generated media | Media caches remain local/ephemeral |
+- Repository package metadata is `private: true`, but repository visibility and distribution posture require manual confirmation.
+- No project `LICENSE` was verified in the inspected evidence.
+- Third-party dependency licenses and generated/stock asset rights require an SBOM/license scan before distribution.
 
 ## Repository Inventory
 
-| Path | Role |
-|---|---|
-| `app/` | Expo Router screens and navigation |
-| `components/` | Reusable React Native components |
-| `constants/` | Types, themes and static configuration |
-| `lib/` | Contexts, local storage, launch gate, query client and hooks |
-| `server/` | Express runtime, middleware, AI routing and integrations |
-| `server/routes/` | Story, images, TTS, music, suggestions, video, health and webhook modules |
-| `server/replit_integrations/` | Voice chat and integration-scaffolded modules |
-| `shared/` | Drizzle schemas and shared models |
-| `api/` | Vercel serverless entrypoint |
-| `scripts/` | Build and preflight helpers |
-| `.github/workflows/` | CI and repository automation |
-| `docs/` | Architecture, API, security, operations, ADRs and agent guidance |
-| `assets/` | Application images/audio/artwork |
-| `.agents/`, `.github/agents/` | AI-agent guidance; excluded from TS compile |
-| `attached_assets/` | Prompt/reference artifacts; likely non-runtime |
+| Area | Purpose | Notes |
+|---|---|---|
+| `app/` | Expo Router screens | Tabs, story, setup, consent, privacy, settings, voice chat |
+| `components/` | Reusable UI and runtime managers | Includes `SyncManager`, story safety render components |
+| `lib/` | Client contexts, storage, audio, sync | Two distinct sync systems must remain explicitly separated |
+| `server/` | Express/API/provider/safety/operations | Modular route domains; scaffolded Replit integrations remain |
+| `shared/` | Schemas and dependency-free contracts | DB schemas, safety terms, sync types |
+| `supabase/migrations/` | Versioned Supabase schema | `0001_sync_tables.sql`; chat schema migration history still unverified |
+| `.github/workflows/` | CI and automation definitions | Execution/enforcement not proven on current main |
+| `docs/` | Architecture, API, ADRs, runbooks | Extensive but contains stale claims |
+| `archive/` | Archived native rewrite planning | Keep excluded from runtime and current architecture claims |
+| `attached_assets/` | Historical prompts/assets | Triage for repository weight, secrets, and release packaging |
 
-### Important configuration findings
+### Dead/Duplicate/Generated Code
 
-| File | Finding |
-|---|---|
-| `package.json` | Root `start` launches Expo dev server, causing Cloud Run buildpack failure |
-| `app.json` | Expo Router origin is `https://infinityheroes.app/` |
-| `eas.json` | Client API URL is `https://www.bedtime-chronicles.com` |
-| `vercel.json` | All routes rewrite to one function with 60-second max duration |
-| `tsconfig.json` | Test files and `.agents` are excluded |
-| `drizzle.config.ts` | Migration output configured, but common command is `db:push` |
-| `.github/workflows/ci.yml` | Strong gate defined, execution not demonstrated on assessed commit |
-| `scripts/preflight.js` | Checks Node/lock/patch/env only, not typecheck/lint/test despite README wording |
-
-Full dead-code, duplicate-code and unused-asset analysis requires a complete local checkout/build graph and is **Requires Manual Validation**.
+- The Replit audio and chat modules are integration-derived and use different safety patterns.
+- `users` in `shared/schema.ts` appears disconnected from Supabase Auth and the active conversation ownership model.
+- Two sync concepts coexist: durable state sync and offline event queue. This is intentional per current docs, but favorites/completions overlap and require regression tests.
+- Historical prompt/attached files and archived Kotlin planning are not runtime features.
+- Full unused dependency/asset analysis requires local static tooling and bundle output; **Unable to Verify** from connector-only inspection.
 
 ## Feature Inventory
 
-| Feature | Main implementation | Dependencies | Data use | Status | Readiness |
+| Feature | Purpose | Entry points / dependencies | Data | Status | Production assessment |
 |---|---|---|---|---|---|
-| Classic stories | Story details, story screen, story API | Text AI | Prompt sent to provider; result local | Implemented | Conditional |
-| Mad Libs stories | Mad Libs setup and story API | Text AI | Words sent to provider | Implemented | Conditional |
-| Sleep stories | Sleep setup and story API | Text AI/TTS/music | Inputs sent to provider | Implemented | Conditional |
-| Streaming stories | `/api/generate-story-stream` | Streaming provider | Transient SSE | Implemented | Timeout/disconnect validation required |
-| Hero creator/avatar | Create flow and avatar API | Image AI | Hero fields sent to provider | Implemented | Conditional |
-| Scene illustrations | Scene API | Gemini/OpenAI image | Story snippet sent to provider | Implemented | Conditional |
-| Narration | TTS routes and ElevenLabs | ElevenLabs | Story text sent to provider | Optional | Conditional |
-| Profiles/library/badges | Contexts and AsyncStorage | Local storage | Child/profile/story data local | Implemented | Conditional |
-| Parent controls | Settings and parent controls | Local storage | Local settings/PIN hash | Implemented | Bypass/UX testing required |
-| Parental consent | Consent screen/context/storage | Local storage | Consent version/timestamp | Implemented | Copy is inaccurate; blocked |
-| Supabase accounts | Auth context and middleware | Supabase | Parent email/account metadata | Backend implemented; UI unclear | Disclosure/lifecycle blocked |
-| Voice Chat | Voice UI/audio routes/PostgreSQL | OpenAI audio + DB | Audio transmitted; transcripts retained | Optional | **Not production-ready** |
-| Video | Video routes/feature flag | OpenAI video | Scene/hero data | Default off | Experimental |
-| Smart suggestions | Suggest endpoint | Text AI | Can send child name/age | Implemented | Privacy blocked |
-| Delete All Data | Settings and `clearAllData()` | Local storage/auth | Local deletion only | Partial | **Release blocker** |
+| Classic stories | Interactive adventure | Story setup → `/api/generate-story` | Local story; provider prompt | Implemented | Conditional |
+| Mad Libs | Silly personalized story | `app/madlibs.tsx` | User words → provider | Implemented | Conditional |
+| Sleep mode | Calming no-choice story | `app/sleep-setup.tsx` | Local story | Implemented | Conditional |
+| Story output safety | Block unsafe generated text | `server/safety/`, `StoryTextDisplay` | Safety metrics only | Implemented | Positive control; evals required |
+| Hero creation/avatar | Custom hero | create/quick-create + image API | Local; provider prompt | Implemented | Conditional |
+| Scene images | Illustrations | scene API | Local/base64 or provider URL | Implemented | Storage/provider review needed |
+| Narration | TTS playback | ElevenLabs + local cache | Story text to provider | Implemented | Conditional |
+| Profiles/library/badges | Local personalization/progress | AsyncStorage | Child name/age local | Implemented | Conditional |
+| Parent controls | Duration/themes/PIN/bedtime | Settings/context | Local | Implemented | Device test required |
+| Consent/privacy | Parent notice/gate | consent/privacy screens | Consent record local | Implemented but inaccurate | Critical blocker |
+| Supabase account | Parent sign-in | AuthContext | Parent email/session | Implemented | Lifecycle/privacy incomplete |
+| Cloud backup | Cross-device stories/progress | SyncManager + sync_records | No profile name/age | Implemented off-by-default | Device validation required |
+| Text chat | Child-safe typed conversation | chat routes | Durable transcripts | Implemented | Retention/privacy still blocked |
+| Audio Voice Chat | Talk to hero | audio routes | Audio to provider; transcripts DB | Implemented | **NO GO / disable** |
+| Video | Animated scenes | video routes | Provider/job/cache | Feature-flagged | Disable first release |
+| GitHub webhook | Deployment diagnostics | HMAC route | GitHub metadata | Implemented | Platform validation required |
 
-## API Summary
+## API Documentation
 
-The canonical detailed endpoint document remains `docs/API.md`. The release posture is:
+### Public Operational and Catalog Routes
 
-### Public GET endpoints
+| Method | Route | Auth | Notes |
+|---|---|---|---|
+| GET | `/api/health` | None | Returns static capability plus cached live probes; still HTTP 200 / `status: ok` when dependencies are degraded |
+| GET | `/api/metrics` | None | Process-local counters; should be internal |
+| GET | `/api/ai-providers` | None | Provider and breaker disclosure; should be minimized/protected |
+| GET | `/api/voices` | None | Voice catalog |
+| GET | `/api/music/:mode` | None | Static/served media |
+| GET | `/api/tts-audio/:file` | None | Validated cached audio filename |
+| GET | `/api/video-available` | None | Capability disclosure |
+| GET | `/privacy` | None | Web privacy page; must match in-app notice |
 
-- `GET /api/health`: returns process/provider flags but always reports `status: "ok"`.
-- `GET /api/metrics`: public in-process counters.
-- `GET /api/ai-providers`: public provider configuration/status.
-- `GET /api/voices`, `/api/music/:mode`, `/api/tts-audio/:file`: public catalogs/media.
-- `GET /api/video-available`: public feature capability.
-- `GET /privacy`: web privacy policy.
+### Auth-Gated Routes
 
-### Auth-gated writes
+All non-GET `/api/*` routes are globally passed through Supabase bearer-token verification in production, except the HMAC-authenticated GitHub webhook. Conversation GETs are also protected.
 
-All non-GET `/api/*` routes require Supabase bearer authentication in production except the HMAC-authenticated GitHub webhook. Major writes include story generation, streaming, avatar, scene, TTS, suggestions, video, integration image generation and voice conversations/messages.
+| Method | Route | Validation/control | Principal risk |
+|---|---|---|---|
+| POST | `/api/generate-story` | Zod, prompt sanitization, rate limit, idempotency, output guard | Child data/provider contracts and cost |
+| POST | `/api/generate-story-stream` | Same; safety mode buffers before emit | Latency and disconnect cancellation |
+| POST | `/api/generate-avatar` | Zod, rate limit | Image moderation/provider retention |
+| POST | `/api/generate-scene` | Zod, rate limit | Story text to image provider |
+| POST | `/api/tts` | Zod, length cap, rate limit | Names in story text sent to ElevenLabs |
+| POST | `/api/tts-preview` | Zod, rate limit | Cost abuse |
+| POST | `/api/suggest-settings` | Zod, sanitization | Optional child age/name provider transmission |
+| POST | `/api/generate-video` | Zod, flag, rate limit | Cost/duration/job reliability |
+| POST | `/api/generate-image` | Integration-specific | Contract consistency requires review |
+| POST | `/api/github/webhook` | HMAC/raw body | Deployment/firewall validation |
+| POST | `/api/sync/interactions` | Auth + schema | Dedupe and overlap with state sync |
 
-### Voice conversation endpoints
+### Conversation Routes
 
-- `GET /api/conversations`
-- `GET /api/conversations/:id`
-- `POST /api/conversations`
-- `DELETE /api/conversations/:id`
-- `POST /api/conversations/:id/messages`
+| Method | Route | Ownership | Persistence |
+|---|---|---|---|
+| GET | `/api/conversations` | Auth UID filter | Conversation rows |
+| GET | `/api/conversations/:id` | Owner check | Messages returned |
+| POST | `/api/conversations` | Auth UID | Conversation created |
+| DELETE | `/api/conversations/:id` | Owner check | Conversation/messages deleted |
+| POST | `/api/conversations/:id/messages` | Owner check | Text or audio module stores transcripts |
 
-Conversation reads/writes verify the authenticated owner before accessing messages.
+The same route namespace is implemented by separate text and audio integration modules; only the module dynamically registered by current configuration is active. This design should be consolidated to prevent safety-policy divergence.
 
-## Authentication
+### API Gaps
+
+- No generated OpenAPI 3.1 contract.
+- Error envelopes and SSE event schemas are not centrally versioned.
+- No bulk “delete all conversations for current user” endpoint.
+- No account deletion/export endpoint.
+- No public/internal separation for health vs detailed diagnostics.
+- No consistent provider-abort signal verified when a client disconnects.
+
+## Authentication and Authorization
 
 ### Client
 
-1. Supabase initializes only with public URL and anon key.
-2. Session persists in AsyncStorage.
-3. The access token is attached to API requests.
-4. Email/password sign-in and sign-up methods exist.
+- Supabase client initializes only with URL + anon key.
+- Session persists in AsyncStorage and auto-refreshes.
+- Email/password sign-in and sign-up exist.
+- Cloud backup UI requires a signed-in user.
 
 ### Server
 
-1. A server-side service-role Supabase client validates tokens using `getUser`.
-2. Invalid/expired tokens return 401.
-3. Provider/network/misconfiguration errors return 503.
-4. Missing auth configuration returns 503 in production.
-5. Development can use an IP-derived anonymous identity.
+- Service-role Supabase client validates access tokens through `auth.getUser`.
+- Invalid/expired tokens return 401.
+- Upstream/auth-service problems return 503.
+- Missing production auth configuration fails closed with 503.
+- Development permits anonymous fallback, which must not be confused with production behavior.
 
-No RBAC model was found. Voice-chat authorization is ownership based. Supabase RLS policies, account verification/reset/MFA and account deletion are **Unable to Verify**.
+### Authorization
 
-## Validation and Prompt Safety
+- Conversation ownership is enforced with authenticated UID filtering.
+- `sync_records` migration defines owner-only RLS for select/insert/update/delete.
+- No application RBAC/admin model was found.
+- Live RLS policy state and service-role usage must be manually validated.
 
-### Verified strengths
+### Account Lifecycle Gaps
 
-- Zod schemas cap field lengths and normalize supported modes/durations.
-- `sanitizePromptInput()` removes control characters, role markers, multiline structure and delimiter-like sequences.
-- Story responses use balanced JSON extraction and structure checks.
-- Story generation includes token caps, timeout, retries, idempotency and cost signals.
-- Conversation ownership is checked before message access.
-
-### Gaps
-
-- Voice transcripts are free-form durable records with no verified TTL.
-- Database `role` is unconstrained text.
-- Voice streaming uses `any` for provider deltas.
-- Voice JSON parser accepts 50 MB before applying a 25 MB decoded limit.
-- No post-generation story/image/voice moderation gate was verified.
-- Provider child-safety configuration and retention terms are unknown.
-- Error schemas are not generated from a central API contract.
+- No verified email confirmation/reset UX.
+- No re-authenticated account deletion.
+- No account data export.
+- Sign-out is not deletion.
+- Privacy copy says accounts do not exist.
 
 ## Database Documentation
 
+### Chat Schema
+
 ```mermaid
 erDiagram
-    USERS {
-      varchar id PK
-      text username UK
-    }
-    CONVERSATIONS {
-      serial id PK
-      text user_id
-      text title
-      timestamp created_at
-    }
-    MESSAGES {
-      serial id PK
-      int conversation_id FK
-      text role
-      text content
-      timestamp created_at
-    }
-    CONVERSATIONS ||--o{ MESSAGES : contains
+  CONVERSATIONS ||--o{ MESSAGES : contains
+  CONVERSATIONS {
+    serial id PK
+    text user_id
+    text title
+    timestamp created_at
+  }
+  MESSAGES {
+    serial id PK
+    integer conversation_id FK
+    text role
+    text content
+    timestamp created_at
+  }
 ```
 
-### Verified constraints
+Findings:
 
 - `messages.conversation_id` cascades on conversation deletion.
-- `conversations.user_id` is required and defaults to `anonymous`.
-- `users.username` is unique.
+- `conversations.user_id` is text and not a database FK to `auth.users`.
+- No declared index was verified for `conversations.user_id` or `messages.conversation_id`.
+- `role`, title length, and message length are enforced mainly in application code, not DB constraints.
+- Chat migration history was not found in the inspected migration directory.
 
-### Missing or unverified
+### Cloud Sync Schema
 
-- No FK from `conversations.user_id` to auth/users.
-- No database constraint for message role.
-- No DB length constraints for title/content.
-- No declared indexes on `conversations.user_id`, `conversations.created_at`, `messages.conversation_id` or `messages.created_at`.
-- Production migration history, RLS, backups and restore tests are unverified.
-- `server/db.ts` disables certificate verification when `sslmode=require` appears.
+`sync_records` has primary key `(user_id, entity, id)`, an indexed pull path `(user_id, entity, updated_at)`, JSON payload, soft-delete tombstones, owner-only RLS, and `auth.users` cascade deletion.
+
+Synced entities: stories, badges, streaks, favorites, read state, and minimal profile stubs. Child profile name/age/avatar are intentionally excluded.
+
+### Database Risks
+
+- Chat transcript retention has no TTL job.
+- Delete-all does not delete chat rows or auth identity.
+- PostgreSQL configuration previously inspected uses `rejectUnauthorized: false` when `sslmode=require`; no later change touched `server/db.ts` in the rebaseline compare.
+- Backup/PITR/restore status is **Unable to Verify**.
+- `db:push` remains available and should not replace reviewed versioned production migrations.
 
 ## Data Lifecycle
 
-| Data | Transmission | Storage | Deletion posture |
+| Data | Collection/transmission | Storage | Current deletion |
 |---|---|---|---|
-| Child name/age | AI providers when used | Local; can appear in generated content | Local clear only |
-| Parent credentials | Supabase | Supabase Auth | No in-app account deletion verified |
-| Story inputs/results | AI providers; optional TTS/image | Result local; temporary caches | Local clear/cache expiry |
-| Voice audio | OpenAI | Raw audio not intentionally persisted by app | Provider retention unknown |
-| Child/assistant transcript | OpenAI and server | PostgreSQL | Per-conversation delete only |
-| Sentry events | Sentry | Provider managed | Retention/scrubbing unknown |
-| IP/rate keys | Cloudflare when enabled | Memory/KV window | TTL behavior, fail-open risk |
+| Child profile name/age | Local; optionally included in story/suggestion provider calls | AsyncStorage | Local clear |
+| Parent account email/session | Supabase Auth | Supabase | Sign-out only; account deletion missing |
+| Story prompt/output | AI providers; optional TTS/image providers | Local; optional sync record | Local + sync purge when enabled |
+| Synced progress/story metadata | Supabase | `sync_records` | `purgeCloudData`; auth cascade only if account deleted externally |
+| Voice audio | OpenAI transcription/audio | Raw audio not intentionally stored by app | Provider retention unknown |
+| Child/assistant transcripts | OpenAI + server | PostgreSQL messages | Per-conversation delete only |
+| Operational telemetry | Pino/Sentry | Runtime/provider-managed | Retention/scrubbing unverified |
+| Rate-limit identifiers | Memory/KV | Short TTL | TTL; failure behavior requires validation |
 
-## Infrastructure and Deployment Flow
+## Infrastructure and Deployment
+
+| Target | Configuration | Current code state | Operational state |
+|---|---|---|---|
+| Cloud Run/buildpack | `Procfile`, `gcp-build`, `start=server:prod` | Boot defect fixed and merged | Post-merge revision not verified |
+| Vercel | `vercel.json`, `api/server.mjs`, 60s function duration | Configured | Current-main deployment status unavailable |
+| EAS Android/iOS | `eas.json`, `app.json` | Configured | Build/store submission unverified |
+| Supabase | Auth/Postgres/sync migration | Code/migration present | Live config/RLS/backups require validation |
+| Cloudflare KV | REST-based optional state | Code present | Credentials/behavior in prod unknown |
+| Sentry | Node and RN SDKs | Code present | DSNs, filters, alerts, ownership unknown |
+
+### Deployment Flow
 
 ```mermaid
 flowchart LR
-    Dev[Developer / AI Agent]
-    PR[Pull Request]
-    CI[GitHub Actions]
-    Main[main]
-    Vercel[Vercel]
-    CloudRun[Cloud Run]
-    EAS[EAS Build]
-    Store[App Stores]
-
-    Dev --> PR --> CI --> Main
-    Main --> Vercel
-    Main --> CloudRun
-    Main --> EAS --> Store
-    CloudRun -. current main fails .-> CloudRun
-    CI -. assessed run not returned .-> CI
+  Dev[Developer / Agent] --> PR[Pull Request]
+  PR --> CI[GitHub Actions quality gate]
+  CI --> Merge[Protected main]
+  Merge --> Web{Chosen web/API target}
+  Web --> V[Vercel]
+  Web --> G[Cloud Run]
+  Merge --> EAS[EAS Build]
+  EAS --> Store[Internal track → staged production]
+  V --> Smoke[Deployed smoke + alerts]
+  G --> Smoke
+  Store --> Device[Physical-device acceptance]
 ```
+
+The intended flow is documented, but CI enforcement, canonical target selection, deployed smoke, and store rollout evidence are not currently proven.
 
 ## Findings
 
-### Positive
-
-- Modular domain routes and shared schemas.
-- Strong provider abstraction and failure handling.
-- Production auth fails closed.
-- Static web and API packaging are defined.
-- Feature flags can isolate optional capabilities.
-
-### Release-significant gaps
-
-1. Production origin/domain mismatch.
-2. Package/repository metadata points to a different repo.
-3. Replit, Cloud Run and Vercel are inconsistently described as primary.
-4. Cloud Run is broken on assessed `main`.
-5. No durable job queue for long-running generation.
-6. Rate limits, metrics, idempotency, caches and circuit state are not globally durable.
-7. No project license while repository is public.
-8. Data deletion and privacy copy do not match durable voice-chat data.
+1. The architecture is credible and increasingly production-oriented.
+2. Story safety and optional cloud sync are meaningful improvements.
+3. The highest remaining risk is policy divergence: audio Voice Chat, privacy copy, and deletion lifecycle do not match the safer story/text-chat architecture.
+4. Operational proof is behind implementation maturity.
 
 ## Risks
 
-- Deep links, redirects, auth callbacks and CORS can fail across domains.
-- Long provider fallback can exceed platform and user latency limits.
-- Optional capabilities can become active through environment drift.
-- Stale documentation can cause operators to deploy the wrong process or privacy posture.
+- Separate chat implementations will continue drifting unless unified.
+- Two sync mechanisms can duplicate or reorder overlapping events.
+- Multi-target deployment can produce inconsistent secrets, domains, and feature flags.
+- Local-first data can grow beyond AsyncStorage limits.
 
 ## Recommendations
 
-1. Select one canonical web/API origin and primary platform.
-2. Merge and validate PR #314 or remove Cloud Run from supported targets.
-3. Default Voice Chat and Video off.
-4. Remove child name/age from provider-bound requests for initial launch.
-5. Implement complete remote deletion.
-6. Add versioned DB migrations, indexes and verified TLS.
-7. Generate OpenAPI 3.1 from Zod with contract tests.
-8. Add object storage/queue only when approved features require them.
-9. Add a license or make the repository private.
+1. Consolidate text and audio conversation policy into one service layer with mandatory system safety, history bounds, moderation, and retention controls.
+2. Create a single authenticated account/data deletion orchestration endpoint.
+3. Generate OpenAPI from Zod and run contract tests.
+4. Adopt versioned migrations for chat constraints/indexes.
+5. Define one canonical production topology and environment matrix.
+6. Add device-level cloud-sync and deletion tests before enabling backup broadly.
 
 ## Next Actions
 
-- Release Engineering: normalize domains, platform and start commands.
-- Privacy/Product: select the data-minimized launch scope.
-- Backend/Database: remote deletion, indexes, migrations and retention.
-- QA: contract, data-lifecycle and real-device tests.
+See [RISK_AND_RELEASE_PLAN.md](./RISK_AND_RELEASE_PLAN.md) for owner-ready blockers and sequencing.
 
 ## Claims Check
 
-“Implemented” means code/configuration exists, not that provider credentials, production infrastructure or UI reachability were successfully exercised. Complete dead-code, asset and dependency-license analysis remains **Requires Manual Validation**.
+“Implemented” means code/configuration exists in the assessed commit. It does not mean provider credentials, cloud infrastructure, device behavior, or app-store configuration have been validated.
 
 ## Version History
 
 | Version | Date | Change |
 |---|---|---|
-| 1.0 | 2026-07-11 | Initial architecture, feature, API and data assessment. |
+| 1.1 | 2026-07-15 | Re-baselined architecture/features/data to `0e31e776`. |
+| 1.0 | 2026-07-11 | Superseded initial assessment. |
