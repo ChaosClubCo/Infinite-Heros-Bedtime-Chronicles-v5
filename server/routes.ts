@@ -2,7 +2,12 @@ import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { logProviderStatus } from "./ai";
 import { requireAuth } from "./auth";
-import { getVoiceChatComplianceStatus, isVoiceChatComplianceApproved } from "./compliance";
+import {
+  getAiProviderComplianceStatus,
+  getVoiceChatComplianceStatus,
+  isAiProviderProcessingApproved,
+  isVoiceChatComplianceApproved,
+} from "./compliance";
 import { isFeatureEnabled } from "./feature-flags";
 import { logger } from "./logger";
 import { registerAccountRoutes } from "./routes/account";
@@ -18,18 +23,23 @@ import { registerGithubWebhookRoute } from "./routes/github-webhook";
 /**
  * Auth-gate predicate for `/api/*` requests (paths are relative to the `/api` mount,
  * e.g. `/conversations/1`, not `/api/conversations/1`).
- *
- * GET requests skip auth by default since most GETs (health, voices, music, etc.)
- * serve public catalog data. GET /api/conversations* is the exception: it returns
- * per-user voice-chat history, so it must go through requireAuth like the writes do.
- *
- * /github/webhook is exempt: GitHub cannot supply a Supabase bearer token, and
- * the route authenticates the caller itself via HMAC (X-Hub-Signature-256).
  */
 export function requiresAuthGate(method: string, path: string): boolean {
   if (path === '/github/webhook' || path === '/github/webhook/') return false;
   if (method === 'GET') return path.startsWith('/conversations');
   return true;
+}
+
+/**
+ * Child-directed routes that send content to an AI, transcription, image, video,
+ * or speech provider. Static health/catalog routes and account deletion remain
+ * available even while provider processing is fail-closed.
+ */
+export function requiresAiProviderCompliance(path: string): boolean {
+  return path.startsWith('/generate-')
+    || path.startsWith('/suggest-settings')
+    || path.startsWith('/tts')
+    || path.startsWith('/conversations');
 }
 
 /** Route composer. */
@@ -39,6 +49,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api', async (req, res, next) => {
     if (!requiresAuthGate(req.method, req.path)) return next();
     return requireAuth(req, res, next);
+  });
+
+  app.use('/api', (req, res, next) => {
+    if (!requiresAiProviderCompliance(req.path) || isAiProviderProcessingApproved()) {
+      return next();
+    }
+
+    const compliance = getAiProviderComplianceStatus();
+    logger.warn({
+      event: 'ai_provider_processing_blocked',
+      path: req.path,
+      missingCompliance: compliance.missing,
+    }, 'production AI processing blocked by compliance gate');
+    return res.status(503).json({
+      error: 'AI features are temporarily unavailable pending required privacy and provider approvals',
+    });
   });
 
   registerHealthRoutes(app);
