@@ -45,14 +45,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-proof-${{ github.event_name == 'workflow_dispatch' && inputs.release_sha || github.event.before }}
+  group: release-proof-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_sha || github.event.before }}
   cancel-in-progress: false
 
 env:
-  RELEASE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.release_sha || github.event.before }}
-  BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || 'https://www.bedtime-chronicles.com' }}
-  PROOF_PHASE: ${{ github.event_name == 'workflow_dispatch' && inputs.proof_phase || 'automated' }}
-  EVIDENCE_ISSUE: ${{ github.event_name == 'workflow_dispatch' && inputs.evidence_issue || '355' }}
+  RELEASE_SHA: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_sha || github.event.before }}
+  BASE_URL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.base_url || 'https://www.bedtime-chronicles.com' }}
+  PROOF_PHASE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.proof_phase || 'automated' }}
+  EVIDENCE_ISSUE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.evidence_issue || '355' }}
 
 jobs:
   validate-candidate:
@@ -65,9 +65,9 @@ jobs:
     steps:
       - name: Validate inputs
         env:
-          DEVICE_EVIDENCE: ${{ inputs.physical_device_evidence_url }}
-          BACKUP_EVIDENCE: ${{ inputs.backup_restore_evidence_url }}
-          ROLLBACK_EVIDENCE: ${{ inputs.rollback_evidence_url }}
+          DEVICE_EVIDENCE: ${{ github.event.inputs.physical_device_evidence_url }}
+          BACKUP_EVIDENCE: ${{ github.event.inputs.backup_restore_evidence_url }}
+          ROLLBACK_EVIDENCE: ${{ github.event.inputs.rollback_evidence_url }}
         run: |
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$BASE_URL" =~ ^https://[^[:space:]]+$ ]]
@@ -225,16 +225,16 @@ jobs:
   evidence-manifest:
     name: Record manual evidence references
     needs: [eas-internal-android, deployed-smoke, alert-delivery]
-    if: inputs.proof_phase == 'finalize'
+    if: github.event.inputs.proof_phase == 'finalize'
     runs-on: ubuntu-latest
     steps:
       - name: Build evidence manifest
         env:
           RELEASE_SHA: ${{ env.RELEASE_SHA }}
           BASE_URL: ${{ env.BASE_URL }}
-          DEVICE_EVIDENCE: ${{ inputs.physical_device_evidence_url }}
-          BACKUP_EVIDENCE: ${{ inputs.backup_restore_evidence_url }}
-          ROLLBACK_EVIDENCE: ${{ inputs.rollback_evidence_url }}
+          DEVICE_EVIDENCE: ${{ github.event.inputs.physical_device_evidence_url }}
+          BACKUP_EVIDENCE: ${{ github.event.inputs.backup_restore_evidence_url }}
+          ROLLBACK_EVIDENCE: ${{ github.event.inputs.rollback_evidence_url }}
         run: |
           node <<'NODE'
           const fs = require('node:fs');
