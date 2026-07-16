@@ -12,6 +12,10 @@ import {
   favoritesAdapter, readAdapter, profileStubAdapter,
 } from './storage-adapters';
 import type { SyncEntity } from '@shared/sync-types';
+import {
+  isServerDeletionReceipt,
+  type ServerDeletionReceipt,
+} from '@shared/account-deletion';
 
 /** All six synced entities. profileStub runs first so its placeholder profiles
  *  exist before badges/streaks that reference them are applied. */
@@ -59,9 +63,14 @@ export async function runSync(enabled: boolean): Promise<boolean> {
  * background sync, deletion intentionally throws on failure so the caller does
  * not wipe the device and sign out while retained server data still exists.
  */
-export async function purgeCloudData(): Promise<boolean> {
+export async function purgeCloudData(): Promise<ServerDeletionReceipt | null> {
   const ctx = await currentUserId();
-  if (!ctx) return false;
-  await apiRequest('DELETE', 'api/account');
-  return true;
+  if (!ctx) return null;
+
+  const response = await apiRequest('DELETE', 'api/account');
+  const payload: unknown = await response.json();
+  if (!isServerDeletionReceipt(payload)) {
+    throw new Error('Account deletion completed without a valid verification receipt');
+  }
+  return payload;
 }
