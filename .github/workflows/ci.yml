@@ -27,10 +27,9 @@ jobs:
 
       - name: Install dependencies and verify lockfile integrity
         id: npm-ci
-        # `npm ci` is the canonical strict check: it exits without installing when
-        # package.json and package-lock.json disagree. Capture the complete output
-        # so a failure can be inspected without depending on truncated runner logs.
-        run: npm ci 2>&1 | tee npm-ci.log
+        # `npm ci` remains strict. The helper retries transient registry/cache
+        # failures but a deterministic manifest/lockfile error fails every attempt.
+        run: bash scripts/npm-ci-retry.sh npm-ci.log
 
       - name: Upload npm install diagnostics
         if: failure() && steps.npm-ci.outcome == 'failure'
@@ -128,7 +127,16 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        id: build-npm-ci
+        run: bash scripts/npm-ci-retry.sh build-npm-ci.log
+
+      - name: Upload build install diagnostics
+        if: failure() && steps.build-npm-ci.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-npm-ci-diagnostics
+          path: build-npm-ci.log
+          retention-days: 7
 
       - name: Build server
         run: npm run server:build
