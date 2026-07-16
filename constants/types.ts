@@ -96,8 +96,13 @@ export interface ParentConsent {
   version: number;      // CONSENT_VERSION at the time consent was given
 }
 
-/** Bump when the privacy practices materially change to re-prompt for consent. */
-export const CONSENT_VERSION = 1;
+/**
+ * Version 2 discloses optional parent accounts/cloud backup, retained Voice
+ * Chat transcripts, bounded retention, provider processing, and complete
+ * account deletion. This is a material privacy-practice update, so existing
+ * installs must pass the parent gate and consent again.
+ */
+export const CONSENT_VERSION = 2;
 
 export const DEFAULT_PARENT_CONSENT: ParentConsent = {
   consented: false,

@@ -55,6 +55,23 @@ export function isAuthEnabled(): boolean {
 }
 
 /**
+ * Permanently delete the authenticated Supabase identity. Tables that reference
+ * auth.users with ON DELETE CASCADE (including sync_records) are purged by the
+ * database. Callers must delete data held in other databases first.
+ */
+export async function deleteAuthenticatedUser(userId: string): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    throw new Error('Supabase admin is not configured');
+  }
+
+  const { error } = await supabase.auth.admin.deleteUser(userId);
+  if (error) {
+    throw new Error(`Supabase account deletion failed: ${error.message}`);
+  }
+}
+
+/**
  * Middleware that requires a valid Supabase access token.
  * If Supabase is not configured, auth is disabled (dev mode) and requests are
  * treated as anonymous; in production a missing config returns 503 (no opt-out).

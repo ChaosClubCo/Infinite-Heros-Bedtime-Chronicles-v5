@@ -12,9 +12,9 @@ describe('feature-flags', () => {
       expect(getFeatureFlags().videoEnabled).toBe(false);
     });
 
-    it('voiceChatEnabled defaults to true (env var absent)', async () => {
+    it('voiceChatEnabled defaults to false (env var absent)', async () => {
       const { getFeatureFlags } = await import('./feature-flags');
-      expect(getFeatureFlags().voiceChatEnabled).toBe(true);
+      expect(getFeatureFlags().voiceChatEnabled).toBe(false);
     });
 
     it('streamingEnabled defaults to true (env var absent)', async () => {
@@ -51,13 +51,13 @@ describe('feature-flags', () => {
       expect(getFeatureFlags().videoEnabled).toBe(false);
     });
 
-    it('voiceChatEnabled is false when FEATURE_VOICE_CHAT_ENABLED=false', async () => {
+    it('voiceChatEnabled remains false when FEATURE_VOICE_CHAT_ENABLED=false', async () => {
       vi.stubEnv('FEATURE_VOICE_CHAT_ENABLED', 'false');
       const { getFeatureFlags } = await import('./feature-flags');
       expect(getFeatureFlags().voiceChatEnabled).toBe(false);
     });
 
-    it('voiceChatEnabled remains true when FEATURE_VOICE_CHAT_ENABLED=true', async () => {
+    it('voiceChatEnabled is true when FEATURE_VOICE_CHAT_ENABLED=true', async () => {
       vi.stubEnv('FEATURE_VOICE_CHAT_ENABLED', 'true');
       const { getFeatureFlags } = await import('./feature-flags');
       expect(getFeatureFlags().voiceChatEnabled).toBe(true);
@@ -100,9 +100,9 @@ describe('feature-flags', () => {
       expect(isFeatureEnabled('videoEnabled')).toBe(false);
     });
 
-    it('returns true for voiceChatEnabled by default', async () => {
+    it('returns false for voiceChatEnabled by default', async () => {
       const { isFeatureEnabled } = await import('./feature-flags');
-      expect(isFeatureEnabled('voiceChatEnabled')).toBe(true);
+      expect(isFeatureEnabled('voiceChatEnabled')).toBe(false);
     });
 
     it('returns true for streamingEnabled by default', async () => {
@@ -116,10 +116,10 @@ describe('feature-flags', () => {
       expect(isFeatureEnabled('videoEnabled')).toBe(true);
     });
 
-    it('returns false for voiceChatEnabled when env var is set to false', async () => {
-      vi.stubEnv('FEATURE_VOICE_CHAT_ENABLED', 'false');
+    it('returns true for voiceChatEnabled when env var is set to true', async () => {
+      vi.stubEnv('FEATURE_VOICE_CHAT_ENABLED', 'true');
       const { isFeatureEnabled } = await import('./feature-flags');
-      expect(isFeatureEnabled('voiceChatEnabled')).toBe(false);
+      expect(isFeatureEnabled('voiceChatEnabled')).toBe(true);
     });
 
     it('returns false for streamingEnabled when env var is set to false', async () => {
