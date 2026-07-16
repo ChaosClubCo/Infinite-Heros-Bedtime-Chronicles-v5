@@ -1,11 +1,12 @@
 import express, { type Express, type Request, type Response } from "express";
-import { chatStorage } from "../chat/storage";
-import { openai, speechToText, ensureCompatibleFormat } from "./client";
+import { getVoiceChatTranscriptCutoff } from "../../compliance";
 import {
   approveChatResponse,
   buildChildSafeChatMessages,
   sanitizeChatInput,
 } from "../../safety/chat-safety";
+import { chatStorage } from "../chat/storage";
+import { openai, speechToText, ensureCompatibleFormat } from "./client";
 
 // Body parser with 50MB limit for audio payloads. The decoded payload is still
 // rejected above 25MB before it is passed to a provider.
@@ -13,7 +14,6 @@ const audioBodyParser = express.json({ limit: "50mb" });
 
 const MAX_TITLE_LENGTH = 200;
 const MAX_AUDIO_SIZE_BYTES = 25 * 1024 * 1024;
-const VALID_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"] as const;
 const VOICE_CHAT_TEXT_MODEL = process.env.VOICE_CHAT_TEXT_MODEL?.trim() || "gpt-4o-mini";
 
 function parseIdParam(raw: string | string[]): number | null {
@@ -23,11 +23,25 @@ function parseIdParam(raw: string | string[]): number | null {
   return Number.isFinite(id) && id > 0 ? id : null;
 }
 
+/**
+ * Enforce the configured transcript TTL before any chat history is read or used
+ * as model context. Production route registration already requires a valid
+ * retention value, so a null cutoff is treated as a configuration failure.
+ */
+async function pruneExpiredTranscripts(userId: string): Promise<void> {
+  const cutoff = getVoiceChatTranscriptCutoff();
+  if (!cutoff) {
+    throw new Error("Voice Chat transcript retention is not configured");
+  }
+  await chatStorage.deleteExpiredMessagesForUser(userId, cutoff);
+}
+
 export function registerAudioRoutes(app: Express): void {
   // Get all conversations (with optional pagination) — scoped to the requesting user.
   app.get("/api/conversations", async (req: Request, res: Response) => {
     try {
       const userId = req.user?.uid ?? "anonymous";
+      await pruneExpiredTranscripts(userId);
       const limit = Math.min(Math.max(parseInt(String(req.query.limit), 10) || 50, 1), 200);
       const offset = Math.max(parseInt(String(req.query.offset), 10) || 0, 0);
       const conversations = await chatStorage.getAllConversations(userId);
@@ -47,6 +61,7 @@ export function registerAudioRoutes(app: Express): void {
         return res.status(400).json({ error: "Invalid conversation ID" });
       }
       const userId = req.user?.uid ?? "anonymous";
+      await pruneExpiredTranscripts(userId);
       const conversation = await chatStorage.getConversation(id, userId);
       if (!conversation) {
         return res.status(404).json({ error: "Conversation not found" });
@@ -62,6 +77,7 @@ export function registerAudioRoutes(app: Express): void {
   app.post("/api/conversations", async (req: Request, res: Response) => {
     try {
       const userId = req.user?.uid ?? "anonymous";
+      await pruneExpiredTranscripts(userId);
       const { title } = req.body;
       const sanitizedTitle = typeof title === "string"
         ? title.trim().slice(0, MAX_TITLE_LENGTH) || "New Chat"
@@ -91,13 +107,14 @@ export function registerAudioRoutes(app: Express): void {
 
   /**
    * Voice chat safety order:
-   *   1. Transcribe audio. The raw recording is never persisted by this server.
-   *   2. Sanitize and persist only the bounded transcript.
-   *   3. Generate a complete text response with the child policy re-asserted and
+   *   1. Purge transcripts older than the approved retention window.
+   *   2. Transcribe audio. The raw recording is never persisted by this server.
+   *   3. Sanitize and persist only the bounded transcript.
+   *   4. Generate a complete text response with the child policy re-asserted and
    *      history bounded to the latest turns.
-   *   4. Moderate the complete response and replace unsafe output with a known-safe
+   *   5. Moderate the complete response and replace unsafe output with a known-safe
    *      fallback before sending or storing anything child-facing.
-   *   5. Return approved text. The client invokes the existing TTS route only after
+   *   6. Return approved text. The client invokes the existing TTS route only after
    *      it receives this approved transcript, so unsafe model audio is never streamed.
    */
   app.post("/api/conversations/:id/messages", audioBodyParser, async (req: Request, res: Response) => {
@@ -108,20 +125,16 @@ export function registerAudioRoutes(app: Express): void {
       }
 
       const userId = req.user?.uid ?? "anonymous";
+      await pruneExpiredTranscripts(userId);
       const conversation = await chatStorage.getConversation(conversationId, userId);
       if (!conversation) {
         return res.status(404).json({ error: "Conversation not found" });
       }
 
-      const { audio, voice = "alloy" } = req.body;
+      const { audio } = req.body;
       if (!audio || typeof audio !== "string") {
         return res.status(400).json({ error: "Audio data (base64 string) is required" });
       }
-
-      // Retain validation for API compatibility even though synthesis now happens
-      // through the separately safety-gated TTS request on the client.
-      const validatedVoice = VALID_VOICES.includes(voice) ? voice : "alloy";
-      void validatedVoice;
 
       const estimatedSize = Math.ceil(audio.length * 0.75);
       if (estimatedSize > MAX_AUDIO_SIZE_BYTES) {
