@@ -45,11 +45,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-proof-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_sha || github.event.before }}
+  group: release-proof-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_sha || github.sha }}
   cancel-in-progress: false
 
 env:
-  RELEASE_SHA: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_sha || github.event.before }}
+  RELEASE_SHA: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_sha || github.sha }}
   BASE_URL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.base_url || 'https://www.bedtime-chronicles.com' }}
   PROOF_PHASE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.proof_phase || 'automated' }}
   EVIDENCE_ISSUE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.evidence_issue || '355' }}
@@ -136,7 +136,9 @@ jobs:
       - name: Build internal APK and wait for completion
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: npx --yes eas-cli@16.0.0 build --platform android --profile preview --non-interactive --wait --json | tee eas-build.json
+        run: |
+          set -o pipefail
+          npx --yes eas-cli@16.0.0 build --platform android --profile preview --non-interactive --wait --json | tee eas-build.json
 
       - name: Upload EAS evidence
         uses: actions/upload-artifact@v7
