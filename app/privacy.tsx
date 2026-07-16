@@ -56,74 +56,95 @@ export default function PrivacyScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.updated}>Last updated: June 2026</Text>
+        <Text style={styles.updated}>Last updated: July 2026</Text>
 
         <View style={styles.highlight}>
           <Text style={styles.highlightText}>
-            <Text style={styles.bold}>Summary for parents:</Text> Story data stays
-            on your device. To generate a story we send the hero details and any
-            name/age you provide to our AI partners; we don’t store them. There
-            are no ads, no tracking, and no accounts.
+            <Text style={styles.bold}>Summary for parents:</Text> Most child-profile
+            information stays on the device. A parent may create an optional account
+            for cloud backup and Voice Chat. Story inputs and Voice Chat audio are sent
+            to service providers to produce the requested feature. We retain only the
+            server data described below, and Delete All Data removes the account,
+            cloud records, Voice Chat history, and local device data.
           </Text>
         </View>
 
         <Section title="1. Information We Collect">
-          <Text style={styles.label}>Stored on your device (never sent to us):</Text>
-          <Bullet>Child profiles (name, age, favorite hero) — stored locally</Bullet>
-          <Bullet>Generated stories, illustrations, and audio — cached on device</Bullet>
-          <Bullet>Badges, reading streaks, and achievements</Bullet>
-          <Bullet>App settings and parent controls (PIN stored as a salted hash)</Bullet>
+          <Text style={styles.label}>Stored on your device:</Text>
+          <Bullet>Child profiles, including name, age range, favorite hero, and avatar choices</Bullet>
+          <Bullet>Generated stories, illustrations, narration cache, badges, streaks, and achievements</Bullet>
+          <Bullet>App settings and parent controls, including the locally protected parent PIN</Bullet>
 
-          <Text style={styles.label}>Sent to our server to create a story (not stored after the response):</Text>
-          <Bullet>Hero name, title, and power</Bullet>
-          <Bullet>Story preferences: mode, duration, tone, setting, soundscape</Bullet>
-          <Bullet>Your child’s first name and age, if you choose to provide them, to personalize the story</Bullet>
-          <Bullet>Voice Chat only: the audio your child records, sent to our AI partner to generate a reply</Bullet>
+          <Text style={styles.label}>Optional parent account and cloud backup:</Text>
+          <Bullet>A parent email address, account identifier, and authentication records are handled by Supabase</Bullet>
+          <Bullet>When cloud backup is enabled, stories and progress records are stored under the parent account</Bullet>
+          <Bullet>Cloud backup uses a profile stub and does not upload the child profile name or age</Bullet>
 
-          <Text style={styles.label}>Automatically collected:</Text>
-          <Bullet>IP address — used for rate limiting, purged after ~60 seconds</Bullet>
-          <Bullet>Random request IDs for debugging, not linked to a person</Bullet>
+          <Text style={styles.label}>Sent to our services and AI providers:</Text>
+          <Bullet>Hero details and story preferences needed to create a story</Bullet>
+          <Bullet>A child first name or age range only when the parent chooses to include it for personalization</Bullet>
+          <Bullet>Voice Chat audio, when enabled and used, for speech transcription</Bullet>
+          <Bullet>Approved text for narration or other requested media generation</Bullet>
+
+          <Text style={styles.label}>Retained on our servers:</Text>
+          <Bullet>Voice Chat conversation titles and sanitized text transcripts tied to the signed-in parent account</Bullet>
+          <Bullet>Cloud-backup records when the parent turns that feature on</Bullet>
+          <Bullet>Security, rate-limit, request, and error information needed to operate and protect the service</Bullet>
+          <Text style={styles.paragraph}>
+            We do not intentionally retain the raw Voice Chat recording after it has
+            been submitted for transcription. AI providers may process or retain
+            request data according to the provider terms and agreements applicable to
+            the production service.
+          </Text>
         </Section>
 
         <Section title="2. How We Use Information">
-          <Bullet>Generate personalized bedtime stories, illustrations, and narration</Bullet>
-          <Bullet>Respond to optional Voice Chat messages</Bullet>
-          <Bullet>Prevent abuse through rate limiting</Bullet>
+          <Bullet>Generate bedtime stories, illustrations, narration, and optional Voice Chat replies</Bullet>
+          <Bullet>Save and synchronize stories and progress when a parent enables cloud backup</Bullet>
+          <Bullet>Authenticate the parent account and enforce owner-only access</Bullet>
+          <Bullet>Prevent abuse, investigate errors, and protect service reliability</Bullet>
           <Text style={styles.paragraph}>
-            We do not use any information for advertising, profiling, or analytics.
+            We do not use child information for targeted advertising, sale of personal
+            information, or behavioral profiling.
           </Text>
         </Section>
 
-        <Section title="3. Third-Party AI Services">
+        <Section title="3. Service Providers">
           <Text style={styles.paragraph}>
-            To generate stories, images, and audio we use Google Gemini, OpenAI,
-            Anthropic Claude, and ElevenLabs (text-to-speech). Only the story-generation
-            inputs above are shared with these services, under their respective privacy
-            policies.
+            Depending on the feature and current production configuration, service
+            providers may include Supabase for authentication and cloud storage;
+            OpenAI, Google Gemini, Anthropic Claude, or other approved AI providers for
+            text, image, transcription, and audio generation; ElevenLabs for narration;
+            and infrastructure or error-monitoring providers. A provider is enabled for
+            child Voice Chat in production only after the required data-processing,
+            privacy-notice, retention, and app-store attestations are recorded in the
+            deployment configuration.
           </Text>
         </Section>
 
-        <Section title="4. Children’s Privacy (COPPA)">
-          <Bullet>We require a parent or guardian to give consent before any story is created or data is collected</Bullet>
-          <Bullet>We do not require accounts, email addresses, or passwords</Bullet>
-          <Bullet>We do not use cookies, tracking pixels, advertising, or analytics SDKs</Bullet>
-          <Bullet>There are no social features, public profiles, or chat with strangers</Bullet>
-          <Bullet>Any child name/age sent to create a story is used only for that story and is not stored on our servers</Bullet>
-          <Bullet>Every story is filtered through mandatory child-safety rules</Bullet>
+        <Section title="4. Children’s Privacy and Parental Consent">
+          <Bullet>A parent or guardian must pass the grown-up gate and consent before protected app features are available</Bullet>
+          <Bullet>Accounts and cloud backup are optional parent-controlled features</Bullet>
+          <Bullet>There are no public child profiles, stranger messaging, advertising networks, or social feeds</Bullet>
+          <Bullet>Child-facing AI responses are generated under a child-safety policy and checked before they are displayed or narrated</Bullet>
+          <Bullet>Voice Chat is disabled by default and must be explicitly enabled in an approved production configuration</Bullet>
         </Section>
 
         <Section title="5. Data Retention">
-          <Bullet>Device data: kept until you delete it or uninstall the app</Bullet>
-          <Bullet>Server-side: no user data retained; rate-limit entries expire in ~60s; cached narration expires within 24h</Bullet>
-          <Bullet>AI provider logs: subject to each provider’s retention policy</Bullet>
+          <Bullet>Device data remains until the parent deletes it, resets the app, or uninstalls the app</Bullet>
+          <Bullet>Cloud-backup records remain until deleted by the parent or the parent account is deleted</Bullet>
+          <Bullet>Voice Chat transcripts are limited by the configured production retention period, which may not exceed 90 days, and can be deleted sooner from the app</Bullet>
+          <Bullet>Parent authentication records remain until the parent account is deleted</Bullet>
+          <Bullet>Operational logs and provider records follow the documented production retention settings and applicable provider agreements</Bullet>
         </Section>
 
-        <Section title="6. Parental Rights">
-          <Bullet>View all data — it lives on-device in the child’s profile</Bullet>
-          <Bullet>Delete any profile, story, or badge from within the app</Bullet>
-          <Bullet>Delete everything by clearing app storage or uninstalling</Bullet>
-          <Bullet>Set PIN-protected parent controls (length limits, bedtime, theme filtering, Voice Chat)</Bullet>
-          <Bullet>Withdraw consent at any time by uninstalling or contacting us</Bullet>
+        <Section title="6. Parental Rights and Controls">
+          <Bullet>Review and delete individual Voice Chat conversations from the app</Bullet>
+          <Bullet>Turn cloud backup and Voice Chat off</Bullet>
+          <Bullet>Delete individual profiles, stories, and progress records</Bullet>
+          <Bullet>Use Delete All Data to remove PostgreSQL Voice Chat history, the Supabase account and cloud records, and all local device data</Bullet>
+          <Bullet>Withdraw consent and restart the parental-consent flow</Bullet>
+          <Bullet>Contact us to ask a privacy question or report a deletion problem</Bullet>
         </Section>
 
         <Section title="7. Contact Us">
