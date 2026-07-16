@@ -8,6 +8,8 @@ export interface VoiceChatComplianceStatus {
   missing: string[];
 }
 
+const DEFAULT_NON_PRODUCTION_RETENTION_DAYS = 30;
+
 function envTrue(name: string): boolean {
   return process.env[name]?.trim().toLowerCase() === 'true';
 }
@@ -17,6 +19,26 @@ function parseRetentionDays(): number | null {
   if (!raw) return null;
   const value = Number(raw);
   return Number.isInteger(value) && value >= 1 && value <= 90 ? value : null;
+}
+
+/**
+ * Return the retention window used by database cleanup. Production callers get
+ * null unless an explicit 1-90 day value is configured; development/test use a
+ * conservative 30-day default so the behavior remains testable without turning
+ * an absent production attestation into an implicit approval.
+ */
+export function getVoiceChatTranscriptRetentionDays(): number | null {
+  const configured = parseRetentionDays();
+  if (configured !== null) return configured;
+  return process.env.NODE_ENV === 'production'
+    ? null
+    : DEFAULT_NON_PRODUCTION_RETENTION_DAYS;
+}
+
+export function getVoiceChatTranscriptCutoff(nowMs = Date.now()): Date | null {
+  const days = getVoiceChatTranscriptRetentionDays();
+  if (days === null) return null;
+  return new Date(nowMs - days * 24 * 60 * 60 * 1000);
 }
 
 /**
