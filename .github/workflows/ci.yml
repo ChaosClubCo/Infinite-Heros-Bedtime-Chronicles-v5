@@ -46,8 +46,16 @@ jobs:
         # The env-var section warns but does not fail when keys are absent.
 
       - name: Run ESLint
-        run: npm run lint
-        continue-on-error: false
+        id: eslint
+        run: npm run lint 2>&1 | tee eslint.log
+
+      - name: Upload ESLint diagnostics
+        if: failure() && steps.eslint.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: eslint-diagnostics
+          path: eslint.log
+          retention-days: 7
 
       - name: Run tests
         run: npm test
