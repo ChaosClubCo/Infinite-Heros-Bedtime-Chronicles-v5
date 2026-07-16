@@ -25,6 +25,9 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
+      - name: Install repository npm version
+        run: npm install --global npm@11
+
       - name: Install dependencies and verify lockfile integrity
         id: npm-ci
         # `npm ci` remains strict. The helper retries transient registry/cache
@@ -37,6 +40,18 @@ jobs:
         with:
           name: npm-ci-diagnostics
           path: npm-ci.log
+          retention-days: 7
+
+      - name: Generate synchronized lockfile diagnostic
+        if: failure() && steps.npm-ci.outcome == 'failure'
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Upload synchronized lockfile diagnostic
+        if: failure() && steps.npm-ci.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: synchronized-package-lock
+          path: package-lock.json
           retention-days: 7
 
       - name: Run preflight checks
@@ -105,6 +120,9 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
+      - name: Install repository npm version
+        run: npm install --global npm@11
+
       - name: Simulate Vercel production install (omit devDependencies)
         run: npm install --omit=dev
 
@@ -125,6 +143,9 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
+
+      - name: Install repository npm version
+        run: npm install --global npm@11
 
       - name: Install dependencies
         id: build-npm-ci
