@@ -12,7 +12,7 @@ All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
   - Row-Level Security policies restricting sync access to the owner (`auth.uid() = user_id`) and account deletion cascade to wipe synced data.
 - **OpenAI & OpenRouter Health Probes** — Extended the server `/api/health` endpoints to perform active HTTP/JSON status checks against OpenAI (`pingOpenAI`) and OpenRouter (`pingOpenRouter`) API status endpoints, completing the fallback chain visibility.
 - **Sync Verification Utility** — Added `scripts/verify-sync.ts` to perform end-to-end sync engine reconciliation audits.
-- **Alerting & TTS Metrics Integration Tests** — Created [index.integration.test.ts](file:///f:/Infinite-Heros-Bedtime-Chronicles-v5/server/index.integration.test.ts) to verify middleware alertness threshold checks and TTS metrics recording.
+- **Alerting & TTS Metrics Integration Tests** — Created [index.integration.test.ts](../server/index.integration.test.ts) to verify middleware alertness threshold checks and TTS metrics recording.
 
 ### Fixed
 - **Gemini API Key Leakage** — Secured `pingGemini()` to pass the API key in the `x-goog-api-key` header rather than exposing it as a query parameter.
