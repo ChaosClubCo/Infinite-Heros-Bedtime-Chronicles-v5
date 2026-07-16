@@ -1,11 +1,14 @@
-export interface VoiceChatComplianceStatus {
+export interface AiProviderComplianceStatus {
   approved: boolean;
   providerDpaConfirmed: boolean;
   childDataProcessingApproved: boolean;
   privacyPolicyPublished: boolean;
   appStoreDataSafetyReviewed: boolean;
-  transcriptRetentionDays: number | null;
   missing: string[];
+}
+
+export interface VoiceChatComplianceStatus extends AiProviderComplianceStatus {
+  transcriptRetentionDays: number | null;
 }
 
 export const MAX_VOICE_CHAT_RETENTION_DAYS = 30;
@@ -15,6 +18,26 @@ function envTrue(name: string): boolean {
   return process.env[name]?.trim().toLowerCase() === 'true';
 }
 
+function getBaseAttestations(): Omit<AiProviderComplianceStatus, 'approved' | 'missing'> {
+  return {
+    providerDpaConfirmed: envTrue('AI_PROVIDER_DPA_CONFIRMED'),
+    childDataProcessingApproved: envTrue('AI_PROVIDER_CHILD_DATA_PROCESSING_APPROVED'),
+    privacyPolicyPublished: envTrue('PRIVACY_POLICY_PUBLISHED'),
+    appStoreDataSafetyReviewed: envTrue('APP_STORE_DATA_SAFETY_REVIEWED'),
+  };
+}
+
+function getBaseMissing(
+  status: Omit<AiProviderComplianceStatus, 'approved' | 'missing'>,
+): string[] {
+  const missing: string[] = [];
+  if (!status.providerDpaConfirmed) missing.push('AI_PROVIDER_DPA_CONFIRMED');
+  if (!status.childDataProcessingApproved) missing.push('AI_PROVIDER_CHILD_DATA_PROCESSING_APPROVED');
+  if (!status.privacyPolicyPublished) missing.push('PRIVACY_POLICY_PUBLISHED');
+  if (!status.appStoreDataSafetyReviewed) missing.push('APP_STORE_DATA_SAFETY_REVIEWED');
+  return missing;
+}
+
 function parseRetentionDays(): number | null {
   const raw = process.env.VOICE_CHAT_TRANSCRIPT_RETENTION_DAYS?.trim();
   if (!raw) return null;
@@ -22,6 +45,23 @@ function parseRetentionDays(): number | null {
   return Number.isInteger(value) && value >= 1 && value <= MAX_VOICE_CHAT_RETENTION_DAYS
     ? value
     : null;
+}
+
+/**
+ * Provider approval covers every AI vendor enabled in the deployment, not merely
+ * the primary provider. These flags are operator attestations backed by external
+ * evidence; they do not create or replace a DPA, legal review, or app-store filing.
+ */
+export function getAiProviderComplianceStatus(): AiProviderComplianceStatus {
+  const status = getBaseAttestations();
+  const missing = getBaseMissing(status);
+  return { ...status, approved: missing.length === 0, missing };
+}
+
+/** Production AI processing is fail-closed; tests/development remain exercisable. */
+export function isAiProviderProcessingApproved(): boolean {
+  if (process.env.NODE_ENV !== 'production') return true;
+  return getAiProviderComplianceStatus().approved;
 }
 
 /**
@@ -43,34 +83,18 @@ export function getVoiceChatTranscriptCutoff(nowMs = Date.now()): Date | null {
   return new Date(nowMs - days * 24 * 60 * 60 * 1000);
 }
 
-/**
- * Translate non-code legal/operational approvals into explicit deploy-time
- * attestations. These flags do not replace counsel or provider agreements; they
- * prevent a production deploy from silently enabling child voice processing
- * before the responsible owner has recorded those approvals.
- */
+/** Voice Chat adds a bounded-retention requirement to the general AI gate. */
 export function getVoiceChatComplianceStatus(): VoiceChatComplianceStatus {
-  const providerDpaConfirmed = envTrue('AI_PROVIDER_DPA_CONFIRMED');
-  const childDataProcessingApproved = envTrue('AI_PROVIDER_CHILD_DATA_PROCESSING_APPROVED');
-  const privacyPolicyPublished = envTrue('PRIVACY_POLICY_PUBLISHED');
-  const appStoreDataSafetyReviewed = envTrue('APP_STORE_DATA_SAFETY_REVIEWED');
+  const provider = getAiProviderComplianceStatus();
   const transcriptRetentionDays = parseRetentionDays();
-
-  const missing: string[] = [];
-  if (!providerDpaConfirmed) missing.push('AI_PROVIDER_DPA_CONFIRMED');
-  if (!childDataProcessingApproved) missing.push('AI_PROVIDER_CHILD_DATA_PROCESSING_APPROVED');
-  if (!privacyPolicyPublished) missing.push('PRIVACY_POLICY_PUBLISHED');
-  if (!appStoreDataSafetyReviewed) missing.push('APP_STORE_DATA_SAFETY_REVIEWED');
+  const missing = [...provider.missing];
   if (transcriptRetentionDays === null) {
     missing.push(`VOICE_CHAT_TRANSCRIPT_RETENTION_DAYS (integer 1-${MAX_VOICE_CHAT_RETENTION_DAYS})`);
   }
 
   return {
+    ...provider,
     approved: missing.length === 0,
-    providerDpaConfirmed,
-    childDataProcessingApproved,
-    privacyPolicyPublished,
-    appStoreDataSafetyReviewed,
     transcriptRetentionDays,
     missing,
   };
