@@ -26,12 +26,19 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies and verify lockfile integrity
+        id: npm-ci
         # `npm ci` is the canonical strict check: it exits without installing when
-        # package.json and package-lock.json disagree. Do not run
-        # `npm install --package-lock-only` first—the latter may normalize
-        # transitive lock metadata and create false-positive diffs even when the
-        # dependency manifest is already installable exactly as locked.
-        run: npm ci
+        # package.json and package-lock.json disagree. Capture the complete output
+        # so a failure can be inspected without depending on truncated runner logs.
+        run: npm ci 2>&1 | tee npm-ci.log
+
+      - name: Upload npm install diagnostics
+        if: failure() && steps.npm-ci.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-ci-diagnostics
+          path: npm-ci.log
+          retention-days: 7
 
       - name: Run preflight checks
         run: npm run preflight
