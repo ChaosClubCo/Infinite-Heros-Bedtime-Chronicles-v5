@@ -196,7 +196,6 @@ export default function VoiceChatScreen() {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadConversations();
   }, [loadConversations]);
 
@@ -296,9 +295,7 @@ export default function VoiceChatScreen() {
       }
 
       const newMessages: Message[] = [];
-      // eslint-disable-next-line react-hooks/purity
       if (userText) newMessages.push({ role: "user", content: userText, id: `u-${Date.now()}` });
-      // eslint-disable-next-line react-hooks/purity
       if (assistantText) newMessages.push({ role: "assistant", content: assistantText, id: `a-${Date.now()}` });
       setMessages((prev) => [...prev, ...newMessages]);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
@@ -360,7 +357,6 @@ export default function VoiceChatScreen() {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (activeConvId !== null) loadMessages(activeConvId);
   }, [activeConvId, loadMessages]);
 
