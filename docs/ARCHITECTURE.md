@@ -86,9 +86,12 @@ User selects hero + mode + settings
     → Server builds system prompt + user prompt
     → AI Router calls provider chain until success
     → Server parses JSON response and normalizes parts
-    → Client receives story and begins playback
+    → Output safety gate (server/safety): moderate the generated text
+      → if unsafe, regenerate once with a stricter prompt
+      → if still unsafe, serve a known-safe fallback story
+    → Client receives (guaranteed-safe) story and begins playback
       → Per-part optional scene generation
-      → Per-part optional TTS narration
+      → Per-part optional TTS narration (served from on-device cache when available)
     → On completion: save story + scenes to AsyncStorage
     → Award badges based on profile history
 ```
@@ -139,10 +142,40 @@ SettingsContext (lib/SettingsContext.tsx)
 
 ### TTS Caching
 
+**Server-side** (`server/routes/tts.ts`, `server/tts-cache.ts`):
 - Audio cached to `/tmp/tts-cache/`
 - Cache key: MD5 of `voice:mode:text`
 - Expired files cleaned hourly
 - Max age via `TTS_CACHE_MAX_AGE_MS` (default 24h)
+- Note: ephemeral on serverless (lost on cold start); a durable Cloudflare R2 backend is a roadmap item.
+
+**On-device** (`lib/tts-cache.ts`, `lib/narration.ts`):
+- Each narration clip is also persisted on the device (`expo-file-system`), keyed by the same MD5 of `voice:mode:text`.
+- `resolveNarrationUri()` returns the local `file://` clip on a hit — instant, offline-capable, no network — and downloads + caches on a miss. Any filesystem/crypto failure degrades gracefully to streaming the server URL.
+- LRU eviction (`TTS_CACHE_MAX_BYTES`, default 50 MB). `prefetchNarration()` can warm the next part.
+
+## Output Content Safety
+
+Every generated story passes a server-authoritative moderation gate before it reaches the client (`server/routes/story.ts` → `server/safety/story-guard.ts`):
+
+1. `moderateStory()` (`content-safety.ts`) scans all child-facing text with HARD terms (single hit blocks) and SOFT/contextual terms (block on co-occurrence), plus structural, model-leakage, and PII checks.
+2. On a block, the story is regenerated **once** with a stricter prompt (`buildStricterSystemPrompt`).
+3. If still unsafe, a pre-written known-safe fallback (`fallback-stories.ts`) is served.
+
+The child never sees flagged text or a raw error. Gated by `FEATURE_CONTENT_SAFETY_ENABLED` (default on). The HARD term list lives in `shared/safety-terms.ts` and is reused by a client render fail-safe (`components/StoryTextDisplay.tsx`). Leak-safe metrics (category counts only) are exposed via `/api/metrics`.
+
+## Cloud Sync (Milestone 3 — foundation)
+
+Optional, parent-opt-in cloud backup/continuity of kid data (stories + gamification only — **never** child-profile PII). Off by default; the app remains offline-first-local.
+
+- **Model**: every synced item is a `SyncRecord` envelope (`shared/sync-types.ts`) — `{ id, updatedAt, deleted, payload }`. Conflicts resolve **last-write-wins** by `updatedAt`; deletions are soft tombstones so they propagate instead of being resurrected.
+- **Reconcile** (`lib/sync/reconcile.ts`, pure/tested): diffs local vs cloud record maps into `{ applyLocal, pushRemote }`.
+- **Storage** (`supabase/migrations/0001_sync_tables.sql`): a single `sync_records` table keyed by `(user_id, entity, id)`, with **RLS** (`auth.uid() = user_id`) and `on delete cascade` from `auth.users` so deleting the account purges all synced data.
+- **PII boundary**: badges/streaks key on `profileId`; to line them up across devices without leaking names/ages, only a minimal profile stub (`id` + `createdAt`) syncs. Story base64 blobs (avatar/scenes) are stripped before sync (regenerable, would bloat Postgres).
+
+- **Flow** (`lib/sync/engine.ts` + `supabase-sync.ts`): for each entity, pull the cloud copy, reconcile vs local, push local winners, apply remote winners. Gated by `runSync()` (`lib/sync/runSync.ts`) on the parent opt-in flag (`cloudSyncEnabled`, default off) + a signed-in session. Triggered on app open/foreground (`components/SyncManager.tsx`) and after a story completes (`app/completion.tsx`). Opt-in toggle lives in Settings (Cloud Backup section). `purgeCloudData()` is wired into "delete all data".
+
+**Status**: built and tested for **all six entities** — stories (blob-preserving), badges, streaks, favorites/read (change-time sidecar `@infinity_heroes_sync_meta`), and profileStub (creates an editable placeholder profile for unknown ids so gamification anchors across devices; name/age never sync). Not yet verified on a device — the opt-in toggle, triggers, and placeholder behavior need an end-to-end pass.
 
 ## Authentication Flow
 

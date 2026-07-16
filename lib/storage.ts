@@ -105,12 +105,14 @@ export async function getFavorites(): Promise<string[]> {
 export async function toggleFavorite(storyId: string): Promise<string[]> {
   const favorites = await getFavorites();
   const index = favorites.indexOf(storyId);
-  if (index > -1) {
+  const removed = index > -1;
+  if (removed) {
     favorites.splice(index, 1);
   } else {
     favorites.push(storyId);
   }
   await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+  await touchSyncMeta('favorites', storyId, removed);
   return favorites;
 }
 
@@ -128,6 +130,7 @@ export async function markStoryRead(storyId: string): Promise<void> {
   if (!readStories.includes(storyId)) {
     readStories.push(storyId);
     await AsyncStorage.setItem(READ_STORIES_KEY, JSON.stringify(readStories));
+    await touchSyncMeta('read', storyId, false);
   }
 }
 
@@ -170,6 +173,31 @@ export async function deleteStory(id: string): Promise<void> {
   const stories = await getAllStories();
   const filtered = stories.filter((s) => s.id !== id);
   await AsyncStorage.setItem(STORIES_KEY, JSON.stringify(filtered));
+}
+
+/**
+ * Bulk-merge stories pulled from cloud sync (M3). Upserts by id and removes the
+ * given ids (tombstones). Synced stories arrive WITHOUT base64 blobs
+ * (`avatar`/`scenes` are stripped before sync), so when an incoming story lacks
+ * them we preserve any blobs already on the local copy — the newer metadata
+ * shouldn't wipe locally-generated images.
+ */
+export async function mergeSyncedStories(
+  upserts: CachedStory[],
+  deletedIds: string[],
+): Promise<void> {
+  const existing = await getAllStories();
+  const byId = new Map(existing.map((s) => [s.id, s]));
+  for (const incoming of upserts) {
+    const prev = byId.get(incoming.id);
+    byId.set(incoming.id, {
+      ...incoming,
+      avatar: incoming.avatar ?? prev?.avatar,
+      scenes: incoming.scenes ?? prev?.scenes,
+    });
+  }
+  for (const id of deletedIds) byId.delete(id);
+  await AsyncStorage.setItem(STORIES_KEY, JSON.stringify([...byId.values()]));
 }
 
 export async function saveStoryScene(
@@ -310,6 +338,148 @@ export async function awardBadge(badge: EarnedBadge): Promise<boolean> {
   all.push(badge);
   await AsyncStorage.setItem(BADGES_KEY, JSON.stringify(all));
   return true;
+}
+
+/**
+ * Bulk-merge badges pulled from cloud sync (M3). Upserts by badge id and removes
+ * tombstoned ids. Badges carry all their fields, so no blob-preservation needed.
+ */
+export async function mergeSyncedBadges(
+  upserts: EarnedBadge[],
+  deletedIds: string[],
+): Promise<void> {
+  const existing = await getAllBadges();
+  const byId = new Map(existing.map((b) => [b.id, b]));
+  for (const badge of upserts) byId.set(badge.id, badge);
+  for (const id of deletedIds) byId.delete(id);
+  await AsyncStorage.setItem(BADGES_KEY, JSON.stringify([...byId.values()]));
+}
+
+/**
+ * Bulk-merge streaks pulled from cloud sync (M3). Streaks are keyed by
+ * profileId (one per profile), so that is the record/merge key.
+ */
+export async function mergeSyncedStreaks(
+  upserts: StreakData[],
+  deletedProfileIds: string[],
+): Promise<void> {
+  const data = await AsyncStorage.getItem(STREAKS_KEY);
+  const existing: StreakData[] = data ? JSON.parse(data) : [];
+  const byProfile = new Map(existing.map((s) => [s.profileId, s]));
+  for (const streak of upserts) byProfile.set(streak.profileId, streak);
+  for (const pid of deletedProfileIds) byProfile.delete(pid);
+  await AsyncStorage.setItem(STREAKS_KEY, JSON.stringify([...byProfile.values()]));
+}
+
+export async function getAllStreaks(): Promise<StreakData[]> {
+  try {
+    const data = await AsyncStorage.getItem(STREAKS_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+// ---- Cloud sync: change-time sidecar for timestamp-less set entities --------
+// `favorites` and `read` are plain string[] sets with no per-item timestamps,
+// which last-write-wins sync needs. This sidecar records an { updatedAt, deleted }
+// entry per (entity, id) whenever the set changes, so a toggle on one device can
+// win/lose against another. Covered by the @infinity_heroes_ prefix wipe in
+// clearAllData.
+
+const SYNC_META_KEY = '@infinity_heroes_sync_meta';
+
+interface SyncMetaEntry {
+  updatedAt: number;
+  deleted: boolean;
+}
+type SyncSetEntity = 'favorites' | 'read';
+
+async function getSyncMetaStore(): Promise<Record<string, Record<string, SyncMetaEntry>>> {
+  try {
+    const data = await AsyncStorage.getItem(SYNC_META_KEY);
+    return data ? JSON.parse(data) : {};
+  } catch {
+    return {};
+  }
+}
+
+const setKeyForSyncEntity = (entity: SyncSetEntity) =>
+  entity === 'favorites' ? FAVORITES_KEY : READ_STORIES_KEY;
+
+/** Stamp a change to a set item so cloud sync can resolve it by last-write-wins. */
+async function touchSyncMeta(entity: SyncSetEntity, id: string, deleted: boolean): Promise<void> {
+  const store = await getSyncMetaStore();
+  const meta = store[entity] ?? {};
+  meta[id] = { updatedAt: Date.now(), deleted };
+  store[entity] = meta;
+  await AsyncStorage.setItem(SYNC_META_KEY, JSON.stringify(store));
+}
+
+/** Build sync records for a set entity from its ids + the change-time sidecar. */
+export async function getSyncSetRecords(
+  entity: SyncSetEntity,
+): Promise<{ id: string; updatedAt: number; deleted: boolean }[]> {
+  const raw = await AsyncStorage.getItem(setKeyForSyncEntity(entity));
+  const ids: string[] = raw ? JSON.parse(raw) : [];
+  const meta = (await getSyncMetaStore())[entity] ?? {};
+  const present = new Set(ids);
+  const records = ids.map((id) => ({ id, updatedAt: meta[id]?.updatedAt ?? 0, deleted: false }));
+  // Tombstones: removed items still tracked in the sidecar.
+  for (const [id, m] of Object.entries(meta)) {
+    if (!present.has(id) && m.deleted) records.push({ id, updatedAt: m.updatedAt, deleted: true });
+  }
+  return records;
+}
+
+/** Apply reconciled set records — update both the membership set and the sidecar. */
+export async function applySyncedSet(
+  entity: SyncSetEntity,
+  records: { id: string; updatedAt: number; deleted: boolean }[],
+): Promise<void> {
+  const raw = await AsyncStorage.getItem(setKeyForSyncEntity(entity));
+  const set = new Set<string>(raw ? JSON.parse(raw) : []);
+  const store = await getSyncMetaStore();
+  const meta = store[entity] ?? {};
+  for (const r of records) {
+    meta[r.id] = { updatedAt: r.updatedAt, deleted: r.deleted };
+    if (r.deleted) set.delete(r.id);
+    else set.add(r.id);
+  }
+  store[entity] = meta;
+  await AsyncStorage.setItem(setKeyForSyncEntity(entity), JSON.stringify([...set]));
+  await AsyncStorage.setItem(SYNC_META_KEY, JSON.stringify(store));
+}
+
+/**
+ * Merge synced profile stubs (id + createdAt ONLY — no PII). For an unknown id,
+ * create an editable placeholder profile so synced badges/streaks for it have a
+ * local anchor; the parent renames it (name/age never sync). Existing profiles
+ * are never overwritten (their local PII is preserved).
+ */
+export async function mergeSyncedProfileStubs(
+  stubs: { id: string; createdAt: number }[],
+  deletedIds: string[],
+): Promise<void> {
+  const profiles = await getProfiles();
+  const byId = new Map(profiles.map((p) => [p.id, p]));
+  for (const stub of stubs) {
+    const existing = byId.get(stub.id);
+    if (existing) {
+      byId.set(stub.id, { ...existing, createdAt: stub.createdAt });
+    } else {
+      byId.set(stub.id, {
+        id: stub.id,
+        name: 'New Profile',
+        age: 6,
+        favoriteHeroId: HEROES[0]?.id ?? '',
+        avatarEmoji: '🌟',
+        createdAt: stub.createdAt,
+      });
+    }
+  }
+  for (const id of deletedIds) byId.delete(id);
+  await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify([...byId.values()]));
 }
 
 export async function getStreak(profileId: string): Promise<StreakData> {

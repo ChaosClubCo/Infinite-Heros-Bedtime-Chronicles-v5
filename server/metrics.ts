@@ -10,12 +10,22 @@ interface Metrics {
     byProvider: Record<string, { calls: number; failures: number; totalLatencyMs: number }>;
   };
   tts: { calls: number; failures: number; cacheHits: number };
+  safety: {
+    blocks: number;
+    regenerations: number;
+    regenerationSuccesses: number;
+    fallbacks: number;
+    llmChecks: number;
+    llmFailures: number;
+    byCategory: Record<string, number>;
+  };
 }
 
 const metrics: Metrics = {
   requests: { total: 0, errors: 0, byStatus: {} },
   ai: { calls: 0, failures: 0, totalTokens: { input: 0, output: 0 }, latencyMs: [], byProvider: {} },
   tts: { calls: 0, failures: 0, cacheHits: 0 },
+  safety: { blocks: 0, regenerations: 0, regenerationSuccesses: 0, fallbacks: 0, llmChecks: 0, llmFailures: 0, byCategory: {} },
 };
 
 export function recordRequest(statusCode: number): void {
@@ -44,6 +54,34 @@ export function recordTTS(cacheHit: boolean, success: boolean): void {
   if (!success) metrics.tts.failures++;
 }
 
+/**
+ * Record that a generated story was blocked by the output safety filter. Only
+ * category names are counted — never the flagged story text (leak-safe).
+ */
+export function recordContentBlock(categories: string[]): void {
+  metrics.safety.blocks++;
+  for (const category of categories) {
+    metrics.safety.byCategory[category] = (metrics.safety.byCategory[category] || 0) + 1;
+  }
+}
+
+/** Record a safety regeneration attempt and whether it produced safe content. */
+export function recordRegeneration(success: boolean): void {
+  metrics.safety.regenerations++;
+  if (success) metrics.safety.regenerationSuccesses++;
+}
+
+/** Record that a known-safe fallback story was served. */
+export function recordFallback(): void {
+  metrics.safety.fallbacks++;
+}
+
+/** Record an optional LLM moderation pass and whether it completed successfully. */
+export function recordSafetyLlm(success: boolean): void {
+  metrics.safety.llmChecks++;
+  if (!success) metrics.safety.llmFailures++;
+}
+
 function percentile(arr: number[], p: number): number {
   if (arr.length === 0) return 0;
   const sorted = [...arr].sort((a, b) => a - b);
@@ -70,6 +108,13 @@ export function getMetrics() {
       ...metrics.tts,
       cacheHitRate: metrics.tts.calls > 0 ? (metrics.tts.cacheHits / metrics.tts.calls * 100).toFixed(1) + '%' : '0%',
     },
+    safety: {
+      ...metrics.safety,
+      byCategory: { ...metrics.safety.byCategory },
+      regenerationSuccessRate: metrics.safety.regenerations > 0
+        ? (metrics.safety.regenerationSuccesses / metrics.safety.regenerations * 100).toFixed(1) + '%'
+        : '0%',
+    },
   };
 }
 
@@ -77,6 +122,7 @@ export function resetMetrics(): void {
   metrics.requests = { total: 0, errors: 0, byStatus: {} };
   metrics.ai = { calls: 0, failures: 0, totalTokens: { input: 0, output: 0 }, latencyMs: [], byProvider: {} };
   metrics.tts = { calls: 0, failures: 0, cacheHits: 0 };
+  metrics.safety = { blocks: 0, regenerations: 0, regenerationSuccesses: 0, fallbacks: 0, llmChecks: 0, llmFailures: 0, byCategory: {} };
 }
 
 // Suppress unused import warning — logger is available for future metric flush/export use

@@ -7,12 +7,14 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { SyncManager } from "@/components/SyncManager";
 import { useNetworkStatus } from "@/lib/useNetworkStatus";
 import { queryClient, setAuthTokenGetter } from "@/lib/query-client";
 import { ConsentProvider, useConsent } from "@/lib/ConsentContext";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { ProfileProvider } from "@/lib/ProfileContext";
 import { SettingsProvider } from "@/lib/SettingsContext";
+import { SyncOfflineProvider } from "@/lib/SyncOfflineContext";
 import { StatusBar } from "expo-status-bar";
 import {
   Nunito_400Regular,
@@ -165,13 +167,16 @@ export default function RootLayout() {
           <QueryClientProvider client={queryClient}>
             <ProfileProvider>
               <SettingsProvider>
-                <GestureHandlerRootView style={{ flex: 1 }}>
-                  <KeyboardProvider>
-                    <StatusBar style="light" />
-                    <OfflineIndicator />
-                    <RootLayoutNav />
-                  </KeyboardProvider>
-                </GestureHandlerRootView>
+                <SyncOfflineProvider>
+                  <GestureHandlerRootView style={{ flex: 1 }}>
+                    <KeyboardProvider>
+                      <StatusBar style="light" />
+                      <OfflineIndicator />
+                      <SyncManager />
+                      <RootLayoutNav />
+                    </KeyboardProvider>
+                  </GestureHandlerRootView>
+                </SyncOfflineProvider>
               </SettingsProvider>
             </ProfileProvider>
           </QueryClientProvider>

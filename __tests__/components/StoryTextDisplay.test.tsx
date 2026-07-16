@@ -71,4 +71,39 @@ describe('StoryTextDisplay', () => {
     );
     expect(screen.getByText(/Part 1 text/)).toBeTruthy();
   });
+
+  describe('client safety fail-safe', () => {
+    it('substitutes a gentle placeholder when the text is unsafe', async () => {
+      const onUnsafe = jest.fn();
+      await render(
+        <StoryTextDisplay
+          text="The villain grabbed a gun."
+          isSleep={false}
+          accent={ACCENT}
+          partIndex={0}
+          onUnsafe={onUnsafe}
+        />
+      );
+      // The unsafe text is never rendered.
+      expect(screen.queryByText(/gun/i)).toBeNull();
+      // The placeholder is shown instead, and onUnsafe fired.
+      expect(screen.getByText(/taking a little rest/i)).toBeTruthy();
+      expect(onUnsafe).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders safe text unchanged and does not fire onUnsafe', async () => {
+      const onUnsafe = jest.fn();
+      await render(
+        <StoryTextDisplay
+          text="The brave hero shared a warm cookie with a friend."
+          isSleep={false}
+          accent={ACCENT}
+          partIndex={0}
+          onUnsafe={onUnsafe}
+        />
+      );
+      expect(screen.getByText(/shared a warm cookie/i)).toBeTruthy();
+      expect(onUnsafe).not.toHaveBeenCalled();
+    });
+  });
 });
