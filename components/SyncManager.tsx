@@ -31,6 +31,13 @@ export function SyncManager() {
     enabledRef.current = settings.cloudSyncEnabled;
   }, [settings.cloudSyncEnabled]);
 
+  // Mirror online state into a ref so the AppState subscription (set up once)
+  // can read the current value without going stale in its closure.
+  const isOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    isOnlineRef.current = isOnline;
+  }, [isOnline]);
+
   // Sync on open, when connectivity/setting changes, and when the signed-in user
   // changes. `user?.id` in the deps re-runs this on sign-in (null → id) so a user
   // who signs in while already foregrounded+online backs up immediately, instead
@@ -44,10 +51,11 @@ export function SyncManager() {
     }
   }, [settings.cloudSyncEnabled, isOnline, refreshProfiles, user?.id]);
 
-  // Sync when the app returns to the foreground.
+  // Sync when the app returns to the foreground — but only while online, so
+  // foregrounding offline doesn't kick off doomed work or noisy error reports.
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
-      if (state === "active" && enabledRef.current) {
+      if (state === "active" && enabledRef.current && isOnlineRef.current) {
         void runSync(true).then((didSync) => {
           if (didSync) void refreshProfiles();
         });
