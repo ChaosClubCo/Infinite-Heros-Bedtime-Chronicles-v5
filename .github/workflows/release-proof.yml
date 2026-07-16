@@ -1,0 +1,230 @@
+name: Release Proof
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact 40-character candidate commit SHA
+        required: true
+        type: string
+      base_url:
+        description: HTTPS URL of the deployed candidate
+        required: true
+        type: string
+      physical_device_evidence_url:
+        description: Private evidence URL for the completed device matrix
+        required: true
+        type: string
+      backup_restore_evidence_url:
+        description: Private evidence URL for disposable backup/restore proof
+        required: true
+        type: string
+      rollback_evidence_url:
+        description: Private evidence URL for the rollback drill
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-proof-${{ inputs.release_sha }}
+  cancel-in-progress: false
+
+jobs:
+  validate-candidate:
+    name: Validate exact candidate
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: "1"
+    steps:
+      - name: Validate inputs
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BASE_URL" =~ ^https://[^[:space:]]+$ ]]
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_sha }}
+
+      - name: Verify checked-out SHA
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install repository npm version
+        run: npm install --global npm@11
+
+      - name: Install locked dependencies
+        run: bash scripts/npm-ci-retry.sh release-npm-ci.log
+
+      - name: Run full repository gates
+        run: |
+          npm run preflight
+          npm run lint
+          npm test
+          npm run typecheck
+          npm audit --audit-level=critical
+          npm run server:build
+          npm run expo:check
+          npm run expo:build:ci
+
+  eas-internal-android:
+    name: EAS internal Android build
+    needs: validate-candidate
+    runs-on: ubuntu-latest
+    environment: release-proof
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_sha }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - run: npm install --global npm@11
+      - run: bash scripts/npm-ci-retry.sh eas-npm-ci.log
+
+      - name: Require Expo token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: test -n "$EXPO_TOKEN"
+
+      - name: Build internal APK and wait for completion
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@16.0.0 build --platform android --profile preview --non-interactive --wait --json | tee eas-build.json
+
+      - name: Upload EAS evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: eas-internal-build
+          path: eas-build.json
+          retention-days: 30
+
+  deployed-smoke:
+    name: Deployed SHA and HTTPS smoke
+    needs: [validate-candidate, eas-internal-android]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch deployed health and privacy notice
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2             "$BASE_URL/api/health" --output health.json
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2             "$BASE_URL/privacy" --output privacy.html
+          test -s privacy.html
+
+      - name: Verify deployed release SHA
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const health = JSON.parse(fs.readFileSync("health.json", "utf8"));
+            if (health.status !== "ok") throw new Error("health status is not ok");
+            if (health.releaseSha !== process.env.RELEASE_SHA) {
+              throw new Error(`deployed SHA mismatch: expected ${process.env.RELEASE_SHA}, got ${health.releaseSha}`);
+            }
+          '
+
+      - name: Upload deployed smoke evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: deployed-smoke
+          path: |
+            health.json
+            privacy.html
+          retention-days: 30
+
+  alert-delivery:
+    name: Send Sentry release-proof event
+    needs: validate-candidate
+    runs-on: ubuntu-latest
+    environment: release-proof
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_sha }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm install --global npm@11
+      - run: bash scripts/npm-ci-retry.sh sentry-npm-ci.log
+
+      - name: Send and flush test event
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: |
+          test -n "$SENTRY_DSN"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const Sentry = require('@sentry/node');
+          Sentry.init({ dsn: process.env.SENTRY_DSN, release: process.env.RELEASE_SHA });
+          const eventId = Sentry.captureMessage('Bedtime Chronicles release-proof alert', 'warning');
+          Sentry.flush(15000).then((flushed) => {
+            if (!flushed) throw new Error('Sentry event did not flush');
+            fs.writeFileSync('sentry-event.json', JSON.stringify({ eventId, release: process.env.RELEASE_SHA }, null, 2));
+          }).catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sentry-alert-event
+          path: sentry-event.json
+          retention-days: 30
+
+  evidence-manifest:
+    name: Record manual evidence references
+    needs: [deployed-smoke, alert-delivery]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build evidence manifest
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          BASE_URL: ${{ inputs.base_url }}
+          DEVICE_EVIDENCE: ${{ inputs.physical_device_evidence_url }}
+          BACKUP_EVIDENCE: ${{ inputs.backup_restore_evidence_url }}
+          ROLLBACK_EVIDENCE: ${{ inputs.rollback_evidence_url }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const manifest = {
+            releaseSha: process.env.RELEASE_SHA,
+            baseUrl: process.env.BASE_URL,
+            physicalDeviceEvidenceUrl: process.env.DEVICE_EVIDENCE,
+            backupRestoreEvidenceUrl: process.env.BACKUP_EVIDENCE,
+            rollbackEvidenceUrl: process.env.ROLLBACK_EVIDENCE,
+            recordedAt: new Date().toISOString(),
+          };
+          for (const [key, value] of Object.entries(manifest)) {
+            if (key.endsWith('Url') && !/^https:\/\//.test(String(value))) {
+              throw new Error(`${key} must be an HTTPS evidence URL`);
+            }
+          }
+          fs.writeFileSync('release-evidence.json', JSON.stringify(manifest, null, 2));
+          NODE
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-evidence-manifest
+          path: release-evidence.json
+          retention-days: 90
