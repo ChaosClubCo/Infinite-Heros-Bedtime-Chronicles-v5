@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { StoryRequestSchema, SyncInteractionSchema } from "../validation";
-import { getStorySystemPrompt, getStoryUserPrompt, getPartCount, getWordCount, STORY_RESPONSE_SCHEMA } from "../prompts";
+import { getStorySystemPrompt, getStoryUserPrompt, getPartCount, getWordCount, STORY_RESPONSE_SCHEMA, buildStricterSystemPrompt } from "../prompts";
 import { classifyError, createErrorResponse, parsePositiveIntEnv } from "../utils";
 import { IdempotencyCache } from "../idempotency";
 import { estimateCostUsd, reportCostAnomaly } from "../ai/cost";
