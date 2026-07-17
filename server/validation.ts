@@ -21,19 +21,12 @@ export function sanitizeString(val: unknown, maxLen: number): string {
 export function sanitizePromptInput(val: unknown, maxLen: number): string {
   if (typeof val !== 'string') return '';
   let s = val.slice(0, maxLen);
-  // Neutralize percent-encoded control chars (e.g. %0A, %0D, %1B) before the
-  // raw control-char pass below, so encoded newlines can't smuggle role markers.
   s = s.replace(/%[0-1][0-9a-fA-F]/gi, ' ');
-  // Control characters (incl. newlines/tabs) -> space.
   // eslint-disable-next-line no-control-regex
   s = s.replace(/[\x00-\x1F\x7F]+/g, ' ');
-  // Defang code/quote fences.
   s = s.replace(/`+/g, "'").replace(/"{3,}/g, '"').replace(/~{3,}/g, '');
-  // Strip role-injection markers (e.g. "system:", "assistant:").
   s = s.replace(/\b(system|assistant|user)\s*:/gi, '$1');
-  // Remove markdown structural / quote / heading / rule markers.
   s = s.replace(/(^|\s)[#>\-*_]{2,}/g, '$1');
-  // Collapse remaining whitespace.
   s = s.replace(/\s{2,}/g, ' ').trim();
   return s;
 }
@@ -68,6 +61,15 @@ function optTruncated(maxLen: number) {
   });
 }
 
+/**
+ * Explicit child profile fields are accepted for backward-compatible clients but
+ * discarded before route code can build a provider prompt. Personalization can
+ * happen locally; the server must not transmit profile name/age to AI providers.
+ */
+function discardedChildProfileField() {
+  return z.unknown().optional().transform((): undefined => undefined);
+}
+
 export const StoryRequestSchema = z.object({
   heroName: truncated(MAX_INPUT_STRING_LENGTH, 'Hero name is required').refine((s) => s.length > 0, { message: 'Hero name is required' }),
   heroTitle: truncated(MAX_INPUT_STRING_LENGTH).default(''),
@@ -83,7 +85,7 @@ export const StoryRequestSchema = z.object({
   soundscape: optTruncated(30),
   setting: optTruncated(100),
   tone: optTruncated(50),
-  childName: optTruncated(50),
+  childName: discardedChildProfileField(),
   sidekick: optTruncated(100),
   problem: optTruncated(100),
   customPrompt: optTruncated(500),
@@ -135,8 +137,8 @@ export const SuggestSettingsRequestSchema = z.object({
   heroPower: truncated(MAX_INPUT_STRING_LENGTH).default(''),
   heroDescription: truncated(MAX_INPUT_STRING_LENGTH).default(''),
   hour: z.number().int().min(0).max(23).optional().default(new Date().getHours()),
-  childAge: z.number().int().min(1).max(12).optional(),
-  childName: optTruncated(30),
+  childAge: discardedChildProfileField(),
+  childName: discardedChildProfileField(),
 });
 
 export type SuggestSettingsRequest = z.output<typeof SuggestSettingsRequestSchema>;
