@@ -85,6 +85,15 @@ vi.mock("../../server/replit_integrations/audio", () => ({
   registerAudioRoutes: vi.fn(),
 }));
 
+// Mock the auth middleware to bypass real Supabase token validation during integration tests
+vi.mock("../../server/auth", () => ({
+  requireAuth: vi.fn((req, res, next) => {
+    req.user = { uid: "test-user-id", isAnonymous: false };
+    next();
+  }),
+  isAuthEnabled: vi.fn(() => true),
+}));
+
 import { registerRoutes } from "../../server/routes";
 
 let app: Express;

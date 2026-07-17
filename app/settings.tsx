@@ -165,29 +165,49 @@ export default function SettingsScreen() {
   const handleDeleteAllData = () => {
     Alert.alert(
       "Delete All Data",
-      "This permanently removes every profile, story, badge, streak, and setting stored on this device. This cannot be undone.",
+      "This permanently removes the parent account, cloud backup, Voice Chat history, and every profile, story, badge, streak, consent record, and setting on this device. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete Everything",
           style: "destructive",
           onPress: async () => {
-            // Purge the cloud copy first (needs the session), then wipe local,
-            // then sign out. purgeCloudData is a safe no-op when sync is off /
-            // not signed in.
-            await purgeCloudData();
-            await clearAllData();
-            await signOut();
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            // Land on the consent gate first, then flip the guard — the
-            // Stack.Protected flip unmounts every protected screen (tabs,
-            // settings), so consent restarts with an empty back stack and
-            // re-consent flows through the launch gate to onboarding.
-            router.replace("/parental-consent");
-            markUnconsented();
+            let serverReceiptId: string | null = null;
+            try {
+              // Server deletion must finish first while the parent session is
+              // still valid. A failure leaves device data and the retry path in
+              // place instead of presenting a partial deletion as complete.
+              const serverReceipt = await purgeCloudData();
+              serverReceiptId = serverReceipt?.receiptId ?? null;
+
+              await clearAllData();
+              await signOut();
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+
+              const receiptMessage = serverReceiptId
+                ? `Server and device deletion completed. Verification receipt: ${serverReceiptId}. Save a screenshot of this receipt for your records.`
+                : "Local device deletion completed. No signed-in server account existed, so no server receipt was required.";
+
+              Alert.alert("Deletion Complete", receiptMessage, [
+                {
+                  text: "OK",
+                  onPress: () => {
+                    router.replace("/parental-consent");
+                    markUnconsented();
+                  },
+                },
+              ]);
+            } catch {
+              Alert.alert(
+                "Deletion Not Completed",
+                serverReceiptId
+                  ? `Server deletion completed with receipt ${serverReceiptId}, but device cleanup could not be confirmed. Keep this receipt and retry local cleanup.`
+                  : "The server could not confirm complete deletion. Your local app data and signed-in retry path were preserved. Please try again.",
+              );
+            }
           },
         },
-      ]
+      ],
     );
   };
 

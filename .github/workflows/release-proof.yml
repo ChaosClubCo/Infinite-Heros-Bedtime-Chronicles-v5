@@ -1,0 +1,310 @@
+name: Release Proof
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/release-proof.yml
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact 40-character candidate commit SHA
+        required: true
+        type: string
+      base_url:
+        description: HTTPS URL of the deployed candidate
+        required: true
+        type: string
+      proof_phase:
+        description: Run automated proof first; finalize only after manual evidence exists
+        required: true
+        default: automated
+        type: choice
+        options:
+          - automated
+          - finalize
+      evidence_issue:
+        description: Canonical GitHub issue number that receives the run result
+        required: true
+        default: "355"
+        type: string
+      physical_device_evidence_url:
+        description: Private evidence URL for the completed device matrix (required only for finalize)
+        required: false
+        type: string
+      backup_restore_evidence_url:
+        description: Private evidence URL for disposable backup/restore proof (required only for finalize)
+        required: false
+        type: string
+      rollback_evidence_url:
+        description: Private evidence URL for the rollback drill (required only for finalize)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-proof-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_sha || github.sha }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_SHA: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_sha || github.sha }}
+  BASE_URL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.base_url || 'https://www.bedtime-chronicles.com' }}
+  PROOF_PHASE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.proof_phase || 'automated' }}
+  EVIDENCE_ISSUE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.evidence_issue || '355' }}
+
+jobs:
+  validate-candidate:
+    name: Validate exact candidate
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run-release-proof]')
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: "1"
+    steps:
+      - name: Validate inputs
+        env:
+          DEVICE_EVIDENCE: ${{ github.event.inputs.physical_device_evidence_url }}
+          BACKUP_EVIDENCE: ${{ github.event.inputs.backup_restore_evidence_url }}
+          ROLLBACK_EVIDENCE: ${{ github.event.inputs.rollback_evidence_url }}
+        run: |
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BASE_URL" =~ ^https://[^[:space:]]+$ ]]
+          if [[ "$PROOF_PHASE" == "finalize" ]]; then
+            [[ "$DEVICE_EVIDENCE" =~ ^https://[^[:space:]]+$ ]]
+            [[ "$BACKUP_EVIDENCE" =~ ^https://[^[:space:]]+$ ]]
+            [[ "$ROLLBACK_EVIDENCE" =~ ^https://[^[:space:]]+$ ]]
+          fi
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+
+      - name: Verify checked-out SHA
+        env:
+          RELEASE_SHA: ${{ env.RELEASE_SHA }}
+        run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install repository npm version
+        run: npm install --global npm@11
+
+      - name: Install locked dependencies
+        run: bash scripts/npm-ci-retry.sh release-npm-ci.log
+
+      - name: Run full repository gates
+        run: |
+          npm run preflight
+          npm run lint
+          npm test
+          npm run typecheck
+          npm audit --audit-level=critical
+          npm run server:build
+          npm run expo:check
+          npm run expo:build:ci
+
+  eas-internal-android:
+    name: EAS internal Android build
+    needs: validate-candidate
+    runs-on: ubuntu-latest
+    environment: release-proof
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - run: npm install --global npm@11
+      - run: bash scripts/npm-ci-retry.sh eas-npm-ci.log
+
+      - name: Require Expo token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: test -n "$EXPO_TOKEN"
+
+      - name: Build internal APK and wait for completion
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -o pipefail
+          npx --yes eas-cli@16.0.0 build --platform android --profile preview --non-interactive --wait --json | tee eas-build.json
+
+      - name: Upload EAS evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: eas-internal-build
+          path: eas-build.json
+          retention-days: 30
+
+  deployed-smoke:
+    name: Deployed SHA and HTTPS smoke
+    needs: validate-candidate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch deployed health and privacy notice
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+        run: |
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2             "$BASE_URL/api/health" --output health.json
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2             "$BASE_URL/privacy" --output privacy.html
+          test -s privacy.html
+
+      - name: Verify deployed release SHA
+        env:
+          RELEASE_SHA: ${{ env.RELEASE_SHA }}
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const health = JSON.parse(fs.readFileSync("health.json", "utf8"));
+            if (health.status !== "ok") throw new Error("health status is not ok");
+            if (health.releaseSha !== process.env.RELEASE_SHA) {
+              throw new Error(`deployed SHA mismatch: expected ${process.env.RELEASE_SHA}, got ${health.releaseSha}`);
+            }
+          '
+
+      - name: Upload deployed smoke evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: deployed-smoke
+          path: |
+            health.json
+            privacy.html
+          retention-days: 30
+
+  alert-delivery:
+    name: Send Sentry release-proof event
+    needs: validate-candidate
+    runs-on: ubuntu-latest
+    environment: release-proof
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm install --global npm@11
+      - run: bash scripts/npm-ci-retry.sh sentry-npm-ci.log
+
+      - name: Send and flush test event
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          RELEASE_SHA: ${{ env.RELEASE_SHA }}
+        run: |
+          test -n "$SENTRY_DSN"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const Sentry = require('@sentry/node');
+          Sentry.init({ dsn: process.env.SENTRY_DSN, release: process.env.RELEASE_SHA });
+          const eventId = Sentry.captureMessage('Bedtime Chronicles release-proof alert', 'warning');
+          Sentry.flush(15000).then((flushed) => {
+            if (!flushed) throw new Error('Sentry event did not flush');
+            fs.writeFileSync('sentry-event.json', JSON.stringify({ eventId, release: process.env.RELEASE_SHA }, null, 2));
+          }).catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sentry-alert-event
+          path: sentry-event.json
+          retention-days: 30
+
+  evidence-manifest:
+    name: Record manual evidence references
+    needs: [eas-internal-android, deployed-smoke, alert-delivery]
+    if: github.event.inputs.proof_phase == 'finalize'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build evidence manifest
+        env:
+          RELEASE_SHA: ${{ env.RELEASE_SHA }}
+          BASE_URL: ${{ env.BASE_URL }}
+          DEVICE_EVIDENCE: ${{ github.event.inputs.physical_device_evidence_url }}
+          BACKUP_EVIDENCE: ${{ github.event.inputs.backup_restore_evidence_url }}
+          ROLLBACK_EVIDENCE: ${{ github.event.inputs.rollback_evidence_url }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const manifest = {
+            releaseSha: process.env.RELEASE_SHA,
+            baseUrl: process.env.BASE_URL,
+            physicalDeviceEvidenceUrl: process.env.DEVICE_EVIDENCE,
+            backupRestoreEvidenceUrl: process.env.BACKUP_EVIDENCE,
+            rollbackEvidenceUrl: process.env.ROLLBACK_EVIDENCE,
+            recordedAt: new Date().toISOString(),
+          };
+          for (const [key, value] of Object.entries(manifest)) {
+            if (key.endsWith('Url') && !/^https:\/\//.test(String(value))) {
+              throw new Error(`${key} must be an HTTPS evidence URL`);
+            }
+          }
+          fs.writeFileSync('release-evidence.json', JSON.stringify(manifest, null, 2));
+          NODE
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-evidence-manifest
+          path: release-evidence.json
+          retention-days: 90
+
+  report-results:
+    name: Attach proof result to evidence ledger
+    needs: [validate-candidate, eas-internal-android, deployed-smoke, alert-delivery, evidence-manifest]
+    if: always() && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run-release-proof]'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Comment canonical evidence issue
+        uses: actions/github-script@v7
+        env:
+          VALIDATE_RESULT: ${{ needs.validate-candidate.result }}
+          EAS_RESULT: ${{ needs.eas-internal-android.result }}
+          SMOKE_RESULT: ${{ needs.deployed-smoke.result }}
+          ALERT_RESULT: ${{ needs.alert-delivery.result }}
+          MANIFEST_RESULT: ${{ needs.evidence-manifest.result }}
+        with:
+          script: |
+            const issueNumber = Number(process.env.EVIDENCE_ISSUE);
+            if (!Number.isInteger(issueNumber) || issueNumber < 1) {
+              core.setFailed('EVIDENCE_ISSUE must be a positive issue number');
+              return;
+            }
+            const body = [
+              '## Automated Release Proof result',
+              '',
+              `- Candidate: \`${process.env.RELEASE_SHA}\``,
+              `- Phase: \`${process.env.PROOF_PHASE}\``,
+              `- Exact candidate validation: **${process.env.VALIDATE_RESULT}**`,
+              `- EAS internal Android build: **${process.env.EAS_RESULT}**`,
+              `- Deployed SHA/HTTPS smoke: **${process.env.SMOKE_RESULT}**`,
+              `- Sentry test event: **${process.env.ALERT_RESULT}**`,
+              `- Manual evidence manifest: **${process.env.MANIFEST_RESULT}**`,
+              `- Workflow run: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              process.env.PROOF_PHASE === 'finalize'
+                ? '**Promotion remains NO GO unless every linked manual artifact is independently reviewed.**'
+                : '**Automated phase only. Release remains NO GO; device, restore, rollback, and external compliance evidence are still required.**',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body,
+            });

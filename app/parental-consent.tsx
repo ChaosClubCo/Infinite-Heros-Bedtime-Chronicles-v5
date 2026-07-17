@@ -17,10 +17,9 @@ import { useConsent } from "@/lib/ConsentContext";
 
 /** Build a simple arithmetic parent gate that a young child is unlikely to pass. */
 function makeChallenge() {
-  const a = 5 + Math.floor(Math.random() * 8); // 5..12
-  const b = 4 + Math.floor(Math.random() * 8); // 4..11
+  const a = 5 + Math.floor(Math.random() * 8);
+  const b = 4 + Math.floor(Math.random() * 8);
   const answer = a + b;
-  // Three plausible wrong answers near the real one.
   const options = new Set<number>([answer]);
   while (options.size < 4) {
     const delta = (Math.floor(Math.random() * 5) + 1) * (Math.random() < 0.5 ? -1 : 1);
@@ -66,13 +65,10 @@ export default function ParentalConsentScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await setParentConsent();
-      markConsented(); // flips the Stack.Protected guard
+      markConsented();
       if (router.canGoBack()) {
-        // Re-viewing consent (pushed from Settings) — return where we came from.
         router.back();
       } else {
-        // First launch or post-reset: let the launch gate ("/") re-resolve
-        // the destination (welcome vs tabs) from the fresh state.
         router.replace("/");
       }
     } catch {
@@ -97,7 +93,8 @@ export default function ParentalConsentScreen() {
         <Text style={styles.title}>A quick step for grown-ups</Text>
         <Text style={styles.subtitle}>
           Infinity Heroes is made for children ages 3–9. Before your child
-          begins, a parent or guardian needs to give permission.
+          begins, a parent or guardian needs to review the data choices and give
+          permission.
         </Text>
 
         {!gatePassed ? (
@@ -131,19 +128,23 @@ export default function ParentalConsentScreen() {
             <Text style={styles.cardLabel}>What you’re agreeing to</Text>
             <ConsentPoint
               icon="phone-portrait-outline"
-              text="Your child’s profile (name, age, favorite hero) is stored only on this device."
+              text="Child profile name and age stay on this device. The server accepts older client fields for compatibility but discards those values before story or suggestion prompts are built for AI providers."
             />
             <ConsentPoint
-              icon="sparkles-outline"
-              text="To create a story, the hero details and any name/age you provide are sent to our AI partners to generate that story, then not stored on our servers."
+              icon="cloud-outline"
+              text="A parent account and cloud backup are optional. When enabled, Supabase stores the parent account plus stories and progress; the cloud profile stub excludes the child’s name and age."
             />
             <ConsentPoint
               icon="mic-outline"
-              text="Voice Chat is optional. If you use it, your child’s voice recording is sent to our AI partner to respond, and is not stored by us."
+              text="Voice Chat is optional and disabled by default. When an approved production configuration enables it, recorded audio is sent for transcription. We do not intentionally retain the raw recording, but sanitized text transcripts and replies are stored in the parent’s private chat history and automatically deleted no later than 30 days after creation or sooner when you delete them."
             />
             <ConsentPoint
               icon="shield-checkmark-outline"
-              text="No ads, no tracking, no accounts, and every story is filtered through child-safety rules."
+              text="Child-facing AI text is generated under a child-safety policy and checked before it is displayed or narrated. There are no ads, public child profiles, stranger chat, or behavioral advertising."
+            />
+            <ConsentPoint
+              icon="trash-outline"
+              text="Delete All Data removes the parent account, cloud backup records, Voice Chat history, and local device data. Individual Voice Chat conversations can also be deleted sooner."
             />
 
             <Pressable

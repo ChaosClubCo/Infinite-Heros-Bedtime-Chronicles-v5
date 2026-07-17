@@ -67,7 +67,7 @@ describe("registerChatRoutes", () => {
 
     expect(res.status).toBe(503);
     expect(res.headers["content-type"]).toMatch(/application\/json/);
-    expect(res.body).toEqual({ error: "Voice chat is not configured" });
+    expect(res.body).toEqual({ error: "Chat is not configured" });
     expect(createMessageMock).not.toHaveBeenCalled();
     expect(OpenAIMock).not.toHaveBeenCalled();
   });
