@@ -447,8 +447,6 @@ data: {"type":"audio","data":"<base64-pcm16-chunk>"}
 data: {"type":"done","transcript":"Hi there! How are you?"}
 ```
 
-> **Not currently live:** `server/replit_integrations/chat/routes.ts` implements a text-chat variant of this endpoint (`{ content }` request → `{content}`/`{done}` SSE events), but `registerChatRoutes()` is never called from `server/routes.ts` — there is no code path that registers it on the running server. Treat it as dead code, not a documented API surface, until something wires it up.
-
 ---
 
 ## GitHub Integration

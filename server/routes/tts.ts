@@ -6,6 +6,7 @@ import { TtsPreviewRequestSchema, TtsRequestSchema } from "../validation";
 import { recordTTS } from "../metrics";
 import { TTS_CACHE_DIR } from "./context";
 import { rateLimited, sendRouteError, ttsCachePathFor } from "./helpers";
+import { R2_ENABLED, r2Get, r2Put } from "../r2";
 
 // De-duplicates concurrent writes to the same cache file. Without this, two
 // simultaneous requests for identical audio could both miss the existence
@@ -41,8 +42,22 @@ export function registerTtsRoutes(app: Express): void {
 
       cacheHit = await fileExists(filePath);
       if (!cacheHit) {
-        const audioBuffer = await generateSpeech(text, voiceKey, storyMode);
-        await writeWithLock(filePath, audioBuffer);
+        if (R2_ENABLED) {
+          const r2Buffer = await r2Get(fileName);
+          if (r2Buffer) {
+            cacheHit = true;
+            await writeWithLock(filePath, r2Buffer);
+          } else {
+            const audioBuffer = await generateSpeech(text, voiceKey, storyMode);
+            await writeWithLock(filePath, audioBuffer);
+            r2Put(fileName, audioBuffer).catch((err) => {
+              req.log?.error({ err, fileName }, "Background R2 upload failed");
+            });
+          }
+        } else {
+          const audioBuffer = await generateSpeech(text, voiceKey, storyMode);
+          await writeWithLock(filePath, audioBuffer);
+        }
       }
 
       recordTTS(cacheHit, true);
@@ -53,7 +68,7 @@ export function registerTtsRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/tts-audio/:file", (req, res) => {
+  app.get("/api/tts-audio/:file", async (req, res) => {
     const fileName = req.params.file;
     if (!fileName || !/^[a-f0-9]+\.mp3$/.test(fileName)) {
       return res.status(400).json({ error: "Invalid file name" });
@@ -66,7 +81,21 @@ export function registerTtsRoutes(app: Express): void {
     }
 
     if (!fs.existsSync(resolved)) {
-      return res.status(404).json({ error: "Audio not found" });
+      if (R2_ENABLED) {
+        try {
+          const r2Buffer = await r2Get(fileName);
+          if (r2Buffer) {
+            await writeWithLock(resolved, r2Buffer);
+          } else {
+            return res.status(404).json({ error: "Audio not found" });
+          }
+        } catch (err) {
+          req.log?.error({ err, fileName }, "Failed to fetch missing audio from R2");
+          return res.status(404).json({ error: "Audio not found" });
+        }
+      } else {
+        return res.status(404).json({ error: "Audio not found" });
+      }
     }
     res.setHeader("Content-Type", "audio/mpeg");
     res.setHeader("Cache-Control", "public, max-age=86400");
@@ -93,8 +122,22 @@ export function registerTtsRoutes(app: Express): void {
 
       cacheHit = await fileExists(filePath);
       if (!cacheHit) {
-        const audioBuffer = await generateSpeech(previewText, voiceKey);
-        await writeWithLock(filePath, audioBuffer);
+        if (R2_ENABLED) {
+          const r2Buffer = await r2Get(fileName);
+          if (r2Buffer) {
+            cacheHit = true;
+            await writeWithLock(filePath, r2Buffer);
+          } else {
+            const audioBuffer = await generateSpeech(previewText, voiceKey);
+            await writeWithLock(filePath, audioBuffer);
+            r2Put(fileName, audioBuffer).catch((err) => {
+              req.log?.error({ err, fileName }, "Background preview R2 upload failed");
+            });
+          }
+        } else {
+          const audioBuffer = await generateSpeech(previewText, voiceKey);
+          await writeWithLock(filePath, audioBuffer);
+        }
       }
 
       recordTTS(cacheHit, true);
@@ -118,3 +161,4 @@ export function registerTtsRoutes(app: Express): void {
     res.json({ voices, defaults: MODE_DEFAULT_VOICES });
   });
 }
+
