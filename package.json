@@ -72,7 +72,7 @@
     "expo-image": "~55.0.11",
     "expo-image-picker": "~55.0.22",
     "expo-linear-gradient": "~55.0.16",
-    "expo-linking": "~55.0.16",
+    "expo-linking": "~57.0.3",
     "expo-location": "~55.1.12",
     "expo-router": "~55.0.17",
     "expo-speech": "~55.0.16",
