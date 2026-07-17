@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-07-12 -->
+<!-- Last verified: 2026-07-15 -->
 <!-- Generated from codebase scan + docs/ROADMAP.md. Re-run scan to refresh TODO signals. -->
 <!-- docs/ROADMAP.md is the actively-maintained backlog; this file lags behind it — reconcile against ROADMAP.md before trusting stale-looking rows. -->
 
@@ -23,8 +23,8 @@ Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 
 
 | Priority | Item | Category | Business Value | Time Criticality | Risk/Opportunity | Job Size | WSJF | Status | Issue/Notes |
 |----------|------|----------|---------------|-----------------|-----------------|----------|------|--------|-------------|
-| 3 | Remove or wire up `server/replit_integrations/chat/routes.ts` | Code Quality | S | S | S | S | 2.5 | ready | `registerChatRoutes()` is implemented but never called from server/routes.ts — dead code found in 2026-07-12 doc audit |
-| 4 | Encrypt client-side AsyncStorage | Security | S | S | S | L | 9.0 | low-priority | Stored data is non-sensitive (story text, badges); not a current risk |
+| 4 | Encrypt client-side AsyncStorage | Security | S | S | S | L | 1.1 | low-priority | Stored data is non-sensitive (story text, badges); not a current risk |
+| 5 | M4 — native Kotlin audio engine | Feature | S | L | L | L | 0.6 | blocked | Requires ejecting managed Expo + archive/android-kotlin-rewrite/; see CLAUDE.md Merge Provenance |
 
 ---
 
@@ -32,6 +32,12 @@ Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 
 
 | Item | Category | Completed | Notes |
 |------|----------|-----------|-------|
+| Cloudflare R2 TTS-audio cache (M1 TTS-cache half) | Infrastructure | 2026-07-15 | server/r2.ts (S3-compatible @aws-sdk/client-s3), wired into server/routes/tts.ts behind writeWithLock; /tmp fallback; gated on R2_ENABLED |
+| Remove dead text chat routes (routes.ts, routes.test.ts) | Code Quality | 2026-07-14 | Removed dead routes file and its test file, and disabled it in chat/index.ts |
+| Secure Gemini API Key URL leakage in pingGemini() | Security | 2026-07-14 | Pass API key in x-goog-api-key header instead of query string |
+| Extend health checks live probes to OpenAI/OpenRouter | Reliability | 2026-07-14 | Wired up OpenAI and OpenRouter pings to /api/health LIVE_PROBE_PROVIDERS |
+| Add integration tests for request-finish alerting + TTS metrics | Testing | 2026-07-14 | Created server/index.integration.test.ts to test middleware and route integrations |
+| Refresh docs/TEST-COVERAGE-ANALYSIS.md coverage numbers | Docs | 2026-07-14 | Updated code coverage metrics to 1294 passing tests |
 | Add Supabase Auth (bearer-token JWT middleware) | Feature/Security | 2026-07-06 | Optional, gated on SUPABASE_SERVICE_ROLE_KEY + Supabase URL; 503 in production when unconfigured |
 | Fix voice-chat IDOR | Security | 2026-07-06 | Ownership (userId) checks added on all conversation reads/writes in server/replit_integrations/audio/routes.ts |
 | Parent-controls PIN brute-force lockout | Security | 2026-07-06 | 5 failed attempts → 30s lockout; lib/storage.ts + components/ParentControlsModal.tsx |
