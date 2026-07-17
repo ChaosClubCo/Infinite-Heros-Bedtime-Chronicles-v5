@@ -83,32 +83,47 @@ try {
 
 ## 3. TTS Caching Strategy
 
-### Current (Ephemeral /tmp)
+### Current (Durable Cloudflare R2 + Local disk cache)
 
 ```
-Request → MD5 hash of (voice + mode + text) → Check /tmp/tts-cache → Miss → ElevenLabs API → Save to /tmp
+Request → MD5 hash of (voice + mode + text) 
+        → Check Local Cache (/tmp/tts-cache) → Hit → Serve
+        → Miss → Check Cloudflare R2 Cache (if R2_ENABLED) → Hit → Save to Local Cache → Serve
+        → Miss → ElevenLabs API → Save to Local Cache → Background Upload to R2 → Serve
 ```
 
-**Problem:** On Vercel serverless, `/tmp` is wiped between cold starts. Every request after a cold start hits ElevenLabs, adding 2-5s latency.
+**Why R2:** On Vercel serverless, `/tmp` is ephemeral and wiped between cold starts. Cloudflare R2 provides a persistent object storage cache that survives serverless recycling, dramatically reducing ElevenLabs API costs and latency.
 
-### Recommended (Vercel Blob)
+### Implementation
+
+The R2 cache is handled in `server/r2.ts` and integrated into the `/api/tts` handler:
 
 ```typescript
-import { put, head } from '@vercel/blob';
+// server/routes/tts.ts
+const { fileName, filePath } = ttsCachePathFor(`${voiceKey}:${storyMode || ""}:${text}`);
 
-const cacheKey = `tts/${hash}.mp3`;
-const existing = await head(cacheKey).catch(() => null);
-
-if (existing) {
-  return redirect(existing.url); // CDN-cached, <50ms
+cacheHit = await fileExists(filePath);
+if (!cacheHit) {
+  if (R2_ENABLED) {
+    const r2Buffer = await r2Get(fileName);
+    if (r2Buffer) {
+      cacheHit = true;
+      await writeWithLock(filePath, r2Buffer);
+    } else {
+      const audioBuffer = await generateSpeech(text, voiceKey, storyMode);
+      await writeWithLock(filePath, audioBuffer);
+      r2Put(fileName, audioBuffer).catch((err) => {
+        req.log?.error({ err, fileName }, "Background R2 upload failed");
+      });
+    }
+  } else {
+    const audioBuffer = await generateSpeech(text, voiceKey, storyMode);
+    await writeWithLock(filePath, audioBuffer);
+  }
 }
-
-const audio = await generateSpeech(text, voiceKey, mode);
-const blob = await put(cacheKey, audio, { access: 'public' });
-return redirect(blob.url);
 ```
 
-**Benefits:** Persistent across cold starts, CDN-distributed, no ElevenLabs API cost on cache hit.
+**Benefits:** Extremely fast local filesystem fallback if already downloaded on the instance, durable cloud cache across all serverless instances, and non-blocking asynchronous uploads so client requests aren't delayed.
 
 ---
 

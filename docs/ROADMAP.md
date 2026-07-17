@@ -1,6 +1,6 @@
 # Development Roadmap
 
-**Last Updated:** 2026-07-15 (R2 completion reconciliation + backlog renumber)
+**Last Updated:** 2026-07-17 (R3 completion reconciliation + backlog renumber)
 
 Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Time Criticality + Risk Reduction) / Job Size`
 
@@ -63,6 +63,8 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 | Add integration tests for request-finish alerting + TTS metrics | Testing | 2026-07-14 |
 | Refresh docs/TEST-COVERAGE-ANALYSIS.md coverage numbers | Docs | 2026-07-14 |
 | M1 (TTS-cache half) — Cloudflare R2 object storage caching for binary TTS MP3 blobs with local filesystem fallback | Infrastructure | 2026-07-15 |
+| Synchronize best practice documentation with actual implementations (Supabase, R2, test counts) | Docs | 2026-07-17 |
+| Align Vercel serverless execution timeout configuration (60s -> 300s) | Infrastructure | 2026-07-17 |
 
 ## Backlog (Prioritized)
 
