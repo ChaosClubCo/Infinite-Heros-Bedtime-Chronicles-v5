@@ -59,6 +59,7 @@ jobs:
     name: Validate exact candidate
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run-release-proof]')
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     env:
       CI: true
       EXPO_NO_TELEMETRY: "1"
@@ -88,7 +89,7 @@ jobs:
         run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: npm
@@ -114,13 +115,19 @@ jobs:
     name: EAS internal Android build
     needs: validate-candidate
     runs-on: ubuntu-latest
+    # NOTE: timeout-minutes only begins counting once the job starts running.
+    # It does NOT limit time spent waiting for environment approval.  While the
+    # release-proof environment has pending required reviewers, this job sits in
+    # "Waiting" indefinitely and report-results will never fire.  Approve (or
+    # cancel) the pending deployment in the Actions UI to unblock the workflow.
+    timeout-minutes: 90
     environment: release-proof
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_SHA }}
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: npm
@@ -151,6 +158,7 @@ jobs:
     name: Deployed SHA and HTTPS smoke
     needs: validate-candidate
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Fetch deployed health and privacy notice
         env:
@@ -186,12 +194,17 @@ jobs:
     name: Send Sentry release-proof event
     needs: validate-candidate
     runs-on: ubuntu-latest
+    # NOTE: timeout-minutes only begins counting once the job starts running.
+    # It does NOT limit time spent waiting for environment approval.  This job
+    # can sit in "Waiting" indefinitely until the release-proof environment is
+    # approved, which also prevents report-results from starting.
+    timeout-minutes: 15
     environment: release-proof
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_SHA }}
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: npm
@@ -229,6 +242,7 @@ jobs:
     needs: [eas-internal-android, deployed-smoke, alert-delivery]
     if: github.event.inputs.proof_phase == 'finalize'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Build evidence manifest
         env:
@@ -267,12 +281,13 @@ jobs:
     needs: [validate-candidate, eas-internal-android, deployed-smoke, alert-delivery, evidence-manifest]
     if: always() && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run-release-proof]'))
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: write
     steps:
       - name: Comment canonical evidence issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           VALIDATE_RESULT: ${{ needs.validate-candidate.result }}
           EAS_RESULT: ${{ needs.eas-internal-android.result }}

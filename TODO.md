@@ -16,9 +16,8 @@ Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 
 
 | Priority | Item | Category | Business Value | Time Criticality | Risk/Opportunity | Job Size | WSJF | Status | Issue/Notes |
 |----------|------|----------|---------------|-----------------|-----------------|----------|------|--------|-------------|
-| 1 | EAS build & Play Store submission | Deployment | H | H | H | M | 4.8 | ready | eas.json + build-android.sh + PLAY_STORE_DEPLOYMENT.md all set; needs EAS secrets + `EXPO_TOKEN` (ChaosClubCo) + AAB build |
-| 2 | Verify M3 cloud sync end-to-end on a device | Reliability | M | M | H | S | 6.0 | ready | Built + unit-tested but "NOT yet verified on a device" (CLAUDE.md); needs an installable build (Item 1); harness scripts/verify-sync.ts |
-| 3 | Resolve remaining npm audit vulnerabilities | Security | M | M | M | S | 5.0 | blocked | 2 high in `tmp`/`undici` transitive chain (not firebase-admin — app has no Firebase dependency; blocked on upstream); CI at --audit-level=critical |
+| 1 | EAS build & Play Store submission | Deployment | H | H | H | M | 4.8 | ready | eas.json + build-android.sh + PLAY_STORE_DEPLOYMENT.md all set; needs EAS secrets + AAB build |
+| 2 | Resolve remaining npm audit vulnerabilities | Security | M | M | M | S | 5.0 | blocked | Updated 2026-07-15: the 2 high (`tmp`/`undici`) are resolved; 15 moderate remain (`esbuild`→`drizzle-kit`, `uuid`→`@expo/config-plugins`), both needing breaking `--force` bumps — see docs/ROADMAP.md and docs/AUDIT-NEXT-SPRINT-2026-07-15.md |
 
 ### Low Priority
 

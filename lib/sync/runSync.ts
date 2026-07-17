@@ -45,31 +45,12 @@ async function currentUserId(): Promise<{ sb: NonNullable<ReturnType<typeof getS
 }
 
 /**
- * A single in-flight sync, shared by concurrent callers. SyncManager fires from
- * four independent triggers (open/foreground/reconnect/sign-in) plus completion,
- * and each applyLocal is an unguarded whole-key read-modify-write — overlapping
- * runs could clobber each other's AsyncStorage writes. Coalescing to one run at
- * a time removes the sync-vs-sync race (a concurrent normal app write, e.g.
- * awardBadge mid-sync, is a separate, narrower window not covered here).
- */
-let inFlightSync: Promise<boolean> | null = null;
-
-/**
  * Run a full sync when enabled + consented + signed in; otherwise a no-op. Never
  * throws — sync is best-effort background work and must not break the app flow
- * that triggered it. Returns whether a sync actually ran. Concurrent calls share
- * the same in-flight run rather than racing.
+ * that triggered it. Returns whether a sync actually ran.
  */
 export async function runSync(enabled: boolean): Promise<boolean> {
   if (!enabled) return false;
-  if (inFlightSync) return inFlightSync;
-  inFlightSync = runSyncInner().finally(() => {
-    inFlightSync = null;
-  });
-  return inFlightSync;
-}
-
-async function runSyncInner(): Promise<boolean> {
   // COPPA: never egress a child's data unless parental consent is currently
   // valid for the active CONSENT_VERSION. getConsentGiven() is the same check
   // ConsentContext uses; it returns false for missing/outdated/revoked consent.
