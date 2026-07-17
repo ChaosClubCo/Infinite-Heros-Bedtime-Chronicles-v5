@@ -7,6 +7,7 @@ import type { Server } from "node:http";
 const mockProviders = [
   { name: "anthropic", displayName: "Anthropic Claude", available: true, capabilities: { text: true, image: false, streaming: true } },
   { name: "gemini", displayName: "Gemini", available: true, capabilities: { text: true, image: true, streaming: true } },
+  { name: "openai", displayName: "OpenAI", available: false, capabilities: { text: true, image: true, streaming: true } },
 ];
 const mockBreakers = [
   { provider: "anthropic", state: "closed" },
@@ -23,6 +24,8 @@ vi.mock("../health-checks", () => ({
 vi.mock("../elevenlabs", () => ({ pingElevenLabs: vi.fn() }));
 vi.mock("../ai/providers/gemini", () => ({ pingGemini: vi.fn() }));
 vi.mock("../ai/providers/anthropic", () => ({ pingAnthropic: vi.fn() }));
+vi.mock("../ai/providers/openai", () => ({ pingOpenAI: vi.fn() }));
+vi.mock("../ai/providers/openrouter", () => ({ pingOpenRouter: vi.fn() }));
 vi.mock("../feature-flags", () => ({ getFeatureFlags: () => ({ videoEnabled: false, voiceChatEnabled: true, streamingEnabled: true }) }));
 vi.mock("../metrics", () => ({ getMetrics: () => ({ requests: { total: 0, errors: 0, byStatus: {} } }) }));
 vi.mock("../load-shedding", () => ({ getActiveRequests: () => 0 }));
@@ -113,6 +116,26 @@ describe("GET /api/health", () => {
     } finally {
       anthropicEntry.available = true;
       geminiEntry.available = true;
+    }
+  });
+
+  it("falls back to openai for the live probe when anthropic and gemini are unavailable", async () => {
+    const anthropicEntry = mockProviders.find((p) => p.name === "anthropic")!;
+    const geminiEntry = mockProviders.find((p) => p.name === "gemini")!;
+    const openaiEntry = mockProviders.find((p) => p.name === "openai")!;
+    const getLiveStatus = (await import("../health-checks")).getLiveStatus as ReturnType<typeof vi.fn>;
+    
+    anthropicEntry.available = false;
+    geminiEntry.available = false;
+    openaiEntry.available = true;
+    getLiveStatus.mockClear();
+    try {
+      await request(app).get("/api/health");
+      expect(getLiveStatus).toHaveBeenCalledWith("openai", expect.anything());
+    } finally {
+      anthropicEntry.available = true;
+      geminiEntry.available = true;
+      openaiEntry.available = false;
     }
   });
 });

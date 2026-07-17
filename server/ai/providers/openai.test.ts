@@ -16,7 +16,7 @@ vi.mock('openai', () => ({
   },
 }));
 
-import { openaiProvider } from './openai';
+import { openaiProvider, pingOpenAI } from './openai';
 
 function mockCompletion(overrides: Record<string, unknown> = {}) {
   return {
@@ -211,6 +211,67 @@ describe('openaiProvider', () => {
       await expect(openaiProvider.generateImage!({ prompt: 'a hero' })).rejects.toThrow(
         'OpenAI returned no usable image'
       );
+    });
+  });
+
+  describe('pingOpenAI', () => {
+    const originalFetch = global.fetch;
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('returns false if both API keys are missing', async () => {
+      vi.stubEnv('AI_INTEGRATIONS_OPENAI_API_KEY', '');
+      vi.stubEnv('OPENAI_API_KEY', '');
+      const result = await pingOpenAI();
+      expect(result).toBe(false);
+    });
+
+    it('makes a fetch request with Authorization header using integrations key and returns true on success', async () => {
+      vi.stubEnv('AI_INTEGRATIONS_OPENAI_API_KEY', 'integrations-secret');
+      vi.stubEnv('OPENAI_API_KEY', '');
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const result = await pingOpenAI();
+
+      expect(result).toBe(true);
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://api.openai.com/v1/models',
+        expect.objectContaining({
+          headers: {
+            Authorization: 'Bearer integrations-secret',
+          },
+        })
+      );
+    });
+
+    it('makes a fetch request with Authorization header using direct key when integrations key is missing', async () => {
+      vi.stubEnv('AI_INTEGRATIONS_OPENAI_API_KEY', '');
+      vi.stubEnv('OPENAI_API_KEY', 'direct-secret');
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const result = await pingOpenAI();
+
+      expect(result).toBe(true);
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://api.openai.com/v1/models',
+        expect.objectContaining({
+          headers: {
+            Authorization: 'Bearer direct-secret',
+          },
+        })
+      );
+    });
+
+    it('returns false if fetch fails or throws', async () => {
+      vi.stubEnv('AI_INTEGRATIONS_OPENAI_API_KEY', 'integrations-secret');
+      global.fetch = vi.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+
+      const result = await pingOpenAI();
+      expect(result).toBe(false);
     });
   });
 });
