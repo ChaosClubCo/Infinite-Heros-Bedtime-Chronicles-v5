@@ -32,8 +32,16 @@ export function registerAccountRoutes(app: Express): void {
     }
 
     try {
-      const { chatStorage } = await import('../replit_integrations/chat/storage');
-      await chatStorage.deleteAllConversationsForUser(user.uid);
+      // Voice-chat transcripts only exist when a PostgreSQL database is
+      // configured. Without DATABASE_URL the pg client would connect to
+      // localhost:5432 and throw, 503-ing the whole request and — critically —
+      // never reaching deleteAuthenticatedUser(), so a parent on the documented
+      // default (story-only) deployment could never purge their cloud sync data
+      // or auth identity. Skip the step when there can be no transcripts.
+      if (process.env.DATABASE_URL) {
+        const { chatStorage } = await import('../replit_integrations/chat/storage');
+        await chatStorage.deleteAllConversationsForUser(user.uid);
+      }
       await deleteAuthenticatedUser(user.uid);
 
       const receipt: ServerDeletionReceipt = {

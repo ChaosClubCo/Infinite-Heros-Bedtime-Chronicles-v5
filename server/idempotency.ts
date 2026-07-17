@@ -16,6 +16,26 @@ interface StoredResult {
   createdAt: number;
 }
 
+/**
+ * Deterministic JSON with object keys sorted at EVERY depth. A plain
+ * `JSON.stringify(body, Object.keys(body).sort())` uses the sorted keys as an
+ * array replacer, which whitelists property names at every nesting level and so
+ * serializes any nested object (e.g. Mad Libs `madlibWords`) as `{}` — dropping
+ * its contents from the idempotency key and colliding otherwise-distinct
+ * requests. This walks the structure so nested values actually contribute.
+ */
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value) ?? 'null';
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`;
+  }
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',')}}`;
+}
+
 export class IdempotencyCache {
   private cache = new Map<string, CacheEntry>();
   private readonly ttlMs: number;
@@ -30,7 +50,7 @@ export class IdempotencyCache {
     const safeBody = (body !== null && typeof body === 'object' && !Array.isArray(body))
       ? (body as Record<string, unknown>)
       : {};
-    const json = JSON.stringify(safeBody, Object.keys(safeBody).sort());
+    const json = stableStringify(safeBody);
     return crypto.createHash('sha256').update(json).digest('hex').slice(0, 32);
   }
 

@@ -25,7 +25,12 @@ vi.mock('@/lib/storage', () => ({
   applySyncedSet: vi.fn(),
   getProfiles: vi.fn(),
   mergeSyncedProfileStubs: vi.fn(),
+  getEntityTombstones: vi.fn(),
+  stampEntityTombstone: vi.fn(),
+  clearEntityMeta: vi.fn(),
 }));
+
+import { getEntityTombstones, stampEntityTombstone, clearEntityMeta } from '@/lib/storage';
 
 const baseStory: CachedStory = {
   id: 's1', timestamp: 1000,
@@ -38,7 +43,11 @@ const baseStory: CachedStory = {
   heroId: 'hero', mode: 'classic', voice: 'moonbeam', speed: 'medium', profileId: 'p1',
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Default: no local tombstones (individual tests override as needed).
+  vi.mocked(getEntityTombstones).mockResolvedValue([]);
+});
 
 describe('storiesAdapter.readLocal', () => {
   it('maps local stories to records, stripping base64 blobs', async () => {
@@ -48,6 +57,26 @@ describe('storiesAdapter.readLocal', () => {
     expect(records[0].id).toBe('s1');
     expect('avatar' in (records[0].payload as object)).toBe(false);
     expect('scenes' in (records[0].payload as object)).toBe(false);
+  });
+
+  it('includes local deletion tombstones (for ids not currently live)', async () => {
+    vi.mocked(getAllStories).mockResolvedValue([baseStory]);
+    vi.mocked(getEntityTombstones).mockResolvedValue([
+      { id: 'deleted-1', updatedAt: 9000, deleted: true },
+    ]);
+    const records = await storiesAdapter.readLocal();
+    expect(records).toHaveLength(2);
+    expect(records.find((r) => r.id === 'deleted-1')?.deleted).toBe(true);
+  });
+
+  it('does not emit a tombstone for an id that is also live locally', async () => {
+    vi.mocked(getAllStories).mockResolvedValue([baseStory]);
+    vi.mocked(getEntityTombstones).mockResolvedValue([
+      { id: 's1', updatedAt: 9000, deleted: true },
+    ]);
+    const records = await storiesAdapter.readLocal();
+    expect(records).toHaveLength(1);
+    expect(records[0].deleted).toBe(false);
   });
 });
 
@@ -64,15 +93,25 @@ describe('storiesAdapter.applyLocal', () => {
     expect(upserts.map((s) => s.id)).toEqual(['s1']);
     expect(deletes).toEqual(['gone']);
   });
+
+  it('records an applied remote tombstone at the remote timestamp, and clears meta for upserts', async () => {
+    const { avatar: _a, scenes: _s, ...synced } = baseStory;
+    await storiesAdapter.applyLocal([
+      { id: 's1', updatedAt: 1000, deleted: false, payload: synced },
+      { id: 'gone', updatedAt: 2000, deleted: true, payload: {} },
+    ]);
+    expect(stampEntityTombstone).toHaveBeenCalledWith('stories', 'gone', 2000);
+    expect(clearEntityMeta).toHaveBeenCalledWith('stories', 's1');
+  });
 });
 
 describe('badgesAdapter', () => {
   const badge: EarnedBadge = { id: 'b1', emoji: 'x', title: 't', description: 'd', earnedAt: 42, profileId: 'p1' };
 
-  it('readLocal maps badges to records keyed by id', async () => {
+  it('readLocal maps badges to records keyed by (profileId, badge id) to avoid cross-profile collision', async () => {
     vi.mocked(getAllBadges).mockResolvedValue([badge]);
     const records = await badgesAdapter.readLocal();
-    expect(records).toEqual([{ id: 'b1', updatedAt: 42, deleted: false, payload: badge }]);
+    expect(records).toEqual([{ id: 'p1:b1', updatedAt: 42, deleted: false, payload: badge }]);
   });
 
   it('applyLocal upserts non-deleted and removes tombstones', async () => {
@@ -139,5 +178,16 @@ describe('profileStubAdapter', () => {
     const [stubs, deletes] = vi.mocked(mergeSyncedProfileStubs).mock.calls[0];
     expect(stubs).toEqual([{ id: 'p1', createdAt: 999 }]);
     expect(deletes).toEqual(['p2']);
+    expect(stampEntityTombstone).toHaveBeenCalledWith('profileStub', 'p2', 1);
+    expect(clearEntityMeta).toHaveBeenCalledWith('profileStub', 'p1');
+  });
+
+  it('readLocal includes profile tombstones so a deletion propagates', async () => {
+    vi.mocked(getProfiles).mockResolvedValue([profile]);
+    vi.mocked(getEntityTombstones).mockResolvedValue([
+      { id: 'p-old', updatedAt: 500, deleted: true },
+    ]);
+    const records = await profileStubAdapter.readLocal();
+    expect(records.find((r) => r.id === 'p-old')?.deleted).toBe(true);
   });
 });

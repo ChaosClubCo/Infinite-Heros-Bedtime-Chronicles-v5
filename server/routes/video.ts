@@ -31,7 +31,10 @@ export function registerVideoRoutes(app: Express): void {
     try {
       const result = await createVideoJob(sceneText, heroName, heroDescription);
       if ("error" in result) {
-        return res.status(503).json({ error: result.error });
+        // Only echo messages explicitly marked clientSafe (e.g. "not configured").
+        // Anything else may carry raw provider detail — return a generic message.
+        const message = result.clientSafe ? result.error : 'Failed to start video generation. Please try again later.';
+        return res.status(503).json({ error: message });
       }
 
       res.json({ jobId: result.jobId });

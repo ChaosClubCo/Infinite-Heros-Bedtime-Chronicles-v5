@@ -124,13 +124,13 @@ Please include:
 
 | # | Vulnerability | Status |
 |---|--------------|--------|
-| A01 | Broken Access Control | Mitigated — Firebase Auth on all POST endpoints; conversation ID validation; production auth guard |
+| A01 | Broken Access Control | Mitigated — Supabase Auth on all POST endpoints; conversation ID validation; production auth guard |
 | A02 | Cryptographic Failures | Mitigated — parent PIN hashed with SHA-256 + salt; API keys server-only |
 | A03 | Injection | Mitigated — input sanitization via `sanitizeString()`; parameterized DB queries (Drizzle ORM); prompt injection risk acknowledged |
 | A04 | Insecure Design | Mitigated — `CHILD_SAFETY_RULES` + `VOICE_CHAT_SAFETY_PROMPT`; dual-layer rate limiting |
 | A05 | Security Misconfiguration | Mitigated — security headers; CORS restricted; body limits enforced; production auth guard |
 | A06 | Vulnerable Components | Monitor — run `npm audit` before each deployment; Dependabot PRs reviewed weekly |
-| A07 | Auth Failures | Mitigated — Firebase Auth with Bearer tokens; brute-force lockout on parent PIN |
+| A07 | Auth Failures | Mitigated — Supabase Auth with Bearer tokens; brute-force lockout on parent PIN |
 | A08 | Data Integrity Failures | Low risk — server validates AI responses before returning to client |
 | A09 | Logging Failures | Mitigated — pino structured logging; rate limit violation logging; auth failure logging |
 | A10 | SSRF | Low risk — server only makes outbound calls to known AI provider URLs |

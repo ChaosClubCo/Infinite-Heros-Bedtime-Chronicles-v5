@@ -56,6 +56,14 @@ export interface StreakData {
   currentStreak: number;
   longestStreak: number;
   lastStoryDate: string;
+  /**
+   * ms-epoch of the last streak mutation. Stamped by `updateStreak` so cloud
+   * sync (M3) can resolve two same-calendar-day updates by last-write-wins —
+   * `lastStoryDate` alone has only day granularity and would tie. Optional so
+   * legacy records (pre-sync) still parse; `streakToRecord` falls back to
+   * `Date.parse(lastStoryDate)` when absent.
+   */
+  lastUpdatedAt?: number;
 }
 
 export interface ParentControls {

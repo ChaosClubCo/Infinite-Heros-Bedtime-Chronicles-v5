@@ -118,6 +118,44 @@ describe('moderateStory — structural layer', () => {
     expect(moderateStory('a string').safe).toBe(false);
     expect(moderateStory([]).safe).toBe(false);
   });
+
+  it('rejects a part longer than the moderation scan window (no unscanned tail can reach the child)', () => {
+    // ~5280 chars: over the 4000-char scan window but under the previous 8000
+    // oversize threshold — the exact gap where an unmoderated tail used to pass.
+    const longText = 'The gentle bunny hopped happily. '.repeat(160);
+    const v = moderateStory(cleanStory({ parts: [{ text: longText, choices: [], partIndex: 0 }] }));
+    expect(v.safe).toBe(false);
+    expect(v.categories).toContain('structural');
+  });
+
+  it('catches a HARD term hidden past the scan window via the oversize gate', () => {
+    const filler = 'The bunny smiled warmly. '.repeat(180); // > 4000 chars
+    const v = moderateStory(cleanStory({ parts: [{ text: `${filler} gun`, choices: [], partIndex: 0 }] }));
+    expect(v.safe).toBe(false);
+  });
+
+  it('term-scans rewardBadge.emoji (rendered raw to the child)', () => {
+    const v = moderateStory(cleanStory({
+      rewardBadge: { emoji: 'gun', title: 'Star', description: 'You earned a star.' },
+    }));
+    expect(v.safe).toBe(false);
+    expect(v.categories).toContain('weapons');
+  });
+
+  it('rejects an oversize rewardBadge.emoji (a phrase masquerading as an emoji)', () => {
+    const v = moderateStory(cleanStory({
+      rewardBadge: { emoji: 'you are a winner today', title: 'Star', description: 'You earned a star.' },
+    }));
+    expect(v.safe).toBe(false);
+    expect(v.categories).toContain('structural');
+  });
+
+  it('accepts a normal emoji, including a ZWJ sequence', () => {
+    const v = moderateStory(cleanStory({
+      rewardBadge: { emoji: '👩‍🚀', title: 'Star', description: 'You earned a star.' },
+    }));
+    expect(v.safe).toBe(true);
+  });
 });
 
 describe('fallback stories are themselves safe', () => {

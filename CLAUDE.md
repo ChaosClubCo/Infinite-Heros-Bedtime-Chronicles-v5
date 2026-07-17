@@ -31,7 +31,7 @@ AI-powered interactive bedtime story app for children ages 3-9. Kids create cust
 
 ## Tech Stack
 
-- **Frontend:** Expo SDK ~55, React Native 0.86 (New Architecture), Expo Router 56 (file-based routing, single root `app/_layout.tsx` — all navigation params via `useLocalSearchParams<T>()` generics; never use untyped string routes; note `expo-router`'s own package major (56) no longer tracks the Expo SDK major)
+- **Frontend:** Expo SDK ~55, React Native 0.83 (New Architecture), Expo Router ~55 (file-based routing, single root `app/_layout.tsx` — all navigation params via `useLocalSearchParams<T>()` generics; never use untyped string routes). Exact pins live in `package.json` (`react-native` 0.83.6, `expo-router` ~55.0.17, `react` 19.2.0) — PR #354 re-aligned the tree to SDK 55; treat `package.json` as authoritative over any version stated in prose.
 - **State:** TanStack React Query v5 (server state) + React Context (app settings, profiles)
 - **Local Storage:** AsyncStorage for stories, profiles, badges, streaks, parent controls
 - **Styling:** React Native StyleSheet + react-native-reanimated v4 for animations
@@ -374,7 +374,7 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 - Glassmorphism: `rgba(255,255,255,0.03)` bg + `rgba(255,255,255,0.1)` border
 - Dark UI by default (`userInterfaceStyle: "dark"` in app.json)
 - Portrait orientation only
-- Use `StyleSheet.absoluteFill` (not `absoluteFillObject` — removed in RN 0.85)
+- Prefer `StyleSheet.absoluteFill` over `absoluteFillObject` (project convention)
 
 ### Error Handling
 - Server (global handler): catch errors, sanitize via `sanitizeErrorMessage()` (strips newlines, truncates to 200 chars), return `{ error: string }` with appropriate HTTP status. Never leak stack traces.
@@ -635,7 +635,7 @@ npm run test:components  # jest — RN components + Expo-native hooks
 - **Storage migrations are now wired**: `runStorageMigrations()` (`lib/storage-migration.ts`) runs at the start of `resolveLaunchRoute()` (`lib/launch-gate.ts`) — the earliest cold-start storage touch — so it was previously defined-but-never-called.
 - **Cloud sync (M3) — OFF by default (`cloudSyncEnabled` setting, default false).** Decisions: parent opt-in, stories+gamification only (NO profile PII), last-write-wins, local-wipe→cloud-purge. Built + tested end-to-end (all six entities): schema+RLS (`supabase/migrations/0001_sync_tables.sql`, **applied to the Bedtime-chronicles Supabase project** `aeraxfupuvwiskmfjliq`), reconcile/mappers/engine/IO (`lib/sync/*`), adapters for **stories** (blob-preserving), **badges**, **streaks**, **favorites**/**read** (via a change-time sidecar `@infinity_heroes_sync_meta` stamped by `toggleFavorite`/`markStoryRead`), and **profileStub** (creates an editable placeholder profile for an unknown id so gamification anchors across devices — name/age never sync; `mergeSyncedProfileStubs`). Gated `runSync()`/`purgeCloudData()` (`lib/sync/runSync.ts`), opt-in **toggle** in `app/settings.tsx`, **triggers** (`components/SyncManager.tsx` — mounted in `_layout`, runs on open/foreground/reconnect/sign-in, then `refreshProfiles()` — + `app/completion.tsx` after-save), cloud-purge in "delete all data". Note: this is the durable Supabase *state* sync, distinct from the ported offline interaction *event* queue (`lib/sync-queue.ts` / `useSyncOffline`); they coexist by design and overlap on favorites/completions. **NOT yet verified on a device** — the toggle/triggers/placeholder behavior need an end-to-end pass. M4 (native Kotlin audio) remains gated on the V2 repo + ejecting managed Expo.
 - ElevenLabs voices are hardcoded in `server/elevenlabs.ts` with specific voice IDs
-- Expo Router (file-based routing, package major 56) — screen paths map to file paths in `app/`
+- Expo Router (file-based routing, package major 55) — screen paths map to file paths in `app/`
 - `postinstall` runs `patch-package || true` — currently a no-op (`patches/` was removed after the SDK 55 upgrade) but kept so future patches apply automatically
 - Metro blocklist includes `.local/state/workflow-logs/**`
 - Legacy `@infinity_heroes_preferences` key auto-migrates to `@infinity_heroes_app_settings`

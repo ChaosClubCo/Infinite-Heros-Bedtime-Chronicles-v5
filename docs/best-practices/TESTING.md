@@ -2,7 +2,7 @@
 
 > Infinity Heroes: Bedtime Chronicles v5 -- Comprehensive Testing Guide
 
-**Current status:** 585 passing tests across 14 files, all green.
+**Current status:** 1399 passing tests (1347 Vitest unit tests across 75 files + 52 Jest component tests across 8 files), all green.
 
 ---
 

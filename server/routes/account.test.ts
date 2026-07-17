@@ -1,6 +1,6 @@
 import express from 'express';
 import request from 'supertest';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   deleteAllConversationsForUser: vi.fn(),
@@ -35,10 +35,19 @@ function createApp(user?: { uid: string; isAnonymous: boolean }) {
 }
 
 describe('DELETE /api/account', () => {
+  const originalDbUrl = process.env.DATABASE_URL;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: a database IS configured, so the chat-history step runs.
+    process.env.DATABASE_URL = 'postgres://test-db';
     mocks.deleteAllConversationsForUser.mockResolvedValue(undefined);
     mocks.deleteAuthenticatedUser.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    if (originalDbUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = originalDbUrl;
   });
 
   it('deletes retained data in order and returns a PII-free verification receipt', async () => {
@@ -79,6 +88,21 @@ describe('DELETE /api/account', () => {
 
     expect(mocks.deleteAuthenticatedUser).not.toHaveBeenCalled();
     expect(response.body.receiptId).toBeUndefined();
+  });
+
+  it('skips transcript deletion but still deletes the identity when no database is configured', async () => {
+    // The documented default (story-only) deployment has no DATABASE_URL — the old
+    // code tried to connect anyway, threw, 503'd, and never deleted the identity,
+    // leaving cloud sync data undeletable. Now the step is skipped and deletion completes.
+    delete process.env.DATABASE_URL;
+
+    const response = await request(createApp({ uid: 'parent-123', isAnonymous: false }))
+      .delete('/api/account')
+      .expect(200);
+
+    expect(mocks.deleteAllConversationsForUser).not.toHaveBeenCalled();
+    expect(mocks.deleteAuthenticatedUser).toHaveBeenCalledWith('parent-123');
+    expect(response.body.status).toBe('completed');
   });
 
   it('rejects anonymous sessions', async () => {

@@ -173,6 +173,9 @@ export async function deleteStory(id: string): Promise<void> {
   const stories = await getAllStories();
   const filtered = stories.filter((s) => s.id !== id);
   await AsyncStorage.setItem(STORIES_KEY, JSON.stringify(filtered));
+  // Tombstone so cloud sync propagates the deletion instead of resurrecting the
+  // story from the still-live cloud copy on the next pull.
+  await stampEntityTombstone('stories', id);
 }
 
 /**
@@ -256,11 +259,16 @@ export async function saveProfile(profile: ChildProfile): Promise<void> {
     profiles.push(profile);
   }
   await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+  // Clear any stale tombstone if this id was previously deleted and is now reused.
+  await clearEntityMeta('profileStub', profile.id);
 }
 
 export async function deleteProfile(id: string): Promise<void> {
   const profiles = await getProfiles();
   await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(profiles.filter((p) => p.id !== id)));
+  // Tombstone the profile stub so the deletion propagates instead of the profile
+  // reappearing as a "New Profile" placeholder via mergeSyncedProfileStubs.
+  await stampEntityTombstone('profileStub', id);
 }
 
 export async function getActiveProfileId(): Promise<string | null> {
@@ -348,9 +356,14 @@ export async function mergeSyncedBadges(
   upserts: EarnedBadge[],
   deletedIds: string[],
 ): Promise<void> {
+  // Key by (profileId, badge.id) — a badge slug like `first-adventure` repeats
+  // across profiles, so keying on `id` alone would collapse two children's
+  // badges into one. Must match `badgeSyncId` in lib/sync/mappers.ts, since
+  // `deletedIds` arrive as those composite record ids.
+  const syncId = (b: Pick<EarnedBadge, 'id' | 'profileId'>) => `${b.profileId}:${b.id}`;
   const existing = await getAllBadges();
-  const byId = new Map(existing.map((b) => [b.id, b]));
-  for (const badge of upserts) byId.set(badge.id, badge);
+  const byId = new Map(existing.map((b) => [syncId(b), b]));
+  for (const badge of upserts) byId.set(syncId(badge), badge);
   for (const id of deletedIds) byId.delete(id);
   await AsyncStorage.setItem(BADGES_KEY, JSON.stringify([...byId.values()]));
 }
@@ -451,6 +464,46 @@ export async function applySyncedSet(
   await AsyncStorage.setItem(SYNC_META_KEY, JSON.stringify(store));
 }
 
+// ---- Cloud sync: tombstones for keyed entities (stories, profiles) ----------
+// deleteStory/deleteProfile record a soft-delete here so the deletion wins
+// last-write-wins reconciliation instead of being resurrected by the still-live
+// cloud copy on the next sync. Reuses the @infinity_heroes_sync_meta sidecar
+// (wiped with the @infinity_heroes_ prefix in clearAllData).
+
+type SyncKeyedEntity = 'stories' | 'profileStub';
+
+/** Record a deletion tombstone for a keyed entity at the given time (default now). */
+export async function stampEntityTombstone(
+  entity: SyncKeyedEntity,
+  id: string,
+  updatedAt: number = Date.now(),
+): Promise<void> {
+  const store = await getSyncMetaStore();
+  const meta = store[entity] ?? {};
+  meta[id] = { updatedAt, deleted: true };
+  store[entity] = meta;
+  await AsyncStorage.setItem(SYNC_META_KEY, JSON.stringify(store));
+}
+
+/** Drop any sidecar entry for a keyed-entity id (e.g. when it is (re)created / upserted). */
+export async function clearEntityMeta(entity: SyncKeyedEntity, id: string): Promise<void> {
+  const store = await getSyncMetaStore();
+  if (store[entity]?.[id]) {
+    delete store[entity][id];
+    await AsyncStorage.setItem(SYNC_META_KEY, JSON.stringify(store));
+  }
+}
+
+/** Tombstone records for a keyed entity — deletions the cloud should learn about. */
+export async function getEntityTombstones(
+  entity: SyncKeyedEntity,
+): Promise<{ id: string; updatedAt: number; deleted: true }[]> {
+  const meta = (await getSyncMetaStore())[entity] ?? {};
+  return Object.entries(meta)
+    .filter(([, m]) => m.deleted)
+    .map(([id, m]) => ({ id, updatedAt: m.updatedAt, deleted: true as const }));
+}
+
 /**
  * Merge synced profile stubs (id + createdAt ONLY — no PII). For an unknown id,
  * create an editable placeholder profile so synced badges/streaks for it have a
@@ -503,11 +556,13 @@ export async function updateStreak(profileId: string): Promise<StreakData> {
   let streak = all.find((s) => s.profileId === profileId);
 
   const today = new Date().toISOString().split('T')[0];
+  const now = Date.now();
 
   if (!streak) {
-    streak = { profileId, currentStreak: 1, longestStreak: 1, lastStoryDate: today };
+    streak = { profileId, currentStreak: 1, longestStreak: 1, lastStoryDate: today, lastUpdatedAt: now };
     all.push(streak);
   } else if (streak.lastStoryDate === today) {
+    // Already counted today — no mutation, so no new change stamp.
     return streak;
   } else {
     const lastDate = new Date(streak.lastStoryDate);
@@ -521,6 +576,9 @@ export async function updateStreak(profileId: string): Promise<StreakData> {
     }
     streak.longestStreak = Math.max(streak.longestStreak, streak.currentStreak);
     streak.lastStoryDate = today;
+    // ms-granularity stamp so two same-day updates on different devices don't
+    // tie under last-write-wins cloud sync (see StreakData.lastUpdatedAt).
+    streak.lastUpdatedAt = now;
   }
 
   await AsyncStorage.setItem(STREAKS_KEY, JSON.stringify(all));

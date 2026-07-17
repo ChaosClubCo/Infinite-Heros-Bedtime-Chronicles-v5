@@ -78,6 +78,8 @@ import {
   getSyncSetRecords,
   applySyncedSet,
   mergeSyncedProfileStubs,
+  getEntityTombstones,
+  stampEntityTombstone,
 } from './storage';
 
 const makeStoryFull = (title = 'Test Story') => ({
@@ -233,6 +235,38 @@ describe('deleteStory', () => {
   });
 });
 
+describe('cloud-sync tombstones (keyed entities)', () => {
+  it('deleteStory records a stories tombstone so the deletion propagates', async () => {
+    const id = await saveStory(makeStoryFull(), 'hero1', 'classic');
+    await deleteStory(id);
+    const tombs = await getEntityTombstones('stories');
+    expect(tombs.find((t) => t.id === id)).toMatchObject({ deleted: true });
+    expect(tombs.find((t) => t.id === id)!.updatedAt).toBeGreaterThan(0);
+  });
+
+  it('deleteProfile records a profileStub tombstone', async () => {
+    await saveProfile({ id: 'p1', name: 'Ada', age: 6, favoriteHeroId: 'h', avatarEmoji: '🦸', createdAt: 1 });
+    await deleteProfile('p1');
+    const tombs = await getEntityTombstones('profileStub');
+    expect(tombs.find((t) => t.id === 'p1')).toMatchObject({ deleted: true });
+  });
+
+  it('saveProfile clears a stale tombstone when an id is reused', async () => {
+    await stampEntityTombstone('profileStub', 'p1', 500);
+    await saveProfile({ id: 'p1', name: 'Ada', age: 6, favoriteHeroId: 'h', avatarEmoji: '🦸', createdAt: 1 });
+    const tombs = await getEntityTombstones('profileStub');
+    expect(tombs.find((t) => t.id === 'p1')).toBeUndefined();
+  });
+});
+
+describe('updateStreak change stamp', () => {
+  it('stamps lastUpdatedAt with a ms timestamp on a new streak', async () => {
+    const streak = await updateStreak('p1');
+    expect(typeof streak.lastUpdatedAt).toBe('number');
+    expect(streak.lastUpdatedAt).toBeGreaterThan(0);
+  });
+});
+
 describe('mergeSyncedStories (cloud sync)', () => {
   const STORIES_KEY = '@infinity_heroes_stories';
   const synced = (id: string, timestamp: number) => ({
@@ -260,13 +294,24 @@ describe('mergeSyncedStories (cloud sync)', () => {
 
 describe('mergeSyncedBadges (cloud sync)', () => {
   const BADGES_KEY = '@infinity_heroes_badges';
-  const badge = (id: string) => ({ id, emoji: 'x', title: id, description: 'd', earnedAt: 1, profileId: 'p1' });
+  const badge = (id: string, profileId = 'p1') => ({ id, emoji: 'x', title: id, description: 'd', earnedAt: 1, profileId });
 
-  it('upserts by id and removes tombstones', async () => {
+  it('upserts and removes tombstones keyed by (profileId, id)', async () => {
     mockStorage[BADGES_KEY] = JSON.stringify([badge('keep'), badge('gone')]);
-    await mergeSyncedBadges([badge('new')], ['gone']);
+    // deletedIds are composite sync ids (see badgeSyncId in lib/sync/mappers.ts).
+    await mergeSyncedBadges([badge('new')], ['p1:gone']);
     const ids = (await getAllBadges()).map((b) => b.id).sort();
     expect(ids).toEqual(['keep', 'new']);
+  });
+
+  it('does NOT collapse two profiles that earned the same badge slug', async () => {
+    mockStorage[BADGES_KEY] = JSON.stringify([badge('first', 'p1'), badge('first', 'p2')]);
+    // Upsert only p1's copy; p2's same-slug badge must survive.
+    await mergeSyncedBadges([{ ...badge('first', 'p1'), earnedAt: 9 }], []);
+    const all = await getAllBadges();
+    expect(all).toHaveLength(2);
+    expect(all.find((b) => b.profileId === 'p2')).toBeTruthy();
+    expect(all.find((b) => b.profileId === 'p1')?.earnedAt).toBe(9);
   });
 });
 
