@@ -17,14 +17,13 @@ interface CacheFileInfo {
 
 const DEFAULT_MAX_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB
 
-// FOLLOW-UP (roadmap M1, TTS-cache half): this cache is filesystem-only
-// (/tmp), which is lost across Vercel serverless cold starts/instances —
-// unlike the idempotency cache (server/idempotency.ts), which now also
-// checks Cloudflare KV for cross-invocation dedup. KV isn't a good fit for
-// binary MP3 blobs (base64 inflation + ~25MB value limits), so this needs
-// Cloudflare R2 (object storage) instead — a different Cloudflare product
-// that requires provisioning a new bucket + API token before any code here
-// changes. See docs/ROADMAP.md backlog and CLOUDFLARE_R2_* in .env.example.
+// This manager is filesystem-only (/tmp) by design and stays that way — /tmp
+// is lost across Vercel serverless cold starts/instances, so the persistent
+// tier lives OUTSIDE this class: Cloudflare R2 (object storage) is implemented
+// in server/r2.ts and wired into the TTS route (server/routes/tts.ts) via its
+// writeWithLock backfill, gated on R2_ENABLED (CLOUDFLARE_R2_* in .env.example).
+// KV was rejected for the binary MP3 blobs (base64 inflation + ~25MB value
+// limits); R2 is the S3-compatible object store used instead.
 export class TtsCacheManager {
   readonly cacheDir: string;
   private readonly maxAgeMs: number;
