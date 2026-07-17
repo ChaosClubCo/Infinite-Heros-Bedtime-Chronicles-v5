@@ -133,6 +133,29 @@ describe('moderateStory — structural layer', () => {
     const v = moderateStory(cleanStory({ parts: [{ text: `${filler} gun`, choices: [], partIndex: 0 }] }));
     expect(v.safe).toBe(false);
   });
+
+  it('term-scans rewardBadge.emoji (rendered raw to the child)', () => {
+    const v = moderateStory(cleanStory({
+      rewardBadge: { emoji: 'gun', title: 'Star', description: 'You earned a star.' },
+    }));
+    expect(v.safe).toBe(false);
+    expect(v.categories).toContain('weapons');
+  });
+
+  it('rejects an oversize rewardBadge.emoji (a phrase masquerading as an emoji)', () => {
+    const v = moderateStory(cleanStory({
+      rewardBadge: { emoji: 'you are a winner today', title: 'Star', description: 'You earned a star.' },
+    }));
+    expect(v.safe).toBe(false);
+    expect(v.categories).toContain('structural');
+  });
+
+  it('accepts a normal emoji, including a ZWJ sequence', () => {
+    const v = moderateStory(cleanStory({
+      rewardBadge: { emoji: '👩‍🚀', title: 'Star', description: 'You earned a star.' },
+    }));
+    expect(v.safe).toBe(true);
+  });
 });
 
 describe('fallback stories are themselves safe', () => {

@@ -132,6 +132,9 @@ function collectFields(story: Record<string, unknown>): Field[] {
   const badge = (story.rewardBadge ?? {}) as Record<string, unknown>;
   pushField(fields, 'rewardBadge.title', badge.title);
   pushField(fields, 'rewardBadge.description', badge.description);
+  // The emoji is rendered raw to the child (44pt on the celebration screen), so
+  // term-scan it too — the schema type is just `string` with no constraint.
+  pushField(fields, 'rewardBadge.emoji', badge.emoji, 32);
 
   return fields;
 }
@@ -177,6 +180,12 @@ function structuralMatches(story: Record<string, unknown>): SafetyMatch[] {
   const badge = (story.rewardBadge ?? {}) as Record<string, unknown>;
   requireString('rewardBadge.title', badge.title);
   requireString('rewardBadge.description', badge.description);
+  // Emoji field must be short: a real emoji (incl. ZWJ sequences) is a handful
+  // of code units, so anything longer is a phrase/paragraph masquerading as an
+  // emoji — reject rather than render it raw on the celebration screen.
+  if (typeof badge.emoji === 'string' && badge.emoji.length > 16) {
+    matches.push({ category: 'structural', term: 'oversize:rewardBadge.emoji', field: 'rewardBadge.emoji', tier: 'hard' });
+  }
 
   return matches;
 }
