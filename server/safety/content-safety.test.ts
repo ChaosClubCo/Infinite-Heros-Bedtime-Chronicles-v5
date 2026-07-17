@@ -118,6 +118,21 @@ describe('moderateStory — structural layer', () => {
     expect(moderateStory('a string').safe).toBe(false);
     expect(moderateStory([]).safe).toBe(false);
   });
+
+  it('rejects a part longer than the moderation scan window (no unscanned tail can reach the child)', () => {
+    // ~5280 chars: over the 4000-char scan window but under the previous 8000
+    // oversize threshold — the exact gap where an unmoderated tail used to pass.
+    const longText = 'The gentle bunny hopped happily. '.repeat(160);
+    const v = moderateStory(cleanStory({ parts: [{ text: longText, choices: [], partIndex: 0 }] }));
+    expect(v.safe).toBe(false);
+    expect(v.categories).toContain('structural');
+  });
+
+  it('catches a HARD term hidden past the scan window via the oversize gate', () => {
+    const filler = 'The bunny smiled warmly. '.repeat(180); // > 4000 chars
+    const v = moderateStory(cleanStory({ parts: [{ text: `${filler} gun`, choices: [], partIndex: 0 }] }));
+    expect(v.safe).toBe(false);
+  });
 });
 
 describe('fallback stories are themselves safe', () => {

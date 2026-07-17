@@ -3,6 +3,7 @@ import {
   storyToRecord,
   recordToStory,
   badgeToRecord,
+  badgeSyncId,
   streakToRecord,
   profileStubToRecord,
   indexById,
@@ -47,24 +48,39 @@ describe('storyToRecord / recordToStory', () => {
 });
 
 describe('badgeToRecord', () => {
-  it('keys by id and uses earnedAt as updatedAt', () => {
+  it('keys by (profileId, badge id) so the same slug across profiles does not collide', () => {
     const badge: EarnedBadge = { id: 'b1', emoji: 'x', title: 't', description: 'd', earnedAt: 42, profileId: 'p1' };
     const rec = badgeToRecord(badge);
-    expect(rec.id).toBe('b1');
+    expect(rec.id).toBe('p1:b1');
     expect(rec.updatedAt).toBe(42);
     expect(rec.payload).toEqual(badge);
+  });
+
+  it('gives two profiles that earned the same badge slug distinct record ids', () => {
+    const kid1: EarnedBadge = { id: 'first-adventure', emoji: '⭐', title: 'First', description: 'd', earnedAt: 1, profileId: 'p1' };
+    const kid2: EarnedBadge = { id: 'first-adventure', emoji: '⭐', title: 'First', description: 'd', earnedAt: 2, profileId: 'p2' };
+    expect(badgeToRecord(kid1).id).not.toBe(badgeToRecord(kid2).id);
+    expect(badgeSyncId(kid1)).toBe('p1:first-adventure');
   });
 });
 
 describe('streakToRecord', () => {
-  it('keys by profileId and parses lastStoryDate into updatedAt', () => {
-    const streak: StreakData = { profileId: 'p1', currentStreak: 3, longestStreak: 5, lastStoryDate: '2026-07-12' };
+  it('prefers the ms-granularity lastUpdatedAt when present', () => {
+    const streak: StreakData = {
+      profileId: 'p1', currentStreak: 3, longestStreak: 5,
+      lastStoryDate: '2026-07-12', lastUpdatedAt: 1_752_300_000_123,
+    };
     const rec = streakToRecord(streak);
     expect(rec.id).toBe('p1');
-    expect(rec.updatedAt).toBe(Date.parse('2026-07-12'));
+    expect(rec.updatedAt).toBe(1_752_300_000_123);
   });
 
-  it('falls back to 0 for an unparseable date', () => {
+  it('falls back to parsing lastStoryDate for legacy records without lastUpdatedAt', () => {
+    const streak: StreakData = { profileId: 'p1', currentStreak: 3, longestStreak: 5, lastStoryDate: '2026-07-12' };
+    expect(streakToRecord(streak).updatedAt).toBe(Date.parse('2026-07-12'));
+  });
+
+  it('falls back to 0 for an unparseable date and no stamp', () => {
     const streak: StreakData = { profileId: 'p1', currentStreak: 0, longestStreak: 0, lastStoryDate: 'not-a-date' };
     expect(streakToRecord(streak).updatedAt).toBe(0);
   });
@@ -85,7 +101,7 @@ describe('profileStubToRecord', () => {
 describe('indexById', () => {
   it('maps records by id', () => {
     const m = indexById([badgeToRecord({ id: 'b1', emoji: 'x', title: 't', description: 'd', earnedAt: 1, profileId: 'p1' })]);
-    expect(Object.keys(m)).toEqual(['b1']);
-    expect(m.b1.id).toBe('b1');
+    expect(Object.keys(m)).toEqual(['p1:b1']);
+    expect(m['p1:b1'].id).toBe('p1:b1');
   });
 });

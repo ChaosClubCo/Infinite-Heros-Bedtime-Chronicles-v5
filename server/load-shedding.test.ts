@@ -13,6 +13,7 @@ function mockRes() {
     status(code: number) { this.statusCode = code; return this; },
     json: vi.fn().mockReturnThis(),
     on(event: string, fn: Function) { (listeners[event] ??= []).push(fn); return this; },
+    once(event: string, fn: Function) { (listeners[event] ??= []).push(fn); return this; },
     _emit(event: string) { listeners[event]?.forEach((fn) => fn()); },
   };
 }
@@ -46,8 +47,29 @@ describe('createLoadSheddingMiddleware', () => {
     expect(next).toHaveBeenCalled();
     expect(getActiveRequests()).toBe(1);
 
-    // Simulate response finish
-    res._emit('finish');
+    // Decrement happens on 'close' (fires for normal completion AND aborts).
+    res._emit('close');
+    expect(getActiveRequests()).toBe(0);
+  });
+
+  it('decrements on an aborted request (client disconnect emits close, not finish)', () => {
+    const middleware = createLoadSheddingMiddleware({ maxConcurrent: 10, highPriorityReserve: 2 });
+    const res = mockRes();
+    middleware(mockReq() as any, res as any, vi.fn());
+    expect(getActiveRequests()).toBe(1);
+
+    // A client that disconnects mid-response never emits 'finish' — only 'close'.
+    // The old code leaked the slot here; the fix releases it.
+    res._emit('close');
+    expect(getActiveRequests()).toBe(0);
+  });
+
+  it('does not double-decrement if close fires more than once', () => {
+    const middleware = createLoadSheddingMiddleware({ maxConcurrent: 10, highPriorityReserve: 2 });
+    const res = mockRes();
+    middleware(mockReq() as any, res as any, vi.fn());
+    res._emit('close');
+    res._emit('close');
     expect(getActiveRequests()).toBe(0);
   });
 

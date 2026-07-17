@@ -89,6 +89,25 @@ jobs:
           path: tests.log
           retention-days: 7
 
+      - name: Run component tests (jest-expo)
+        id: component-tests
+        # Second runner: RN components + Expo-native story hooks that Vitest can't
+        # load (they import Expo native modules). This is the only gate on e.g.
+        # StoryTextDisplay's client-side child-safety fail-safe.
+        run: |
+          set -o pipefail
+          npm run test:components 2>&1 | tee component-tests.log
+        env:
+          CI: true
+
+      - name: Upload component test diagnostics
+        if: failure() && steps.component-tests.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: component-test-diagnostics
+          path: component-tests.log
+          retention-days: 7
+
       - name: Security audit
         # Fail on critical vulnerabilities only; high-severity issues in transitive
         # deps (drizzle-orm, firebase-admin chain) require breaking-change upgrades

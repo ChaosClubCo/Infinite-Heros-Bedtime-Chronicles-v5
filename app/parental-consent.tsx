@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
   Pressable,
   StyleSheet,
   ScrollView,
+  TextInput,
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,31 +16,32 @@ import Colors from "@/constants/colors";
 import { setParentConsent } from "@/lib/storage";
 import { useConsent } from "@/lib/ConsentContext";
 
-/** Build a simple arithmetic parent gate that a young child is unlikely to pass. */
+/**
+ * Build a simple arithmetic parent gate that a young child is unlikely to pass.
+ * Free-form numeric entry (not multiple choice) so random guessing does not
+ * converge in constant time; paired with a lockout in the component below.
+ */
 function makeChallenge() {
   const a = 5 + Math.floor(Math.random() * 8);
   const b = 4 + Math.floor(Math.random() * 8);
-  const answer = a + b;
-  const options = new Set<number>([answer]);
-  while (options.size < 4) {
-    const delta = (Math.floor(Math.random() * 5) + 1) * (Math.random() < 0.5 ? -1 : 1);
-    const candidate = answer + delta;
-    if (candidate > 0) options.add(candidate);
-  }
-  return {
-    a,
-    b,
-    answer,
-    options: Array.from(options).sort(() => Math.random() - 0.5),
-  };
+  return { a, b, answer: a + b };
 }
+
+/** Wrong answers allowed before a cooldown, then how long that cooldown lasts (escalating). */
+const MAX_ATTEMPTS_BEFORE_LOCKOUT = 3;
+const BASE_LOCKOUT_MS = 30_000;
 
 export default function ParentalConsentScreen() {
   const insets = useSafeAreaInsets();
   const [challenge, setChallenge] = useState(makeChallenge);
+  const [answerInput, setAnswerInput] = useState("");
   const [gatePassed, setGatePassed] = useState(false);
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [wrongAttempts, setWrongAttempts] = useState(0);
+  const [lockoutTier, setLockoutTier] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   const { markConsented } = useConsent();
 
   const prompt = useMemo(
@@ -47,15 +49,40 @@ export default function ParentalConsentScreen() {
     [challenge],
   );
 
-  function handleAnswer(value: number) {
-    if (value === challenge.answer) {
+  // Tick a countdown only while a cooldown is active.
+  useEffect(() => {
+    if (lockedUntil <= 0) return;
+    const id = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(id);
+  }, [lockedUntil]);
+
+  const remainingLockMs = Math.max(0, lockedUntil - now);
+  const locked = remainingLockMs > 0;
+
+  function handleSubmit() {
+    if (locked) return;
+    const trimmed = answerInput.trim();
+    if (trimmed === "") return;
+    if (Number(trimmed) === challenge.answer) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setError(false);
       setGatePassed(true);
+      return;
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    setError(true);
+    setAnswerInput("");
+    setChallenge(makeChallenge());
+    const attempts = wrongAttempts + 1;
+    if (attempts >= MAX_ATTEMPTS_BEFORE_LOCKOUT) {
+      // Escalating cooldown: 30s, 60s, 120s, … so brute-force guessing can't
+      // converge — a child who can't do the arithmetic is stopped, not merely slowed.
+      const tier = lockoutTier + 1;
+      setLockoutTier(tier);
+      setLockedUntil(Date.now() + BASE_LOCKOUT_MS * 2 ** (tier - 1));
+      setWrongAttempts(0);
     } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(true);
-      setChallenge(makeChallenge());
+      setWrongAttempts(attempts);
     }
   }
 
@@ -101,27 +128,42 @@ export default function ParentalConsentScreen() {
           <View style={styles.card}>
             <Text style={styles.cardLabel}>Parents only</Text>
             <Text style={styles.challengePrompt}>{prompt}</Text>
-            <View style={styles.optionsRow}>
-              {challenge.options.map((opt) => (
-                <Pressable
-                  key={opt}
-                  onPress={() => handleAnswer(opt)}
-                  style={({ pressed }) => [
-                    styles.option,
-                    pressed && styles.optionPressed,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Answer ${opt}`}
-                >
-                  <Text style={styles.optionText}>{opt}</Text>
-                </Pressable>
-              ))}
-            </View>
-            {error && (
+            <TextInput
+              style={styles.answerInput}
+              value={answerInput}
+              onChangeText={(t) => setAnswerInput(t.replace(/[^0-9]/g, ""))}
+              keyboardType="number-pad"
+              maxLength={3}
+              editable={!locked}
+              placeholder="Type the answer"
+              placeholderTextColor="rgba(232,228,240,0.35)"
+              returnKeyType="done"
+              onSubmitEditing={handleSubmit}
+              accessibilityLabel="Answer to the math question"
+              testID="parent-gate-input"
+            />
+            <Pressable
+              onPress={handleSubmit}
+              disabled={locked || answerInput.trim() === ""}
+              style={({ pressed }) => [
+                styles.gateBtn,
+                { opacity: locked || answerInput.trim() === "" ? 0.5 : pressed ? 0.8 : 1 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Check answer and continue"
+              testID="parent-gate-submit"
+            >
+              <Text style={styles.gateBtnText}>Continue</Text>
+            </Pressable>
+            {locked ? (
+              <Text style={styles.errorText}>
+                Too many tries — please wait {Math.ceil(remainingLockMs / 1000)}s and try again.
+              </Text>
+            ) : error ? (
               <Text style={styles.errorText}>
                 Not quite — please ask a grown-up to continue.
               </Text>
-            )}
+            ) : null}
           </View>
         ) : (
           <View style={styles.card}>
@@ -239,27 +281,31 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 20,
   },
-  optionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 12,
-  },
-  option: {
-    minWidth: 64,
+  answerInput: {
+    alignSelf: "center",
+    minWidth: 160,
     paddingVertical: 14,
     paddingHorizontal: 18,
     borderRadius: 14,
     backgroundColor: "rgba(99,102,241,0.12)",
     borderWidth: 1,
     borderColor: "rgba(99,102,241,0.3)",
+    textAlign: "center",
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 22,
+    color: Colors.starlight,
+    marginBottom: 16,
+  },
+  gateBtn: {
+    backgroundColor: Colors.accent,
+    borderRadius: 14,
+    paddingVertical: 14,
     alignItems: "center",
   },
-  optionPressed: { backgroundColor: "rgba(99,102,241,0.25)" },
-  optionText: {
+  gateBtnText: {
     fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 20,
-    color: Colors.starlight,
+    fontSize: 16,
+    color: "#ffffff",
   },
   errorText: {
     fontFamily: "PlusJakartaSans_500Medium",

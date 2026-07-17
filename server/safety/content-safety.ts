@@ -156,7 +156,12 @@ function structuralMatches(story: Record<string, unknown>): SafetyMatch[] {
       const text = typeof p.text === 'string' ? p.text : '';
       if (text.trim().length === 0) {
         matches.push({ category: 'structural', term: `empty:parts[${i}].text`, field: `parts[${i}].text`, tier: 'hard' });
-      } else if (text.length > MAX_FIELD_SCAN_LEN * 2) {
+      } else if (text.length > MAX_FIELD_SCAN_LEN) {
+        // Reject at the scan window, not 2x it: only the first MAX_FIELD_SCAN_LEN
+        // chars are moderated (pushField truncates), so a longer part would have
+        // an unscanned tail that still reaches the child (e.g. narrated via TTS).
+        // 4000 chars is far above any legitimate part (epic ≈ 1200), so this
+        // blocks aberrant output without false-positiving real stories.
         matches.push({ category: 'structural', term: `oversize:parts[${i}].text`, field: `parts[${i}].text`, tier: 'hard' });
       }
     });
