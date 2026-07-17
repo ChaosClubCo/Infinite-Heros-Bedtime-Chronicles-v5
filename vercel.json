@@ -4,9 +4,6 @@
   "installCommand": "npm ci --include=dev",
   "buildCommand": "npm run server:build && npx expo export --platform web --output-dir static-build",
   "outputDirectory": ".",
-  "env": {
-    "APP_RELEASE_SHA": "$VERCEL_GIT_COMMIT_SHA"
-  },
   "functions": {
     "api/server.mjs": {
       "maxDuration": 60,
