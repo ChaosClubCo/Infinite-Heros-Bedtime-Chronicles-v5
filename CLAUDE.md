@@ -104,7 +104,7 @@ lib/                    # Client utilities
   storage-migration.test.ts      # Storage migration tests
   launch-gate.ts        # resolveLaunchRoute(): single source of truth for the cold-start consent/onboarding decision; also runs runStorageMigrations() first
   launch-gate.test.ts   # Launch-gate unit tests
-  sync/                 # Cloud-sync engine (M3): reconcile.ts (pure last-write-wins + tombstones), mappers.ts (local⇄SyncRecord, strips base64 blobs), supabase-sync.ts (pull/push/purge on sync_records), engine.ts (syncEntity/syncAll via EntityAdapter), storage-adapters.ts (all six entity adapters), runSync.ts (gated runSync()/purgeCloudData()). Triggered by components/SyncManager.tsx (mounted in app/_layout.tsx; runs on app open, foreground, and reconnect) + app/completion.tsx (after save). See supabase/migrations/0001_sync_tables.sql
+  sync/                 # Cloud-sync engine (M3): reconcile.ts (pure last-write-wins + tombstones), mappers.ts (local⇄SyncRecord, strips base64 blobs), supabase-sync.ts (pull/push/purge on sync_records), engine.ts (syncEntity/syncAll via EntityAdapter), storage-adapters.ts (all six entity adapters), runSync.ts (gated runSync()/purgeCloudData()). Triggered by components/SyncManager.tsx (mounted in app/_layout.tsx; runs on app open, foreground, reconnect, and sign-in — `user?.id` is in the effect deps — then calls refreshProfiles() to merge profile stubs) + app/completion.tsx (after save). See supabase/migrations/0001_sync_tables.sql
   ConsentContext.tsx    # Reactive consent state driving the root layout's Stack.Protected guard
   scene-handoff.ts      # In-memory handoff of scene images from story → completion (too large for nav params)
   replay-params.ts      # buildStoryReplayParams(): shared /story replay params for all replay entry points
@@ -120,7 +120,7 @@ lib/                    # Client utilities
   badges.test.ts        # Badge logic unit tests
   customHeroStorage.ts  # AsyncStorage helpers for user-created custom heroes
   confirmDestructive.ts # Cross-platform confirm() wrapper for destructive actions (delete profile/story)
-  useAutoAdvance.ts / useBackgroundMusic.ts / useLoadingMessages.ts / useSceneGeneration.ts / useSleepTimer.ts / useStoryAudio.ts / useVideoGeneration.ts  # Story-screen hooks extracted from app/story.tsx (untestable under Vitest — import Expo native modules)
+  useAutoAdvance.ts / useBackgroundMusic.ts / useLoadingMessages.ts / useSceneGeneration.ts / useSleepTimer.ts / useStoryAudio.ts / useVideoGeneration.ts  # Story-screen hooks extracted from app/story.tsx (not covered by Vitest — they import Expo native modules; exercised by the jest `test:components` suite instead)
 server/                 # Express.js backend
   index.ts              # Server bootstrap, security middleware, CORS, graceful shutdown
   routes.ts             # Route composer: auth gate + registers domain modules, returns HTTP server (~70 lines)
@@ -136,7 +136,8 @@ server/                 # Express.js backend
   logger.ts             # pino structured logger
   metrics.ts            # In-process metrics (request/provider counters)
   feature-flags.ts      # Runtime feature flag resolver (incl. contentSafety* flags)
-  tts-cache.ts          # TTS file cache with size + age limits
+  tts-cache.ts          # TTS file cache with size + age limits (/tmp only — R2 backfill lives in the tts route, not here)
+  r2.ts                 # Cloudflare R2 (S3-compatible, @aws-sdk/client-s3) client for persistent TTS-audio caching — r2Get/r2Put, gated on R2_ENABLED
   utils.ts              # toErrorMessage, classifyError, createErrorResponse
   alerting.ts           # Fires Sentry alerts on 5xx-rate / TTS-failure-rate threshold breaches
   health-checks.ts      # Background-refreshed, short-TTL live-reachability cache for /api/health, /api/ai-providers
@@ -170,6 +171,7 @@ docs/                   # Project documentation
   COPPA-COMPLIANCE.md   # COPPA audit and privacy analysis
   BETA_TESTING.md       # Beta testing plan
   TEST-COVERAGE-ANALYSIS.md  # Test coverage status + known bugs
+  VERIFICATION-M1-M3.md # On-device/manual verification checklist for the safety + audio-cache + cloud-sync work
   GITHUB-CUSTOM-AGENTS.md    # GitHub Copilot custom agent configurations
   AUDIT-SECURITY-2026-03-27.md      # Security audit findings (2026-03-27) — historical; written against the since-removed Firebase auth, see supersession note
   COMPREHENSIVE-AUDIT-2026-03-27.md # Full codebase audit (2026-03-27) — historical, same caveat
@@ -194,6 +196,7 @@ scripts/                # Build scripts
 
 **Root-level docs and config** (not part of the app source tree):
 - `AGENTS.md` — agent framework conventions
+- `AGENT-COORDINATION.md` — path-ownership rules for concurrent multi-agent work (Claude Code + Antigravity edit the same tree)
 - `CONTRIBUTING.md` — contribution guidelines
 - `CONVENTIONS.md` — code conventions reference
 - `DEPLOY.md` — Vercel/EAS deployment runbook
@@ -228,9 +231,10 @@ npm run lint:fix            # npx expo lint --fix
 npm run typecheck           # npx tsc --noEmit
 
 # Testing
-npm test                    # vitest run (single run)
+npm test                    # vitest run (single run) — server/lib pure units
 npm run test:watch          # vitest (watch mode)
 npm run test:coverage       # vitest run --coverage
+npm run test:components      # jest (jest-expo + @testing-library/react-native) — RN component + Expo-native hook tests
 
 # Database
 npm run db:push             # Drizzle schema migration (needs DATABASE_URL)
@@ -251,7 +255,7 @@ npm test                    # Vitest unit tests
                                     ├→ [Idempotency cache] — 5-min dedup on POSTs
                                     ├→ [AI Router] → Anthropic → Gemini → OpenAI → OpenRouter (circuit-broken + retried)
                                     ├→ [Output safety] — moderateStory → regenerate once → known-safe fallback (server/safety/*)
-                                    ├→ [ElevenLabs TTS] → /tmp/tts-cache (size + age bounded); client also caches MP3s on-device (lib/tts-cache.ts)
+                                    ├→ [ElevenLabs TTS] → /tmp/tts-cache (size + age bounded) → optional Cloudflare R2 persistent tier (survives cold starts); client also caches MP3s on-device (lib/tts-cache.ts)
                                     ├→ [PostgreSQL + Drizzle] (voice chat history)
                                     └→ [OpenAI Sora] (video generation)
 ```
@@ -478,9 +482,15 @@ TTS_CACHE_MAX_SIZE_BYTES=524288000  # Default 500 MB
 EXPO_PUBLIC_SENTRY_DSN=      # Client-side Sentry (bundled into APK — not a secret)
 
 # Cloudflare KV persistent rate limiting (optional — falls back to in-memory when absent)
-CLOUDFLARE_ACCOUNT_ID=
+CLOUDFLARE_ACCOUNT_ID=       # shared with the R2 config below
 CLOUDFLARE_KV_NAMESPACE_ID=  # ed09afa77f9243bbb08f3dbe34df1e70
 CLOUDFLARE_API_TOKEN=
+
+# Cloudflare R2 persistent TTS-audio cache (optional — falls back to /tmp-only when absent)
+# R2_ENABLED (server/r2.ts) requires ALL of: CLOUDFLARE_ACCOUNT_ID (above) + these three.
+CLOUDFLARE_R2_BUCKET=
+CLOUDFLARE_R2_ACCESS_KEY_ID=
+CLOUDFLARE_R2_SECRET_ACCESS_KEY=
 
 # Replit-specific (auto-set)
 REPLIT_DEV_DOMAIN=           # Dev server domain
@@ -578,12 +588,15 @@ Badge evaluation is centralized in `lib/badges.ts` (with tests in `lib/badges.te
 
 ## Testing
 
-**Framework:** Vitest v4 with @vitest/coverage-v8
+**Frameworks:** two runners, split by what they can import —
+- **Vitest v4** (+ @vitest/coverage-v8) for server + `lib/` pure units. `npm test` / `:watch` / `:coverage`.
+- **Jest** (`jest-expo` + `@testing-library/react-native`) for RN component tests and the Expo-native-importing story hooks Vitest can't load. `npm run test:components`.
 
 ```bash
 npm test                # vitest run (single run)
 npm run test:watch      # vitest (watch mode)
 npm run test:coverage   # vitest run --coverage
+npm run test:components  # jest — RN components + Expo-native hooks
 ```
 
 - File naming: `<module>.test.ts` alongside the source file (e.g., `server/rate-limit.test.ts`)
@@ -604,7 +617,7 @@ npm run test:coverage   # vitest run --coverage
 - Server uses esbuild for production bundling to `server_dist/`
 - Voice chat routes only registered when `AI_INTEGRATIONS_OPENAI_API_KEY` and `DATABASE_URL` are set and the `voiceChatEnabled` feature flag is on (`server/routes.ts`)
 - React Query configured with `staleTime: Infinity`, `retry: false`, `refetchOnWindowFocus: false`
-- TTS audio cached server-side at `/tmp/tts-cache` (max age + size) AND on-device by the client (`lib/tts-cache.ts`, expo-file-system) so replays are instant and work offline — see `lib/narration.ts` for the resolve-or-fetch flow
+- TTS audio cached server-side at `/tmp/tts-cache` (max age + size), optionally backed by a persistent Cloudflare R2 tier (`server/r2.ts`, gated on `R2_ENABLED`), AND on-device by the client (`lib/tts-cache.ts`, expo-file-system) so replays are instant and work offline — see `lib/narration.ts` for the resolve-or-fetch flow
 - 12 randomized art styles for scene illustrations (watercolor, cel-shaded, paper cutout, gouache, crayon, digital, retro storybook, ink wash, pastel, pop art, chalk, flat design)
 - Runbooks for deploy, incident response, provider outage, and rollback live in `docs/runbooks/`
 
@@ -618,8 +631,9 @@ npm run test:coverage   # vitest run --coverage
 - AI router automatically falls back through providers, with circuit breakers and retry — check `server/ai/router.ts`
 - **AI OUTPUT safety is now enforced, not just prompt-side.** `server/routes/story.ts` runs every generated story through `guardStory` (`server/safety/story-guard.ts`): `moderateStory` (`content-safety.ts`) → on a block, regenerate ONCE with `buildStricterSystemPrompt` → if still unsafe, serve a known-safe fallback (`fallback-stories.ts`). The child never sees flagged text or a raw error. Gated by `FEATURE_CONTENT_SAFETY_ENABLED` (default on). HARD terms live in `shared/safety-terms.ts` (shared with the client fail-safe in `components/StoryTextDisplay.tsx`); SOFT/contextual terms are server-only in `server/safety/terms.ts`. When safety is on, `/api/generate-story-stream` buffers-then-emits (a single `complete` event) instead of streaming raw tokens.
 - **On-device TTS cache**: `lib/useStoryAudio.ts` no longer re-fetches narration every play — it calls `resolveNarrationUri` (`lib/narration.ts`), which returns a cached `file://` clip when present (offline-capable) or fetches + caches on a miss (`lib/tts-cache.ts`, keyed by md5 of `voice:mode:text` to mirror the server). Any FS/crypto failure degrades gracefully to streaming. `prefetchNarration()` is available to warm the next part but is not wired into the story screen yet.
+- **Server-side TTS cache is three-tiered**: `/tmp/tts-cache` (fast, ephemeral) → optional **Cloudflare R2** (`server/r2.ts`, gated on `R2_ENABLED` = all four Cloudflare vars set) → generate. The R2 wiring lives in `server/routes/tts.ts`, NOT in `server/tts-cache.ts` (which stays `/tmp`-only by design): on a `/tmp` miss it tries `r2Get(fileName)` and writes the hit back to disk; on a full miss it generates, writes disk, and fire-and-forgets `r2Put()` to backfill R2. All disk writes go through an in-process `writeWithLock()` mutex (a `Map<filePath, Promise>`) so concurrent requests for the same clip don't race and truncate each other. When R2 is unset the tier is skipped and `/tmp` survives only until the next Vercel cold start.
 - **Storage migrations are now wired**: `runStorageMigrations()` (`lib/storage-migration.ts`) runs at the start of `resolveLaunchRoute()` (`lib/launch-gate.ts`) — the earliest cold-start storage touch — so it was previously defined-but-never-called.
-- **Cloud sync (M3) — OFF by default (`cloudSyncEnabled` setting, default false).** Decisions: parent opt-in, stories+gamification only (NO profile PII), last-write-wins, local-wipe→cloud-purge. Built + tested end-to-end (all six entities): schema+RLS (`supabase/migrations/0001_sync_tables.sql`, **applied to the Bedtime-chronicles Supabase project** `aeraxfupuvwiskmfjliq`), reconcile/mappers/engine/IO (`lib/sync/*`), adapters for **stories** (blob-preserving), **badges**, **streaks**, **favorites**/**read** (via a change-time sidecar `@infinity_heroes_sync_meta` stamped by `toggleFavorite`/`markStoryRead`), and **profileStub** (creates an editable placeholder profile for an unknown id so gamification anchors across devices — name/age never sync; `mergeSyncedProfileStubs`). Gated `runSync()`/`purgeCloudData()` (`lib/sync/runSync.ts`), opt-in **toggle** in `app/settings.tsx`, **triggers** (`components/SyncManager.tsx` — mounted in `_layout`, runs on open/foreground/reconnect — + `app/completion.tsx` after-save), cloud-purge in "delete all data". Note: this is the durable Supabase *state* sync, distinct from the ported offline interaction *event* queue (`lib/sync-queue.ts` / `useSyncOffline`); they coexist by design and overlap on favorites/completions. **NOT yet verified on a device** — the toggle/triggers/placeholder behavior need an end-to-end pass. M4 (native Kotlin audio) remains gated on the V2 repo + ejecting managed Expo.
+- **Cloud sync (M3) — OFF by default (`cloudSyncEnabled` setting, default false).** Decisions: parent opt-in, stories+gamification only (NO profile PII), last-write-wins, local-wipe→cloud-purge. Built + tested end-to-end (all six entities): schema+RLS (`supabase/migrations/0001_sync_tables.sql`, **applied to the Bedtime-chronicles Supabase project** `aeraxfupuvwiskmfjliq`), reconcile/mappers/engine/IO (`lib/sync/*`), adapters for **stories** (blob-preserving), **badges**, **streaks**, **favorites**/**read** (via a change-time sidecar `@infinity_heroes_sync_meta` stamped by `toggleFavorite`/`markStoryRead`), and **profileStub** (creates an editable placeholder profile for an unknown id so gamification anchors across devices — name/age never sync; `mergeSyncedProfileStubs`). Gated `runSync()`/`purgeCloudData()` (`lib/sync/runSync.ts`), opt-in **toggle** in `app/settings.tsx`, **triggers** (`components/SyncManager.tsx` — mounted in `_layout`, runs on open/foreground/reconnect/sign-in, then `refreshProfiles()` — + `app/completion.tsx` after-save), cloud-purge in "delete all data". Note: this is the durable Supabase *state* sync, distinct from the ported offline interaction *event* queue (`lib/sync-queue.ts` / `useSyncOffline`); they coexist by design and overlap on favorites/completions. **NOT yet verified on a device** — the toggle/triggers/placeholder behavior need an end-to-end pass. M4 (native Kotlin audio) remains gated on the V2 repo + ejecting managed Expo.
 - ElevenLabs voices are hardcoded in `server/elevenlabs.ts` with specific voice IDs
 - Expo Router (file-based routing, package major 56) — screen paths map to file paths in `app/`
 - `postinstall` runs `patch-package || true` — currently a no-op (`patches/` was removed after the SDK 55 upgrade) but kept so future patches apply automatically

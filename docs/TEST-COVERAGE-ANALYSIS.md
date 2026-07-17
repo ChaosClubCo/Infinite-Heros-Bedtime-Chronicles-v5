@@ -2,7 +2,7 @@
 
 ## Current State
 
-**The codebase has a substantial and growing test suite.** Vitest v4 is fully configured (`vitest.config.ts`) with `@vitest/coverage-v8`. As of the 2026-06-11 code-quality pass, **1010 tests pass** across 41 test files; a 2026-07-12 doc audit counted **56 `*.test.ts` files** in the repo now (test/coverage numbers below are the 2026-06-11 baseline and have not been re-run since — see `docs/ROADMAP.md` backlog item "Refresh docs/TEST-COVERAGE-ANALYSIS.md coverage numbers"). The `npm test` / `npm run test:coverage` scripts work.
+**The codebase has a substantial and growing test suite.** Vitest v4 is fully configured (`vitest.config.ts`) with `@vitest/coverage-v8`. As of the 2026-07-14 pass, **1294 tests pass** across **70 test files**. The `npm test` / `npm run test:coverage` scripts work, and the default timeouts have been raised to 30s to accommodate slower execution environments.
 
 **Test file inventory:**
 
@@ -10,25 +10,31 @@
 |----------|-------|
 | `__tests__/integration/` | `api-routes.test.ts` |
 | `__tests__/unit/` | `ai-router.test.ts`, `badges-and-streaks.test.ts`, `elevenlabs.test.ts`, `parent-controls.test.ts`, `routes-utils.test.ts`, `settings-migration.test.ts`, `storage-crud.test.ts`, `video.test.ts` |
-| `server/` | `circuit-breaker.test.ts`, `feature-flags.test.ts`, `idempotency.test.ts`, `load-shedding.test.ts`, `logger.test.ts`, `metrics.test.ts`, `prompts.test.ts`, `rate-limit.test.ts`, `retry.test.ts`, `routes.test.ts`, `security-fixes.test.ts`, `suno.test.ts`, `utils.test.ts`, `validation.test.ts` |
+| `lib/` | `badges.test.ts`, `launch-gate.test.ts`, `narration.test.ts`, `query-client.test.ts`, `replay-params.test.ts`, `storage.test.ts`, `storage.comprehensive.test.ts`, `storage-migration.test.ts`, `sync-queue.test.ts`, `tts-cache.test.ts` |
+| `lib/sync/` | `engine.test.ts`, `mappers.test.ts`, `reconcile.test.ts`, `runSync.test.ts`, `storage-adapters.test.ts`, `supabase-sync.test.ts` |
+| `server/` | `alerting.test.ts`, `circuit-breaker.test.ts`, `feature-flags.test.ts`, `idempotency.test.ts`, `index.integration.test.ts`, `kv.test.ts`, `load-shedding.test.ts`, `logger.test.ts`, `metrics.test.ts`, `prompts.test.ts`, `rate-limit.test.ts`, `retry.test.ts`, `routes.test.ts`, `security-fixes.test.ts`, `suno.test.ts`, `tts-cache.test.ts`, `utils.test.ts`, `validation.test.ts` |
 | `server/` (comprehensive) | `auth.comprehensive.test.ts`, `elevenlabs.comprehensive.test.ts`, `routes.comprehensive.test.ts`, `storage.comprehensive.test.ts`, `video.comprehensive.test.ts` |
 | `server/ai/` | `router.test.ts`, `router.comprehensive.test.ts` |
 | `server/ai/providers/` | `anthropic.test.ts`, `gemini.test.ts`, `openai.test.ts`, `openrouter.test.ts` |
-| `lib/` | `query-client.test.ts`, `storage.test.ts`, `storage-migration.test.ts`, `storage.comprehensive.test.ts` |
-| `shared/` | `schema.comprehensive.test.ts` |
+| `server/routes/` | `github-webhook.test.ts`, `health.test.ts`, `music.branches.test.ts`, `story.branches.test.ts`, `story.kv-idempotency.test.ts`, `suggest.branches.test.ts`, `tts.branches.test.ts`, `video.file-serving.test.ts`, `video.sanitization.test.ts` |
+| `server/safety/` | `content-safety.test.ts`, `story-guard.test.ts` |
+| `server/replit_integrations/` | `audio/client.test.ts` |
+| `shared/` | `safety-terms.test.ts`, `schema.comprehensive.test.ts` |
 
-**Coverage summary (as of 2026-06-11):**
+**Coverage summary (as of 2026-07-14):**
 
 | Module | Statement | Branch |
 |--------|-----------|--------|
-| `server/ai/router.ts` | ~97% | ~84% |
-| `server/ai/providers/*` | ~98% | ~95% |
-| `server/suno.ts` | 100% | ~93% |
-| `server/routes.ts` (composer) + `server/routes/*` | ~50% | ~33% |
-| `server/elevenlabs.ts`, `video.ts`, `db.ts` | ~0% (mocked at module level) | — |
-| **All files (`server/**` + `lib/**`)** | ~59% | ~55% |
+| `server/ai/router.ts` | ~94.7% | ~82.7% |
+| `server/ai/providers/*` | ~93.4% | ~92.7% |
+| `server/suno.ts` | 100% | ~92.8% |
+| `server/routes.ts` (composer) + `server/routes/*` | ~90% | ~73.3% |
+| `server/elevenlabs.ts` | ~97.5% | ~81.2% |
+| `server/video.ts` | ~16.4% | ~5.5% |
+| `server/db.ts` | ~0% (mocked) | — |
+| **All files (`server/**` + `lib/**`)** | ~72.9% | ~68.19% |
 
-**Threshold note:** `vitest.config.ts` declares an 80% branch threshold, so `npm run test:coverage` exits non-zero. This pre-dates the 2026-06-11 pass (baseline was 45.65% branches; the pass raised it to 55.18%). The threshold is aspirational until elevenlabs/video module-level mocks are replaced with real unit tests.
+**Threshold note:** `vitest.config.ts` declares an 80% branch threshold, so `npm run test:coverage` exits non-zero (exits 1 on 67.85% branches). The threshold is aspirational until the remaining video/client modules are fully covered.
 
 **Untested by design:** the story-screen hooks extracted to `lib/use*.ts` (useStoryAudio, useBackgroundMusic, useSceneGeneration, useVideoGeneration, useSleepTimer, useAutoAdvance, useLoadingMessages) import Expo native modules (expo-av, expo-haptics) and cannot load in the node test environment; there is no React Native testing infrastructure (no jest-expo / @testing-library/react-native). They count as 0% in coverage.
 

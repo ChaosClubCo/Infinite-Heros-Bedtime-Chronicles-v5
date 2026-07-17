@@ -21,6 +21,18 @@ vi.mock("../elevenlabs", async (importOriginal) => {
   return { ...actual, generateSpeech: mockGenerateSpeech };
 });
 
+const mockR2Get = vi.fn();
+const mockR2Put = vi.fn();
+let mockR2Enabled = false;
+
+vi.mock("../r2", () => {
+  return {
+    get R2_ENABLED() { return mockR2Enabled; },
+    r2Get: (...args: any[]) => mockR2Get(...args),
+    r2Put: (...args: any[]) => mockR2Put(...args),
+  };
+});
+
 let app: Express;
 let server: Server;
 const previousRateLimitMax = process.env.RATE_LIMIT_MAX;
@@ -33,7 +45,12 @@ async function cleanCacheFiles() {
     "moonbeam:sleep:a repeatable cache line",
     "moonbeam::this one will fail to generate",
     "moonbeam::a file that will exist on disk",
+    "moonbeam::an r2 cached story line",
+    "moonbeam::a brand new r2 story line",
+    "moonbeam::a completely missing file",
     `preview:captain:${VOICE_MAP.captain.previewText}`,
+    "preview:whisper:shh... the moon is rising softly",
+    `preview:whisper:${VOICE_MAP.whisper.previewText}`,
   ];
   await Promise.all(
     cacheKeys.map((key) => fs.promises.unlink(ttsCachePathFor(key).filePath).catch(() => {})),
@@ -104,6 +121,62 @@ describe("POST /api/tts", () => {
   });
 });
 
+describe("POST /api/tts with Cloudflare R2 enabled", () => {
+  beforeAll(() => {
+    mockR2Enabled = true;
+  });
+
+  afterAll(() => {
+    mockR2Enabled = false;
+  });
+
+  beforeEach(() => {
+    mockR2Get.mockReset();
+    mockR2Put.mockReset();
+    mockGenerateSpeech.mockReset();
+  });
+
+  it("returns cached audio from R2 on local cache miss but R2 hit", async () => {
+    mockR2Get.mockResolvedValueOnce(Buffer.from("r2-cached-audio"));
+
+    const body = { text: "an r2 cached story line", voice: "moonbeam" };
+    const res = await request(app).post("/api/tts").send(body);
+
+    expect(res.status).toBe(200);
+    expect(res.body.audioUrl).toBeDefined();
+    expect(mockR2Get).toHaveBeenCalledTimes(1);
+    expect(mockGenerateSpeech).not.toHaveBeenCalled();
+
+    // Clean up local file created during the test
+    const { ttsCachePathFor } = await import("./helpers");
+    const { filePath } = ttsCachePathFor("moonbeam::an r2 cached story line");
+    expect(fs.existsSync(filePath)).toBe(true);
+    await fs.promises.unlink(filePath).catch(() => {});
+  });
+
+  it("generates speech and uploads to R2 on both local and R2 miss", async () => {
+    mockR2Get.mockResolvedValueOnce(null);
+    mockGenerateSpeech.mockResolvedValueOnce(Buffer.from("newly-generated-audio"));
+    mockR2Put.mockResolvedValueOnce(true);
+
+    const body = { text: "a brand new r2 story line", voice: "moonbeam" };
+    const res = await request(app).post("/api/tts").send(body);
+
+    expect(res.status).toBe(200);
+    expect(res.body.audioUrl).toBeDefined();
+    expect(mockR2Get).toHaveBeenCalledTimes(1);
+    expect(mockGenerateSpeech).toHaveBeenCalledTimes(1);
+
+    // Wait slightly since R2 upload is async (fire-and-forget) in the route handler
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(mockR2Put).toHaveBeenCalledTimes(1);
+
+    const { ttsCachePathFor } = await import("./helpers");
+    const { filePath } = ttsCachePathFor("moonbeam::a brand new r2 story line");
+    await fs.promises.unlink(filePath).catch(() => {});
+  });
+});
+
 describe("GET /api/tts-audio/:file", () => {
   it("serves a cached audio file that exists", async () => {
     mockGenerateSpeech.mockResolvedValueOnce(Buffer.from("fake-audio-bytes"));
@@ -114,6 +187,48 @@ describe("GET /api/tts-audio/:file", () => {
     const res = await request(app).get(`/api/tts-audio/${fileName}`);
     expect(res.status).toBe(200);
     expect(res.headers["content-type"]).toBe("audio/mpeg");
+  });
+});
+
+describe("GET /api/tts-audio/:file with Cloudflare R2 enabled", () => {
+  beforeAll(() => {
+    mockR2Enabled = true;
+  });
+
+  afterAll(() => {
+    mockR2Enabled = false;
+  });
+
+  beforeEach(() => {
+    mockR2Get.mockReset();
+    mockR2Put.mockReset();
+  });
+
+  it("downloads from R2 and serves file if missing locally", async () => {
+    mockR2Get.mockResolvedValueOnce(Buffer.from("fake-r2-audio-bytes"));
+
+    const { ttsCachePathFor } = await import("./helpers");
+    const { fileName, filePath } = ttsCachePathFor("preview:whisper:shh... the moon is rising softly");
+    await fs.promises.unlink(filePath).catch(() => {});
+
+    const res = await request(app).get(`/api/tts-audio/${fileName}`);
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toBe("audio/mpeg");
+    expect(mockR2Get).toHaveBeenCalledWith(fileName);
+
+    expect(fs.existsSync(filePath)).toBe(true);
+    await fs.promises.unlink(filePath).catch(() => {});
+  });
+
+  it("returns 404 if file is missing locally and not found in R2", async () => {
+    mockR2Get.mockResolvedValueOnce(null);
+
+    const { ttsCachePathFor } = await import("./helpers");
+    const { fileName, filePath } = ttsCachePathFor("moonbeam::a completely missing file");
+    await fs.promises.unlink(filePath).catch(() => {});
+
+    const res = await request(app).get(`/api/tts-audio/${fileName}`);
+    expect(res.status).toBe(404);
   });
 });
 
@@ -151,3 +266,4 @@ describe("GET /api/voices", () => {
     expect(res.body.defaults).toBeDefined();
   });
 });
+
