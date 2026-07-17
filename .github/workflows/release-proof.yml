@@ -115,6 +115,11 @@ jobs:
     name: EAS internal Android build
     needs: validate-candidate
     runs-on: ubuntu-latest
+    # NOTE: timeout-minutes only begins counting once the job starts running.
+    # It does NOT limit time spent waiting for environment approval.  While the
+    # release-proof environment has pending required reviewers, this job sits in
+    # "Waiting" indefinitely and report-results will never fire.  Approve (or
+    # cancel) the pending deployment in the Actions UI to unblock the workflow.
     timeout-minutes: 90
     environment: release-proof
     steps:
@@ -189,6 +194,10 @@ jobs:
     name: Send Sentry release-proof event
     needs: validate-candidate
     runs-on: ubuntu-latest
+    # NOTE: timeout-minutes only begins counting once the job starts running.
+    # It does NOT limit time spent waiting for environment approval.  This job
+    # can sit in "Waiting" indefinitely until the release-proof environment is
+    # approved, which also prevents report-results from starting.
     timeout-minutes: 15
     environment: release-proof
     steps:
