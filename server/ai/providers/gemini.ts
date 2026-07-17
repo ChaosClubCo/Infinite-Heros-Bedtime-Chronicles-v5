@@ -14,7 +14,10 @@ export async function pingGemini(): Promise<boolean> {
   const apiKey = process.env.AI_INTEGRATIONS_GEMINI_API_KEY;
   if (!apiKey) return false;
   const baseUrl = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL || "https://generativelanguage.googleapis.com";
-  const res = await fetch(`${baseUrl}/v1beta/models?key=${apiKey}`, {
+  const res = await fetch(`${baseUrl}/v1beta/models`, {
+    headers: {
+      "x-goog-api-key": apiKey,
+    },
     signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
   });
   return res.ok;

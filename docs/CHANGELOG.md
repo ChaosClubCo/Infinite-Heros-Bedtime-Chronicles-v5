@@ -2,6 +2,26 @@
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
 
+## [Unreleased] — 2026-07-14 — Cloud Sync (Milestone 3), API Probes, and Reliability Overhaul
+
+### Added
+- **Cloud Sync Engine (Milestone 3)** — Optional, parent-opt-in cloud backup/continuity of kid data (stories, favorites, settings, badges, streaks, profile stubs) to a Supabase Postgres backend.
+  - Core mapping, reconciliation (`reconcile.ts`), and push/pull engines in `lib/sync/`.
+  - Offline sync queue (`lib/sync-queue.ts` / `SyncOfflineContext.tsx`) to queue updates when network is lost.
+  - `SyncManager.tsx` UI overlay to display sync state, trigger retries, and display sync errors.
+  - Row-Level Security policies restricting sync access to the owner (`auth.uid() = user_id`) and account deletion cascade to wipe synced data.
+- **OpenAI & OpenRouter Health Probes** — Extended the server `/api/health` endpoints to perform active HTTP/JSON status checks against OpenAI (`pingOpenAI`) and OpenRouter (`pingOpenRouter`) API status endpoints, completing the fallback chain visibility.
+- **Sync Verification Utility** — Added `scripts/verify-sync.ts` to perform end-to-end sync engine reconciliation audits.
+- **Alerting & TTS Metrics Integration Tests** — Created [index.integration.test.ts](../server/index.integration.test.ts) to verify middleware alertness threshold checks and TTS metrics recording.
+
+### Fixed
+- **Gemini API Key Leakage** — Secured `pingGemini()` to pass the API key in the `x-goog-api-key` header rather than exposing it as a query parameter.
+- **API routes schema cleanups** — Corrected TypeScript exclusions and configuration setups to avoid script paths polluting compile-time output.
+
+### Changed
+- **Dead Code Cleanup** — Deleted the unused text-chat routes file (`routes.ts`) and its tests (`routes.test.ts`) from the `chat/` replit integrations directory, maintaining only the active voice-chat endpoints.
+- **Refreshed Test Coverage** — Re-ran code coverage analysis, showing **1294 passing tests** across **70 test files**.
+
 ## [Unreleased] — 2026-06-19 — Onboarding, story seeds, badge system overhaul
 
 Merged PRs #245 and #247 to `main`.

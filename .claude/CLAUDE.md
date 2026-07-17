@@ -62,6 +62,14 @@ shared across client and server.
   `archive/android-kotlin-rewrite/README.md`); `v5-main` had no application code to
   contribute. Both sibling repos' branches were then fast-forwarded to this exact tree
   via a two-parent merge commit, so their own history stays intact and reachable.
+- **R2 TTS cache is live (2026-07).** Server-side TTS audio now has a persistent Cloudflare
+  R2 tier (`server/r2.ts`, gated on `R2_ENABLED` = `CLOUDFLARE_ACCOUNT_ID` + three
+  `CLOUDFLARE_R2_*` vars), wired into `server/routes/tts.ts` behind a `writeWithLock` mutex.
+  `server/tts-cache.ts` stays `/tmp`-only by design. Second test runner exists too:
+  `npm run test:components` (jest-expo) for RN components + Expo-native hooks Vitest can't load.
+- **Cloud sync (M3) SyncManager** triggers on open/foreground/reconnect **and sign-in**
+  (`user?.id` in deps), then `refreshProfiles()`. Still OFF by default (`cloudSyncEnabled`)
+  and not yet device-verified. See the root `../CLAUDE.md` "Cloud sync (M3)" gotcha.
 
 ## AI Context
 
@@ -94,7 +102,8 @@ commands:
   prod_server: npm run server:prod
   lint: npm run lint                  # npx expo lint (eslint 10.6 + flat config — working)
   typecheck: npm run typecheck        # tsc --noEmit
-  test: npm run test                  # vitest run (also :watch, :coverage)
+  test: npm run test                  # vitest run (server/lib units; also :watch, :coverage)
+  test_components: npm run test:components  # jest (jest-expo) — RN components + Expo-native hooks
   db: npm run db:push                 # drizzle-kit
   preflight: npm run preflight
 deploy:

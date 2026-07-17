@@ -14,7 +14,7 @@ vi.mock('openai', () => ({
   },
 }));
 
-import { xaiProvider, mistralProvider, cohereProvider, metaLlamaProvider } from './openrouter';
+import { xaiProvider, mistralProvider, cohereProvider, metaLlamaProvider, pingOpenRouter } from './openrouter';
 
 const PROVIDERS = [
   { provider: xaiProvider, name: 'xai', displayName: 'xAI Grok', model: 'x-ai/grok-3-mini' },
@@ -125,5 +125,45 @@ describe('openrouter providers', () => {
     chatCreateMock.mockResolvedValue(mockCompletion());
     await xaiProvider.generateText(REQ);
     expect(ctorArgs[0]).toEqual({ apiKey: 'router-key', baseURL: undefined });
+  });
+
+  describe('pingOpenRouter', () => {
+    const originalFetch = global.fetch;
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('returns false if API key is missing', async () => {
+      vi.stubEnv('AI_INTEGRATIONS_OPENROUTER_API_KEY', '');
+      const result = await pingOpenRouter();
+      expect(result).toBe(false);
+    });
+
+    it('makes a fetch request with Authorization header and returns true on success', async () => {
+      vi.stubEnv('AI_INTEGRATIONS_OPENROUTER_API_KEY', 'router-secret');
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const result = await pingOpenRouter();
+
+      expect(result).toBe(true);
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://openrouter.ai/api/v1/models',
+        expect.objectContaining({
+          headers: {
+            Authorization: 'Bearer router-secret',
+          },
+        })
+      );
+    });
+
+    it('returns false if fetch fails or throws', async () => {
+      vi.stubEnv('AI_INTEGRATIONS_OPENROUTER_API_KEY', 'router-secret');
+      global.fetch = vi.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+
+      const result = await pingOpenRouter();
+      expect(result).toBe(false);
+    });
   });
 });
