@@ -26,6 +26,11 @@ async function loadProvider(): Promise<AIProvider> {
   return mod.geminiProvider;
 }
 
+async function loadPingGemini(): Promise<typeof import('./gemini').pingGemini> {
+  const mod = await import('./gemini');
+  return mod.pingGemini;
+}
+
 function mockTextResponse(overrides: Record<string, unknown> = {}) {
   return {
     text: 'a story',
@@ -210,6 +215,49 @@ describe('geminiProvider', () => {
       });
       const provider = await loadProvider();
       await expect(provider.generateImage!({ prompt: 'a hero' })).rejects.toThrow('Gemini returned no image data');
+    });
+  });
+
+  describe('pingGemini', () => {
+    const originalFetch = global.fetch;
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('returns false if API key is missing', async () => {
+      vi.stubEnv('AI_INTEGRATIONS_GEMINI_API_KEY', '');
+      const ping = await loadPingGemini();
+      const result = await ping();
+      expect(result).toBe(false);
+    });
+
+    it('makes a fetch request with x-goog-api-key header and returns true on success', async () => {
+      vi.stubEnv('AI_INTEGRATIONS_GEMINI_API_KEY', 'my-secret-key');
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const ping = await loadPingGemini();
+      const result = await ping();
+
+      expect(result).toBe(true);
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://generativelanguage.googleapis.com/v1beta/models',
+        expect.objectContaining({
+          headers: {
+            'x-goog-api-key': 'my-secret-key',
+          },
+        })
+      );
+    });
+
+    it('returns false if fetch fails', async () => {
+      vi.stubEnv('AI_INTEGRATIONS_GEMINI_API_KEY', 'my-secret-key');
+      global.fetch = vi.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+
+      const ping = await loadPingGemini();
+      const result = await ping();
+      expect(result).toBe(false);
     });
   });
 });

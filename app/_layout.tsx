@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { ProfileProvider } from "@/lib/ProfileContext";
 import { SettingsProvider } from "@/lib/SettingsContext";
 import { SyncOfflineProvider } from "@/lib/SyncOfflineContext";
+import { setSyncErrorReporter } from "@/lib/sync/report";
 import { StatusBar } from "expo-status-bar";
 import {
   Nunito_400Regular,
@@ -42,6 +43,20 @@ if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
     tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
   });
 }
+
+// Route cloud-sync failures to console + Sentry. lib/sync stays native-free
+// (node-testable) by emitting through a swappable reporter; this is the one
+// place the sync layer meets the RN Sentry SDK.
+setSyncErrorReporter((context, error, extra) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.warn(`[cloud-sync] ${context}: ${message}`);
+  if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
+    Sentry.captureException(error instanceof Error ? error : new Error(message), {
+      tags: { area: "cloud-sync", context },
+      extra,
+    });
+  }
+});
 
 SplashScreen.preventAutoHideAsync();
 
