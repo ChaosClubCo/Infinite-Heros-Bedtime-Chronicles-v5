@@ -1,4 +1,5 @@
-import { getConsentGiven, getOnboardingComplete } from "@/lib/storage";
+import { getConsentGiven } from "@/lib/consent-record";
+import { getOnboardingComplete } from "@/lib/storage";
 import { runStorageMigrations } from "@/lib/storage-migration";
 
 export type LaunchRoute = "/parental-consent" | "/welcome" | "/(tabs)";
@@ -6,20 +7,18 @@ export type LaunchRoute = "/parental-consent" | "/welcome" | "/(tabs)";
 /**
  * Single source of truth for the cold-start routing decision.
  *
- * COPPA gate: verifiable parental consent must come before any
- * data-collecting / AI feature, so it takes precedence over onboarding.
- * On any storage failure we fail safe to the consent gate rather than
- * silently letting the app through.
+ * COPPA gate: the exact current verifiable parental-consent record must exist
+ * before any data-collecting / AI feature, so it takes precedence over
+ * onboarding. Legacy version-only records intentionally fail this check and
+ * route upgraded installs through renewed consent.
  *
- * Used by app/index.tsx (cold start) and app/parental-consent.tsx
- * (post-consent destination).
+ * On any storage, migration, parsing, or hashing failure we fail safe to the
+ * consent gate rather than silently letting the app through.
  */
 export async function resolveLaunchRoute(): Promise<LaunchRoute> {
   try {
-    // Run any pending AsyncStorage schema migrations before reading state — this
-    // is the earliest storage touch on cold start, so migrating here guarantees
-    // every downstream read (consent, onboarding, stories, …) sees the current
-    // schema. Idempotent (version-checked), so repeat calls are no-ops.
+    // Run pending AsyncStorage schema migrations before reading either state.
+    // This is the earliest storage touch on cold start and is idempotent.
     await runStorageMigrations();
 
     const [consented, onboarded] = await Promise.all([
@@ -31,7 +30,7 @@ export async function resolveLaunchRoute(): Promise<LaunchRoute> {
     return "/(tabs)";
   } catch (e) {
     console.error(
-      "[launch-gate] Failed to read consent/onboarding state, routing to consent gate",
+      "[launch-gate] Failed to verify consent/onboarding state, routing to consent gate",
       e,
     );
     return "/parental-consent";
