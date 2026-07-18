@@ -92,44 +92,30 @@ export const DEFAULT_PARENT_CONTROLS: ParentControls = {
   videoEnabled: false,
 };
 
-export const CONSENT_VERIFICATION_METHOD = 'parent_gate_arithmetic_v1' as const;
-
-/**
- * SHA-256 of the five version-3 disclosure paragraphs shown on
- * `app/parental-consent.tsx`, joined with a single newline in display order.
- * A copy change must update this hash and increment CONSENT_VERSION.
- */
-export const CONSENT_CONTENT_HASH = '0196b4acda8417dadf244e79e4ea474a67bfafdbb3c23140ac560179a47da11c';
-
 /**
  * Verifiable parental consent (COPPA). Recorded once a parent passes the
  * parent gate and affirms consent on `app/parental-consent.tsx`. The app
- * blocks all data-collecting / AI features until the complete record matches
- * the current consent version and disclosure hash.
+ * blocks all data-collecting / AI features until `consented` is true for the
+ * current `CONSENT_VERSION`; bumping the version re-prompts existing installs.
  */
 export interface ParentConsent {
   consented: boolean;
   consentedAt: number;  // epoch ms when consent was given (0 = never)
   version: number;      // CONSENT_VERSION at the time consent was given
-  contentHash: string;  // exact disclosure-copy SHA-256
-  locale: string;       // device locale recorded at acceptance
-  verificationMethod: typeof CONSENT_VERIFICATION_METHOD | '';
 }
 
 /**
- * Version 3 captures a verifiable disclosure hash, locale, and parent-gate
- * method. Existing version-2 records must be accepted again because they cannot
- * prove which exact copy or verification method was used.
+ * Version 2 discloses optional parent accounts/cloud backup, retained Voice
+ * Chat transcripts, bounded retention, provider processing, and complete
+ * account deletion. This is a material privacy-practice update, so existing
+ * installs must pass the parent gate and consent again.
  */
-export const CONSENT_VERSION = 3;
+export const CONSENT_VERSION = 2;
 
 export const DEFAULT_PARENT_CONSENT: ParentConsent = {
   consented: false,
   consentedAt: 0,
   version: 0,
-  contentHash: '',
-  locale: '',
-  verificationMethod: '',
 };
 
 export interface UserPreferences {
