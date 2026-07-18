@@ -213,10 +213,30 @@ jobs:
         run: npm install --global npm@11
 
       - name: Install locked dependencies
+        id: expo-npm-ci
         run: bash scripts/npm-ci-retry.sh expo-npm-ci.log
 
+      - name: Upload Expo install diagnostics
+        if: failure() && steps.expo-npm-ci.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: expo-npm-ci-diagnostics
+          path: expo-npm-ci.log
+          retention-days: 7
+
       - name: Verify Expo SDK dependency compatibility
-        run: npm run expo:check
+        id: expo-check
+        run: |
+          set -o pipefail
+          npm run expo:check 2>&1 | tee expo-check.log
+
+      - name: Upload Expo compatibility diagnostics
+        if: failure() && steps.expo-check.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: expo-compatibility-diagnostics
+          path: expo-check.log
+          retention-days: 7
 
       - name: Export production web bundle
         run: npm run expo:build:ci
