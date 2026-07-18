@@ -1,4 +1,5 @@
-import { getConsentGiven, getOnboardingComplete } from "@/lib/storage";
+import { getOnboardingComplete } from "@/lib/storage";
+import { getVerifiedConsentGiven } from "@/lib/consentEvidence";
 import { runStorageMigrations } from "@/lib/storage-migration";
 
 export type LaunchRoute = "/parental-consent" | "/welcome" | "/(tabs)";
@@ -6,24 +7,20 @@ export type LaunchRoute = "/parental-consent" | "/welcome" | "/(tabs)";
 /**
  * Single source of truth for the cold-start routing decision.
  *
- * COPPA gate: verifiable parental consent must come before any
+ * COPPA gate: exact, verifiable parental consent must come before any
  * data-collecting / AI feature, so it takes precedence over onboarding.
- * On any storage failure we fail safe to the consent gate rather than
- * silently letting the app through.
+ * On any storage or hashing failure we fail safe to the consent gate rather
+ * than silently letting the app through.
  *
  * Used by app/index.tsx (cold start) and app/parental-consent.tsx
  * (post-consent destination).
  */
 export async function resolveLaunchRoute(): Promise<LaunchRoute> {
   try {
-    // Run any pending AsyncStorage schema migrations before reading state — this
-    // is the earliest storage touch on cold start, so migrating here guarantees
-    // every downstream read (consent, onboarding, stories, …) sees the current
-    // schema. Idempotent (version-checked), so repeat calls are no-ops.
     await runStorageMigrations();
 
     const [consented, onboarded] = await Promise.all([
-      getConsentGiven(),
+      getVerifiedConsentGiven(),
       getOnboardingComplete(),
     ]);
     if (!consented) return "/parental-consent";
@@ -31,7 +28,7 @@ export async function resolveLaunchRoute(): Promise<LaunchRoute> {
     return "/(tabs)";
   } catch (e) {
     console.error(
-      "[launch-gate] Failed to read consent/onboarding state, routing to consent gate",
+      "[launch-gate] Failed to read verified consent/onboarding state, routing to consent gate",
       e,
     );
     return "/parental-consent";
