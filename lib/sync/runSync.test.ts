@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { runSync, purgeCloudData } from './runSync';
 import { getSupabaseClient } from '@/lib/AuthContext';
-import { getConsentGiven } from '@/lib/storage';
+import { getVerifiedConsentGiven } from '@/lib/consentEvidence';
 import { apiRequest } from '@/lib/query-client';
 import { syncAll } from './engine';
 import { reportSyncError } from './report';
 
 vi.mock('@/lib/AuthContext', () => ({ getSupabaseClient: vi.fn() }));
-vi.mock('@/lib/storage', () => ({ getConsentGiven: vi.fn() }));
+vi.mock('@/lib/consentEvidence', () => ({ getVerifiedConsentGiven: vi.fn() }));
 vi.mock('@/lib/query-client', () => ({ apiRequest: vi.fn() }));
 vi.mock('./engine', () => ({ syncAll: vi.fn() }));
 vi.mock('./report', () => ({ reportSyncError: vi.fn() }));
@@ -45,8 +45,9 @@ function responseWithJson(value: unknown): Response {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Default: parent consent is valid; individual tests override to exercise the gate.
-  vi.mocked(getConsentGiven).mockResolvedValue(true);
+  // Default: the exact persisted consent evidence is valid; individual tests
+  // override to exercise the fail-closed gate.
+  vi.mocked(getVerifiedConsentGiven).mockResolvedValue(true);
 });
 
 describe('runSync', () => {
@@ -55,15 +56,15 @@ describe('runSync', () => {
     expect(getSupabaseClient).not.toHaveBeenCalled();
   });
 
-  it('is a no-op when parental consent is not given (COPPA gate)', async () => {
-    vi.mocked(getConsentGiven).mockResolvedValue(false);
+  it('is a no-op when verified parental consent is not given', async () => {
+    vi.mocked(getVerifiedConsentGiven).mockResolvedValue(false);
     vi.mocked(getSupabaseClient).mockReturnValue(clientWithUser('user1') as never);
     expect(await runSync(true)).toBe(false);
     expect(syncAll).not.toHaveBeenCalled();
   });
 
-  it('is a no-op when the consent read throws (fail-safe to no-sync)', async () => {
-    vi.mocked(getConsentGiven).mockRejectedValue(new Error('storage down'));
+  it('is a no-op when the verified consent read throws', async () => {
+    vi.mocked(getVerifiedConsentGiven).mockRejectedValue(new Error('storage down'));
     vi.mocked(getSupabaseClient).mockReturnValue(clientWithUser('user1') as never);
     expect(await runSync(true)).toBe(false);
     expect(syncAll).not.toHaveBeenCalled();
@@ -72,14 +73,16 @@ describe('runSync', () => {
   it('is a no-op when Supabase is not configured', async () => {
     vi.mocked(getSupabaseClient).mockReturnValue(null);
     expect(await runSync(true)).toBe(false);
+    expect(syncAll).not.toHaveBeenCalled();
   });
 
   it('is a no-op when no user is signed in', async () => {
     vi.mocked(getSupabaseClient).mockReturnValue(clientWithUser(null) as never);
     expect(await runSync(true)).toBe(false);
+    expect(syncAll).not.toHaveBeenCalled();
   });
 
-  it('syncs when enabled + signed in', async () => {
+  it('syncs when enabled + verified + signed in', async () => {
     vi.mocked(getSupabaseClient).mockReturnValue(clientWithUser('user1') as never);
     vi.mocked(syncAll).mockResolvedValue({ results: [], errors: [] });
     expect(await runSync(true)).toBe(true);
