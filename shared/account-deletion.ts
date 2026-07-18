@@ -3,12 +3,13 @@
  * retained-data deletion. The device adds its own local-cleanup confirmation
  * after receiving this response.
  */
-export const ACCOUNT_DELETION_RECEIPT_VERSION = 1 as const;
+export const ACCOUNT_DELETION_RECEIPT_VERSION = 2 as const;
 
 export interface ServerDeletionReceipt {
   version: typeof ACCOUNT_DELETION_RECEIPT_VERSION;
   receiptId: string;
   completedAt: string;
+  releaseCandidate: string;
   status: 'completed';
   deletedScopes: [
     'voice_chat_history',
@@ -27,6 +28,8 @@ export function isServerDeletionReceipt(value: unknown): value is ServerDeletion
     && candidate.receiptId.length >= 16
     && typeof candidate.completedAt === 'string'
     && !Number.isNaN(Date.parse(candidate.completedAt))
+    && typeof candidate.releaseCandidate === 'string'
+    && /^[0-9a-f]{40}$/i.test(candidate.releaseCandidate)
     && Array.isArray(candidate.deletedScopes)
     && candidate.deletedScopes.length === 3
     && candidate.deletedScopes.includes('voice_chat_history')
