@@ -10,7 +10,7 @@
  */
 
 import { getSupabaseClient } from '@/lib/AuthContext';
-import { getConsentGiven } from '@/lib/storage';
+import { getVerifiedConsentGiven } from '@/lib/consentEvidence';
 import { apiRequest } from '@/lib/query-client';
 import { syncAll, type EntityAdapter } from './engine';
 import { reportSyncError } from './report';
@@ -51,19 +51,14 @@ async function currentUserId(): Promise<{ sb: NonNullable<ReturnType<typeof getS
  */
 export async function runSync(enabled: boolean): Promise<boolean> {
   if (!enabled) return false;
-  // COPPA: never egress a child's data unless parental consent is currently
-  // valid for the active CONSENT_VERSION. getConsentGiven() is the same check
-  // ConsentContext uses; it returns false for missing/outdated/revoked consent.
-  // Fail-safe to false on any storage error, and treat "unconsented" as a silent
-  // no-op (not a sync error), so it is not reported to Sentry.
-  const consented = await getConsentGiven().catch(() => false);
+  // COPPA: never egress a child's data unless the persisted record matches the
+  // current consent version, exact disclosure hash, locale, and parent-gate
+  // verification method. Fail-safe to false on any storage/hashing error.
+  const consented = await getVerifiedConsentGiven().catch(() => false);
   if (!consented) return false;
   try {
     const ctx = await currentUserId();
     if (!ctx) return false;
-    // A run happened (still return true even if some entities failed, so the
-    // `didSync` contract holds), but surface each per-entity failure — otherwise
-    // a partially-broken sync is silent.
     const { errors } = await syncAll(ctx.sb, ctx.userId, ADAPTERS);
     for (const { entity, error } of errors) {
       reportSyncError(`syncAll:${entity}`, error);
