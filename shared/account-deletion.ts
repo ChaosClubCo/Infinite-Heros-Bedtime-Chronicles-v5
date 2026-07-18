@@ -3,12 +3,14 @@
  * retained-data deletion. The device adds its own local-cleanup confirmation
  * after receiving this response.
  */
-export const ACCOUNT_DELETION_RECEIPT_VERSION = 1 as const;
+export const ACCOUNT_DELETION_RECEIPT_VERSION = 2 as const;
 
 export interface ServerDeletionReceipt {
   version: typeof ACCOUNT_DELETION_RECEIPT_VERSION;
   receiptId: string;
   completedAt: string;
+  /** Exact deployed source revision, or null when the runtime did not expose one. */
+  releaseSha: string | null;
   status: 'completed';
   deletedScopes: [
     'voice_chat_history',
@@ -21,12 +23,16 @@ export interface ServerDeletionReceipt {
 export function isServerDeletionReceipt(value: unknown): value is ServerDeletionReceipt {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<ServerDeletionReceipt>;
+  const releaseShaValid = candidate.releaseSha === null
+    || (typeof candidate.releaseSha === 'string' && /^[0-9a-f]{7,40}$/i.test(candidate.releaseSha));
+
   return candidate.version === ACCOUNT_DELETION_RECEIPT_VERSION
     && candidate.status === 'completed'
     && typeof candidate.receiptId === 'string'
     && candidate.receiptId.length >= 16
     && typeof candidate.completedAt === 'string'
     && !Number.isNaN(Date.parse(candidate.completedAt))
+    && releaseShaValid
     && Array.isArray(candidate.deletedScopes)
     && candidate.deletedScopes.length === 3
     && candidate.deletedScopes.includes('voice_chat_history')
