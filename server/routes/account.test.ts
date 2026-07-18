@@ -36,11 +36,14 @@ function createApp(user?: { uid: string; isAnonymous: boolean }) {
 
 describe('DELETE /api/account', () => {
   const originalDbUrl = process.env.DATABASE_URL;
+  const originalReleaseSha = process.env.APP_RELEASE_SHA;
+  const releaseSha = '0123456789abcdef0123456789abcdef01234567';
 
   beforeEach(() => {
     vi.clearAllMocks();
     // Default: a database IS configured, so the chat-history step runs.
     process.env.DATABASE_URL = 'postgres://test-db';
+    process.env.APP_RELEASE_SHA = releaseSha;
     mocks.deleteAllConversationsForUser.mockResolvedValue(undefined);
     mocks.deleteAuthenticatedUser.mockResolvedValue(undefined);
   });
@@ -48,6 +51,8 @@ describe('DELETE /api/account', () => {
   afterEach(() => {
     if (originalDbUrl === undefined) delete process.env.DATABASE_URL;
     else process.env.DATABASE_URL = originalDbUrl;
+    if (originalReleaseSha === undefined) delete process.env.APP_RELEASE_SHA;
+    else process.env.APP_RELEASE_SHA = originalReleaseSha;
   });
 
   it('deletes retained data in order and returns a PII-free verification receipt', async () => {
@@ -63,7 +68,8 @@ describe('DELETE /api/account', () => {
     expect(mocks.deleteAllConversationsForUser).toHaveBeenCalledWith('parent-123');
     expect(mocks.deleteAuthenticatedUser).toHaveBeenCalledWith('parent-123');
     expect(response.body).toMatchObject({
-      version: 1,
+      version: 2,
+      releaseSha,
       status: 'completed',
       deletedScopes: [
         'voice_chat_history',
@@ -77,6 +83,18 @@ describe('DELETE /api/account', () => {
     );
     expect(Number.isNaN(Date.parse(response.body.completedAt))).toBe(false);
     expect(JSON.stringify(response.body)).not.toContain('parent-123');
+  });
+
+  it('honestly records a null release SHA when runtime metadata is unavailable', async () => {
+    delete process.env.APP_RELEASE_SHA;
+    delete process.env.VERCEL_GIT_COMMIT_SHA;
+    delete process.env.GITHUB_SHA;
+
+    const response = await request(createApp({ uid: 'parent-123', isAnonymous: false }))
+      .delete('/api/account')
+      .expect(200);
+
+    expect(response.body.releaseSha).toBeNull();
   });
 
   it('does not delete the identity or issue a receipt when transcript deletion fails', async () => {
