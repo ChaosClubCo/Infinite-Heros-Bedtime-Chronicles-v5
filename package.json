@@ -2,7 +2,7 @@
   "name": "@krosebrook/infinite-heros-bedtime-chronicles-v5",
   "main": "expo-router/entry",
   "version": "1.0.0",
-  "repository": "https://github.com/Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5",
+  "repository": "https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
@@ -91,7 +91,7 @@
     "pino": "^10.3.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "react-native": "0.83.10",
+    "react-native": "0.83.6",
     "react-native-gesture-handler": "~2.30.0",
     "react-native-keyboard-controller": "1.20.7",
     "react-native-reanimated": "4.2.1",
