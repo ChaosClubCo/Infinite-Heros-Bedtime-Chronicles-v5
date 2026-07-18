@@ -46,9 +46,9 @@ export default function ProfileScreen() {
             <Ionicons name="shield-outline" size={20} color={Colors.accent} />
             <Text style={styles.actionText}>Parent Controls</Text>
           </Pressable>
-          <Pressable style={styles.actionBtn} onPress={() => router.push("/voice-chat")} testID="voice-chat" accessibilityLabel="Open voice chat" accessibilityRole="button">
-            <Ionicons name="mic-outline" size={20} color={Colors.accent} />
-            <Text style={styles.actionText}>Voice Chat</Text>
+          <Pressable style={styles.actionBtn} onPress={() => router.push("/voice-chat")} testID="voice-chat" accessibilityLabel="Voice chat is unavailable" accessibilityRole="button">
+            <Ionicons name="mic-off-outline" size={20} color={Colors.accent} />
+            <Text style={styles.actionText}>Voice Chat (Unavailable)</Text>
           </Pressable>
         </View>
       </View>
