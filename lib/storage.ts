@@ -9,14 +9,17 @@ import {
   StreakData,
   ParentControls,
   DEFAULT_PARENT_CONTROLS,
-  ParentConsent,
-  DEFAULT_PARENT_CONSENT,
-  CONSENT_VERSION,
   BADGE_DEFINITIONS,
 } from '@/constants/types';
 import { HEROES } from '@/constants/heroes';
 import { evaluateBadges } from './badges';
 import { getCustomHeroes } from './customHeroStorage';
+import {
+  getConsentGiven as getVerifiableConsentGiven,
+  getParentConsentRecord,
+  recordParentConsent,
+  type VerifiableParentConsent,
+} from './consent-record';
 
 const FAVORITES_KEY = '@infinity_heroes_favorites';
 const READ_STORIES_KEY = '@infinity_heroes_read';
@@ -28,7 +31,6 @@ const BADGES_KEY = '@infinity_heroes_badges';
 const STREAKS_KEY = '@infinity_heroes_streaks';
 const PARENT_CONTROLS_KEY = '@infinity_heroes_parent_controls';
 const ONBOARDING_KEY = '@infinity_heroes_onboarding_complete';
-const PARENT_CONSENT_KEY = '@infinity_heroes_parent_consent';
 const DEFAULT_STORY_VOICE = 'moonbeam';
 const DEFAULT_STORY_SPEED = 'medium';
 
@@ -46,35 +48,21 @@ export async function setOnboardingComplete(): Promise<void> {
 }
 
 /**
- * Read the stored parental-consent record (COPPA). Returns the default
- * (un-consented) record if nothing is stored or parsing fails.
+ * Compatibility alias for callers that still import consent helpers from
+ * this storage module. The authoritative schema, exact-copy hash check,
+ * locale, verification method, and persistence logic live in
+ * `lib/consent-record.ts`.
  */
-export async function getParentConsent(): Promise<ParentConsent> {
-  try {
-    const data = await AsyncStorage.getItem(PARENT_CONSENT_KEY);
-    return data ? JSON.parse(data) : DEFAULT_PARENT_CONSENT;
-  } catch {
-    return DEFAULT_PARENT_CONSENT;
-  }
+export async function getParentConsent(): Promise<VerifiableParentConsent | null> {
+  return getParentConsentRecord();
 }
 
-/**
- * True only when a parent has consented for the *current* CONSENT_VERSION.
- * Used by the root layout to gate the app behind `app/parental-consent.tsx`.
- */
 export async function getConsentGiven(): Promise<boolean> {
-  const consent = await getParentConsent();
-  return consent.consented && consent.version >= CONSENT_VERSION;
+  return getVerifiableConsentGiven();
 }
 
-/** Record verifiable parental consent for the current CONSENT_VERSION. */
 export async function setParentConsent(): Promise<void> {
-  const record: ParentConsent = {
-    consented: true,
-    consentedAt: Date.now(),
-    version: CONSENT_VERSION,
-  };
-  await AsyncStorage.setItem(PARENT_CONSENT_KEY, JSON.stringify(record));
+  await recordParentConsent();
 }
 
 /**
