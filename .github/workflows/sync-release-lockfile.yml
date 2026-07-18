@@ -1,0 +1,51 @@
+name: Sync release lockfile
+
+on:
+  push:
+    branches:
+      - release/exact-sha-remediation-2026-07-18
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-release-lockfile
+  cancel-in-progress: false
+
+jobs:
+  sync-lockfile:
+    name: Regenerate package-lock with npm 11
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout remediation branch
+        uses: actions/checkout@v7
+        with:
+          ref: release/exact-sha-remediation-2026-07-18
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install repository npm version
+        run: npm install --global npm@11
+
+      - name: Generate authoritative lockfile only
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Commit only a changed package-lock
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json is already synchronized"
+            exit 0
+          fi
+          git diff --exit-code -- . ':(exclude)package-lock.json'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "fix(deps): synchronize Expo SDK 55 lockfile"
+          git push origin HEAD:release/exact-sha-remediation-2026-07-18
