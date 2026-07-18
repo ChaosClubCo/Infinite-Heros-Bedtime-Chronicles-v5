@@ -4,6 +4,12 @@ import { describe, expect, it } from 'vitest';
 
 const voiceScreen = readFileSync(resolve(process.cwd(), 'app/voice-chat.tsx'), 'utf8');
 const profileScreen = readFileSync(resolve(process.cwd(), 'app/(tabs)/profile.tsx'), 'utf8');
+const appConfig = JSON.parse(readFileSync(resolve(process.cwd(), 'app.json'), 'utf8')) as {
+  expo?: {
+    android?: { permissions?: string[]; blockedPermissions?: string[] };
+    ios?: { infoPlist?: Record<string, unknown> };
+  };
+};
 
 describe('release voice containment', () => {
   it('contains no client audio runtime or microphone permission path', () => {
@@ -20,6 +26,12 @@ describe('release voice containment', () => {
     expect(voiceScreen).not.toContain('api/tts');
     expect(voiceScreen).not.toContain('base64Audio');
     expect(voiceScreen).not.toContain('audio:');
+  });
+
+  it('blocks microphone permission in native release metadata', () => {
+    expect(appConfig.expo?.android?.permissions ?? []).not.toContain('android.permission.RECORD_AUDIO');
+    expect(appConfig.expo?.android?.blockedPermissions).toContain('android.permission.RECORD_AUDIO');
+    expect(appConfig.expo?.ios?.infoPlist ?? {}).not.toHaveProperty('NSMicrophoneUsageDescription');
   });
 
   it('truthfully labels the entry point as unavailable', () => {
