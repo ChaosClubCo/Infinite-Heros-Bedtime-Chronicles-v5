@@ -198,10 +198,10 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
-            --proto '=https' --tlsv1.2 -H 'Cache-Control: no-cache' \
+            --proto '=https' --proto-redir '=https' --tlsv1.2 -H 'Cache-Control: no-cache' \
             -D health-headers.txt "$BASE_URL/api/health" --output health.json
           curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
-            --proto '=https' --tlsv1.2 -H 'Cache-Control: no-cache' \
+            --proto '=https' --proto-redir '=https' --tlsv1.2 -H 'Cache-Control: no-cache' \
             -D privacy-headers.txt "$BASE_URL/privacy" --output privacy.html
           test -s health.json
           test -s privacy.html
@@ -224,11 +224,27 @@ jobs:
           }
           NODE
 
-      - name: Verify minimum security headers
+      - name: Verify final security and cache-control headers
         run: |
           set -euo pipefail
-          grep -Eiq '^strict-transport-security:' health-headers.txt
-          grep -Eiq '^x-content-type-options:[[:space:]]*nosniff' health-headers.txt
+          assert_final_header() {
+            local file="$1"
+            local header="$2"
+            local expected="$3"
+            awk -v header="$header" -v expected="$expected" '
+              BEGIN { found = 0; prefix = tolower(header) ":"; needle = tolower(expected) }
+              /^HTTP\// { found = 0 }
+              {
+                line = tolower($0)
+                if (index(line, prefix) == 1 && index(line, needle) > 0) found = 1
+              }
+              END { exit found ? 0 : 1 }
+            ' "$file"
+          }
+          assert_final_header health-headers.txt strict-transport-security max-age
+          assert_final_header health-headers.txt x-content-type-options nosniff
+          assert_final_header health-headers.txt cache-control no-store
+          assert_final_header privacy-headers.txt cache-control no-store
 
       - name: Build deployed-smoke manifest and checksums
         if: always()
