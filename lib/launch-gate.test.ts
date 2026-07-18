@@ -1,17 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { resolveLaunchRoute } from "./launch-gate";
-import { getConsentGiven, getOnboardingComplete } from "@/lib/storage";
+import { getOnboardingComplete } from "@/lib/storage";
+import { getVerifiedConsentGiven } from "@/lib/consentEvidence";
 import { runStorageMigrations } from "@/lib/storage-migration";
 
 vi.mock("@/lib/storage", () => ({
-  getConsentGiven: vi.fn(),
   getOnboardingComplete: vi.fn(),
+}));
+vi.mock("@/lib/consentEvidence", () => ({
+  getVerifiedConsentGiven: vi.fn(),
 }));
 vi.mock("@/lib/storage-migration", () => ({
   runStorageMigrations: vi.fn(),
 }));
 
-const mockConsent = vi.mocked(getConsentGiven);
+const mockConsent = vi.mocked(getVerifiedConsentGiven);
 const mockOnboarding = vi.mocked(getOnboardingComplete);
 const mockMigrations = vi.mocked(runStorageMigrations);
 
@@ -37,7 +40,7 @@ describe("resolveLaunchRoute", () => {
     errorSpy.mockRestore();
   });
 
-  it("routes to the consent gate when consent has not been given", async () => {
+  it("routes to the consent gate when verified consent has not been given", async () => {
     mockConsent.mockResolvedValue(false);
     mockOnboarding.mockResolvedValue(false);
     expect(await resolveLaunchRoute()).toBe("/parental-consent");
@@ -61,7 +64,7 @@ describe("resolveLaunchRoute", () => {
     expect(await resolveLaunchRoute()).toBe("/(tabs)");
   });
 
-  it("fails safe to the consent gate when the consent read throws", async () => {
+  it("fails safe to the consent gate when the verified consent read throws", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     mockConsent.mockRejectedValue(new Error("storage unavailable"));
     mockOnboarding.mockResolvedValue(true);
