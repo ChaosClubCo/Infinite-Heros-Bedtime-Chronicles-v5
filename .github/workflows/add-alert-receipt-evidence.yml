@@ -1,0 +1,82 @@
+name: Add alert receipt evidence gate
+
+on:
+  push:
+    branches:
+      - release/exact-sha-remediation-2026-07-18
+
+permissions:
+  contents: write
+
+concurrency:
+  group: add-alert-receipt-evidence
+  cancel-in-progress: false
+
+jobs:
+  patch-release-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: release/exact-sha-remediation-2026-07-18
+          fetch-depth: 1
+
+      - name: Require received-notification evidence during finalization
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/release-proof.yml')
+          source = path.read_text()
+
+          replacements = [
+            (
+              """      backup_restore_evidence_url:
+                description: Private evidence URL for disposable backup/restore proof (finalize only)
+            """,
+              """      alert_notification_evidence_url:
+                description: Private evidence URL proving the alert notification was received (finalize only)
+                required: false
+                type: string
+              backup_restore_evidence_url:
+                description: Private evidence URL for disposable backup/restore proof (finalize only)
+            """,
+            ),
+            (
+              """          DEVICE_EVIDENCE: ${{ inputs.physical_device_evidence_url }}
+                        BACKUP_EVIDENCE: ${{ inputs.backup_restore_evidence_url }}
+            """,
+              """          DEVICE_EVIDENCE: ${{ inputs.physical_device_evidence_url }}
+                        ALERT_NOTIFICATION_EVIDENCE: ${{ inputs.alert_notification_evidence_url }}
+                        BACKUP_EVIDENCE: ${{ inputs.backup_restore_evidence_url }}
+            """,
+            ),
+            (
+              """            physicalDeviceEvidenceUrl: process.env.DEVICE_EVIDENCE,
+                        backupRestoreEvidenceUrl: process.env.BACKUP_EVIDENCE,
+            """,
+              """            physicalDeviceEvidenceUrl: process.env.DEVICE_EVIDENCE,
+                        alertNotificationEvidenceUrl: process.env.ALERT_NOTIFICATION_EVIDENCE,
+                        backupRestoreEvidenceUrl: process.env.BACKUP_EVIDENCE,
+            """,
+            ),
+          ]
+
+          for old, new in replacements:
+            if old not in source:
+              raise SystemExit(f'expected release-proof anchor not found: {old[:60]!r}')
+            source = source.replace(old, new)
+
+          path.write_text(source)
+          PY
+
+      - name: Commit only the release-proof evidence gate
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- . ':(exclude).github/workflows/release-proof.yml'
+          git diff --check -- .github/workflows/release-proof.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/release-proof.yml
+          git commit -m "fix(release-proof): require received alert evidence"
+          git push origin HEAD:release/exact-sha-remediation-2026-07-18
