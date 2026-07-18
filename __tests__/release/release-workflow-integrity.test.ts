@@ -38,6 +38,13 @@ describe('exact-SHA release workflow integrity', () => {
     }
   });
 
+  it('keeps redirects on HTTPS and verifies final no-store headers', () => {
+    expect(workflow).toContain("--proto '=https' --proto-redir '=https'");
+    expect(workflow).toContain('assert_final_header health-headers.txt cache-control no-store');
+    expect(workflow).toContain('assert_final_header privacy-headers.txt cache-control no-store');
+    expect(workflow).toContain('assert_final_header health-headers.txt strict-transport-security max-age');
+  });
+
   it('uploads machine-readable evidence and checksums even on failure', () => {
     expect(workflow).toContain('if: always()');
     expect(workflow).toContain('repository-gates.json');
