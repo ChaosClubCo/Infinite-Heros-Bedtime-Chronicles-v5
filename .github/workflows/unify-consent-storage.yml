@@ -1,0 +1,135 @@
+name: Unify consent storage exports
+
+on:
+  push:
+    branches:
+      - release/exact-sha-remediation-2026-07-18
+
+permissions:
+  contents: write
+
+concurrency:
+  group: unify-consent-storage
+  cancel-in-progress: false
+
+jobs:
+  patch-storage:
+    name: Delegate legacy storage exports to consent record
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout remediation branch
+        uses: actions/checkout@v7
+        with:
+          ref: release/exact-sha-remediation-2026-07-18
+          fetch-depth: 1
+
+      - name: Apply exact source transformation
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/storage.ts')
+          source = path.read_text()
+
+          source = source.replace(
+          """  ParentControls,
+            DEFAULT_PARENT_CONTROLS,
+            ParentConsent,
+            DEFAULT_PARENT_CONSENT,
+            CONSENT_VERSION,
+            BADGE_DEFINITIONS,
+          """,
+          """  ParentControls,
+            DEFAULT_PARENT_CONTROLS,
+            BADGE_DEFINITIONS,
+          """,
+          )
+
+          source = source.replace(
+          """import { getCustomHeroes } from './customHeroStorage';
+          """,
+          """import { getCustomHeroes } from './customHeroStorage';
+          import {
+            getConsentGiven as getVerifiableConsentGiven,
+            getParentConsentRecord,
+            recordParentConsent,
+            type VerifiableParentConsent,
+          } from './consent-record';
+          """,
+          )
+
+          source = source.replace(
+          """const PARENT_CONSENT_KEY = '@infinity_heroes_parent_consent';
+          """,
+          "",
+          )
+
+          old = """/**
+           * Read the stored parental-consent record (COPPA). Returns the default
+           * (un-consented) record if nothing is stored or parsing fails.
+           */
+          export async function getParentConsent(): Promise<ParentConsent> {
+            try {
+              const data = await AsyncStorage.getItem(PARENT_CONSENT_KEY);
+              return data ? JSON.parse(data) : DEFAULT_PARENT_CONSENT;
+            } catch {
+              return DEFAULT_PARENT_CONSENT;
+            }
+          }
+
+          /**
+           * True only when a parent has consented for the *current* CONSENT_VERSION.
+           * Used by the root layout to gate the app behind `app/parental-consent.tsx`.
+           */
+          export async function getConsentGiven(): Promise<boolean> {
+            const consent = await getParentConsent();
+            return consent.consented && consent.version >= CONSENT_VERSION;
+          }
+
+          /** Record verifiable parental consent for the current CONSENT_VERSION. */
+          export async function setParentConsent(): Promise<void> {
+            const record: ParentConsent = {
+              consented: true,
+              consentedAt: Date.now(),
+              version: CONSENT_VERSION,
+            };
+            await AsyncStorage.setItem(PARENT_CONSENT_KEY, JSON.stringify(record));
+          }
+          """
+
+          new = """/**
+           * Compatibility alias for callers that still import consent helpers from
+           * this storage module. The authoritative schema, exact-copy hash check,
+           * locale, verification method, and persistence logic live in
+           * `lib/consent-record.ts`.
+           */
+          export async function getParentConsent(): Promise<VerifiableParentConsent | null> {
+            return getParentConsentRecord();
+          }
+
+          export async function getConsentGiven(): Promise<boolean> {
+            return getVerifiableConsentGiven();
+          }
+
+          export async function setParentConsent(): Promise<void> {
+            await recordParentConsent();
+          }
+          """
+
+          if old not in source:
+            raise SystemExit('expected legacy consent block not found; refusing partial patch')
+          source = source.replace(old, new)
+          path.write_text(source)
+          PY
+
+      - name: Commit only the storage delegation
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- . ':(exclude)lib/storage.ts'
+          git diff --check -- lib/storage.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/storage.ts
+          git commit -m "fix(privacy): unify consent storage source"
+          git push origin HEAD:release/exact-sha-remediation-2026-07-18
