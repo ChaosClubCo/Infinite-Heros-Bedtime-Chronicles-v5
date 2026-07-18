@@ -34,8 +34,10 @@ describe('release voice containment', () => {
     expect(appConfig.expo?.ios?.infoPlist ?? {}).not.toHaveProperty('NSMicrophoneUsageDescription');
   });
 
-  it('truthfully labels the entry point as unavailable', () => {
-    expect(profileScreen).toContain('Voice Chat (Unavailable)');
-    expect(profileScreen).toContain('mic-off-outline');
+  it('removes the Voice Chat entry point from the release UI', () => {
+    expect(profileScreen).not.toContain('/voice-chat');
+    expect(profileScreen).not.toContain('Voice Chat');
+    expect(profileScreen).not.toContain('mic-outline');
+    expect(profileScreen).not.toContain('mic-off-outline');
   });
 });
