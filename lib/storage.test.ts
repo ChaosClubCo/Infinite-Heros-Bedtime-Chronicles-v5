@@ -13,6 +13,11 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
       delete mockStorage[key];
       return Promise.resolve();
     }),
+    getAllKeys: vi.fn(() => Promise.resolve(Object.keys(mockStorage))),
+    multiRemove: vi.fn((keys: string[]) => {
+      keys.forEach((key) => delete mockStorage[key]);
+      return Promise.resolve();
+    }),
   },
 }));
 
@@ -80,6 +85,7 @@ import {
   mergeSyncedProfileStubs,
   getEntityTombstones,
   stampEntityTombstone,
+  clearAllData,
 } from './storage';
 
 const makeStoryFull = (title = 'Test Story') => ({
@@ -639,5 +645,35 @@ describe('streaks', () => {
     const first = await updateStreak('p1');
     const second = await updateStreak('p1');
     expect(second.currentStreak).toBe(first.currentStreak);
+  });
+});
+
+describe('clearAllData', () => {
+  it('removes every @infinity_heroes_ key via multiRemove and leaves foreign keys alone', async () => {
+    mockStorage['@infinity_heroes_favorites'] = JSON.stringify(['story1']);
+    mockStorage['@infinity_heroes_profiles'] = JSON.stringify([]);
+    mockStorage['@infinity_heroes_app_settings'] = JSON.stringify({ isMuted: false });
+    mockStorage['some_other_lib_key'] = 'keep-me';
+
+    await clearAllData();
+
+    const AsyncStorageMock = (await import('@react-native-async-storage/async-storage')).default;
+    expect(AsyncStorageMock.multiRemove).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(AsyncStorageMock.multiRemove).mock.calls[0][0].sort()).toEqual([
+      '@infinity_heroes_app_settings',
+      '@infinity_heroes_favorites',
+      '@infinity_heroes_profiles',
+    ]);
+    expect(mockStorage).toEqual({ some_other_lib_key: 'keep-me' });
+  });
+
+  it('does not call multiRemove when no app keys exist', async () => {
+    mockStorage['some_other_lib_key'] = 'keep-me';
+
+    await clearAllData();
+
+    const AsyncStorageMock = (await import('@react-native-async-storage/async-storage')).default;
+    expect(AsyncStorageMock.multiRemove).not.toHaveBeenCalled();
+    expect(mockStorage).toEqual({ some_other_lib_key: 'keep-me' });
   });
 });
