@@ -1,12 +1,12 @@
-const RELEASE_SHA_PATTERN = /^[0-9a-f]{7,40}$/i;
+const RELEASE_SHA_PATTERN = /^[0-9a-f]{40}$/i;
 
 /**
- * Return the deployment's source revision when the runtime exposes one.
+ * Return the deployment's exact source revision when the runtime exposes one.
  *
  * Provider-specific variables are read in precedence order so operators can
- * override an incorrect provider value with APP_RELEASE_SHA. Returning null is
- * intentional: local/dev builds must not invent a release identity, and release
- * proof must fail when the deployed candidate cannot be independently matched.
+ * override an incorrect provider value with APP_RELEASE_SHA. Short or malformed
+ * revisions return null because release attestation must never publish an
+ * ambiguous candidate identifier.
  */
 export function getReleaseSha(): string | null {
   const value = process.env.APP_RELEASE_SHA
