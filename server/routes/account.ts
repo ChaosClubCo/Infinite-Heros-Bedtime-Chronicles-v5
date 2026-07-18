@@ -6,16 +6,16 @@ import {
 } from '@shared/account-deletion';
 import { deleteAuthenticatedUser } from '../auth';
 import { logger } from '../logger';
-import { getReleaseSha } from '../release-identity';
+import { requireReleaseSha } from '../release-identity';
 
 /**
  * Parent-initiated deletion endpoint.
  *
  * The global /api auth gate validates the Supabase access token before this
- * handler runs. We delete PostgreSQL chat history first, then the Supabase Auth
- * identity. Deleting auth.users cascades to sync_records. If the identity step
- * fails, the caller remains signed in and can retry; the already-purged chat
- * deletion is idempotent.
+ * handler runs. Exact release metadata is resolved before any destructive step,
+ * then PostgreSQL chat history is deleted before the Supabase Auth identity.
+ * Deleting auth.users cascades to sync_records. If any step fails, no completed
+ * receipt is returned.
  *
  * The successful response is a PII-free receipt. It confirms server-side
  * deletion only; the client marks local cleanup complete after clearing device
@@ -33,12 +33,12 @@ export function registerAccountRoutes(app: Express): void {
     }
 
     try {
+      // Resolve before deletion so an unverifiable deployment cannot delete data
+      // and then fail to issue an exact-candidate receipt.
+      const releaseSha = requireReleaseSha();
+
       // Voice-chat transcripts only exist when a PostgreSQL database is
-      // configured. Without DATABASE_URL the pg client would connect to
-      // localhost:5432 and throw, 503-ing the whole request and — critically —
-      // never reaching deleteAuthenticatedUser(), so a parent on the documented
-      // default (story-only) deployment could never purge their cloud sync data
-      // or auth identity. Skip the step when there can be no transcripts.
+      // configured. Skip the step when there can be no transcripts.
       if (process.env.DATABASE_URL) {
         const { chatStorage } = await import('../replit_integrations/chat/storage');
         await chatStorage.deleteAllConversationsForUser(user.uid);
@@ -49,7 +49,7 @@ export function registerAccountRoutes(app: Express): void {
         version: ACCOUNT_DELETION_RECEIPT_VERSION,
         receiptId: randomUUID(),
         completedAt: new Date().toISOString(),
-        releaseSha: getReleaseSha(),
+        releaseSha,
         status: 'completed',
         deletedScopes: [
           'voice_chat_history',
