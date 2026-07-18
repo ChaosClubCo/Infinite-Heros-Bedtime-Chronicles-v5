@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { getReleaseSha } from './release-identity';
+import { getReleaseSha, requireReleaseSha } from './release-identity';
 
 const original = {
   APP_RELEASE_SHA: process.env.APP_RELEASE_SHA,
@@ -46,5 +46,20 @@ describe('getReleaseSha', () => {
     clearReleaseEnvironment();
 
     expect(getReleaseSha()).toBeNull();
+  });
+});
+
+describe('requireReleaseSha', () => {
+  it('returns the exact candidate when available', () => {
+    clearReleaseEnvironment();
+    process.env.GITHUB_SHA = '0123456789abcdef0123456789abcdef01234567';
+
+    expect(requireReleaseSha()).toBe('0123456789abcdef0123456789abcdef01234567');
+  });
+
+  it('throws before destructive proof when candidate identity is unavailable', () => {
+    clearReleaseEnvironment();
+
+    expect(() => requireReleaseSha()).toThrow('Exact release candidate metadata is unavailable');
   });
 });
