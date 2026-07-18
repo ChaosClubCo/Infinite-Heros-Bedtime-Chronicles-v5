@@ -22,7 +22,8 @@ interface ConsentState {
   /** False until the stored consent record has been read. */
   isLoaded: boolean;
   isConsented: boolean;
-  markConsented: () => void;
+  /** Re-read and validate persisted evidence before enabling protected routes. */
+  markConsented: () => Promise<boolean>;
   markUnconsented: () => void;
 }
 
@@ -48,7 +49,11 @@ export function ConsentProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const markConsented = useCallback(() => setIsConsented(true), []);
+  const markConsented = useCallback(async () => {
+    const verified = await getVerifiedConsentGiven().catch(() => false);
+    setIsConsented(verified);
+    return verified;
+  }, []);
   const markUnconsented = useCallback(() => setIsConsented(false), []);
 
   const value = useMemo(
