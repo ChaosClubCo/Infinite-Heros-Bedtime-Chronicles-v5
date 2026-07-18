@@ -72,11 +72,13 @@ describe('runSync', () => {
   it('is a no-op when Supabase is not configured', async () => {
     vi.mocked(getSupabaseClient).mockReturnValue(null);
     expect(await runSync(true)).toBe(false);
+    expect(syncAll).not.toHaveBeenCalled();
   });
 
   it('is a no-op when no user is signed in', async () => {
     vi.mocked(getSupabaseClient).mockReturnValue(clientWithUser(null) as never);
     expect(await runSync(true)).toBe(false);
+    expect(syncAll).not.toHaveBeenCalled();
   });
 
   it('syncs when enabled + signed in', async () => {
