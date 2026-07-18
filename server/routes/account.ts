@@ -7,14 +7,27 @@ import {
 import { deleteAuthenticatedUser } from '../auth';
 import { logger } from '../logger';
 
+const EXACT_SHA_PATTERN = /^[0-9a-f]{40}$/i;
+
+function getExactReleaseCandidate(): string {
+  const value = process.env.APP_RELEASE_SHA
+    || process.env.VERCEL_GIT_COMMIT_SHA
+    || process.env.GITHUB_SHA;
+
+  if (!value || !EXACT_SHA_PATTERN.test(value)) {
+    throw new Error('Exact release candidate metadata is unavailable');
+  }
+  return value.toLowerCase();
+}
+
 /**
  * Parent-initiated deletion endpoint.
  *
  * The global /api auth gate validates the Supabase access token before this
- * handler runs. We delete PostgreSQL chat history first, then the Supabase Auth
- * identity. Deleting auth.users cascades to sync_records. If the identity step
- * fails, the caller remains signed in and can retry; the already-purged chat
- * deletion is idempotent.
+ * handler runs. We resolve exact release metadata before any destructive step,
+ * then delete PostgreSQL chat history and the Supabase Auth identity. Deleting
+ * auth.users cascades to sync_records. If any step fails, no completed receipt
+ * is returned.
  *
  * The successful response is a PII-free receipt. It confirms server-side
  * deletion only; the client marks local cleanup complete after clearing device
@@ -32,12 +45,10 @@ export function registerAccountRoutes(app: Express): void {
     }
 
     try {
-      // Voice-chat transcripts only exist when a PostgreSQL database is
-      // configured. Without DATABASE_URL the pg client would connect to
-      // localhost:5432 and throw, 503-ing the whole request and — critically —
-      // never reaching deleteAuthenticatedUser(), so a parent on the documented
-      // default (story-only) deployment could never purge their cloud sync data
-      // or auth identity. Skip the step when there can be no transcripts.
+      // Resolve before deletion so an unverifiable deployment cannot delete data
+      // and then fail to issue an exact-candidate receipt.
+      const releaseCandidate = getExactReleaseCandidate();
+
       if (process.env.DATABASE_URL) {
         const { chatStorage } = await import('../replit_integrations/chat/storage');
         await chatStorage.deleteAllConversationsForUser(user.uid);
@@ -48,6 +59,7 @@ export function registerAccountRoutes(app: Express): void {
         version: ACCOUNT_DELETION_RECEIPT_VERSION,
         receiptId: randomUUID(),
         completedAt: new Date().toISOString(),
+        releaseCandidate,
         status: 'completed',
         deletedScopes: [
           'voice_chat_history',
@@ -58,7 +70,11 @@ export function registerAccountRoutes(app: Express): void {
       };
 
       logger.info(
-        { event: 'account_deleted', receiptId: receipt.receiptId },
+        {
+          event: 'account_deleted',
+          receiptId: receipt.receiptId,
+          releaseCandidate: receipt.releaseCandidate,
+        },
         'parent account and retained server data deleted',
       );
       return res.status(200).json(receipt);
