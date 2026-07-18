@@ -93,29 +93,64 @@ export const DEFAULT_PARENT_CONTROLS: ParentControls = {
 };
 
 /**
- * Verifiable parental consent (COPPA). Recorded once a parent passes the
- * parent gate and affirms consent on `app/parental-consent.tsx`. The app
- * blocks all data-collecting / AI features until `consented` is true for the
- * current `CONSENT_VERSION`; bumping the version re-prompts existing installs.
+ * Verifiable parental consent (COPPA). Legacy records may omit the attestation
+ * fields; the active consent gate rejects any record that does not contain all
+ * current values.
  */
+export type ConsentVerificationMethod = 'parent-gate-arithmetic-v1';
+
 export interface ParentConsent {
   consented: boolean;
   consentedAt: number;  // epoch ms when consent was given (0 = never)
   version: number;      // CONSENT_VERSION at the time consent was given
+  contentHash?: string; // SHA-256 of CONSENT_CONTENT_HASH_SOURCE
+  locale?: string;      // BCP-47 locale observed at acceptance
+  verificationMethod?: ConsentVerificationMethod;
 }
 
 /**
- * Version 2 discloses optional parent accounts/cloud backup, retained Voice
- * Chat transcripts, bounded retention, provider processing, and complete
- * account deletion. This is a material privacy-practice update, so existing
- * installs must pass the parent gate and consent again.
+ * Version 3 makes first-release voice containment explicit and adds a content
+ * hash, locale, and parent-gate method to every accepted record. Existing
+ * version-2 records must be collected again.
  */
-export const CONSENT_VERSION = 2;
+export const CONSENT_VERSION = 3;
+export const CONSENT_VERIFICATION_METHOD: ConsentVerificationMethod = 'parent-gate-arithmetic-v1';
+
+export const CONSENT_DISCLOSURES = [
+  {
+    id: 'local-profile',
+    text: 'Child profile name and age stay on this device. The server accepts older client fields for compatibility but discards those values before story or suggestion prompts are built for AI providers.',
+  },
+  {
+    id: 'cloud-backup',
+    text: 'A parent account and cloud backup are optional. When enabled, Supabase stores the parent account plus stories and progress; the cloud profile stub excludes the child’s name and age.',
+  },
+  {
+    id: 'voice-disabled',
+    text: 'Voice Chat and audio recording are disabled in this release. The app does not request microphone access or send audio while disabled. Any future audio feature requires a new consent version and separate privacy, safety, and device approval.',
+  },
+  {
+    id: 'child-safety',
+    text: 'Child-facing AI text is generated under a child-safety policy and checked before it is displayed or narrated. There are no ads, public child profiles, stranger chat, or behavioral advertising.',
+  },
+  {
+    id: 'deletion',
+    text: 'Delete All Data removes the parent account, cloud backup records, retained chat history, and local device data.',
+  },
+] as const;
+
+export const CONSENT_CONTENT_HASH_SOURCE = JSON.stringify({
+  version: CONSENT_VERSION,
+  disclosures: CONSENT_DISCLOSURES,
+  privacyPath: '/privacy',
+});
 
 export const DEFAULT_PARENT_CONSENT: ParentConsent = {
   consented: false,
   consentedAt: 0,
   version: 0,
+  contentHash: '',
+  locale: '',
 };
 
 export interface UserPreferences {
