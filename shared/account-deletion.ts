@@ -9,7 +9,7 @@ export interface ServerDeletionReceipt {
   version: typeof ACCOUNT_DELETION_RECEIPT_VERSION;
   receiptId: string;
   completedAt: string;
-  /** Exact deployed source revision, or null when the runtime did not expose one. */
+  /** Exact 40-character deployed source revision, or null when unavailable. */
   releaseSha: string | null;
   status: 'completed';
   deletedScopes: [
@@ -24,7 +24,7 @@ export function isServerDeletionReceipt(value: unknown): value is ServerDeletion
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<ServerDeletionReceipt>;
   const releaseShaValid = candidate.releaseSha === null
-    || (typeof candidate.releaseSha === 'string' && /^[0-9a-f]{7,40}$/i.test(candidate.releaseSha));
+    || (typeof candidate.releaseSha === 'string' && /^[0-9a-f]{40}$/i.test(candidate.releaseSha));
 
   return candidate.version === ACCOUNT_DELETION_RECEIPT_VERSION
     && candidate.status === 'completed'
