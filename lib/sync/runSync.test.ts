@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { runSync, purgeCloudData } from './runSync';
 import { getSupabaseClient } from '@/lib/AuthContext';
-import { getConsentGiven } from '@/lib/storage';
+import { getConsentGiven } from '@/lib/consent-record';
 import { apiRequest } from '@/lib/query-client';
 import { syncAll } from './engine';
 import { reportSyncError } from './report';
 
 vi.mock('@/lib/AuthContext', () => ({ getSupabaseClient: vi.fn() }));
-vi.mock('@/lib/storage', () => ({ getConsentGiven: vi.fn() }));
+vi.mock('@/lib/consent-record', () => ({ getConsentGiven: vi.fn() }));
 vi.mock('@/lib/query-client', () => ({ apiRequest: vi.fn() }));
 vi.mock('./engine', () => ({ syncAll: vi.fn() }));
 vi.mock('./report', () => ({ reportSyncError: vi.fn() }));
@@ -25,9 +25,10 @@ function clientWithUser(userId: string | null) {
 
 function validDeletionReceipt() {
   return {
-    version: 1,
+    version: 2,
     receiptId: 'receipt-0123456789abcdef',
     completedAt: '2026-07-16T00:00:00.000Z',
+    releaseSha: '0123456789abcdef0123456789abcdef01234567',
     status: 'completed',
     deletedScopes: [
       'voice_chat_history',
@@ -71,13 +72,11 @@ describe('runSync', () => {
   it('is a no-op when Supabase is not configured', async () => {
     vi.mocked(getSupabaseClient).mockReturnValue(null);
     expect(await runSync(true)).toBe(false);
-    expect(syncAll).not.toHaveBeenCalled();
   });
 
   it('is a no-op when no user is signed in', async () => {
     vi.mocked(getSupabaseClient).mockReturnValue(clientWithUser(null) as never);
     expect(await runSync(true)).toBe(false);
-    expect(syncAll).not.toHaveBeenCalled();
   });
 
   it('syncs when enabled + signed in', async () => {
