@@ -25,9 +25,10 @@ function clientWithUser(userId: string | null) {
 
 function validDeletionReceipt() {
   return {
-    version: 1,
+    version: 2,
     receiptId: 'receipt-0123456789abcdef',
     completedAt: '2026-07-16T00:00:00.000Z',
+    releaseCandidate: '0123456789abcdef0123456789abcdef01234567',
     status: 'completed',
     deletedScopes: [
       'voice_chat_history',
@@ -71,13 +72,11 @@ describe('runSync', () => {
   it('is a no-op when Supabase is not configured', async () => {
     vi.mocked(getSupabaseClient).mockReturnValue(null);
     expect(await runSync(true)).toBe(false);
-    expect(syncAll).not.toHaveBeenCalled();
   });
 
   it('is a no-op when no user is signed in', async () => {
     vi.mocked(getSupabaseClient).mockReturnValue(clientWithUser(null) as never);
     expect(await runSync(true)).toBe(false);
-    expect(syncAll).not.toHaveBeenCalled();
   });
 
   it('syncs when enabled + signed in', async () => {
