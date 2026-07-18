@@ -2,7 +2,7 @@
   "name": "@krosebrook/infinite-heros-bedtime-chronicles-v5",
   "main": "expo-router/entry",
   "version": "1.0.0",
-  "repository": "https://github.com/Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5",
+  "repository": "https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
