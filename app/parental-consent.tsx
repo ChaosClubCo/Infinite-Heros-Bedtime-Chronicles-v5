@@ -13,7 +13,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { StarField } from "@/components/StarField";
 import Colors from "@/constants/colors";
-import { setParentConsent } from "@/lib/storage";
+import { CONSENT_DISCLOSURES } from "@/constants/types";
+import { setVerifiedParentConsent } from "@/lib/consentEvidence";
 import { useConsent } from "@/lib/ConsentContext";
 
 /**
@@ -30,6 +31,14 @@ function makeChallenge() {
 /** Wrong answers allowed before a cooldown, then how long that cooldown lasts (escalating). */
 const MAX_ATTEMPTS_BEFORE_LOCKOUT = 3;
 const BASE_LOCKOUT_MS = 30_000;
+
+const CONSENT_ICONS: Record<string, React.ComponentProps<typeof Ionicons>["name"]> = {
+  "local-profile": "phone-portrait-outline",
+  "cloud-backup": "cloud-outline",
+  "voice-disabled": "mic-off-outline",
+  "child-safety": "shield-checkmark-outline",
+  deletion: "trash-outline",
+};
 
 export default function ParentalConsentScreen() {
   const insets = useSafeAreaInsets();
@@ -49,7 +58,6 @@ export default function ParentalConsentScreen() {
     [challenge],
   );
 
-  // Tick a countdown only while a cooldown is active.
   useEffect(() => {
     if (lockedUntil <= 0) return;
     const id = setInterval(() => setNow(Date.now()), 500);
@@ -75,8 +83,6 @@ export default function ParentalConsentScreen() {
     setChallenge(makeChallenge());
     const attempts = wrongAttempts + 1;
     if (attempts >= MAX_ATTEMPTS_BEFORE_LOCKOUT) {
-      // Escalating cooldown: 30s, 60s, 120s, … so brute-force guessing can't
-      // converge — a child who can't do the arithmetic is stopped, not merely slowed.
       const tier = lockoutTier + 1;
       setLockoutTier(tier);
       setLockedUntil(Date.now() + BASE_LOCKOUT_MS * 2 ** (tier - 1));
@@ -91,7 +97,7 @@ export default function ParentalConsentScreen() {
     setSubmitting(true);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await setParentConsent();
+      await setVerifiedParentConsent();
       markConsented();
       if (router.canGoBack()) {
         router.back();
@@ -168,26 +174,13 @@ export default function ParentalConsentScreen() {
         ) : (
           <View style={styles.card}>
             <Text style={styles.cardLabel}>What you’re agreeing to</Text>
-            <ConsentPoint
-              icon="phone-portrait-outline"
-              text="Child profile name and age stay on this device. The server accepts older client fields for compatibility but discards those values before story or suggestion prompts are built for AI providers."
-            />
-            <ConsentPoint
-              icon="cloud-outline"
-              text="A parent account and cloud backup are optional. When enabled, Supabase stores the parent account plus stories and progress; the cloud profile stub excludes the child’s name and age."
-            />
-            <ConsentPoint
-              icon="mic-outline"
-              text="Voice Chat is optional and disabled by default. When an approved production configuration enables it, recorded audio is sent for transcription. We do not intentionally retain the raw recording, but sanitized text transcripts and replies are stored in the parent’s private chat history and automatically deleted no later than 30 days after creation or sooner when you delete them."
-            />
-            <ConsentPoint
-              icon="shield-checkmark-outline"
-              text="Child-facing AI text is generated under a child-safety policy and checked before it is displayed or narrated. There are no ads, public child profiles, stranger chat, or behavioral advertising."
-            />
-            <ConsentPoint
-              icon="trash-outline"
-              text="Delete All Data removes the parent account, cloud backup records, Voice Chat history, and local device data. Individual Voice Chat conversations can also be deleted sooner."
-            />
+            {CONSENT_DISCLOSURES.map((item) => (
+              <ConsentPoint
+                key={item.id}
+                icon={CONSENT_ICONS[item.id] ?? "information-circle-outline"}
+                text={item.text}
+              />
+            ))}
 
             <Pressable
               onPress={() => router.push("/privacy")}
