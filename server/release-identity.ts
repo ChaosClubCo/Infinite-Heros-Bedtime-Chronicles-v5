@@ -15,3 +15,16 @@ export function getReleaseSha(): string | null {
 
   return value && RELEASE_SHA_PATTERN.test(value) ? value.toLowerCase() : null;
 }
+
+/**
+ * Require an exact candidate before a destructive, receipt-producing action.
+ * This prevents data deletion from completing when the service cannot issue an
+ * independently matchable exact-candidate receipt.
+ */
+export function requireReleaseSha(): string {
+  const releaseSha = getReleaseSha();
+  if (!releaseSha) {
+    throw new Error('Exact release candidate metadata is unavailable');
+  }
+  return releaseSha;
+}
