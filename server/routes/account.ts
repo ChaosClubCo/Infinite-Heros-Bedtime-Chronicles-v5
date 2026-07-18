@@ -6,6 +6,7 @@ import {
 } from '@shared/account-deletion';
 import { deleteAuthenticatedUser } from '../auth';
 import { logger } from '../logger';
+import { getReleaseSha } from '../release-identity';
 
 /**
  * Parent-initiated deletion endpoint.
@@ -48,6 +49,7 @@ export function registerAccountRoutes(app: Express): void {
         version: ACCOUNT_DELETION_RECEIPT_VERSION,
         receiptId: randomUUID(),
         completedAt: new Date().toISOString(),
+        releaseSha: getReleaseSha(),
         status: 'completed',
         deletedScopes: [
           'voice_chat_history',
@@ -58,7 +60,11 @@ export function registerAccountRoutes(app: Express): void {
       };
 
       logger.info(
-        { event: 'account_deleted', receiptId: receipt.receiptId },
+        {
+          event: 'account_deleted',
+          receiptId: receipt.receiptId,
+          releaseSha: receipt.releaseSha,
+        },
         'parent account and retained server data deleted',
       );
       return res.status(200).json(receipt);
