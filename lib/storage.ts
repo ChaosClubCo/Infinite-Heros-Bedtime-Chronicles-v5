@@ -14,12 +14,6 @@ import {
 import { HEROES } from '@/constants/heroes';
 import { evaluateBadges } from './badges';
 import { getCustomHeroes } from './customHeroStorage';
-import {
-  getConsentGiven as getVerifiableConsentGiven,
-  getParentConsentRecord,
-  recordParentConsent,
-  type VerifiableParentConsent,
-} from './consent-record';
 
 const FAVORITES_KEY = '@infinity_heroes_favorites';
 const READ_STORIES_KEY = '@infinity_heroes_read';
@@ -53,15 +47,18 @@ export async function setOnboardingComplete(): Promise<void> {
  * locale, verification method, and persistence logic live in
  * `lib/consent-record.ts`.
  */
-export async function getParentConsent(): Promise<VerifiableParentConsent | null> {
+export async function getParentConsent(): Promise<import('./consent-record').VerifiableParentConsent | null> {
+  const { getParentConsentRecord } = await import('./consent-record');
   return getParentConsentRecord();
 }
 
 export async function getConsentGiven(): Promise<boolean> {
+  const { getConsentGiven: getVerifiableConsentGiven } = await import('./consent-record');
   return getVerifiableConsentGiven();
 }
 
 export async function setParentConsent(): Promise<void> {
+  const { recordParentConsent } = await import('./consent-record');
   await recordParentConsent();
 }
 
