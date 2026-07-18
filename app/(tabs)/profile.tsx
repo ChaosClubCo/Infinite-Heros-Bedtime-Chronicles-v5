@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, Platform, Pressable } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
@@ -45,10 +44,6 @@ export default function ProfileScreen() {
           <Pressable style={styles.actionBtn} onPress={() => setParentControlsVisible(true)} testID="parent-controls" accessibilityLabel="Open parent controls" accessibilityRole="button">
             <Ionicons name="shield-outline" size={20} color={Colors.accent} />
             <Text style={styles.actionText}>Parent Controls</Text>
-          </Pressable>
-          <Pressable style={styles.actionBtn} onPress={() => router.push("/voice-chat")} testID="voice-chat" accessibilityLabel="Voice chat is unavailable" accessibilityRole="button">
-            <Ionicons name="mic-off-outline" size={20} color={Colors.accent} />
-            <Text style={styles.actionText}>Voice Chat (Unavailable)</Text>
           </Pressable>
         </View>
       </View>
