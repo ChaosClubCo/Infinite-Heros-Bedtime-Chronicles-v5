@@ -1,6 +1,6 @@
 # Release Evidence Record
 
-**Updated:** 2026-07-18  
+**Updated:** 2026-07-19  
 **Release posture:** **NO GO**  
 **Canonical ledger:** [Issue #370](https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5/issues/370)  
 **Pre-remediation main:** `9dd95ecb9f4148754fed7be2d8b94685ec55fa6a`  
@@ -13,7 +13,7 @@ The prior release evidence in issue #355 and earlier revisions of this file is h
 
 | Control | Status | Candidate | Evidence / blocker |
 |---|---|---|---|
-| Canonical repository | PASS IN REPOSITORY / EXTERNAL LINKS PENDING | discovery baseline | Private `ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5` is canonical and `package.json` now points to it. Vercel/Replit links and the public mirror still require external correction. |
+| Canonical repository | PASS IN REPOSITORY / VERCEL LINK FIXED / MIRROR + REPLIT PENDING | discovery baseline | Private `ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5` is canonical and `package.json` now points to it. 2026-07-19: Vercel project relinked to the canonical repo and verified (see `VERCEL_RELINK_2026-07-19.md`). Replit link and the public mirror still require external correction. |
 | Controlled remediation | PENDING REVIEW | remediation PR head | Voice containment, consent attestation, privacy truth, deletion receipt attestation, release identity, health/privacy cache control, canonical package metadata, and evidence-workflow hardening are on the remediation branch. |
 | Required repository gates | PENDING | remediation PR head | A pull-request CI run must pass locked install, preflight, lint, Vitest, jest-expo component tests, typecheck, critical audit, server build, Expo compatibility, and web export. |
 | Security scan | PENDING | remediation PR head | Exact remediation-head security workflow required. |
@@ -25,8 +25,8 @@ The prior release evidence in issue #355 and earlier revisions of this file is h
 | Live User A/User B isolation | STALE | `6dc92a5...` | Historical disposable-branch proof in #355 must be rerun against the final frozen candidate. |
 | Database migration readiness | PENDING | TBD frozen candidate | Migration validation and disposable isolation proof required; no production mutation is authorized by this record. |
 | Exact-SHA release workflow | PASS IN CODE / RUN PENDING | remediation PR head | Workflow requires exact SHA, immediately posts run ID/URL, verifies checkout, separates approval-gated reporting, uploads artifacts on failure, emits machine-readable manifests, and records SHA-256 checksums. An authoritative run is still required after merge/freeze. |
-| Canonical deployment | BLOCKED | TBD frozen candidate | Vercel must be connected to the private canonical repository and expose the exact SHA through `/api/health`. |
-| HTTPS health/privacy smoke | BLOCKED | TBD frozen candidate | Requires a canonical exact-SHA deployment. |
+| Canonical deployment | MECHANISM VERIFIED / FROZEN-CANDIDATE RUN PENDING | `main` @ `6d39ab93...` (not frozen) | 2026-07-19: Vercel relinked to the canonical repo; production deployment `dpl_6i2w8vTTKV5fcDSAspA6NZWqo6BU` built from canonical `main` and `https://www.bedtime-chronicles.com/api/health` returned `releaseSha == 6d39ab930f67cdab4b5d3dc991b76ca162da9b9a` via native `VERCEL_GIT_COMMIT_SHA` (see `VERCEL_RELINK_2026-07-19.md`). Release credit still requires rerunning against the final frozen candidate. |
+| HTTPS health/privacy smoke | HEALTH PASS / PRIVACY FAIL | `main` @ `6d39ab93...` (not frozen) | 2026-07-19: health smoke passed on the custom domain (200, `status: ok`, exact SHA). `/privacy` returned 404 — pre-existing serverless template-path defect on `main` (`server/templates` not found at `process.cwd()` in the Vercel function), previously masked by the domain-level 404. Requires its own fix, then rerun on the frozen candidate. |
 | EAS internal Android build | PENDING | TBD frozen candidate | Exact-candidate build ID, artifact URL, checksum, profile, and timestamp required. |
 | Physical-device matrix | PENDING | TBD frozen candidate | Android minimum/current and current iOS evidence required. |
 | Alert delivery | PENDING | TBD frozen candidate | Sentry event emission is not notification proof; event ID plus received destination evidence is required. |

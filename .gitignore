@@ -69,3 +69,4 @@ firebase-debug.*.log
 
 # Editor (local, per-developer settings — not shared)
 .vscode/
+.env*
