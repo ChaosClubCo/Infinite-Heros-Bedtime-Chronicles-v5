@@ -58,18 +58,34 @@ The Vercel GitHub App already had access to the canonical repository (confirmed 
 
 ## Verification
 
-### Preview (native Git metadata) — see comparison table
+**Classification: FIXED AND PRODUCTION-VERIFIED** (preview-verified via native deployment metadata; production-verified via deployment metadata **and** runtime `/api/health` on the custom domain).
 
-Pending at time of writing this section; recorded below once the branch push produced a preview deployment. Preview URLs are SSO-protected (`all_except_custom_domains`), so runtime `/api/health` verification is performed on the production custom domain; preview verification uses Vercel deployment metadata, which records the source repo/SHA/ref natively.
+### Preview (native Git metadata)
+
+Pushing branch `claude/asyncstorage-vercel-fixes-8ze1jp` (commit `07f0332e6736d31a94c5b709d68df1a6651545f5`) caused the **native Git integration** to create preview deployment `dpl_J1oc9P1T18wEUC5VjK7FP1NY7zUN` (`infinite-heros-bedtime-chronicles-v5-main-ahe6pog9d.vercel.app`) → **READY**, with meta `githubOrg=ChaosClubCo`, `githubCommitRepo=Infinite-Heros-Bedtime-Chronicles-v5`, `githubCommitSha=07f0332e6736d31a94c5b709d68df1a6651545f5`, `githubCommitRef=claude/asyncstorage-vercel-fixes-8ze1jp` — all exact matches. This deployment also proves the new `vercel-build` provenance guard passes on a canonical build. Preview URLs are SSO-protected (`all_except_custom_domains`), so runtime verification was performed on the production custom domain; preview verification uses Vercel deployment metadata, which records source repo/SHA/ref natively.
+
+### Production
+
+Production deployment `dpl_6i2w8vTTKV5fcDSAspA6NZWqo6BU` (created via `POST /v13/deployments` with `gitSource: {type: github, repoId: 1158264873, ref: main}`) → **READY**, target `production`, aliased to `www.bedtime-chronicles.com` + `bedtime-chronicles.com` + the project `.vercel.app` domains. Meta: `githubOrg=ChaosClubCo`, `githubCommitRepo=Infinite-Heros-Bedtime-Chronicles-v5`, `githubCommitSha=6d39ab930f67cdab4b5d3dc991b76ca162da9b9a` (canonical `main` HEAD at deploy time), `githubCommitRef=main`.
+
+Runtime smoke (2026-07-19 UTC):
+
+- `GET https://www.bedtime-chronicles.com/api/health` → HTTP 200, `status: "ok"`, **`releaseSha: "6d39ab930f67cdab4b5d3dc991b76ca162da9b9a"`** — exact match with canonical `main`. `APP_RELEASE_SHA` is not set on the project, so this value comes from **native `VERCEL_GIT_COMMIT_SHA`**: the original root cause is demonstrably fixed at runtime, not just in metadata.
+- `GET https://bedtime-chronicles.com/` → 308 → `https://www.bedtime-chronicles.com/` (apex redirect working).
+- `GET https://www.bedtime-chronicles.com/` → HTTP 200 (public 404 resolved).
+- `aiProvidersAvailable: true` — genuine: the project's `OPENAI_API_KEY` env var is read directly by the OpenAI provider (`server/ai/providers/openai.ts`). `ttsAvailable: false` — no `ELEVENLABS_API_KEY` configured (known limitation below).
+- `releaseRepo`/`releaseRef` are absent from the production health response because `main` predates this PR; they will appear once this PR merges and `main` redeploys.
+- **New finding (pre-existing, out of scope):** `GET https://www.bedtime-chronicles.com/privacy` → HTTP 404 `{"error":"Privacy policy not found"}`. The request reaches Express (our handler), but `server/templates/privacy-policy.html` is not found at `process.cwd()/server/templates/...` inside the Vercel function runtime despite `includeFiles` listing `server/templates/**`. This defect exists on `main` and was previously masked by the domain-level 404; it needs its own fix (resolve the template path relative to the bundle, not `process.cwd()`).
 
 ### Exact-SHA comparison
 
 | Signal | Value | Match |
 |---|---|---|
-| Canonical GitHub commit (branch push) | _recorded post-deployment_ | — |
-| Vercel preview deployment meta (`githubOrg/githubCommitRepo@sha`, ref) | _recorded post-deployment_ | — |
-| Production deployment meta | _recorded post-deployment_ | — |
-| `https://www.bedtime-chronicles.com/api/health` → `releaseSha` | _recorded post-deployment_ | — |
+| Canonical GitHub `main` HEAD at deploy time | `6d39ab930f67cdab4b5d3dc991b76ca162da9b9a` | baseline |
+| Production deployment meta (`ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5`, ref `main`) | `6d39ab930f67cdab4b5d3dc991b76ca162da9b9a` | ✅ exact |
+| `https://www.bedtime-chronicles.com/api/health` → `releaseSha` (native `VERCEL_GIT_COMMIT_SHA`) | `6d39ab930f67cdab4b5d3dc991b76ca162da9b9a` | ✅ exact |
+| Canonical branch commit (this PR) | `07f0332e6736d31a94c5b709d68df1a6651545f5` | baseline |
+| Preview deployment meta (`ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5`, ref `claude/asyncstorage-vercel-fixes-8ze1jp`) | `07f0332e6736d31a94c5b709d68df1a6651545f5` | ✅ exact |
 
 ## Regression protection added (this PR)
 
@@ -85,6 +101,7 @@ Pending at time of writing this section; recorded below once the branch push pro
 - **Node version**: project pins `24.x`; repo engines state `>=20.19 <21 || >=22.13 <23`. Not changed (preserve settings); revisit if builds misbehave.
 - **`VERCEL_DEPLOY_HOOK_URL` GitHub secret** is not backed by any deploy hook (none existed pre-change). `vercel-deploy.yml` skips gracefully when unset; native Git integration now handles production deploys on push to `main`. Optionally create a fresh hook in the dashboard and update the secret if hook-based redundancy is wanted.
 - **Public mirror still unarchived** — separate ledger row; requires GitHub admin action on `Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5-main`.
+- **`/privacy` 404 in production** — pre-existing serverless template-path defect on `main`, newly observable now that the domain serves the app (see Verification). Needs a separate fix.
 - This record does **not** flip the overall release posture (`NO GO` stands; other ledger rows remain open).
 
 ## Rollback procedure
