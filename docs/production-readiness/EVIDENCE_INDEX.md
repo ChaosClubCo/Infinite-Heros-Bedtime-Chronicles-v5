@@ -31,7 +31,7 @@ Record the evidence supporting the production-readiness decision, identify contr
 | Privacy copy | `app/privacy.tsx` | Claims no accounts/no retained server data | High |
 | Delete flow | `app/settings.tsx`, `lib/storage.ts`, `lib/sync/runSync.ts` | Purges sync records, clears local, signs out; no chat/auth delete | High |
 | Cloud sync | `lib/sync/*`, `SyncManager`, migration | Parent opt-in state sync, tombstones, no profile name/age, RLS design | High for code |
-| Sync migration | `supabase/migrations/0001_sync_tables.sql` | Owner-only policies, pull index, auth cascade | High for definition |
+| Sync migration | `supabase/migrations/20260713000817_0001_sync_tables.sql` | Owner-only policies, pull index, auth cascade | High for definition |
 | API/auth gate | `server/routes.ts` | All writes + conversation reads protected; webhook HMAC exception | High |
 | Health | `server/routes/health.ts` | Live cached probes/breakers exist; route still always 200/`ok` | High |
 | Alerts | `server/alerting.ts` | Sentry threshold messages based on process-lifetime counters | High |

@@ -49,7 +49,7 @@ flowchart LR
 | Story safety gate | Moderate → regenerate once → safe fallback | `server/safety/`, `server/routes/story.ts` | Implemented |
 | Text conversation | Sanitized/capped child-safe chat | `server/replit_integrations/chat/routes.ts` | Implemented |
 | Audio Voice Chat | STT + `gpt-audio` + transcript persistence | `server/replit_integrations/audio/routes.ts` | Implemented but blocked |
-| Cloud backup | Parent opt-in, RLS-scoped records, tombstones | `lib/sync/`, `SyncManager.tsx`, `supabase/migrations/0001_sync_tables.sql` | Implemented; device validation required |
+| Cloud backup | Parent opt-in, RLS-scoped records, tombstones | `lib/sync/`, `SyncManager.tsx`, `supabase/migrations/20260713000817_0001_sync_tables.sql` | Implemented; device validation required |
 | Offline event queue | Deferred interaction event delivery | `lib/sync-queue.ts`, `useSyncOffline.ts` | Implemented; overlap requires tests |
 | Observability | Pino, metrics, health probes, Sentry alerts | `server/logger.ts`, `metrics.ts`, `health-checks.ts`, `alerting.ts` | Implemented; operations unverified |
 

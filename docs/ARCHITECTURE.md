@@ -170,7 +170,7 @@ Optional, parent-opt-in cloud backup/continuity of kid data (stories + gamificat
 
 - **Model**: every synced item is a `SyncRecord` envelope (`shared/sync-types.ts`) — `{ id, updatedAt, deleted, payload }`. Conflicts resolve **last-write-wins** by `updatedAt`; deletions are soft tombstones so they propagate instead of being resurrected.
 - **Reconcile** (`lib/sync/reconcile.ts`, pure/tested): diffs local vs cloud record maps into `{ applyLocal, pushRemote }`.
-- **Storage** (`supabase/migrations/0001_sync_tables.sql`): a single `sync_records` table keyed by `(user_id, entity, id)`, with **RLS** (`auth.uid() = user_id`) and `on delete cascade` from `auth.users` so deleting the account purges all synced data.
+- **Storage** (`supabase/migrations/20260713000817_0001_sync_tables.sql`): a single `sync_records` table keyed by `(user_id, entity, id)`, with **RLS** (`auth.uid() = user_id`) and `on delete cascade` from `auth.users` so deleting the account purges all synced data.
 - **PII boundary**: badges/streaks key on `profileId`; to line them up across devices without leaking names/ages, only a minimal profile stub (`id` + `createdAt`) syncs. Story base64 blobs (avatar/scenes) are stripped before sync (regenerable, would bloat Postgres).
 
 - **Flow** (`lib/sync/engine.ts` + `supabase-sync.ts`): for each entity, pull the cloud copy, reconcile vs local, push local winners, apply remote winners. Gated by `runSync()` (`lib/sync/runSync.ts`) on the parent opt-in flag (`cloudSyncEnabled`, default off) + a signed-in session. Triggered on app open/foreground (`components/SyncManager.tsx`) and after a story completes (`app/completion.tsx`). Opt-in toggle lives in Settings (Cloud Backup section). `purgeCloudData()` is wired into "delete all data".

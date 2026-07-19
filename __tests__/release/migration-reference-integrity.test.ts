@@ -79,8 +79,8 @@ describe('Supabase migration references', () => {
 
   it('does not retain the pre-reconciliation migration paths', () => {
     const obsoletePaths = [
-      'supabase/migrations/0001_sync_tables.sql',
-      'supabase/migrations/0002_voice_chat_retention.sql',
+      ['supabase/migrations/', '0001_sync_tables.sql'].join(''),
+      ['supabase/migrations/', '0002_voice_chat_retention.sql'].join(''),
     ];
 
     const hits: string[] = [];

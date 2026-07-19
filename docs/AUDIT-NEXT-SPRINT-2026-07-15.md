@@ -136,7 +136,7 @@ Diffing the actual file trees (`git ls-tree` on both repos' current
   enforced, not just prompt-side."
 - `lib/sync/*` (six files + tests), `components/SyncManager.tsx`,
   `lib/SyncOfflineContext.tsx`, `shared/sync-types.ts`,
-  `supabase/migrations/0001_sync_tables.sql` — the whole M3 cloud-sync engine.
+  `supabase/migrations/20260713000817_0001_sync_tables.sql` — the whole M3 cloud-sync engine.
 - `lib/tts-cache.ts`, `lib/narration.ts` — the on-device narration cache.
 
 The real gap: `v2` still has only the long-standing **prompt-side**
