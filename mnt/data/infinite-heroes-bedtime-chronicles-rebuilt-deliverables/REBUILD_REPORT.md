@@ -32,4 +32,4 @@ This report documents the auto-detection, reconstruction, packaging, and validat
 - **Compatibility checks:** Node.js engines verified at `node >=20.19.0 <21 || >=22.13.0 <23` to ensure server-side compatibility on Node 20/22.
 
 ---
-*Report generated on: 2026-07-19T14:54:21.627Z*
+*Report generated on: 2026-07-19T20:01:26.372Z*

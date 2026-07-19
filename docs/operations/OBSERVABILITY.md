@@ -187,4 +187,4 @@ Key log fields:
 
 - [Monitoring & Alerting Runbook](../runbooks/monitoring-alerting.md) — incident response for alerts
 - [Provider Outage Runbook](../runbooks/provider-outage.md) — AI provider failure procedures
-- [Deploy Runbook](../runbooks/deploy.md) — deployment procedures
+- [Deploy Manual](./DEPLOYMENT.md) — deployment procedures

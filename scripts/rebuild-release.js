@@ -151,10 +151,20 @@ This report documents the auto-detection, reconstruction, packaging, and validat
 `;
 fs.writeFileSync(path.join(outDir, 'REBUILD_REPORT.md'), rebuildReportContent);
 
-// Copy LICENSE file to the output folder
-if (fs.existsSync(path.join(root, 'LICENSE'))) {
-  fs.copyFileSync(path.join(root, 'LICENSE'), path.join(outDir, 'LICENSE'));
-}
+// Copy LICENSE and documentation files to the output folder
+const filesToCopy = [
+  { src: path.join(root, 'LICENSE'), dest: 'LICENSE' },
+  { src: path.join(root, 'README.md'), dest: 'README.md' },
+  { src: path.join(root, 'docs', 'ARCHITECTURE.md'), dest: 'ARCHITECTURE.md' },
+  { src: path.join(root, 'docs', 'SECURITY.md'), dest: 'SECURITY.md' },
+  { src: path.join(root, 'docs', 'CHANGELOG.md'), dest: 'CHANGELOG.md' }
+];
+
+filesToCopy.forEach(file => {
+  if (fs.existsSync(file.src)) {
+    fs.copyFileSync(file.src, path.join(outDir, file.dest));
+  }
+});
 
 // We will compute hashes of existing deliverables first
 const existingFiles = [

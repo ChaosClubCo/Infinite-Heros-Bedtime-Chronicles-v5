@@ -46,7 +46,7 @@ Read this file at session start to rapidly build project context. Keep it dense 
 ### Mobile Deployment
 - **eas.json** configured — 3 profiles: development (APK+DevClient), preview (APK), production (AAB)
 - **scripts/build-android.sh** — EAS build helper
-- **docs/operations/PLAY_STORE_DEPLOYMENT.md** — full EAS runbook
+- **docs/operations/DEPLOYMENT.md** — unified server and client deployment manual
 - **docs/operations/EAS-SECRETS-CHECKLIST.md** — all required EAS secrets
 - Android package: `com.infinityheroes.bedtime`
 - iOS bundle: `com.infinityheroes.bedtime` (no App Store submission yet)
@@ -85,7 +85,7 @@ server/replit_integrations/audio/  Voice chat routes (wired, conditionally regis
 shared/           Drizzle schema + Zod types (used by client AND server)
 scripts/          Build helpers: build-android.sh, build.js
 docs/             Architecture, API, security, roadmap, CHANGELOG, ADRs, runbooks, agents
-docs/operations/  PLAY_STORE_DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md
+docs/operations/  DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md
 __tests__/        Integration + unit tests (1010 total)
 ```
 

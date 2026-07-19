@@ -112,5 +112,5 @@ git secrets --scan                  # If git-secrets is installed
 ## References
 
 - [EAS Secrets Checklist](./EAS-SECRETS-CHECKLIST.md) — full list of EAS secrets needed for mobile builds
-- [Security Best Practices](../best-practices/SECURITY.md) — overall security posture
+- [Security Policy](../SECURITY.md) — overall security posture
 - [Incident Response Runbook](../runbooks/incident-response.md) — escalation for security incidents

@@ -17,7 +17,7 @@ This agent is authoritative for:
 - `app.json` — Expo app configuration
 - `drizzle.config.ts` — Database migration config
 - `server_dist/` — Production server bundle output
-- `docs/operations/PLAY_STORE_DEPLOYMENT.md` — Play Store runbook
+- `docs/operations/DEPLOYMENT.md` — Deployment manual
 - `docs/runbooks/` — Operational procedures
 
 ---
@@ -236,7 +236,7 @@ Before deploying to production:
 
 ## Play Store Deployment
 
-Full runbook: `docs/operations/PLAY_STORE_DEPLOYMENT.md`
+Full manual: `docs/operations/DEPLOYMENT.md`
 
 Key steps:
 1. Bump version in `app.json`

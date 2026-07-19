@@ -184,7 +184,7 @@ Update documentation alongside code changes:
 | New significant decision | `docs/adr/` — create a new ADR from `docs/adr/template.md` |
 | New component or hook | Inline JSDoc comment on the export |
 | New AI provider | `docs/ARCHITECTURE.md` AI routing section + `README.md` tech stack table |
-| Security change | `docs/SECURITY.md` + `docs/best-practices/SECURITY.md` |
+| Security change | `docs/SECURITY.md` |
 | New observability integration | `docs/operations/OBSERVABILITY.md` |
 | Secrets added/rotated | `docs/operations/SECRETS-ROTATION.md` inventory + `docs/operations/EAS-SECRETS-CHECKLIST.md` |
 
@@ -234,8 +234,8 @@ Follow [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
 1. **Changelog** — move all `[Unreleased]` sections in `docs/CHANGELOG.md` under a single new version header `[x.y.z] — YYYY-MM-DD`
 2. **Version bump** — update `version` in `package.json`
 3. **Tag** — `git tag v<x.y.z> && git push origin v<x.y.z>`
-4. **Server deploy** — follow `docs/runbooks/deploy.md` (Replit push-to-deploy or Vercel)
-5. **Mobile build** — `eas build --platform android --profile production` (see `docs/operations/PLAY_STORE_DEPLOYMENT.md`)
+4. **Server deploy** — follow `docs/operations/DEPLOYMENT.md` (Replit push-to-deploy or Vercel)
+5. **Mobile build** — `eas build --platform android --profile production` (see `docs/operations/DEPLOYMENT.md`)
 6. **Play Store** — upload the `.aab` to the Google Play Console internal track, promote through alpha → beta → production
 
 ### Pre-release Checklist
