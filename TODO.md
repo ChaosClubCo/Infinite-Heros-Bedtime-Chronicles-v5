@@ -33,6 +33,7 @@ Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 
 
 | Item | Category | Completed | Notes |
 |------|----------|-----------|-------|
+| Reconstruct, validate, and compile release deliverables bundle (v1) | Release Engineering | 2026-07-19 | Verified strict typecheck, ESLint, and all 1347 tests; built Express server bundle; exported static web build; generated manifest, reports, and complete release bundle ZIP with checksum validation. |
 | Cloudflare R2 TTS-audio cache (M1 TTS-cache half) | Infrastructure | 2026-07-15 | server/r2.ts (S3-compatible @aws-sdk/client-s3), wired into server/routes/tts.ts behind writeWithLock; /tmp fallback; gated on R2_ENABLED |
 | Remove dead text chat routes (routes.ts, routes.test.ts) | Code Quality | 2026-07-14 | Removed dead routes file and its test file, and disabled it in chat/index.ts |
 | Secure Gemini API Key URL leakage in pingGemini() | Security | 2026-07-14 | Pass API key in x-goog-api-key header instead of query string |

@@ -8,6 +8,7 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 
 | Item | Category | Date |
 |------|----------|------|
+| Reconstruct, validate, and compile release deliverables bundle (v1) | Release Engineering | 2026-07-19 |
 | Unify dual settings systems | Bug Fix | 2026-03-13 |
 | Add security headers | Security | 2026-03-13 |
 | Wire up voice chat routes | Feature | 2026-03-13 |
