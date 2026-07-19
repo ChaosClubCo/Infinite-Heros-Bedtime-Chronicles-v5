@@ -143,7 +143,7 @@ describe("GET /api/health", () => {
     const geminiEntry = mockProviders.find((p) => p.name === "gemini")!;
     const openaiEntry = mockProviders.find((p) => p.name === "openai")!;
     const getLiveStatus = (await import("../health-checks")).getLiveStatus as ReturnType<typeof vi.fn>;
-    
+
     anthropicEntry.available = false;
     geminiEntry.available = false;
     openaiEntry.available = true;
@@ -156,6 +156,20 @@ describe("GET /api/health", () => {
       geminiEntry.available = true;
       openaiEntry.available = false;
     }
+  });
+});
+
+describe("GET /privacy", () => {
+  it("serves a self-contained, current parent-facing notice without runtime file access", async () => {
+    const res = await request(app).get("/privacy");
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/html");
+    expect(res.headers["cache-control"]).toBe("no-store");
+    expect(res.text).toContain("Privacy Policy");
+    expect(res.text).toContain("Last updated: July 19, 2026");
+    expect(res.text).toContain("Voice Chat is unavailable in this release");
+    expect(res.text).toContain("privacy@bedtime-chronicles.com");
+    expect(res.text).not.toContain("/static/privacy.css");
   });
 });
 
