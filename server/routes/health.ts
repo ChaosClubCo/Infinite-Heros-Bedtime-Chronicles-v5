@@ -1,5 +1,4 @@
 import type { Express } from "express";
-import path from "node:path";
 import { getProviderStatuses, getBreakerStatuses } from "../ai";
 import { getFeatureFlags } from "../feature-flags";
 import { getMetrics } from "../metrics";
@@ -10,6 +9,7 @@ import { pingGemini } from "../ai/providers/gemini";
 import { pingAnthropic } from "../ai/providers/anthropic";
 import { pingOpenAI } from "../ai/providers/openai";
 import { pingOpenRouter } from "../ai/providers/openrouter";
+import { PRIVACY_POLICY_HTML } from "../privacy-policy";
 import { getReleaseSha, getReleaseRepo, getReleaseRef } from "../release-identity";
 
 // Anthropic first, matching DEFAULT_CHAINS's "story" fallback order in
@@ -65,14 +65,12 @@ export function registerHealthRoutes(app: Express): void {
     });
   });
 
+  // The privacy notice is bundled as source code rather than read from a runtime
+  // filesystem path. Vercel serverless functions do not guarantee that arbitrary
+  // template files remain beside the compiled function.
   app.get("/privacy", (_req, res) => {
-    const privacyPath = path.resolve(process.cwd(), "server", "templates", "privacy-policy.html");
     res.setHeader("Cache-Control", "no-store");
-    res.sendFile(privacyPath, (err) => {
-      if (err && !res.headersSent) {
-        res.status(404).json({ error: "Privacy policy not found" });
-      }
-    });
+    res.type("html").status(200).send(PRIVACY_POLICY_HTML);
   });
 
   app.get("/api/ai-providers", (_req, res) => {

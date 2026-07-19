@@ -63,7 +63,7 @@ jobs:
         id: eslint
         run: |
           set -o pipefail
-          npm run lint 2>&1 | tee eslint.log
+          npm run lint -- --max-warnings=0 2>&1 | tee eslint.log
 
       - name: Upload ESLint diagnostics
         if: failure() && steps.eslint.outcome == 'failure'
@@ -109,10 +109,9 @@ jobs:
           retention-days: 7
 
       - name: Security audit
-        # Fail on critical vulnerabilities only; high-severity issues in transitive
-        # deps (drizzle-orm, firebase-admin chain) require breaking-change upgrades
-        # and are tracked separately in Dependabot.
-        run: npm audit --audit-level=critical
+        # High and critical advisories block the candidate. Moderate-only
+        # transitive findings remain visible without weakening this release gate.
+        run: npm audit --audit-level=high
 
       - name: Type check
         id: typecheck
