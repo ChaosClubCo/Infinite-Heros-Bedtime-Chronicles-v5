@@ -117,6 +117,11 @@ describe('release gate parity', () => {
   it('does not swallow CodeQL analysis failures', () => {
     expect(securityWorkflow).toContain('github/codeql-action/analyze@v4');
     expect(securityWorkflow).not.toContain('continue-on-error');
+    expect(securityWorkflow).toContain('upload: never');
+    expect(securityWorkflow).toContain('output: codeql-results');
+    expect(securityWorkflow).toContain('name: codeql-sarif');
+    expect(securityWorkflow).toContain('if-no-files-found: error');
+    expect(securityWorkflow).not.toContain('security-events: write');
   });
 
   it('runs the security audit on Windows and Unix agents', () => {
