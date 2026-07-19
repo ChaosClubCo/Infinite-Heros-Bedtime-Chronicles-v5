@@ -1,0 +1,80 @@
+{
+  "project": "Infinite Heroes: Bedtime Chronicles",
+  "slug": "infinite-heroes-bedtime-chronicles",
+  "version": "1.0.0",
+  "build_label": "complete-rebuild-v1",
+  "timestamp": "2026-07-19T12:50:06.312Z",
+  "quality_gates": {
+    "typecheck": "pass",
+    "lint": "pass",
+    "tests": {
+      "status": "pass",
+      "total": 1347,
+      "passed": 1347,
+      "failed": 0
+    },
+    "security": "pass"
+  },
+  "inventory": [
+    {
+      "name": "README.md",
+      "size": 13884,
+      "hash": "9f11088f96be124ebf2a5c204058eaad2cfaf9ae2b84ab68d52b52e504f16693",
+      "status": "reused and verified"
+    },
+    {
+      "name": "ARCHITECTURE.md",
+      "size": 16080,
+      "hash": "93f0f9154addbb1815dd7475b6de2293219ce70455b4053dcd1f7c3b345d9b52",
+      "status": "reused and verified"
+    },
+    {
+      "name": "SECURITY.md",
+      "size": 8258,
+      "hash": "90bcc2ff1c9b02858bcec171bb810553dddadc6c58e98f73bf7dcc33a5a24bb0",
+      "status": "reused and verified"
+    },
+    {
+      "name": "CHANGELOG.md",
+      "size": 20054,
+      "hash": "ed224035f1b21140d6393c972051cd64864536eb9d0f475a904e7145b01b5582",
+      "status": "reused and verified"
+    },
+    {
+      "name": "Infinite_Heroes_Bedtime_Chronicles_Source.zip",
+      "size": 1034564,
+      "hash": "7dc55dd343e9c1daa29fe2425013d4c0b7f2fe79c5da1ddb2c94d749acf49d0c",
+      "status": "rebuilt"
+    },
+    {
+      "name": "VALIDATION_REPORT.md",
+      "size": 3396,
+      "hash": "c9af1718cd3114466f246ea7096dc2b6c7e5e8d209e7ddaec25d7e9fbb810903",
+      "status": "rebuilt"
+    },
+    {
+      "name": "REBUILD_REPORT.md",
+      "size": 2599,
+      "hash": "28a6a45b1fd8cff877b11135efa8ccd877439734d45d552043a4b048269b27a0",
+      "status": "rebuilt"
+    },
+    {
+      "name": "DELIVERABLES_MANIFEST.md",
+      "size": 2306,
+      "hash": "aab492678ca512f9a3f19ac9f6e34135d4e571617269707ed2c189c9eb765731",
+      "status": "rebuilt"
+    },
+    {
+      "name": "rebuild-validation.json",
+      "size": 2275,
+      "hash": "143b50002bba91713e1f8ed0ef00a99f70bd7bce740fb781c1679f4cd1d9f2a9",
+      "status": "rebuilt"
+    },
+    {
+      "name": "ALL_DELIVERABLES_SHA256.txt",
+      "size": 873,
+      "hash": "6448ab8a2ce00b233834216afb4bc50f113a8f4381bdd5b3ef746411d3fd8757",
+      "status": "rebuilt"
+    }
+  ]
+}
