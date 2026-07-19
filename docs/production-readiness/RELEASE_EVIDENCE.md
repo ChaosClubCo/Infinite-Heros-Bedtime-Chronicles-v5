@@ -35,7 +35,7 @@ Issue #370, issue #355, PR #354, and evidence for earlier candidates remain hist
 | Backup restore | PENDING | TBD frozen candidate | Disposable restore target, timing, row/schema checks, isolation rerun, and cleanup proof required. |
 | Rollback drill | PENDING | TBD frozen candidate | Prior/candidate deployment IDs, timing, post-rollback identity, smoke, compatibility, and recovery time required. |
 | Privacy/legal/provider approval | BLOCKED | TBD frozen candidate | Named human approval and authoritative provider/store records are required. |
-| Public mirror archive | FAIL | N/A | `Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5-main` remains unarchived; repository-level archive setting and metadata recheck are required. |
+| Public mirror archive | FAIL | N/A | Live repository metadata for `Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5-main` remains `archived: false`; a repository-level archive action and metadata recheck are required. |
 | Final release decision | PENDING | TBD frozen candidate | **NO GO retained. No release approval has been issued.** |
 
 ## Physical-device matrix
