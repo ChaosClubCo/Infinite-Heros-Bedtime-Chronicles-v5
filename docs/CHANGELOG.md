@@ -92,6 +92,11 @@ failures rather than masking them.
   (`react-hooks/{set-state-in-effect,purity,refs,immutability}`) are set to
   `warn` in `eslint.config.js`. They flag pre-existing advisory issues across
   several screens and are addressed incrementally rather than in one risky pass.
+  *[Correction 2026-07-19: this change is not present in the current config —
+  `eslint.config.js` sets no react-hooks rules, and the installed
+  `eslint-plugin-react-hooks` 5.x predates these rules (they ship in the v6
+  line). Strict lint (`--max-warnings=0`) passes with zero warnings regardless;
+  see `docs/AUDIT-JEST-MISMATCH-CANONICAL-2026-07-19.md`.]*
 
 ## [Unreleased] — 2026-06-11 — COPPA parental-consent gate + in-app privacy policy
 
