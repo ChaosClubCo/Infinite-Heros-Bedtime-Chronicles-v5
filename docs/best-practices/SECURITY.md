@@ -23,34 +23,43 @@
 
 ## 1. Authentication
 
-### Firebase Auth Flow
+### Supabase Auth Flow
 
-Authentication is implemented in `server/auth.ts`. The `requireAuth` middleware validates a Firebase ID token from the `Authorization` header and attaches decoded user info to `req.user`.
+Authentication is implemented in `server/auth.ts`. The `requireAuth` middleware validates a Supabase access token (JWT Bearer token) from the `Authorization` header and attaches the authenticated user info to `req.user`.
 
 ```typescript
-// server/auth.ts — Token extraction pattern
+// server/auth.ts — Token extraction & validation pattern
 const authHeader = req.headers.authorization;
 if (!authHeader?.startsWith('Bearer ')) {
   return res.status(401).json({ error: 'Authentication required' });
 }
 
 const token = authHeader.slice(7);
-const decoded = await auth.verifyIdToken(token);
+// Reject implausibly long tokens to prevent DoS
+if (token.length > 4096) {
+  return res.status(401).json({ error: 'Authentication required' });
+}
+
+const { data, error } = await supabase.auth.getUser(token);
+if (error || !data?.user) {
+  return res.status(401).json({ error: 'Invalid or expired token' });
+}
+
 req.user = {
-  uid: decoded.uid,
-  isAnonymous: decoded.firebase?.sign_in_provider === 'anonymous',
+  uid: data.user.id,
+  isAnonymous: data.user.is_anonymous ?? false,
 };
 ```
 
 ### Production Guard
 
-In production, if `FIREBASE_SERVICE_ACCOUNT_KEY` is not configured, **all requests are rejected** with a 503. There is no opt-out — the prior `AUTH_DISABLED` escape hatch was removed in the 2026-04 audit because it made silent production misconfiguration too easy.
+In production, if `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_URL` is not configured, **all requests are rejected** with a 503. There is no opt-out — the system ensures authentication is strictly enforced in production to prevent silent misconfiguration.
 
 ```typescript
 // server/auth.ts — Production safety net
-if (!auth) {
+if (!supabase) {
   if (process.env.NODE_ENV === 'production') {
-    console.error('[Auth] CRITICAL: FIREBASE_SERVICE_ACCOUNT_KEY is not set in production. Rejecting request.');
+    logger.error({ path: req.path, method: req.method }, 'supabase auth missing in production; rejecting request');
     return res.status(503).json({ error: 'Service temporarily unavailable' });
   }
   // Development mode only: allow with warning
@@ -84,7 +93,7 @@ app.post("/api/conversations/:id/messages", requireAuth, audioBodyParser, async 
 |----|-------|
 | Always include `requireAuth` on new endpoints that mutate data | Skip auth on any POST endpoint |
 | Use `req.user?.uid` for user identification | Trust client-supplied user IDs |
-| Set `FIREBASE_SERVICE_ACCOUNT_KEY` in production | Deploy production without auth configured |
+| Set `SUPABASE_SERVICE_ROLE_KEY` in production | Deploy production without auth configured |
 
 ---
 

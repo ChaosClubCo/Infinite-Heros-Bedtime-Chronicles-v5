@@ -3,6 +3,7 @@ import { VOICE_MAP, MODE_DEFAULT_VOICES, getVoicesForMode } from "../elevenlabs"
 import { SuggestSettingsRequestSchema, VALID_MODES, VALID_DURATIONS, sanitizePromptInput } from "../validation";
 import { estimateCostUsd, reportCostAnomaly } from "../ai/cost";
 import { parsePositiveIntEnv } from "../utils";
+import { containsUnsafeContent } from "@shared/safety-terms";
 import { aiRouter } from "./context";
 import { rateLimited, sendRouteError } from "./helpers";
 
@@ -67,7 +68,11 @@ export function registerSuggestRoutes(app: Express): void {
       const duration = (VALID_DURATIONS as readonly string[]).includes(raw.duration as string) ? (raw.duration as string) : "medium";
       const speed = ["gentle", "medium", "normal"].includes(raw.speed as string) ? (raw.speed as string) : "medium";
       const voice = voiceKeys.includes(raw.voice as string) ? (raw.voice as string) : (MODE_DEFAULT_VOICES[mode] || "moonbeam");
-      const tip = (typeof raw.tip === "string" ? raw.tip : "A great story awaits!").slice(0, 120);
+      // The tip is raw AI output shown in the story-setup UI. Every story-text
+      // field is moderated; do the same here rather than forwarding it verbatim —
+      // substitute the safe default on any HARD-term hit.
+      const rawTip = typeof raw.tip === "string" ? raw.tip : "A great story awaits!";
+      const tip = (containsUnsafeContent(rawTip) ? "A great story awaits!" : rawTip).slice(0, 120);
 
       res.json({ mode, duration, speed, voice, tip });
     } catch (error: unknown) {

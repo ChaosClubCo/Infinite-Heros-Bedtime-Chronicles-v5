@@ -45,8 +45,18 @@ export function recordToStory(rec: SyncRecord<SyncedStory>): CachedStory {
 
 // ---- badges ----------------------------------------------------------------
 
+/**
+ * Sync id for a badge. `badge.id` is a per-type slug (e.g. `first-adventure`)
+ * that legitimately repeats across profiles — keying on it alone collides two
+ * children's copies (and the cloud PK can only hold one), so the sync id is
+ * composed with the profile id. Local dedup already uses (id, profileId).
+ */
+export function badgeSyncId(badge: Pick<EarnedBadge, 'id' | 'profileId'>): string {
+  return `${badge.profileId}:${badge.id}`;
+}
+
 export function badgeToRecord(badge: EarnedBadge): SyncRecord<EarnedBadge> {
-  return { id: badge.id, updatedAt: badge.earnedAt, deleted: false, payload: badge };
+  return { id: badgeSyncId(badge), updatedAt: badge.earnedAt, deleted: false, payload: badge };
 }
 
 export function recordToBadge(rec: SyncRecord<EarnedBadge>): EarnedBadge {
@@ -56,10 +66,13 @@ export function recordToBadge(rec: SyncRecord<EarnedBadge>): EarnedBadge {
 // ---- streaks (id = profileId) ----------------------------------------------
 
 export function streakToRecord(streak: StreakData): SyncRecord<StreakData> {
+  // Prefer the ms-granularity change stamp; fall back to the day-granularity
+  // date for legacy records written before `lastUpdatedAt` existed.
   const parsed = Date.parse(streak.lastStoryDate);
+  const updatedAt = streak.lastUpdatedAt ?? (Number.isNaN(parsed) ? 0 : parsed);
   return {
     id: streak.profileId,
-    updatedAt: Number.isNaN(parsed) ? 0 : parsed,
+    updatedAt,
     deleted: false,
     payload: streak,
   };

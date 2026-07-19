@@ -56,17 +56,17 @@ export default function PrivacyScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.updated}>Last updated: July 2026</Text>
+        <Text style={styles.updated}>Last updated: July 18, 2026</Text>
 
         <View style={styles.highlight}>
           <Text style={styles.highlightText}>
             <Text style={styles.bold}>Summary for parents:</Text> Child profile name
             and age stay on the device and are discarded by the server before AI
             requests are built. A parent may create an optional account for cloud
-            backup and Voice Chat. Fictional story inputs and Voice Chat audio are
-            sent to service providers to produce the requested feature. We retain
-            only the server data described below, and Delete All Data removes the
-            account, cloud records, Voice Chat history, and local device data.
+            backup. Voice Chat is unavailable in this release: the app does not request
+            microphone permission or send Voice Chat audio. Delete All Data removes the
+            parent account, cloud records, any retained legacy Voice Chat history, and
+            local device data after server deletion succeeds.
           </Text>
         </View>
 
@@ -75,34 +75,36 @@ export default function PrivacyScreen() {
           <Bullet>Child profiles, including name, age range, favorite hero, and avatar choices</Bullet>
           <Bullet>Generated stories, illustrations, narration cache, badges, streaks, and achievements</Bullet>
           <Bullet>App settings and parent controls, including the locally protected parent PIN</Bullet>
+          <Bullet>A parental-consent record containing the consent version, exact disclosure hash, acceptance time, locale, and parent-gate verification method</Bullet>
 
           <Text style={styles.label}>Optional parent account and cloud backup:</Text>
           <Bullet>A parent email address, account identifier, and authentication records are handled by Supabase</Bullet>
           <Bullet>When cloud backup is enabled, stories and progress records are stored under the parent account</Bullet>
           <Bullet>Cloud backup uses a profile stub and does not upload the child profile name or age</Bullet>
 
-          <Text style={styles.label}>Sent to our services and AI providers:</Text>
+          <Text style={styles.label}>Sent to our services and approved providers:</Text>
           <Bullet>Fictional hero details and parent-selected story preferences needed to create a story</Bullet>
           <Bullet>Explicit child profile name and age fields are discarded by the server and are not included in story or suggestion provider prompts</Bullet>
-          <Bullet>Voice Chat audio, when enabled and used, for speech transcription</Bullet>
           <Bullet>Approved text for narration or other requested media generation</Bullet>
+          <Bullet>No Voice Chat audio is collected or sent by the current release</Bullet>
 
           <Text style={styles.label}>Retained on our servers:</Text>
-          <Bullet>Voice Chat conversation titles and sanitized text transcripts tied to the signed-in parent account</Bullet>
           <Bullet>Cloud-backup records when the parent turns that feature on</Bullet>
+          <Bullet>Any legacy Voice Chat conversation titles and sanitized transcripts created by a previously approved build, until their retention period expires or the parent uses Delete All Data</Bullet>
           <Bullet>Security, rate-limit, request, and error information needed to operate and protect the service</Bullet>
           <Text style={styles.paragraph}>
-            We do not intentionally retain the raw Voice Chat recording after it has
-            been submitted for transcription. AI providers may process or retain
-            request data according to the provider terms and agreements applicable to
-            the production service.
+            The current release does not intentionally collect or retain raw Voice Chat
+            recordings. AI providers may process or retain other requested generation
+            data according to the provider terms and agreements applicable to the
+            production service.
           </Text>
         </Section>
 
         <Section title="2. How We Use Information">
-          <Bullet>Generate bedtime stories, illustrations, narration, and optional Voice Chat replies</Bullet>
+          <Bullet>Generate bedtime stories, illustrations, and narration</Bullet>
           <Bullet>Save and synchronize stories and progress when a parent enables cloud backup</Bullet>
           <Bullet>Authenticate the parent account and enforce owner-only access</Bullet>
+          <Bullet>Verify that parental consent matches the exact current disclosure version</Bullet>
           <Bullet>Prevent abuse, investigate errors, and protect service reliability</Bullet>
           <Text style={styles.paragraph}>
             We do not use child information for targeted advertising, sale of personal
@@ -115,35 +117,40 @@ export default function PrivacyScreen() {
             Depending on the feature and current production configuration, service
             providers may include Supabase for authentication and cloud storage;
             OpenAI, Google Gemini, Anthropic Claude, or other approved AI providers for
-            text, image, transcription, and audio generation; ElevenLabs for narration;
-            and infrastructure or error-monitoring providers. A provider is enabled for
-            child Voice Chat in production only after the required data-processing,
-            privacy-notice, retention, and app-store attestations are recorded in the
-            deployment configuration.
+            text and image generation; ElevenLabs for narration; and infrastructure or
+            error-monitoring providers.
+          </Text>
+          <Text style={styles.paragraph}>
+            Voice Chat processing is not enabled for this release. Any future release
+            that enables microphone or transcription processing requires separately
+            recorded provider, privacy, retention, safety, device, and app-store
+            approvals plus a new parental-consent version.
           </Text>
         </Section>
 
         <Section title="4. Children’s Privacy and Parental Consent">
           <Bullet>A parent or guardian must pass the grown-up gate and consent before protected app features are available</Bullet>
+          <Bullet>The consent record stores the current version, exact disclosure hash, timestamp, locale, and parent-gate method</Bullet>
+          <Bullet>Material disclosure changes invalidate older records and require renewed consent</Bullet>
           <Bullet>Accounts and cloud backup are optional parent-controlled features</Bullet>
           <Bullet>There are no public child profiles, stranger messaging, advertising networks, or social feeds</Bullet>
           <Bullet>Child-facing AI responses are generated under a child-safety policy and checked before they are displayed or narrated</Bullet>
-          <Bullet>Voice Chat is disabled by default and must be explicitly enabled in an approved production configuration</Bullet>
+          <Bullet>Voice Chat is unavailable in this release</Bullet>
         </Section>
 
         <Section title="5. Data Retention">
           <Bullet>Device data remains until the parent deletes it, resets the app, or uninstalls the app</Bullet>
           <Bullet>Cloud-backup records remain until deleted by the parent or the parent account is deleted</Bullet>
-          <Bullet>Voice Chat transcripts use the approved production retention period and are automatically purged no later than 30 days after creation; they can be deleted sooner from the app</Bullet>
+          <Bullet>Legacy Voice Chat transcripts are automatically purged no later than 30 days after creation and are also removed by Delete All Data</Bullet>
           <Bullet>Parent authentication records remain until the parent account is deleted</Bullet>
           <Bullet>Operational logs and provider records follow the documented production retention settings and applicable provider agreements</Bullet>
         </Section>
 
         <Section title="6. Parental Rights and Controls">
-          <Bullet>Review and delete individual Voice Chat conversations from the app</Bullet>
-          <Bullet>Turn cloud backup and Voice Chat off</Bullet>
+          <Bullet>Turn cloud backup off</Bullet>
           <Bullet>Delete individual profiles, stories, and progress records</Bullet>
-          <Bullet>Use Delete All Data to remove PostgreSQL Voice Chat history, the Supabase account and cloud records, and all local device data</Bullet>
+          <Bullet>Use Delete All Data to remove retained server data, the Supabase account and cloud records, and all local device data</Bullet>
+          <Bullet>Receive a PII-free server deletion receipt that includes the deployed release identity</Bullet>
           <Bullet>Withdraw consent and restart the parental-consent flow</Bullet>
           <Bullet>Contact us to ask a privacy question or report a deletion problem</Bullet>
         </Section>

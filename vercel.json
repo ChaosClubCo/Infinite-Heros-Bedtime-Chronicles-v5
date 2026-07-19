@@ -6,7 +6,7 @@
   "outputDirectory": ".",
   "functions": {
     "api/server.mjs": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "includeFiles": "server_dist/**,static-build/**,assets/**,server/templates/**,app.json"
     }
   },

@@ -88,4 +88,30 @@ describe('checkRateLimitAsync (Cloudflare KV path)', () => {
     expect(await checkRateLimitAsync('no-kv-ip')).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('keeps enforcing the limit from memory during a KV outage (does not reset each request)', async () => {
+    // Every KV read fails. The old KV-first path reset the count to 1 each request
+    // (disabling the limiter); the in-memory-authoritative path still counts up.
+    global.fetch = vi.fn().mockRejectedValue(new Error('kv down')) as unknown as typeof fetch;
+    const { checkRateLimitAsync } = await import('./rate-limit');
+
+    for (let i = 0; i < 10; i++) {
+      expect(await checkRateLimitAsync('kv-outage-ip')).toBe(true);
+    }
+    expect(await checkRateLimitAsync('kv-outage-ip')).toBe(false);
+  });
+
+  it("clamps the KV write TTL to Cloudflare's 60s minimum on a short remaining window", async () => {
+    // Seed a window with only 3s left; an unclamped TTL (3s) is rejected by KV.
+    const nearlyExpired = { count: 1, resetAt: Date.now() + 3_000 };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => nearlyExpired });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const { checkRateLimitAsync } = await import('./rate-limit');
+
+    await checkRateLimitAsync('kv-clamp-ip');
+    const putCall = fetchMock.mock.calls.find((c) => (c[1] as { method?: string })?.method === 'PUT');
+    expect(putCall).toBeDefined();
+    const ttl = Number(new URL(putCall![0] as string).searchParams.get('expiration_ttl'));
+    expect(ttl).toBeGreaterThanOrEqual(60);
+  });
 });

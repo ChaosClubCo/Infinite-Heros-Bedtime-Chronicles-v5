@@ -2,7 +2,7 @@
   "name": "@krosebrook/infinite-heros-bedtime-chronicles-v5",
   "main": "expo-router/entry",
   "version": "1.0.0",
-  "repository": "https://github.com/Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5",
+  "repository": "https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
@@ -12,7 +12,7 @@
     "server:dev": "NODE_ENV=development tsx server/index.ts",
     "expo:start:static:build": "npx expo start --no-dev --minify --localhost",
     "expo:static:build": "node scripts/build.js",
-    "server:build": "esbuild server/index.ts --platform=node --bundle --format=cjs --outdir=server_dist --minify --external:openai --external:elevenlabs --external:@google/genai --external:@anthropic-ai/sdk --external:@supabase/supabase-js --external:drizzle-orm --external:drizzle-orm/node-postgres --external:pg --external:@sentry/node --external:express --external:pino --external:pino-std-serializers --external:zod --external:drizzle-zod",
+    "server:build": "esbuild server/index.ts --platform=node --bundle --format=cjs --outdir=server_dist --minify --external:openai --external:elevenlabs --external:@google/genai --external:@anthropic-ai/sdk --external:@supabase/supabase-js --external:drizzle-orm --external:drizzle-orm/node-postgres --external:pg --external:@sentry/node --external:express --external:pino --external:pino-std-serializers --external:zod --external:drizzle-zod --external:@aws-sdk/client-s3",
     "gcp-build": "npm run expo:static:build && npx expo export --platform web --output-dir static-build && npm run server:build",
     "server:prod": "NODE_ENV=production node server_dist/index.js",
     "db:push": "drizzle-kit push",
@@ -31,7 +31,8 @@
     "dev:expo": "EXPO_PUBLIC_API_URL=http://localhost:5000 npx expo start --web",
     "dev": "npm run dev:server & npm run dev:expo",
     "expo:check": "npx expo install --check",
-    "expo:build:ci": "npx expo export --platform web --output-dir static-build"
+    "expo:build:ci": "npx expo export --platform web --output-dir static-build",
+    "deploy:vercel": "bash scripts/deploy-vercel.sh"
   },
   "engines": {
     "node": ">=20.19.0 <21 || >=22.13.0 <23",
@@ -39,6 +40,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
+    "@aws-sdk/client-s3": "^3.1088.0",
     "@expo-google-fonts/bangers": "^0.4.1",
     "@expo-google-fonts/nunito": "^0.4.2",
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
@@ -71,7 +73,7 @@
     "expo-image": "~55.0.11",
     "expo-image-picker": "~55.0.22",
     "expo-linear-gradient": "~55.0.16",
-    "expo-linking": "~57.0.3",
+    "expo-linking": "~55.0.16",
     "expo-location": "~55.1.12",
     "expo-router": "~55.0.17",
     "expo-speech": "~55.0.16",
@@ -139,6 +141,7 @@
     "p-retry": "^4.6.2",
     "shell-quote": "^1.8.4",
     "undici": "^6.27.0",
-    "tmp": "^0.2.6"
+    "tmp": "^0.2.6",
+    "uuid": "^11.1.1"
   }
 }

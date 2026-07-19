@@ -1,47 +1,51 @@
 # Release Evidence Record
 
-**Updated:** 2026-07-16  
-**Release posture:** NO GO until every required item has attached evidence  
-**Candidate branch:** `agent/resolve-release-blockers`
+**Updated:** 2026-07-18  
+**Release posture:** **NO GO**  
+**Canonical ledger:** [Issue #370](https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5/issues/370)  
+**Pre-remediation main:** `9dd95ecb9f4148754fed7be2d8b94685ec55fa6a`  
+**Remediation branch:** `release/exact-sha-remediation-2026-07-18`  
+**Authoritative remediation head:** GitHub branch/PR metadata; this file intentionally does not self-attest a mutable branch SHA.
 
-## Evidence ledger
+The prior release evidence in issue #355 and earlier revisions of this file is historical evidence for candidate `6dc92a55c90594f9bc3602cbec6613a47875294d`. Because the repository changed afterward, that downstream evidence is **STALE** for the current release train.
 
-| Control | Status | Evidence |
-|---|---|---|
-| Required repository CI gates | Passed | Run [29508270776](https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5/actions/runs/29508270776) on `6ff560d73b466133639ac3b63a96b5bca19c84b4`: strict install, preflight, lint, tests, critical audit, typecheck, production install smoke, server build |
-| Expo dependency compatibility/export | Passed | Same exact run: `expo install --check`, production web export, and artifact upload passed after the Expo SDK 55 graph was reconciled atomically |
-| Supabase preview migrations | Passed | Healthy preview `iujaxqhdfzddvoojduau`; database, services, APIs, configurations, migrations, seeding, and Edge Functions reported healthy |
-| Transcript retention probe | Passed | Expired synthetic row removed and current row retained on a rollback-only preview probe |
-| User A/User B RLS isolation | Passed | Live transactional probe on 2026-07-16: A saw only A; B select/update/delete/insert blocked; chat tables denied direct authenticated access; transaction rolled back; reproducible assertions are in `supabase/tests/rls_isolation.sql` |
-| Deletion receipt contract | Passed in repository CI | PII-free receipt is returned only after chat and Auth deletion complete; sync records cascade from identity deletion; ordering, failure, and receipt-shape tests passed |
-| EAS internal Android build | Pending | Must attach EAS build URL, artifact ID/checksum, exact candidate SHA, and profile |
-| Physical-device matrix | Pending | Android minimum/target device plus iOS device; consent, story, offline, sync, deletion, accessibility, and audio-disabled verification |
-| Deployed smoke | Pending | Exact SHA from `/api/health`, HTTPS health/privacy responses, authenticated happy path, and fail-closed provider gates |
-| Alert delivery | Pending | Sentry event ID plus notification destination receipt |
-| Backup restore | Pending | Disposable preview backup/restore proof with row counts and isolation re-test |
-| Rollback drill | Pending | Prior release restored, health/smoke rerun, and recovery time recorded |
-| Privacy/legal/provider evidence | Pending external owner | Approved notice, consent version, provider agreements/settings, and store declarations |
+## Current evidence ledger
+
+| Control | Status | Candidate | Evidence / blocker |
+|---|---|---|---|
+| Canonical repository | PASS IN REPOSITORY / EXTERNAL LINKS PENDING | discovery baseline | Private `ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5` is canonical and `package.json` now points to it. Vercel/Replit links and the public mirror still require external correction. |
+| Controlled remediation | PENDING REVIEW | remediation PR head | Voice containment, consent attestation, privacy truth, deletion receipt attestation, release identity, health/privacy cache control, canonical package metadata, and evidence-workflow hardening are on the remediation branch. |
+| Required repository gates | PENDING | remediation PR head | A pull-request CI run must pass locked install, preflight, lint, Vitest, jest-expo component tests, typecheck, critical audit, server build, Expo compatibility, and web export. |
+| Security scan | PENDING | remediation PR head | Exact remediation-head security workflow required. |
+| Dependency stabilization | PENDING | remediation PR head | PR #369 was closed unmerged as an empty, superseded, failing change. The SDK 55 alignment already merged through PR #368; exact remediation-head Expo check remains required. |
+| Privacy truth and consent attestation | PASS IN CODE / HUMAN APPROVAL BLOCKED | remediation PR head | Acceptance stores version 3, exact disclosure SHA-256, timestamp, locale, and arithmetic parent-gate method. Navigation and sync reject legacy/mismatched records. Public and in-app notices state Voice Chat is unavailable. External legal/provider/store approval remains a human gate. |
+| Account deletion and receipt | PASS IN CODE / LIVE PENDING | remediation PR head | Receipt v2 is PII-free, issued only after ordered server deletion, and includes the deployed release SHA or an honest null when runtime identity is unavailable. Live deployed deletion and post-deletion absence proof remain required. |
+| Authentication and authorization | PASS IN CODE / LIVE PENDING | remediation PR head | Existing `/api` auth gates remain; deployed adversarial proof remains required. |
+| Voice/audio containment | PASS IN CLIENT CODE / RUNTIME PENDING | remediation PR head | Client route is static and contains no microphone permission, recording, audio runtime, transcript fetch, or conversation/TTS request. Server feature flag and provider configuration must still be verified disabled in the deployed environment. |
+| Live User A/User B isolation | STALE | `6dc92a5...` | Historical disposable-branch proof in #355 must be rerun against the final frozen candidate. |
+| Database migration readiness | PENDING | TBD frozen candidate | Migration validation and disposable isolation proof required; no production mutation is authorized by this record. |
+| Exact-SHA release workflow | PASS IN CODE / RUN PENDING | remediation PR head | Workflow requires exact SHA, immediately posts run ID/URL, verifies checkout, separates approval-gated reporting, uploads artifacts on failure, emits machine-readable manifests, and records SHA-256 checksums. An authoritative run is still required after merge/freeze. |
+| Canonical deployment | BLOCKED | TBD frozen candidate | Vercel must be connected to the private canonical repository and expose the exact SHA through `/api/health`. |
+| HTTPS health/privacy smoke | BLOCKED | TBD frozen candidate | Requires a canonical exact-SHA deployment. |
+| EAS internal Android build | PENDING | TBD frozen candidate | Exact-candidate build ID, artifact URL, checksum, profile, and timestamp required. |
+| Physical-device matrix | PENDING | TBD frozen candidate | Android minimum/current and current iOS evidence required. |
+| Alert delivery | PENDING | TBD frozen candidate | Sentry event emission is not notification proof; event ID plus received destination evidence is required. |
+| Backup restore | PENDING | TBD frozen candidate | Disposable restore target, timing, row/schema checks, isolation rerun, and cleanup proof required. |
+| Rollback drill | PENDING | TBD frozen candidate | Prior/candidate deployment IDs, timing, exact post-rollback identity, smoke, compatibility, and recovery time required. |
+| Privacy/legal/provider approval | BLOCKED | TBD frozen candidate | Human approval and authoritative provider/store declarations are required. |
+| Public mirror archive | FAIL | N/A | `Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5-main` remains `archived: false`; a repository-level archive setting and metadata recheck are required. |
+| Final release decision | PENDING | TBD frozen candidate | **NO GO retained. No release approval has been issued.** |
 
 ## Physical-device matrix
 
-| Platform | Device/OS | Install | Consent v2 | Core story | Offline/reconnect | Sync isolation | Delete + receipt | Accessibility | Result |
-|---|---|---|---|---|---|---|---|---|---|
-| Android | Minimum supported |  |  |  |  |  |  |  | Pending |
-| Android | Current target |  |  |  |  |  |  |  | Pending |
-| iOS | Current supported |  |  |  |  |  |  |  | Pending |
+| Platform | Device/OS | Artifact checksum | Fresh/upgrade install | Consent | Core flow | Offline/reconnect | Isolation | Delete + receipt | Accessibility | Disabled features | Result |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Android | Minimum supported |  |  |  |  |  |  |  |  |  | PENDING |
+| Android | Current target |  |  |  |  |  |  |  |  |  | PENDING |
+| iOS | Current supported |  |  |  |  |  |  |  |  |  | PENDING |
 
-Voice Chat must remain disabled during the first release-proof cycle. A later adversarial Voice Chat cycle is separate and requires provider/legal approval.
+## Evidence acceptance rule
 
-## Required attachments
+A row receives release credit only when it contains the exact frozen candidate, authoritative source, direct accessible evidence, timestamp, operator identity, sanitized result, checksum/attestation where applicable, and independent review with no contradiction against live state.
 
-- GitHub Actions run URL and exact SHA.
-- EAS internal build URL and artifact checksum.
-- Device screenshots/logs with no child PII.
-- Deletion receipt ID and database absence checks.
-- Sentry event ID and received-alert screenshot.
-- Backup/restore commands, timestamps, pre/post row counts, and RLS rerun result.
-- Deployment rollback identifiers, start/end timestamps, and post-rollback smoke output.
-
-## Decision rule
-
-No blank or merely attested row becomes `Passed`. Each must contain independently reviewable evidence tied to the exact release SHA. Only the designated release owner may change the release posture.
+A merge delivers remediation only. It is not release approval. Any later code, dependency, workflow, migration, privacy-copy, build, provider, or runtime configuration change creates a new candidate and invalidates downstream evidence.

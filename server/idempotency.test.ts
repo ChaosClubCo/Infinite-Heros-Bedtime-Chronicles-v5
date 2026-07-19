@@ -39,6 +39,19 @@ describe('IdempotencyCache', () => {
     expect(key1).not.toBe(key2);
   });
 
+  it('distinguishes bodies that differ only in NESTED object content (e.g. Mad Libs words)', () => {
+    const base = { mode: 'madlibs', storyLength: 'short' };
+    const key1 = IdempotencyCache.keyFromBody({ ...base, madlibWords: { noun: 'dragon', verb: 'giggle' } });
+    const key2 = IdempotencyCache.keyFromBody({ ...base, madlibWords: { noun: 'pancake', verb: 'zoom' } });
+    expect(key1).not.toBe(key2);
+  });
+
+  it('is insensitive to key order at every depth (canonical stringify)', () => {
+    const key1 = IdempotencyCache.keyFromBody({ a: 1, nested: { x: 1, y: 2 } });
+    const key2 = IdempotencyCache.keyFromBody({ nested: { y: 2, x: 1 }, a: 1 });
+    expect(key1).toBe(key2);
+  });
+
   it('evicts entries after TTL', () => {
     vi.useFakeTimers();
     cache.set('key1', Promise.resolve('result'));

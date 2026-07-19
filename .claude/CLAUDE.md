@@ -30,19 +30,21 @@ shared across client and server.
 - **EAS Build → Android Play Store** (`eas.json`, `.github/workflows/eas-build.yml`).
 
 ### ⚠️ Live gotchas (operational knowledge — verify before relying on)
-- **ESLint 10 gotcha RESOLVED (2026-07).** The old crash (`eslint-config-expo@~55` +
-  ESLint 10 → `context.getFilename is not a function`) is gone: `package.json` now pins
-  `eslint@10.6.0` with `eslint-config-expo@~57.0.0` and a flat `eslint.config.js`, and
-  lint was cleaned to zero warnings (PRs #264, #296). `npm run lint` is a working CI gate.
+- **ESLint 10 gotcha MITIGATED (verify before touching lint config).** `package.json` pins
+  `eslint@10.6.0` with `eslint-config-expo@~55.0.1` and a flat `eslint.config.js`. The
+  `context.getFilename is not a function` crash from eslint-plugin-react is worked around by
+  the explicit `react: { version: '19.0' }` setting in `eslint.config.js` — do NOT bump
+  eslint-config-expo to ~57 to "fix" it (that reverts the SDK-55 alignment PR #354 restored).
+  `npm run lint` is a working CI gate.
 - **`package-lock.json` drifts.** `npm ci` has failed twice now (PR #169, then again) when a
   dep range was bumped without regenerating the lock. PR #172 re-synced it; consider a CI
   guard (`npm install --package-lock-only` + `git diff --exit-code package-lock.json`).
 - **Vercel "Vercel" check always fails on bot/non-owner commits** — Hobby-plan commit-author
   gate ("Git author … must have access to the project"). Documented in `../DEPLOY.md`.
   Permanent fix = upgrade the FlashFusion team to Vercel Pro.
-- **`typescript@~6.0.3` vs Expo's `typescript@^5`** peer conflict → `.npmrc` sets
-  `legacy-peer-deps=true`. Don't remove it without resolving the TS major mismatch.
-- Actual versions: **Expo ~55 / React Native 0.86 / Node ≥20.19** (root `../CLAUDE.md` was reconciled 2026-07-07).
+- **`.npmrc` sets `legacy-peer-deps=true`** to smooth over peer-range conflicts across the
+  Expo/RN toolchain; leave it in place unless you've confirmed the tree resolves cleanly without it.
+- Actual versions (authoritative source is `package.json`): **Expo ~55.0.28 / React Native 0.83.6 / expo-router ~55.0.17 / react 19.2.0 / typescript ~5.9.2 / Node ≥20.19**. PR #354 re-aligned the tree to SDK 55 (2026-07-15) — earlier prose citing RN 0.86 / Router 56 / TS 6 was pre-downgrade and has been corrected.
 - **Auth is Supabase, not Firebase** — `server/auth.ts` verifies Supabase JWTs
   (`SUPABASE_SERVICE_ROLE_KEY` + Supabase URL); client uses `EXPO_PUBLIC_SUPABASE_URL` +
   `EXPO_PUBLIC_SUPABASE_ANON_KEY` (`lib/AuthContext.tsx`). Older docs mentioning
@@ -62,6 +64,14 @@ shared across client and server.
   `archive/android-kotlin-rewrite/README.md`); `v5-main` had no application code to
   contribute. Both sibling repos' branches were then fast-forwarded to this exact tree
   via a two-parent merge commit, so their own history stays intact and reachable.
+- **R2 TTS cache is live (2026-07).** Server-side TTS audio now has a persistent Cloudflare
+  R2 tier (`server/r2.ts`, gated on `R2_ENABLED` = `CLOUDFLARE_ACCOUNT_ID` + three
+  `CLOUDFLARE_R2_*` vars), wired into `server/routes/tts.ts` behind a `writeWithLock` mutex.
+  `server/tts-cache.ts` stays `/tmp`-only by design. Second test runner exists too:
+  `npm run test:components` (jest-expo) for RN components + Expo-native hooks Vitest can't load.
+- **Cloud sync (M3) SyncManager** triggers on open/foreground/reconnect **and sign-in**
+  (`user?.id` in deps), then `refreshProfiles()`. Still OFF by default (`cloudSyncEnabled`)
+  and not yet device-verified. See the root `../CLAUDE.md` "Cloud sync (M3)" gotcha.
 
 ## AI Context
 
@@ -74,7 +84,7 @@ project:
   status: active (canonical v5); separate from the dormant local "infinity-heroes" repo
 stack:
   language: TypeScript (strict; tsconfig)
-  client: Expo ~55 / React Native 0.86 (New Arch) / Expo Router 56 / react-native-web
+  client: Expo ~55 / React Native 0.83.6 (New Arch) / Expo Router ~55 / react-native-web
   state: TanStack React Query v5 + React Context; AsyncStorage for local persistence
   server: Express 5 (server/index.ts) — esbuild bundle → server_dist; tsx for dev
   db: PostgreSQL + Drizzle ORM (drizzle-kit push); voice-chat features only
@@ -94,7 +104,8 @@ commands:
   prod_server: npm run server:prod
   lint: npm run lint                  # npx expo lint (eslint 10.6 + flat config — working)
   typecheck: npm run typecheck        # tsc --noEmit
-  test: npm run test                  # vitest run (also :watch, :coverage)
+  test: npm run test                  # vitest run (server/lib units; also :watch, :coverage)
+  test_components: npm run test:components  # jest (jest-expo) — RN components + Expo-native hooks
   db: npm run db:push                 # drizzle-kit
   preflight: npm run preflight
 deploy:

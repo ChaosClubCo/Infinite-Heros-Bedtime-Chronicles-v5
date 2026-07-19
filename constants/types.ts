@@ -56,6 +56,14 @@ export interface StreakData {
   currentStreak: number;
   longestStreak: number;
   lastStoryDate: string;
+  /**
+   * ms-epoch of the last streak mutation. Stamped by `updateStreak` so cloud
+   * sync (M3) can resolve two same-calendar-day updates by last-write-wins —
+   * `lastStoryDate` alone has only day granularity and would tie. Optional so
+   * legacy records (pre-sync) still parse; `streakToRecord` falls back to
+   * `Date.parse(lastStoryDate)` when absent.
+   */
+  lastUpdatedAt?: number;
 }
 
 export interface ParentControls {
@@ -84,32 +92,6 @@ export const DEFAULT_PARENT_CONTROLS: ParentControls = {
   videoEnabled: false,
 };
 
-/**
- * Verifiable parental consent (COPPA). Recorded once a parent passes the
- * parent gate and affirms consent on `app/parental-consent.tsx`. The app
- * blocks all data-collecting / AI features until `consented` is true for the
- * current `CONSENT_VERSION`; bumping the version re-prompts existing installs.
- */
-export interface ParentConsent {
-  consented: boolean;
-  consentedAt: number;  // epoch ms when consent was given (0 = never)
-  version: number;      // CONSENT_VERSION at the time consent was given
-}
-
-/**
- * Version 2 discloses optional parent accounts/cloud backup, retained Voice
- * Chat transcripts, bounded retention, provider processing, and complete
- * account deletion. This is a material privacy-practice update, so existing
- * installs must pass the parent gate and consent again.
- */
-export const CONSENT_VERSION = 2;
-
-export const DEFAULT_PARENT_CONSENT: ParentConsent = {
-  consented: false,
-  consentedAt: 0,
-  version: 0,
-};
-
 export interface UserPreferences {
   narratorVoice: string;
   storyLength: string;
@@ -132,7 +114,6 @@ export const AVATAR_EMOJIS = ['🦸', '🧙', '🦊', '🐱', '🦄', '🌟', '�
 
 import { BADGE_DEFINITIONS } from '@/lib/badges';
 export { BADGE_DEFINITIONS };
-
 
 export const CONTENT_THEMES = [
   { id: 'courage', label: 'Courage', emoji: '🦁' },

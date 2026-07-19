@@ -15,6 +15,7 @@ import {
   getAllStreaks, mergeSyncedStreaks,
   getSyncSetRecords, applySyncedSet,
   getProfiles, mergeSyncedProfileStubs,
+  getEntityTombstones, stampEntityTombstone, clearEntityMeta,
 } from '@/lib/storage';
 import type { EarnedBadge, StreakData } from '@/constants/types';
 import type { SyncRecord } from '@shared/sync-types';
@@ -30,14 +31,26 @@ const deletedIds = (records: SyncRecord[]) => records.filter((r) => r.deleted).m
 
 export const storiesAdapter: EntityAdapter = {
   async readLocal(): Promise<SyncRecord[]> {
-    const stories = await getAllStories();
-    return stories.map(storyToRecord);
+    const live = (await getAllStories()).map(storyToRecord);
+    const liveIds = new Set(live.map((r) => r.id));
+    // Include local deletion tombstones so a delete wins reconciliation.
+    const tombs: SyncRecord[] = (await getEntityTombstones('stories'))
+      .filter((t) => !liveIds.has(t.id))
+      .map((t) => ({ ...t, payload: {} }));
+    return [...live, ...tombs];
   },
   async applyLocal(records: SyncRecord[]): Promise<void> {
     const upserts = records
       .filter((r) => !r.deleted)
       .map((r) => recordToStory(r as SyncRecord<SyncedStory>));
     await mergeSyncedStories(upserts, deletedIds(records));
+    // Keep the sidecar consistent: a live upsert clears any stale local tombstone;
+    // an applied remote deletion is recorded at the remote's timestamp so it wins
+    // future reconciles without a "now" stamp beating a newer live copy elsewhere.
+    for (const r of records) {
+      if (r.deleted) await stampEntityTombstone('stories', r.id, r.updatedAt);
+      else await clearEntityMeta('stories', r.id);
+    }
   },
 };
 
@@ -81,13 +94,21 @@ export const readAdapter: EntityAdapter = setAdapter('read');
 
 export const profileStubAdapter: EntityAdapter = {
   async readLocal(): Promise<SyncRecord[]> {
-    const profiles = await getProfiles();
-    return profiles.map(profileStubToRecord);
+    const live = (await getProfiles()).map(profileStubToRecord);
+    const liveIds = new Set(live.map((r) => r.id));
+    const tombs: SyncRecord[] = (await getEntityTombstones('profileStub'))
+      .filter((t) => !liveIds.has(t.id))
+      .map((t) => ({ ...t, payload: {} }));
+    return [...live, ...tombs];
   },
   async applyLocal(records: SyncRecord[]): Promise<void> {
     const stubs = records
       .filter((r) => !r.deleted)
       .map((r) => ({ id: r.id, createdAt: (r.payload as ProfileStub).createdAt }));
     await mergeSyncedProfileStubs(stubs, deletedIds(records));
+    for (const r of records) {
+      if (r.deleted) await stampEntityTombstone('profileStub', r.id, r.updatedAt);
+      else await clearEntityMeta('profileStub', r.id);
+    }
   },
 };

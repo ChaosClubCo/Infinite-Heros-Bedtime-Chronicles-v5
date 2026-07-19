@@ -37,17 +37,46 @@ jobs:
         if: ${{ steps.check-hook.outputs.configured == 'true' }}
         run: echo "✅ Vercel deployment triggered successfully"
 
-      - name: Wait for deployment and health check
+      - name: Wait for the NEW deployment to go live (health check)
         if: ${{ steps.check-hook.outputs.configured == 'true' }}
+        env:
+          # Passed via env (not inlined) per workflow-injection hardening. github.sha
+          # is a 40-hex commit id, but keep the safe pattern regardless.
+          EXPECTED_SHA: ${{ github.sha }}
         run: |
-          echo "⏳ Waiting 60 seconds for deployment to complete..."
-          sleep 60
-          echo "🔍 Running health check against $HEALTH_CHECK_URL..."
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_CHECK_URL" || echo "000")
-          echo "Health check status: $STATUS"
-          if [ "$STATUS" = "200" ]; then
-            echo "✅ Health check passed"
-          else
-            echo "❌ Health check failed with status $STATUS"
-            exit 1
+          # The production alias keeps serving the PREVIOUS deployment until the new
+          # build finishes and promotes. A fixed sleep + status check therefore green-
+          # lights the old deployment (and can't catch a broken build). Instead poll
+          # /api/health until it reports releaseSha == the commit we just deployed.
+          expected_short="${EXPECTED_SHA:0:7}"
+          echo "🔍 Waiting for $HEALTH_CHECK_URL to report releaseSha ${expected_short}..."
+          deadline=$(( SECONDS + 600 ))   # up to 10 minutes
+          attempt=0
+          saw_sha=false
+          last_status=""
+          last_sha=""
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            attempt=$(( attempt + 1 ))
+            body=$(curl -s --max-time 15 "$HEALTH_CHECK_URL" || echo '')
+            last_status=$(printf '%s' "$body" | jq -r '.status // empty' 2>/dev/null || echo '')
+            last_sha=$(printf '%s' "$body" | jq -r '.releaseSha // empty' 2>/dev/null || echo '')
+            [ -n "$last_sha" ] && saw_sha=true
+            echo "Attempt $attempt: status=${last_status:-none} releaseSha=${last_sha:-none}"
+            if [ "$last_status" = "ok" ] && [ "${last_sha:0:7}" = "$expected_short" ]; then
+              echo "✅ New deployment (${expected_short}) is live and healthy"
+              exit 0
+            fi
+            sleep 20
+          done
+          # Timed out. If the endpoint is up but never exposed a releaseSha, sha
+          # tracking isn't configured on Vercel — fall back to a basic health pass
+          # rather than blocking deploys. If we DID see a sha that never matched,
+          # the new build is stuck or unhealthy → fail.
+          if [ "$saw_sha" = "false" ] && [ "$last_status" = "ok" ]; then
+            echo "⚠️ releaseSha not exposed by the server; passing on basic health only."
+            echo "   (Set APP_RELEASE_SHA or enable Vercel system env vars for a precise gate.)"
+            exit 0
           fi
+          echo "❌ Timed out waiting for deployment ${expected_short} to become healthy"
+          echo "   (last status: ${last_status:-none}, last releaseSha: ${last_sha:-none})"
+          exit 1

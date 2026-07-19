@@ -2,10 +2,28 @@
 
 ## TL;DR
 
-```powershell
+```bash
 vercel login                    # one-time, interactive
-vercel --prod                   # from this directory
+npm run deploy:vercel           # from this directory
 ```
+
+`deploy:vercel` (`scripts/deploy-vercel.sh`) wraps `vercel --prod` and
+explicitly passes the release SHA as a CLI argument:
+
+```bash
+vercel --prod --env APP_RELEASE_SHA="$(git rev-parse HEAD)"
+```
+
+Do **not** try to wire the SHA through `vercel.json` — Vercel does not
+interpolate shell variables there (`"$VERCEL_GIT_COMMIT_SHA"` in JSON
+stays a literal string). And Vercel's auto-injected
+`VERCEL_GIT_COMMIT_SHA` only exists when the project's Git connection
+is healthy, so passing `APP_RELEASE_SHA` explicitly keeps
+`/api/health`'s `releaseSha` (see `server/routes/health.ts`)
+deterministic. The `vercel-deploy.yml` and `release-proof.yml`
+workflows verify deploys against that field. A bare `vercel --prod`
+still works, but `releaseSha` may then be `null` and the deploy gates
+degrade to a basic health check.
 
 The repo is already linked — `.vercel/project.json` points at the
 FlashFusion team's `infinite-heros-bedtime-chronicles-v5` project, so
@@ -38,8 +56,8 @@ Upgrade the **FlashFusion** team to **Vercel Pro** (~$20/user/mo).
 That removes the commit-author check, and every push to `main` —
 regardless of author — will build like any other team plan.
 
-Until that happens, this `vercel --prod` dance is the manual stopgap
-each time bots merge to `main`.
+Until that happens, this `npm run deploy:vercel` dance is the manual
+stopgap each time bots merge to `main`.
 
 ## Background — what was fixed in PR #169
 

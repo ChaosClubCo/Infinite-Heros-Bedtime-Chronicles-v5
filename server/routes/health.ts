@@ -8,6 +8,9 @@ import { getLiveStatus } from "../health-checks";
 import { pingElevenLabs } from "../elevenlabs";
 import { pingGemini } from "../ai/providers/gemini";
 import { pingAnthropic } from "../ai/providers/anthropic";
+import { pingOpenAI } from "../ai/providers/openai";
+import { pingOpenRouter } from "../ai/providers/openrouter";
+import { getReleaseSha } from "../release-identity";
 
 // Anthropic first, matching DEFAULT_CHAINS's "story" fallback order in
 // server/ai/router.ts (Anthropic → Gemini → ...) — probing whichever
@@ -19,14 +22,12 @@ import { pingAnthropic } from "../ai/providers/anthropic";
 const LIVE_PROBE_PROVIDERS: { name: string; ping: () => Promise<boolean> }[] = [
   { name: "anthropic", ping: pingAnthropic },
   { name: "gemini", ping: pingGemini },
+  { name: "openai", ping: pingOpenAI },
+  { name: "xai", ping: pingOpenRouter },
+  { name: "mistral", ping: pingOpenRouter },
+  { name: "cohere", ping: pingOpenRouter },
+  { name: "meta-llama", ping: pingOpenRouter },
 ];
-
-function getReleaseSha(): string | null {
-  const value = process.env.APP_RELEASE_SHA
-    || process.env.VERCEL_GIT_COMMIT_SHA
-    || process.env.GITHUB_SHA;
-  return value && /^[0-9a-f]{7,40}$/i.test(value) ? value : null;
-}
 
 export function registerHealthRoutes(app: Express): void {
   app.get("/api/metrics", (_req, res) => {
@@ -44,10 +45,12 @@ export function registerHealthRoutes(app: Express): void {
     const liveProbeProvider = LIVE_PROBE_PROVIDERS.find(
       (p) => providers.find((status) => status.name === p.name)?.available,
     );
+    res.setHeader("Cache-Control", "no-store");
     res.json({
       status: "ok",
       timestamp: Date.now(),
       releaseSha: getReleaseSha(),
+      environment: process.env.VERCEL_ENV || process.env.NODE_ENV || "unknown",
       aiProvidersAvailable: aiAvailable,
       ttsAvailable,
       ttsLive: ttsAvailable ? getLiveStatus("elevenlabs", pingElevenLabs) : { reachable: null, checkedAt: null },
@@ -62,6 +65,7 @@ export function registerHealthRoutes(app: Express): void {
 
   app.get("/privacy", (_req, res) => {
     const privacyPath = path.resolve(process.cwd(), "server", "templates", "privacy-policy.html");
+    res.setHeader("Cache-Control", "no-store");
     res.sendFile(privacyPath, (err) => {
       if (err && !res.headersSent) {
         res.status(404).json({ error: "Privacy policy not found" });

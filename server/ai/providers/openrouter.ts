@@ -1,5 +1,23 @@
 import OpenAI from "openai";
 import type { AIProvider, ProviderName, TextGenerationRequest, TextGenerationResponse, StreamingTextChunk } from "../types";
+import { CHECK_TIMEOUT_MS } from "../../health-checks";
+
+export async function pingOpenRouter(): Promise<boolean> {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY;
+  if (!apiKey) return false;
+  const baseURL = process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
+  try {
+    const res = await fetch(`${baseURL}/models`, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+      signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 function getClient(): OpenAI | null {
   const apiKey = process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY;

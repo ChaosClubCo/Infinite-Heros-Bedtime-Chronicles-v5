@@ -78,10 +78,11 @@ export async function createVideoJob(
   heroName: string,
   heroDescription: string,
   referenceImageBase64?: string
-): Promise<{ jobId: string } | { error: string }> {
+): Promise<{ jobId: string } | { error: string; clientSafe?: boolean }> {
   const client = getOpenAIClient();
   if (!client) {
-    return { error: "Video generation is not configured. An OpenAI API key is required." };
+    // clientSafe: an intended, provider-detail-free message the route may echo.
+    return { error: "Video generation is not configured. An OpenAI API key is required.", clientSafe: true };
   }
 
   const summary = sceneText.substring(0, 200);
@@ -110,8 +111,10 @@ export async function createVideoJob(
     return { jobId };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
+    // Log the raw provider message server-side only; do NOT mark it clientSafe —
+    // it can leak provider identity, key prefixes, or account entitlements.
     logger.error({ err, message }, 'video creation failed');
-    return { error: message || "Failed to create video" };
+    return { error: "Failed to start video generation. Please try again later." };
   }
 }
 
