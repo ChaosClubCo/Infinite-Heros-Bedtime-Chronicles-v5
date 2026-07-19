@@ -16,7 +16,9 @@
       "Bash(git reset:*)",
       "Bash(git commit:*)",
       "Bash(git add:*)",
-      "Bash(gh repo *)"
+      "Bash(gh repo *)",
+      "Bash(git -C /mnt/f/Infinite-Heros-Bedtime-Chronicles-v5 remote -v)",
+      "Bash(git -C /mnt/f/Infinite-Heros-Bedtime-Chronicles-v5 branch -vv)"
     ]
   }
 }
