@@ -1,8 +1,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { extname, join, relative, resolve } from 'node:path';
+import { extname, join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const repositoryRoot = resolve(__dirname, '../..');
+const repositoryRoot = process.cwd();
 const migrationRoot = join(repositoryRoot, 'supabase', 'migrations');
 
 const excludedDirectories = new Set([
