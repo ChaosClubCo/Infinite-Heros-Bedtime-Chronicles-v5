@@ -101,8 +101,9 @@ function createOpenRouterProvider(providerKey: string): AIProvider {
       const client = getClient();
       if (!client) throw new Error(`${info.displayName} not configured (requires OpenRouter)`);
 
-      const params = buildOpenRouterRequestBody(info.model, req, false)
-        as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming;
+      const params = (
+        buildOpenRouterRequestBody(info.model, req, false)
+      ) as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming;
       const response = await client.chat.completions.create(params);
       const text = response.choices[0]?.message?.content || "";
 
@@ -121,8 +122,9 @@ function createOpenRouterProvider(providerKey: string): AIProvider {
       const client = getClient();
       if (!client) throw new Error(`${info.displayName} not configured (requires OpenRouter)`);
 
-      const params = buildOpenRouterRequestBody(info.model, req, true)
-        as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming;
+      const params = (
+        buildOpenRouterRequestBody(info.model, req, true)
+      ) as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming;
       const stream = await client.chat.completions.create(params);
 
       for await (const chunk of stream) {
