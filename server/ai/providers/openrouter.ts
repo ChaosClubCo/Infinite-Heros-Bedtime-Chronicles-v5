@@ -2,6 +2,11 @@ import OpenAI from "openai";
 import type { AIProvider, ProviderName, TextGenerationRequest, TextGenerationResponse, StreamingTextChunk } from "../types";
 import { CHECK_TIMEOUT_MS } from "../../health-checks";
 
+export const OPENROUTER_PRIVACY_ROUTING = Object.freeze({
+  zdr: true,
+  data_collection: "deny" as const,
+});
+
 export async function pingOpenRouter(): Promise<boolean> {
   const apiKey = process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY;
   if (!apiKey) return false;
@@ -49,6 +54,35 @@ const PROVIDER_MODELS: Record<string, { model: string; providerName: ProviderNam
   },
 };
 
+/**
+ * Build the raw OpenRouter request body. The OpenAI-compatible SDK does not
+ * currently type OpenRouter's provider preferences, but it forwards unknown
+ * JSON fields. Every request is therefore forced onto endpoints that both
+ * support zero data retention and deny non-transient data collection.
+ */
+export function buildOpenRouterRequestBody(
+  model: string,
+  req: TextGenerationRequest,
+  stream: boolean,
+): Record<string, unknown> {
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: "system", content: req.systemPrompt },
+    { role: "user", content: req.userPrompt },
+  ];
+
+  const body: Record<string, unknown> = {
+    model,
+    messages,
+    temperature: req.temperature ?? 0.9,
+    max_tokens: req.maxTokens ?? 8192,
+    provider: OPENROUTER_PRIVACY_ROUTING,
+  };
+
+  if (stream) body.stream = true;
+  if (req.jsonMode) body.response_format = { type: "json_object" };
+  return body;
+}
+
 function createOpenRouterProvider(providerKey: string): AIProvider {
   const info = PROVIDER_MODELS[providerKey];
   if (!info) throw new Error(`Unknown OpenRouter provider: ${providerKey}`);
@@ -67,22 +101,8 @@ function createOpenRouterProvider(providerKey: string): AIProvider {
       const client = getClient();
       if (!client) throw new Error(`${info.displayName} not configured (requires OpenRouter)`);
 
-      const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: req.systemPrompt },
-        { role: "user", content: req.userPrompt },
-      ];
-
-      const params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
-        model: info.model,
-        messages,
-        temperature: req.temperature ?? 0.9,
-        max_tokens: req.maxTokens ?? 8192,
-      };
-
-      if (req.jsonMode) {
-        params.response_format = { type: "json_object" };
-      }
-
+      const params = buildOpenRouterRequestBody(info.model, req, false)
+        as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming;
       const response = await client.chat.completions.create(params);
       const text = response.choices[0]?.message?.content || "";
 
@@ -101,18 +121,9 @@ function createOpenRouterProvider(providerKey: string): AIProvider {
       const client = getClient();
       if (!client) throw new Error(`${info.displayName} not configured (requires OpenRouter)`);
 
-      const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: req.systemPrompt },
-        { role: "user", content: req.userPrompt },
-      ];
-
-      const stream = await client.chat.completions.create({
-        model: info.model,
-        messages,
-        temperature: req.temperature ?? 0.9,
-        max_tokens: req.maxTokens ?? 8192,
-        stream: true,
-      });
+      const params = buildOpenRouterRequestBody(info.model, req, true)
+        as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming;
+      const stream = await client.chat.completions.create(params);
 
       for await (const chunk of stream) {
         const content = chunk.choices[0]?.delta?.content || "";
