@@ -28,6 +28,7 @@ const searchableExtensions = new Set([
   '.yml',
 ]);
 
+// Every maintained repository reference must resolve to a migration present at the exact candidate.
 const migrationReferencePattern = /supabase\/migrations\/([A-Za-z0-9_.-]+\.sql)/g;
 
 function walkFiles(directory: string): string[] {
