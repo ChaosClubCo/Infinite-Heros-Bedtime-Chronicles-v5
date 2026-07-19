@@ -1,0 +1,199 @@
+name: Exact Head PR Proof
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-head-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: true
+
+env:
+  EXACT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+
+jobs:
+  exact-head-ci:
+    name: Exact Head CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout exact pull-request head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.EXACT_HEAD_SHA }}
+
+      - name: Verify exact checkout
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXACT_HEAD_SHA"
+          printf 'candidate=%s\nactual=%s\n' "$EXACT_HEAD_SHA" "$actual_sha"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install repository npm version
+        run: npm install --global npm@11
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run complete repository gates
+        env:
+          CI: true
+          EXPO_NO_TELEMETRY: '1'
+        run: |
+          set -euo pipefail
+          npm run preflight
+          npm run lint -- --max-warnings=0
+          npm test
+          npm run test:components
+          npm audit --audit-level=high
+          npm run typecheck
+          npm run server:build
+          npm run expo:check
+          npm run expo:build:ci
+
+      - name: Record exact-head CI evidence
+        if: always()
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          fs.writeFileSync('exact-head-ci.json', JSON.stringify({
+            candidate: process.env.EXACT_HEAD_SHA,
+            actual: require('node:child_process').execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+            workflow: process.env.GITHUB_WORKFLOW,
+            runId: process.env.GITHUB_RUN_ID,
+            runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+            actor: process.env.GITHUB_ACTOR,
+            recordedAt: new Date().toISOString(),
+          }, null, 2));
+          NODE
+
+      - name: Upload exact-head CI evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: exact-head-ci-${{ env.EXACT_HEAD_SHA }}
+          path: exact-head-ci.json
+          if-no-files-found: error
+          retention-days: 14
+
+  exact-head-security-agent:
+    name: Exact Head Security Agent
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout exact pull-request head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.EXACT_HEAD_SHA }}
+
+      - name: Verify exact checkout
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXACT_HEAD_SHA"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install repository npm version
+        run: npm install --global npm@11
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run security agent
+        run: node agents/security/index.js --output agents/security/exact-head-security-report.json
+
+      - name: Upload exact-head security report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: exact-head-security-${{ env.EXACT_HEAD_SHA }}
+          path: agents/security/exact-head-security-report.json
+          if-no-files-found: error
+          retention-days: 14
+
+  exact-head-codeql:
+    name: Exact Head CodeQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout exact pull-request head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.EXACT_HEAD_SHA }}
+
+      - name: Verify exact checkout
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXACT_HEAD_SHA"
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v4
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4
+        with:
+          upload: never
+          output: exact-head-codeql-results
+
+      - name: Upload exact-head CodeQL SARIF
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: exact-head-codeql-${{ env.EXACT_HEAD_SHA }}
+          path: exact-head-codeql-results/*.sarif
+          if-no-files-found: error
+          retention-days: 14
+
+  exact-head-links:
+    name: Exact Head Markdown Links
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout exact pull-request head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.EXACT_HEAD_SHA }}
+
+      - name: Verify exact checkout
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXACT_HEAD_SHA"
+
+      - name: Run lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --cache
+            --max-cache-age 7d
+            --exclude-path attached_assets
+            --exclude-path node_modules
+            --exclude-path server_dist
+            --exclude-path docs/adr/template.md
+            './**/*.md'
+          fail: true
