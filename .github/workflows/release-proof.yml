@@ -215,6 +215,9 @@ jobs:
           if (health.releaseSha !== process.env.RELEASE_SHA) {
             throw new Error(`deployed SHA mismatch: expected ${process.env.RELEASE_SHA}, got ${health.releaseSha}`);
           }
+          if (health.releaseRepo && health.releaseRepo !== 'ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5') {
+            throw new Error(`deployed from non-canonical repository: ${health.releaseRepo}`);
+          }
           if (!health.environment || health.environment === 'unknown') {
             throw new Error('deployed environment identity is missing');
           }

@@ -60,9 +60,16 @@ jobs:
             body=$(curl -s --max-time 15 "$HEALTH_CHECK_URL" || echo '')
             last_status=$(printf '%s' "$body" | jq -r '.status // empty' 2>/dev/null || echo '')
             last_sha=$(printf '%s' "$body" | jq -r '.releaseSha // empty' 2>/dev/null || echo '')
+            last_repo=$(printf '%s' "$body" | jq -r '.releaseRepo // empty' 2>/dev/null || echo '')
             [ -n "$last_sha" ] && saw_sha=true
-            echo "Attempt $attempt: status=${last_status:-none} releaseSha=${last_sha:-none}"
+            echo "Attempt $attempt: status=${last_status:-none} releaseSha=${last_sha:-none} releaseRepo=${last_repo:-none}"
             if [ "$last_status" = "ok" ] && [ "${last_sha:0:7}" = "$expected_short" ]; then
+              # Provenance guard: a matching SHA built from a non-canonical repo
+              # (mirror/fork) must never pass the production gate.
+              if [ -n "$last_repo" ] && [ "$last_repo" != "ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5" ]; then
+                echo "❌ Deployment reports non-canonical source repository: ${last_repo}"
+                exit 1
+              fi
               echo "✅ New deployment (${expected_short}) is live and healthy"
               exit 0
             fi

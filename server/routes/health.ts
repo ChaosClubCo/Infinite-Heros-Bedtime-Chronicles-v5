@@ -10,7 +10,7 @@ import { pingGemini } from "../ai/providers/gemini";
 import { pingAnthropic } from "../ai/providers/anthropic";
 import { pingOpenAI } from "../ai/providers/openai";
 import { pingOpenRouter } from "../ai/providers/openrouter";
-import { getReleaseSha } from "../release-identity";
+import { getReleaseSha, getReleaseRepo, getReleaseRef } from "../release-identity";
 
 // Anthropic first, matching DEFAULT_CHAINS's "story" fallback order in
 // server/ai/router.ts (Anthropic → Gemini → ...) — probing whichever
@@ -50,6 +50,8 @@ export function registerHealthRoutes(app: Express): void {
       status: "ok",
       timestamp: Date.now(),
       releaseSha: getReleaseSha(),
+      releaseRepo: getReleaseRepo(),
+      releaseRef: getReleaseRef(),
       environment: process.env.VERCEL_ENV || process.env.NODE_ENV || "unknown",
       aiProvidersAvailable: aiAvailable,
       ttsAvailable,

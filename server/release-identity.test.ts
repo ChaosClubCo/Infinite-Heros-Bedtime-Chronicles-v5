@@ -1,16 +1,22 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { getReleaseSha, requireReleaseSha } from './release-identity';
+import { getReleaseSha, getReleaseRepo, getReleaseRef, requireReleaseSha } from './release-identity';
 
 const original = {
   APP_RELEASE_SHA: process.env.APP_RELEASE_SHA,
   VERCEL_GIT_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA,
   GITHUB_SHA: process.env.GITHUB_SHA,
+  VERCEL_GIT_REPO_OWNER: process.env.VERCEL_GIT_REPO_OWNER,
+  VERCEL_GIT_REPO_SLUG: process.env.VERCEL_GIT_REPO_SLUG,
+  VERCEL_GIT_COMMIT_REF: process.env.VERCEL_GIT_COMMIT_REF,
 };
 
 function clearReleaseEnvironment() {
   delete process.env.APP_RELEASE_SHA;
   delete process.env.VERCEL_GIT_COMMIT_SHA;
   delete process.env.GITHUB_SHA;
+  delete process.env.VERCEL_GIT_REPO_OWNER;
+  delete process.env.VERCEL_GIT_REPO_SLUG;
+  delete process.env.VERCEL_GIT_COMMIT_REF;
 }
 
 afterEach(() => {
@@ -46,6 +52,33 @@ describe('getReleaseSha', () => {
     clearReleaseEnvironment();
 
     expect(getReleaseSha()).toBeNull();
+  });
+});
+
+describe('getReleaseRepo', () => {
+  it('returns owner/name when the git integration exposes both', () => {
+    clearReleaseEnvironment();
+    process.env.VERCEL_GIT_REPO_OWNER = 'ChaosClubCo';
+    process.env.VERCEL_GIT_REPO_SLUG = 'Infinite-Heros-Bedtime-Chronicles-v5';
+
+    expect(getReleaseRepo()).toBe('ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5');
+  });
+
+  it('returns null when either half is missing (local dev, CLI uploads)', () => {
+    clearReleaseEnvironment();
+    process.env.VERCEL_GIT_REPO_OWNER = 'ChaosClubCo';
+
+    expect(getReleaseRepo()).toBeNull();
+  });
+});
+
+describe('getReleaseRef', () => {
+  it('returns the deployment branch when exposed and null otherwise', () => {
+    clearReleaseEnvironment();
+    expect(getReleaseRef()).toBeNull();
+
+    process.env.VERCEL_GIT_COMMIT_REF = 'main';
+    expect(getReleaseRef()).toBe('main');
   });
 });
 

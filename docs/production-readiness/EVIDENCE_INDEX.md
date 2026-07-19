@@ -40,6 +40,7 @@ Record the evidence supporting the production-readiness decision, identify contr
 | CI definition | `.github/workflows/ci.yml` | Lock/install/lint/test/audit/typecheck/build jobs defined | High |
 | CI execution | current-main status/workflow lookup | No statuses/runs returned | Medium; connector limitations possible |
 | EAS/Vercel | `eas.json`, `vercel.json` | Targets configured | High for config; Low for deployed state |
+| Vercel git linkage | `VERCEL_RELINK_2026-07-19.md` | Project relinked from public mirror to canonical `ChaosClubCo` repo via Vercel CLI; domains attached; provenance guards added (`scripts/verify-release-provenance.mjs`) | High — live API pre/post snapshots |
 
 ## Major Documentation Contradictions
 

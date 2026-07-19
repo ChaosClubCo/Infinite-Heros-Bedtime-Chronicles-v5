@@ -74,6 +74,25 @@ describe("GET /api/health", () => {
     expect(res.body.aiProvidersLive).toEqual(expect.objectContaining({ reachable: true }));
   });
 
+  it("reports releaseRepo/releaseRef from Vercel git metadata and null without it", async () => {
+    const withoutGitMeta = await request(app).get("/api/health");
+    expect(withoutGitMeta.body.releaseRepo).toBeNull();
+    expect(withoutGitMeta.body.releaseRef).toBeNull();
+
+    process.env.VERCEL_GIT_REPO_OWNER = "ChaosClubCo";
+    process.env.VERCEL_GIT_REPO_SLUG = "Infinite-Heros-Bedtime-Chronicles-v5";
+    process.env.VERCEL_GIT_COMMIT_REF = "main";
+    try {
+      const res = await request(app).get("/api/health");
+      expect(res.body.releaseRepo).toBe("ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5");
+      expect(res.body.releaseRef).toBe("main");
+    } finally {
+      delete process.env.VERCEL_GIT_REPO_OWNER;
+      delete process.env.VERCEL_GIT_REPO_SLUG;
+      delete process.env.VERCEL_GIT_COMMIT_REF;
+    }
+  });
+
   it("reports ttsLive as {reachable: null} without probing when ELEVENLABS_API_KEY is unset", async () => {
     delete process.env.ELEVENLABS_API_KEY;
     try {
