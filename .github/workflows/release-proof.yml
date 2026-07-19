@@ -22,7 +22,7 @@ on:
       evidence_issue:
         description: Canonical GitHub issue number that receives run evidence
         required: true
-        default: "370"
+        default: "376"
         type: string
       physical_device_evidence_url:
         description: Private evidence URL for the completed device matrix (finalize only)
@@ -34,6 +34,10 @@ on:
         type: string
       rollback_evidence_url:
         description: Private evidence URL for the rollback drill (finalize only)
+        required: false
+        type: string
+      alert_notification_evidence_url:
+        description: Private evidence URL proving the alert notification was received (finalize only)
         required: false
         type: string
 
@@ -130,11 +134,11 @@ jobs:
         run: |
           set -euo pipefail
           npm run preflight
-          npm run lint
+          npm run lint -- --max-warnings=0
           npm test
           npm run test:components
           npm run typecheck
-          npm audit --audit-level=critical
+          npm audit --audit-level=high
           npm run server:build
           npm run expo:check
           npm run expo:build:ci
@@ -162,11 +166,11 @@ jobs:
             recordedAt: new Date().toISOString(),
             commands: [
               'npm run preflight',
-              'npm run lint',
+              'npm run lint -- --max-warnings=0',
               'npm test',
               'npm run test:components',
               'npm run typecheck',
-              'npm audit --audit-level=critical',
+              'npm audit --audit-level=high',
               'npm run server:build',
               'npm run expo:check',
               'npm run expo:build:ci',
@@ -409,12 +413,14 @@ jobs:
           DEVICE_EVIDENCE: ${{ inputs.physical_device_evidence_url }}
           BACKUP_EVIDENCE: ${{ inputs.backup_restore_evidence_url }}
           ROLLBACK_EVIDENCE: ${{ inputs.rollback_evidence_url }}
+          ALERT_NOTIFICATION_EVIDENCE: ${{ inputs.alert_notification_evidence_url }}
         run: |
           node <<'NODE'
           const values = {
             physicalDeviceEvidenceUrl: process.env.DEVICE_EVIDENCE,
             backupRestoreEvidenceUrl: process.env.BACKUP_EVIDENCE,
             rollbackEvidenceUrl: process.env.ROLLBACK_EVIDENCE,
+            alertNotificationEvidenceUrl: process.env.ALERT_NOTIFICATION_EVIDENCE,
           };
           for (const [name, value] of Object.entries(values)) {
             if (!/^https:\/\/[^\s]+$/i.test(value || '')) throw new Error(`${name} must be HTTPS`);
@@ -429,6 +435,7 @@ jobs:
           DEVICE_EVIDENCE: ${{ inputs.physical_device_evidence_url }}
           BACKUP_EVIDENCE: ${{ inputs.backup_restore_evidence_url }}
           ROLLBACK_EVIDENCE: ${{ inputs.rollback_evidence_url }}
+          ALERT_NOTIFICATION_EVIDENCE: ${{ inputs.alert_notification_evidence_url }}
         run: |
           node <<'NODE'
           const fs = require('node:fs');
@@ -439,6 +446,7 @@ jobs:
             physicalDeviceEvidenceUrl: process.env.DEVICE_EVIDENCE,
             backupRestoreEvidenceUrl: process.env.BACKUP_EVIDENCE,
             rollbackEvidenceUrl: process.env.ROLLBACK_EVIDENCE,
+            alertNotificationEvidenceUrl: process.env.ALERT_NOTIFICATION_EVIDENCE,
             recordedAt: new Date().toISOString(),
             recordedBy: process.env.GITHUB_ACTOR,
             independentlyVerified: false,

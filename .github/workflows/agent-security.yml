@@ -74,9 +74,4 @@ jobs:
         uses: github/codeql-action/autobuild@v4
 
       - name: Analyze
-        # continue-on-error: the upload fails with "Code scanning is not enabled"
-        # until the repo owner enables it in Settings → Security → Code scanning.
-        # Step-level continue-on-error lets the job succeed so it doesn't gate
-        # merges on a repo-settings gap outside this repo's code.
-        continue-on-error: true
         uses: github/codeql-action/analyze@v4

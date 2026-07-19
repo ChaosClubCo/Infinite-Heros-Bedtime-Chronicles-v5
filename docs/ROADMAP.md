@@ -1,8 +1,12 @@
 # Development Roadmap
 
-**Last Updated:** 2026-07-15 (audit + next-sprint pass — see `docs/AUDIT-NEXT-SPRINT-2026-07-15.md`)
+**Last Updated:** 2026-07-19 (release-salvage stabilization)
 
 Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Time Criticality + Risk Reduction) / Job Size`
+
+## Current Release Focus (NO GO)
+
+The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5/issues/376). The current stabilization cycle must finish strict CI/publish/release-proof parity, reconcile Supabase migration history, prove optimized `sync_records` RLS on a disposable branch, fix the deployed `/privacy` 404, align Vercel's Node runtime with repository engines, and then collect exact-candidate device, alert-receipt, restore, rollback, and legal evidence. A merge is remediation delivery, not release approval.
 
 ## Completed
 
@@ -71,51 +75,47 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
 | 1 | Real tests for `server/auth.ts` — the "comprehensive" suite never imports the module | 8 | 5 | 8 | 2 | 10.5 | `server/auth.comprehensive.test.ts` reimplements logic as inline literals instead of calling `requireAuth`; the integration suite mocks `requireAuth` out entirely. Coverage confirms 4.08% stmt / 0% branch on the app's entire Supabase-auth boundary. See `docs/AUDIT-NEXT-SPRINT-2026-07-15.md` finding 1 |
-| 2 | Write and execute the missing `docs/VERIFICATION-M1-M3.md` cloud-sync verification checklist | 5 | 5 | 5 | 2 | 7.5 | Referenced by commit `0e31e77` ("Still needs on-device verification") but never committed. That commit fixed `SyncManager` never being mounted — cloud sync was a silent no-op since the M3 merge. Off by default (`cloudSyncEnabled: false`) so no current user impact, but needs verification before it's ever toggled on. See finding 2 |
-| 3 | M1 (TTS-cache half) — Move `/tmp` TTS cache to Cloudflare R2 (or equivalent object storage) | 8 | 8 | 6 | 5 | 4.4 | Serverless gate: TTS cache is filesystem/`/tmp`, lost across cold starts → re-synth cost. Idempotency half of M1 already shipped 2026-07-12 (Cloudflare KV) — binary audio needs object storage (R2), not KV, and needs a human to provision the bucket/token first. See docs/ROADMAP.md M1 follow-up note in `server/tts-cache.ts` |
+| 2 | Execute `docs/VERIFICATION-M1-M3.md` cloud-sync verification | 5 | 5 | 5 | 2 | 7.5 | The checklist now exists, but device and disposable Supabase evidence remain incomplete. Cloud sync is off by default (`cloudSyncEnabled: false`) and must not be enabled before isolation proof passes |
+| 3 | Complete exact-SHA release proof | 8 | 8 | 8 | 5 | 4.8 | Freeze only the reviewed stabilization merge SHA; then prove repository gates, canonical deployment identity, privacy route, received alert, device matrix, restore, rollback, and legal approval in issue #376 |
 | 4 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/PLAY_STORE_DEPLOYMENT.md |
-| 5 | Port the 19 missing M1–M3 files (`server/safety/*`, `lib/sync/*`, `lib/tts-cache.ts`, `lib/narration.ts`, etc.) into `krosebrook/bedtime_chronicles-v2` | 8 | 5 | 8 | 5 | 4.2 | `v2`'s convergence PR (#3) copied a pre-M1–M3 `CLAUDE.md` snapshot and never got the corresponding source ported either. `v2` still only has the long-standing prompt-side `CHILD_SAFETY_RULES`, not the newer output-side re-check/regenerate/fallback guard this repo added — a real safety-posture gap, not a docs mismatch (corrected from an earlier draft of this item). See finding 4. Cross-repo item, tracked here since this repo owns the merge narrative |
+| 5 | Archive and disable the public mirror | 8 | 5 | 8 | 3 | 7.0 | `Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5-main` remains `archived: false`; preserve history, disable automation/deployments, archive through provider controls, then re-fetch metadata |
 
 ### Medium Priority
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 6 | Fix `krosebrook/infinite-heros-bedtime-chronicles-v5-main` CI (package-lock.json drift) and run it through the same convergence PR `v2` got | 5 | 3 | 5 | 5 | 2.6 | Live CI (run 29221776371, 2026-07-13) fails at the lockfile-sync check before lint/test/typecheck/audit run. The repo's `main` is still the pre-merge Firebase/Expo-54 codebase, contradicting the Merge Provenance claim that it "contributed nothing beyond receiving the merged tree." See finding 3 |
-| 7 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | 15 moderate, 0 high, 0 critical as of 2026-07-15 (down from 42/2-high — the `tmp`/`undici` high-severity pair is already resolved, presumably via routine Dependabot merges). Remaining 15 are two transitive chains (`esbuild`→`drizzle-kit`, `uuid`→`@expo/config-plugins`); both `--force` fixes force a breaking major-version change to resolve the advisory, not a blind-apply |
+| 6 | Fix deployed `/privacy` and align Vercel Node runtime | 8 | 8 | 6 | 3 | 7.3 | Canonical linkage is verified, but `/privacy` returns 404 and Vercel reports Node `24.x` while `package.json` permits Node 20.19 or 22.13 ranges; change provider settings only after stabilization review |
+| 7 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | High/critical findings now fail release gates. Moderate transitive findings require a scoped dependency upgrade; never use an unreviewed `--force` migration |
 
 ### Low Priority
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 8 | Remove or wire up `server/replit_integrations/chat/routes.ts` | 2 | 1 | 2 | 2 | 2.5 | `registerChatRoutes()` implements a text-chat variant of `POST /api/conversations/:id/messages` but is never called from `server/routes.ts` — dead code flagged in the 2026-07-12 doc audit. Either delete it or register it behind a feature flag like the audio routes |
+| 8 | Reconcile remaining historical Voice Chat and Replit documentation | 2 | 1 | 2 | 2 | 2.5 | The old text-chat route file is already absent; remaining historical docs must clearly distinguish archived behavior from release-contained runtime behavior |
 | 9 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | Stored data is non-sensitive (story text, badges) |
-| 10 | Refresh `docs/TEST-COVERAGE-ANALYSIS.md` coverage numbers | 3 | 1 | 2 | 2 | 3.0 | As of 2026-07-15: 1280 tests / 70 files passing (was 1010/41), 72.49% stmt / 67.78% branch coverage overall (was ~59%/55%). See `docs/AUDIT-NEXT-SPRINT-2026-07-15.md` finding 5 for the full table |
+| 10 | Refresh `docs/TEST-COVERAGE-ANALYSIS.md` from an exact-head coverage run | 3 | 1 | 2 | 2 | 3.0 | The 2026-07-19 non-coverage run measured 1,397 Vitest tests across 82 files plus 52 jest-expo tests; coverage percentages require a separate exact-head coverage artifact |
 | 11 | Expo SDK 55 → 57 upgrade | 3 | 2 | 3 | 8 | 1.0 | Root cause of most remaining moderate npm-audit findings (`@expo/config*` chain). Not urgent — no actively-exploited CVE — but a two-major jump on Expo/Expo Router has a track record of multi-day breakage per `docs/CHANGELOG.md`; deserves its own dedicated upgrade sprint, not a slot alongside routine work |
 
 ## Dependencies
 
-- Item 1 (EAS) requires all API keys set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md) plus an `EXPO_TOKEN` in the ChaosClubCo-org CI.
-- Item 2 (M3 device-verify) depends on Item 1 for an installable Android build; run `scripts/verify-sync.ts` against it.
-- Item 3 (npm audit) is blocked on upstream releasing fixes for the `tmp`/`undici` and `@expo/config*` transitive chains.
-- Item 5 (M4 native audio) is blocked on ejecting the managed Expo client + retrieving `archive/android-kotlin-rewrite/`.
+- Item 4 (EAS) requires all API keys set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md) plus an `EXPO_TOKEN` in the ChaosClubCo-org CI.
+- Item 2 (device verification) depends on Item 4 for an installable Android build; run `scripts/verify-sync.ts` against it.
+- Item 7 (dependency remediation) is blocked on reviewed, compatible upstream upgrades for remaining moderate transitive chains.
+- Item 5 requires repository-owner confirmation that no unique work or active automation will be lost before archiving the mirror.
 - (Resolved) M1 TTS-cache → Cloudflare R2 shipped 2026-07-15 (see Completed); the former bucket/token provisioning dependency is satisfied. R2 uses its own S3-compatible client (`server/r2.ts`) since KV isn't suited to binary blobs.
 
 ## Known Audit Issues
 
-`npm audit` as of 2026-07-15 reports **15 moderate, 0 high, 0 critical** (the 2026-06-19
-baseline of 42 advisories including 2 high — `tmp`, `undici` — is resolved, presumably
-via routine Dependabot merges since then; the "tighten to `--audit-level=high`" note below
-can now happen):
-- **Moderate:** two transitive chains — `esbuild` (via `@esbuild-kit/*` → `drizzle-kit`)
-  and `uuid` (via `xcode`/`@expo/config-plugins` → `expo-splash-screen`/`@expo/cli`).
-  Both have `npm audit fix --force` fixes available, but each resolves the advisory by
-  forcing a breaking major-version change (drizzle-kit 0.31→0.18 is a downgrade;
-  expo-splash-screen jumps forward a major) — needs a scoped dependency-upgrade pass,
-  not a blind `--force` apply.
+The 2026-07-19 stabilization-branch check measured **4 moderate, 0 high, 0 critical**
+findings. Exact-head `npm audit --audit-level=high` output is still required after the
+final commit, and any high/critical finding fails the candidate. The measured moderate
+chain is:
+- **Moderate:** `esbuild` via `@esbuild-kit/*` and `drizzle-kit`. The suggested
+  `npm audit fix --force` installs `drizzle-kit@0.18.1`, a breaking downgrade;
+  this needs a scoped compatibility review, not a blind force fix.
 
-CI uses `--audit-level=critical`. Now that the `tmp`/`undici` high-severity pair is
-resolved, tighten to `--audit-level=high` — nothing currently outstanding is high or
-critical, so this is a safe, immediate tightening.
+CI, publish, and release proof use `--audit-level=high`. Moderate findings remain
+visible and require a scoped dependency migration rather than `npm audit fix --force`.
 
 ## Tracked TODOs in Code
 

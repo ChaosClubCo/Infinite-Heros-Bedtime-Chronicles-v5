@@ -115,10 +115,12 @@ function scanSecrets(files) {
 
 function runAudit() {
   const level = config.auditLevel || 'high';
-  const result = spawnSync('npm', ['audit', '--omit=dev', `--audit-level=${level}`, '--json'], {
+  const npmExecutable = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const result = spawnSync(npmExecutable, ['audit', '--omit=dev', `--audit-level=${level}`, '--json'], {
     cwd: root,
     encoding: 'utf8',
     env: process.env,
+    shell: process.platform === 'win32',
   });
 
   let parsed = null;
