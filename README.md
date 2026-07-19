@@ -240,5 +240,4 @@ See [docs/API.md](docs/API.md) for full reference.
 
 ## License
 
-<!-- HUMAN INPUT REQUIRED: No LICENSE file exists. Select and add a license (e.g., MIT, Apache 2.0, or a proprietary license) before publishing to any app store or making the repository public. -->
-Private project — no license file has been added yet. All rights reserved until a license is selected and committed.
+Proprietary project — All Rights Reserved by ChaosClubCo. See the LICENSE file in the root of the repository for full terms.
