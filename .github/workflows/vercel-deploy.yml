@@ -5,85 +5,111 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: production-vercel-deploy
+  cancel-in-progress: false
+
 env:
   HEALTH_CHECK_URL: "https://www.bedtime-chronicles.com/api/health"
+  PRIVACY_URL: "https://www.bedtime-chronicles.com/privacy"
   VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
 
 jobs:
   trigger-vercel-deploy:
-    name: Trigger Vercel Deployment
+    name: Trigger and verify canonical Vercel production deployment
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
-      - name: Check Vercel deploy hook configuration
-        id: check-hook
-        run: |
-          if [ -n "$VERCEL_DEPLOY_HOOK_URL" ]; then
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Checkout triggering candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
 
-      - name: Skip deployment when deploy hook is missing
-        if: ${{ steps.check-hook.outputs.configured != 'true' }}
-        run: echo "⚠️ VERCEL_DEPLOY_HOOK_URL is not configured; skipping deployment trigger"
-
-      - name: Trigger Vercel Deploy Hook
-        if: ${{ steps.check-hook.outputs.configured == 'true' }}
-        run: |
-          curl -fsS -X POST "$VERCEL_DEPLOY_HOOK_URL"
-      
-      - name: Notify deployment triggered
-        if: ${{ steps.check-hook.outputs.configured == 'true' }}
-        run: echo "✅ Vercel deployment triggered successfully"
-
-      - name: Wait for the NEW deployment to go live (health check)
-        if: ${{ steps.check-hook.outputs.configured == 'true' }}
+      - name: Verify checked-out candidate
         env:
-          # Passed via env (not inlined) per workflow-injection hardening. github.sha
-          # is a 40-hex commit id, but keep the safe pattern regardless.
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Require Vercel deploy hook configuration
+        run: test -n "$VERCEL_DEPLOY_HOOK_URL"
+
+      - name: Trigger canonical main deployment
+        run: curl --fail --silent --show-error -X POST "$VERCEL_DEPLOY_HOOK_URL"
+
+      - name: Wait for exact canonical candidate and privacy notice
+        env:
           EXPECTED_SHA: ${{ github.sha }}
         run: |
-          # The production alias keeps serving the PREVIOUS deployment until the new
-          # build finishes and promotes. A fixed sleep + status check therefore green-
-          # lights the old deployment (and can't catch a broken build). Instead poll
-          # /api/health until it reports releaseSha == the commit we just deployed.
-          expected_short="${EXPECTED_SHA:0:7}"
-          echo "🔍 Waiting for $HEALTH_CHECK_URL to report releaseSha ${expected_short}..."
-          deadline=$(( SECONDS + 600 ))   # up to 10 minutes
+          set -euo pipefail
+          deadline=$((SECONDS + 900))
           attempt=0
-          saw_sha=false
           last_status=""
           last_sha=""
+          last_repo=""
+          last_ref=""
+
           while [ "$SECONDS" -lt "$deadline" ]; do
-            attempt=$(( attempt + 1 ))
-            body=$(curl -s --max-time 15 "$HEALTH_CHECK_URL" || echo '')
-            last_status=$(printf '%s' "$body" | jq -r '.status // empty' 2>/dev/null || echo '')
-            last_sha=$(printf '%s' "$body" | jq -r '.releaseSha // empty' 2>/dev/null || echo '')
-            last_repo=$(printf '%s' "$body" | jq -r '.releaseRepo // empty' 2>/dev/null || echo '')
-            [ -n "$last_sha" ] && saw_sha=true
-            echo "Attempt $attempt: status=${last_status:-none} releaseSha=${last_sha:-none} releaseRepo=${last_repo:-none}"
-            if [ "$last_status" = "ok" ] && [ "${last_sha:0:7}" = "$expected_short" ]; then
-              # Provenance guard: a matching SHA built from a non-canonical repo
-              # (mirror/fork) must never pass the production gate.
-              if [ -n "$last_repo" ] && [ "$last_repo" != "ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5" ]; then
-                echo "❌ Deployment reports non-canonical source repository: ${last_repo}"
-                exit 1
-              fi
-              echo "✅ New deployment (${expected_short}) is live and healthy"
+            attempt=$((attempt + 1))
+            rm -f health.json health-headers.txt privacy.html privacy-headers.txt
+
+            if curl --fail --silent --show-error --location --max-time 20 \
+              -H 'Cache-Control: no-cache' -D health-headers.txt \
+              "$HEALTH_CHECK_URL" --output health.json; then
+              last_status=$(jq -r '.status // empty' health.json)
+              last_sha=$(jq -r '.releaseSha // empty' health.json)
+              last_repo=$(jq -r '.releaseRepo // empty' health.json)
+              last_ref=$(jq -r '.releaseRef // empty' health.json)
+            else
+              last_status=""
+              last_sha=""
+              last_repo=""
+              last_ref=""
+            fi
+
+            echo "Attempt $attempt: status=${last_status:-none} sha=${last_sha:-none} repo=${last_repo:-none} ref=${last_ref:-none}"
+
+            if [ "$last_status" = "ok" ] && [ "$last_sha" = "$EXPECTED_SHA" ]; then
+              EXPECTED_RELEASE_SHA="$EXPECTED_SHA" \
+              DEPLOYED_RELEASE_SHA="$last_sha" \
+              DEPLOYED_RELEASE_REPO="$last_repo" \
+              DEPLOYED_RELEASE_REF="$last_ref" \
+                node scripts/verify-release-provenance.mjs --phase release-gate
+
+              grep -Eiq '^cache-control:.*no-store' health-headers.txt
+
+              curl --fail --silent --show-error --location --max-time 20 \
+                -H 'Cache-Control: no-cache' -D privacy-headers.txt \
+                "$PRIVACY_URL" --output privacy.html
+              test -s privacy.html
+              grep -Eiq '^cache-control:.*no-store' privacy-headers.txt
+              grep -Fq '<h1>Privacy Policy</h1>' privacy.html
+
+              echo "Canonical production deployment verified at $EXPECTED_SHA"
               exit 0
             fi
+
             sleep 20
           done
-          # Timed out. If the endpoint is up but never exposed a releaseSha, sha
-          # tracking isn't configured on Vercel — fall back to a basic health pass
-          # rather than blocking deploys. If we DID see a sha that never matched,
-          # the new build is stuck or unhealthy → fail.
-          if [ "$saw_sha" = "false" ] && [ "$last_status" = "ok" ]; then
-            echo "⚠️ releaseSha not exposed by the server; passing on basic health only."
-            echo "   (Set APP_RELEASE_SHA or enable Vercel system env vars for a precise gate.)"
-            exit 0
-          fi
-          echo "❌ Timed out waiting for deployment ${expected_short} to become healthy"
-          echo "   (last status: ${last_status:-none}, last releaseSha: ${last_sha:-none})"
+
+          echo "Timed out waiting for exact canonical production deployment" >&2
+          echo "last status=${last_status:-none} sha=${last_sha:-none} repo=${last_repo:-none} ref=${last_ref:-none}" >&2
           exit 1
+
+      - name: Upload deployment verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: production-deployment-verification-${{ github.sha }}
+          path: |
+            health.json
+            health-headers.txt
+            privacy.html
+            privacy-headers.txt
+          if-no-files-found: warn
+          retention-days: 90

@@ -2,44 +2,28 @@
 /**
  * Authoritative release-provenance validation.
  *
- * The Vercel project was once connected to a public docs-only mirror
- * (Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5-main), which produced
- * production deployments whose git metadata never identified a canonical
- * commit (see docs/production-readiness/VERCEL_RELINK_2026-07-19.md). This
- * module is the single place where "which repository may deploy, and does the
- * deployed SHA match the expected one" is decided. Workflows and the Vercel
- * build both call the CLI entry; tests import evaluateProvenance directly.
+ * Production deployments are allowed only when Vercel identifies a clean,
+ * Git-backed build from the canonical repository's `main` branch at a full
+ * 40-character commit SHA. Metadata-less CLI uploads are permitted only for
+ * non-production previews; they can never produce a production artifact.
  *
  * Phases:
- *   vercel-build  — runs at the start of the Vercel buildCommand. Fails the
- *                   build when the deployment's git metadata names any
- *                   repository other than the canonical one, so a mirror can
- *                   never produce a deployable artifact. Deployments without
- *                   git metadata (e.g. `vercel --prod` CLI uploads via
- *                   scripts/deploy-vercel.sh) are allowed with a warning —
- *                   that path supplies APP_RELEASE_SHA explicitly and remains
- *                   the documented fallback. Local runs (VERCEL unset) always
- *                   pass.
- *   release-gate  — runs in release workflows against a deployed /api/health
- *                   response. Strict: the expected SHA must be present and
- *                   match the deployed SHA, and when the deployment reports
- *                   its source repository it must be the canonical one.
+ *   vercel-build  — executes at the start of Vercel's build command. Production
+ *                   fails closed unless repository, branch, and exact commit
+ *                   metadata are present and canonical.
+ *   release-gate  — validates a deployed `/api/health` response against the
+ *                   exact expected SHA, canonical repository, and `main` ref.
  */
 
 export const CANONICAL_REPO_OWNER = "ChaosClubCo";
 export const CANONICAL_REPO_NAME = "Infinite-Heros-Bedtime-Chronicles-v5";
 export const CANONICAL_REPO = `${CANONICAL_REPO_OWNER}/${CANONICAL_REPO_NAME}`;
+export const CANONICAL_PRODUCTION_REF = "main";
 
 const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/i;
 
 /**
- * Evaluate provenance rules for a phase against an env-shaped input.
- * Pure — reads nothing from process.env, so tests can exercise every branch.
- *
  * @param {Record<string, string | undefined>} env
- *   vercel-build reads: VERCEL, VERCEL_GIT_REPO_OWNER, VERCEL_GIT_REPO_SLUG
- *   release-gate reads: EXPECTED_RELEASE_SHA, DEPLOYED_RELEASE_SHA,
- *                       DEPLOYED_RELEASE_REPO
  * @param {"vercel-build" | "release-gate"} phase
  * @returns {{ ok: boolean, failures: string[], warnings: string[] }}
  */
@@ -48,24 +32,41 @@ export function evaluateProvenance(env, phase) {
   const warnings = [];
 
   if (phase === "vercel-build") {
-    const owner = env.VERCEL_GIT_REPO_OWNER;
-    const slug = env.VERCEL_GIT_REPO_SLUG;
     if (!env.VERCEL) {
       warnings.push("Not a Vercel build (VERCEL unset); provenance rules do not apply locally.");
-    } else if (owner || slug) {
-      if ((owner ?? "").toLowerCase() !== CANONICAL_REPO_OWNER.toLowerCase()
-        || (slug ?? "").toLowerCase() !== CANONICAL_REPO_NAME.toLowerCase()) {
-        failures.push(
-          `Deployment source repository "${owner ?? "?"}/${slug ?? "?"}" is not the canonical `
-          + `${CANONICAL_REPO}. Mirror or fork repositories must never deploy this project.`,
-        );
-      }
-    } else {
-      warnings.push(
-        "No git metadata on this deployment (CLI upload). Allowed as the documented "
-        + "explicit-SHA fallback path (scripts/deploy-vercel.sh sets APP_RELEASE_SHA).",
+      return { ok: true, failures, warnings };
+    }
+
+    const isProduction = env.VERCEL_ENV === "production"
+      || env.VERCEL_TARGET_ENV === "production";
+    const owner = env.VERCEL_GIT_REPO_OWNER;
+    const slug = env.VERCEL_GIT_REPO_SLUG;
+    const ref = env.VERCEL_GIT_COMMIT_REF;
+    const sha = env.VERCEL_GIT_COMMIT_SHA;
+
+    if (!owner || !slug) {
+      const message = "Vercel did not provide Git repository metadata. Production must be deployed through the canonical Git-backed workflow; metadata-less CLI uploads are forbidden.";
+      if (isProduction) failures.push(message);
+      else warnings.push(message);
+    } else if (owner.toLowerCase() !== CANONICAL_REPO_OWNER.toLowerCase()
+      || slug.toLowerCase() !== CANONICAL_REPO_NAME.toLowerCase()) {
+      failures.push(
+        `Deployment source repository "${owner}/${slug}" is not the canonical ${CANONICAL_REPO}.`,
       );
     }
+
+    if (isProduction) {
+      if (ref !== CANONICAL_PRODUCTION_REF) {
+        failures.push(
+          `Production deployment ref "${ref ?? "missing"}" is not ${CANONICAL_PRODUCTION_REF}. `
+          + "Unmerged feature branches and CLI uploads cannot deploy to production.",
+        );
+      }
+      if (!sha || !FULL_SHA_PATTERN.test(sha)) {
+        failures.push("Production deployment is missing a full VERCEL_GIT_COMMIT_SHA.");
+      }
+    }
+
     return { ok: failures.length === 0, failures, warnings };
   }
 
@@ -73,25 +74,31 @@ export function evaluateProvenance(env, phase) {
     const expected = (env.EXPECTED_RELEASE_SHA ?? "").toLowerCase();
     const deployed = (env.DEPLOYED_RELEASE_SHA ?? "").toLowerCase();
     const deployedRepo = env.DEPLOYED_RELEASE_REPO ?? "";
+    const deployedRef = env.DEPLOYED_RELEASE_REF ?? "";
 
     if (!FULL_SHA_PATTERN.test(expected)) {
       failures.push("EXPECTED_RELEASE_SHA is missing or not a full 40-hex commit SHA.");
     }
-    if (!deployed) {
-      failures.push("Deployed releaseSha is absent; a release-gated deployment must expose its exact SHA.");
-    } else if (expected && FULL_SHA_PATTERN.test(expected) && deployed !== expected) {
+    if (!FULL_SHA_PATTERN.test(deployed)) {
+      failures.push("Deployed releaseSha is absent or not a full 40-hex commit SHA.");
+    } else if (FULL_SHA_PATTERN.test(expected) && deployed !== expected) {
       failures.push(`Deployed releaseSha ${deployed} does not match expected ${expected}.`);
     }
-    if (deployedRepo && deployedRepo.toLowerCase() !== CANONICAL_REPO.toLowerCase()) {
+
+    if (!deployedRepo) {
+      failures.push("Deployment does not report releaseRepo; canonical repository identity is required.");
+    } else if (deployedRepo.toLowerCase() !== CANONICAL_REPO.toLowerCase()) {
+      failures.push(`Deployed releaseRepo "${deployedRepo}" is not the canonical ${CANONICAL_REPO}.`);
+    }
+
+    if (!deployedRef) {
+      failures.push("Deployment does not report releaseRef; the production branch cannot be verified.");
+    } else if (deployedRef !== CANONICAL_PRODUCTION_REF) {
       failures.push(
-        `Deployed releaseRepo "${deployedRepo}" is not the canonical ${CANONICAL_REPO}.`,
-      );
-    } else if (!deployedRepo) {
-      warnings.push(
-        "Deployment does not report releaseRepo (pre-relink build or CLI upload); "
-        + "repository identity was not independently confirmed.",
+        `Deployed releaseRef "${deployedRef}" is not the canonical production ref ${CANONICAL_PRODUCTION_REF}.`,
       );
     }
+
     return { ok: failures.length === 0, failures, warnings };
   }
 

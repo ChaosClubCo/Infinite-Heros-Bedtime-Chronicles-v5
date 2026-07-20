@@ -1,29 +1,23 @@
 #!/usr/bin/env bash
-# Manual production deploy to Vercel with explicit release-SHA wiring.
+# Manual production deployments are intentionally disabled.
 #
-# vercel.json cannot interpolate shell variables (Vercel treats "$VAR" in JSON
-# as a literal string), and VERCEL_GIT_COMMIT_SHA is only auto-injected when
-# the Vercel project's Git connection is healthy. This script passes the SHA
-# explicitly as a Vercel CLI argument so /api/health's `releaseSha`
-# (server/routes/health.ts, precedence APP_RELEASE_SHA first) is deterministic
-# for the vercel-deploy.yml / release-proof.yml verification gates.
-#
-# Usage: npm run deploy:vercel   (requires `vercel login` once beforehand)
+# Production must be deployed from the canonical GitHub repository's `main`
+# branch through `.github/workflows/vercel-deploy.yml` and the configured Vercel
+# deploy hook. That path provides immutable repository, branch, and commit
+# metadata. A `vercel --prod` upload can include uncommitted files and cannot
+# prove that the deployed artifact matches a reviewed Git commit.
 set -euo pipefail
 
-if ! command -v vercel >/dev/null 2>&1; then
-  echo "error: vercel CLI not found. Install with: npm i -g vercel" >&2
-  exit 1
-fi
+cat >&2 <<'EOF'
+error: manual Vercel production deployment is disabled.
 
-if ! release_sha="$(git rev-parse HEAD 2>/dev/null)"; then
-  echo "error: not inside a git repository (cannot resolve release SHA)" >&2
-  exit 1
-fi
+Use the controlled deployment path:
+  1. Merge reviewed changes into canonical `main`.
+  2. Let `.github/workflows/vercel-deploy.yml` invoke the configured deploy hook.
+  3. Require `/api/health` to report the exact full SHA, canonical repository,
+     and `main` release ref before accepting the deployment.
 
-if [ -n "$(git status --porcelain)" ]; then
-  echo "warning: working tree is dirty — deploying HEAD SHA ${release_sha}, but the upload will include uncommitted changes." >&2
-fi
+Do not run `vercel --prod` for this project.
+EOF
 
-echo "Deploying to production with APP_RELEASE_SHA=${release_sha}"
-exec vercel --prod --env APP_RELEASE_SHA="${release_sha}" "$@"
+exit 1
