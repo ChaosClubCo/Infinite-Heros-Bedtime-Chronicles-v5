@@ -1,88 +1,40 @@
 # Deploying to Vercel
 
-## TL;DR
+## Production policy
 
-```bash
-vercel login                    # one-time, interactive
-npm run deploy:vercel           # from this directory
-```
+Production deployments are allowed only from the canonical repository and branch:
 
-`deploy:vercel` (`scripts/deploy-vercel.sh`) wraps `vercel --prod` and
-explicitly passes the release SHA as a CLI argument:
+- Repository: `ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5`
+- Branch: `main`
+- Trigger: `.github/workflows/vercel-deploy.yml`
+- Transport: configured `VERCEL_DEPLOY_HOOK_URL`
 
-```bash
-vercel --prod --env APP_RELEASE_SHA="$(git rev-parse HEAD)"
-```
+Do **not** run `vercel --prod` for this project. Manual CLI uploads can include uncommitted files and cannot prove that the deployed artifact matches a reviewed Git commit. `scripts/deploy-vercel.sh` intentionally exits with an error.
 
-Do **not** try to wire the SHA through `vercel.json` — Vercel does not
-interpolate shell variables there (`"$VERCEL_GIT_COMMIT_SHA"` in JSON
-stays a literal string). And Vercel's auto-injected
-`VERCEL_GIT_COMMIT_SHA` only exists when the project's Git connection
-is healthy, so passing `APP_RELEASE_SHA` explicitly keeps
-`/api/health`'s `releaseSha` (see `server/routes/health.ts`)
-deterministic. The `vercel-deploy.yml` and `release-proof.yml`
-workflows verify deploys against that field. A bare `vercel --prod`
-still works, but `releaseSha` may then be `null` and the deploy gates
-degrade to a basic health check.
+## Controlled deployment flow
 
-The repo is already linked — `.vercel/project.json` points at the
-FlashFusion team's `infinite-heros-bedtime-chronicles-v5` project, so
-the CLI will skip the interactive linking prompt.
+1. Merge reviewed remediation into canonical `main`.
+2. The `Vercel Deploy Hook` workflow posts to the configured deploy hook.
+3. Vercel builds the exact Git commit from `main`.
+4. `scripts/verify-release-provenance.mjs --phase vercel-build` rejects production builds unless Vercel reports:
+   - canonical repository owner and slug;
+   - `VERCEL_GIT_COMMIT_REF=main`;
+   - a full 40-character `VERCEL_GIT_COMMIT_SHA`.
+5. The workflow polls the public production health endpoint and accepts the deployment only when:
+   - `releaseSha` exactly equals the triggering commit;
+   - `releaseRepo` equals the canonical repository;
+   - `releaseRef` equals `main`;
+   - health uses `Cache-Control: no-store`;
+   - the hosted privacy notice returns HTTP 200.
 
-## Why CLI instead of the Git integration
+## Emergency containment
 
-The project lives on the **Vercel Hobby plan**. Hobby does not allow
-collaborators on private repos, and it enforces a *commit-author check*
-on every Git-triggered deploy. Any commit authored by someone other
-than the project owner (Dependabot, GitHub Copilot, Claude bots, other
-maintainers) hits the dashboard as **`BLOCKED`** — the deploy never
-builds, no logs are produced, and the green-tick PR in GitHub is
-misleading.
+A production alias may be returned to a known clean `main` candidate by creating a documented clean commit on `main`, which triggers the same controlled deploy-hook workflow. This is containment only. It does not approve release and invalidates prior exact-SHA evidence.
 
-The CLI deploy is authenticated by the **owner's** token, so it
-bypasses the commit-author check entirely. It is the supported
-workaround on Hobby.
+## Vercel Hobby limitation
 
-Symptom in the dashboard when this is biting:
+The GitHub workflow uses a Vercel deploy hook because direct Git-triggered builds on a private repository can be blocked by the Hobby plan's commit-author restrictions. The deploy hook still instructs Vercel to build the configured canonical Git branch, preserving repository, branch, and SHA metadata without allowing a local CLI upload.
 
-> Deployment Blocked — The deployment was blocked because the commit
-> author did not have contributing access to the project on Vercel.
-> The Hobby Plan does not support collaboration for private
-> repositories. Please upgrade to Pro to add team members.
+## Release approval
 
-## Permanent fix
-
-Upgrade the **FlashFusion** team to **Vercel Pro** (~$20/user/mo).
-That removes the commit-author check, and every push to `main` —
-regardless of author — will build like any other team plan.
-
-Until that happens, this `npm run deploy:vercel` dance is the manual
-stopgap each time bots merge to `main`.
-
-## Background — what was fixed in PR #169
-
-Before commit `f1ec0de`, deploys were failing earlier in the pipeline:
-
-```
-npm error code EUSAGE
-npm error `npm ci` can only install packages when your package.json
-and package-lock.json are in sync.
-npm error Missing: typescript@5.9.3 from lock file
-```
-
-Root cause: `package.json` pinned `typescript@~6.0.3`, which violates
-Expo's `typescript@^5.0.0` peer-dep range. The fix:
-
-- Added `legacy-peer-deps=true` to `.npmrc`
-- Regenerated `package-lock.json` against that resolver mode
-
-That's already on `main` — `npm ci` now succeeds. The only remaining
-blocker is the Hobby commit-author wall described above.
-
-## The web bundle (resolved)
-
-`vercel.json`'s `buildCommand` now runs `npm run server:build` **and**
-`npx expo export --platform web --output-dir static-build`, and the
-serverless function bundles `static-build/**` via
-`functions.includeFiles`. The web UI ships with every deploy — no need
-to commit `static-build/`.
+A successful deployment is not release approval. Freeze the deployed SHA and complete the exact-SHA release-proof workflow, physical-device matrix, deletion proof, restore and rollback drills, alert receipt, provider evidence, privacy/legal review, and app-store disclosure gates before changing the release posture from **NO GO**.
