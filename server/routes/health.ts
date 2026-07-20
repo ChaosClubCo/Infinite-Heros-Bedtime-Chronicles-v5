@@ -1,5 +1,4 @@
 import type { Express } from "express";
-import path from "node:path";
 import { getProviderStatuses, getBreakerStatuses } from "../ai";
 import { getFeatureFlags } from "../feature-flags";
 import { getMetrics } from "../metrics";
@@ -10,6 +9,8 @@ import { pingGemini } from "../ai/providers/gemini";
 import { pingAnthropic } from "../ai/providers/anthropic";
 import { pingOpenAI } from "../ai/providers/openai";
 import { pingOpenRouter } from "../ai/providers/openrouter";
+import { PRIVACY_POLICY_HTML } from "../privacy-policy";
+import { getReleaseSha, getReleaseRepo, getReleaseRef } from "../release-identity";
 
 // Anthropic first, matching DEFAULT_CHAINS's "story" fallback order in
 // server/ai/router.ts (Anthropic → Gemini → ...) — probing whichever
@@ -28,13 +29,6 @@ const LIVE_PROBE_PROVIDERS: { name: string; ping: () => Promise<boolean> }[] = [
   { name: "meta-llama", ping: pingOpenRouter },
 ];
 
-function getReleaseSha(): string | null {
-  const value = process.env.APP_RELEASE_SHA
-    || process.env.VERCEL_GIT_COMMIT_SHA
-    || process.env.GITHUB_SHA;
-  return value && /^[0-9a-f]{7,40}$/i.test(value) ? value : null;
-}
-
 export function registerHealthRoutes(app: Express): void {
   app.get("/api/metrics", (_req, res) => {
     res.json(getMetrics());
@@ -51,10 +45,14 @@ export function registerHealthRoutes(app: Express): void {
     const liveProbeProvider = LIVE_PROBE_PROVIDERS.find(
       (p) => providers.find((status) => status.name === p.name)?.available,
     );
+    res.setHeader("Cache-Control", "no-store");
     res.json({
       status: "ok",
       timestamp: Date.now(),
       releaseSha: getReleaseSha(),
+      releaseRepo: getReleaseRepo(),
+      releaseRef: getReleaseRef(),
+      environment: process.env.VERCEL_ENV || process.env.NODE_ENV || "unknown",
       aiProvidersAvailable: aiAvailable,
       ttsAvailable,
       ttsLive: ttsAvailable ? getLiveStatus("elevenlabs", pingElevenLabs) : { reachable: null, checkedAt: null },
@@ -67,13 +65,12 @@ export function registerHealthRoutes(app: Express): void {
     });
   });
 
+  // The privacy notice is bundled as source code rather than read from a runtime
+  // filesystem path. Vercel serverless functions do not guarantee that arbitrary
+  // template files remain beside the compiled function.
   app.get("/privacy", (_req, res) => {
-    const privacyPath = path.resolve(process.cwd(), "server", "templates", "privacy-policy.html");
-    res.sendFile(privacyPath, (err) => {
-      if (err && !res.headersSent) {
-        res.status(404).json({ error: "Privacy policy not found" });
-      }
-    });
+    res.setHeader("Cache-Control", "no-store");
+    res.type("html").status(200).send(PRIVACY_POLICY_HTML);
   });
 
   app.get("/api/ai-providers", (_req, res) => {

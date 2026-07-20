@@ -13,7 +13,19 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
       delete mockStorage[key];
       return Promise.resolve();
     }),
+    getAllKeys: vi.fn(() => Promise.resolve(Object.keys(mockStorage))),
+    multiRemove: vi.fn((keys: string[]) => {
+      keys.forEach((key) => delete mockStorage[key]);
+      return Promise.resolve();
+    }),
   },
+}));
+
+// The authoritative consent module hashes disclosure copy with Expo Crypto.
+// Mock only that boundary so Node-only storage tests do not load React Native.
+vi.mock('expo-crypto', () => ({
+  CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+  digestStringAsync: vi.fn(() => Promise.resolve('a'.repeat(64))),
 }));
 
 // Mock the constants/types module
@@ -35,8 +47,6 @@ vi.mock('@/constants/types', () => ({
     pinCode: '',
     videoEnabled: false,
   },
-  DEFAULT_PARENT_CONSENT: { consented: false, consentedAt: 0, version: 0 },
-  CONSENT_VERSION: 1,
   BADGE_DEFINITIONS: [
     { id: 'first-adventure', emoji: '🌟', title: 'First Adventure', description: 'Completed your very first story!', condition: 'first_story' },
   ],
@@ -80,6 +90,7 @@ import {
   mergeSyncedProfileStubs,
   getEntityTombstones,
   stampEntityTombstone,
+  clearAllData,
 } from './storage';
 
 const makeStoryFull = (title = 'Test Story') => ({
@@ -553,28 +564,33 @@ describe('parent controls', () => {
   });
 });
 
-describe('parental consent', () => {
+describe('parental consent compatibility exports', () => {
   it('reports no consent by default', async () => {
-    const consent = await getParentConsent();
-    expect(consent.consented).toBe(false);
+    expect(await getParentConsent()).toBeNull();
     expect(await getConsentGiven()).toBe(false);
   });
 
-  it('records consent for the current version', async () => {
+  it('records the complete current verifiable consent record', async () => {
     await setParentConsent();
     const consent = await getParentConsent();
-    expect(consent.consented).toBe(true);
-    expect(consent.version).toBe(1);
-    expect(consent.consentedAt).toBeGreaterThan(0);
+    expect(consent).toMatchObject({
+      consented: true,
+      version: 3,
+      contentHash: 'a'.repeat(64),
+      verificationMethod: 'parent_gate_arithmetic_v1',
+    });
+    expect(consent?.consentedAt).toBeGreaterThan(0);
+    expect(consent?.locale.length).toBeGreaterThan(0);
     expect(await getConsentGiven()).toBe(true);
   });
 
-  it('treats a stale consent version as not consented', async () => {
+  it('treats a legacy version-only consent record as not consented', async () => {
     mockStorage['@infinity_heroes_parent_consent'] = JSON.stringify({
       consented: true,
       consentedAt: 123,
-      version: 0,
+      version: 2,
     });
+    expect(await getParentConsent()).toBeNull();
     expect(await getConsentGiven()).toBe(false);
   });
 });
@@ -639,5 +655,35 @@ describe('streaks', () => {
     const first = await updateStreak('p1');
     const second = await updateStreak('p1');
     expect(second.currentStreak).toBe(first.currentStreak);
+  });
+});
+
+describe('clearAllData', () => {
+  it('removes every @infinity_heroes_ key via multiRemove and leaves foreign keys alone', async () => {
+    mockStorage['@infinity_heroes_favorites'] = JSON.stringify(['story1']);
+    mockStorage['@infinity_heroes_profiles'] = JSON.stringify([]);
+    mockStorage['@infinity_heroes_app_settings'] = JSON.stringify({ isMuted: false });
+    mockStorage['some_other_lib_key'] = 'keep-me';
+
+    await clearAllData();
+
+    const AsyncStorageMock = (await import('@react-native-async-storage/async-storage')).default;
+    expect(AsyncStorageMock.multiRemove).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(AsyncStorageMock.multiRemove).mock.calls[0][0].sort()).toEqual([
+      '@infinity_heroes_app_settings',
+      '@infinity_heroes_favorites',
+      '@infinity_heroes_profiles',
+    ]);
+    expect(mockStorage).toEqual({ some_other_lib_key: 'keep-me' });
+  });
+
+  it('does not call multiRemove when no app keys exist', async () => {
+    mockStorage['some_other_lib_key'] = 'keep-me';
+
+    await clearAllData();
+
+    const AsyncStorageMock = (await import('@react-native-async-storage/async-storage')).default;
+    expect(AsyncStorageMock.multiRemove).not.toHaveBeenCalled();
+    expect(mockStorage).toEqual({ some_other_lib_key: 'keep-me' });
   });
 });

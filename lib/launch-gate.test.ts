@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { resolveLaunchRoute } from "./launch-gate";
-import { getConsentGiven, getOnboardingComplete } from "@/lib/storage";
+import { getConsentGiven } from "@/lib/consent-record";
+import { getOnboardingComplete } from "@/lib/storage";
 import { runStorageMigrations } from "@/lib/storage-migration";
 
-vi.mock("@/lib/storage", () => ({
+vi.mock("@/lib/consent-record", () => ({
   getConsentGiven: vi.fn(),
+}));
+vi.mock("@/lib/storage", () => ({
   getOnboardingComplete: vi.fn(),
 }));
 vi.mock("@/lib/storage-migration", () => ({
@@ -26,6 +29,14 @@ describe("resolveLaunchRoute", () => {
     mockOnboarding.mockResolvedValue(true);
     await resolveLaunchRoute();
     expect(mockMigrations).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the exact-copy consent verifier rather than the legacy storage helper", async () => {
+    mockConsent.mockResolvedValue(false);
+    mockOnboarding.mockResolvedValue(true);
+
+    await expect(resolveLaunchRoute()).resolves.toBe("/parental-consent");
+    expect(mockConsent).toHaveBeenCalledTimes(1);
   });
 
   it("fails safe to the consent gate when a migration throws", async () => {

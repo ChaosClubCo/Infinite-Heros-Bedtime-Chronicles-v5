@@ -23,3 +23,25 @@ export function confirmDestructive(
     { text: confirmLabel, style: "destructive", onPress: onConfirm },
   ]);
 }
+
+/**
+ * Cross-platform result/notice dialog with a single OK button. Same rationale
+ * as confirmDestructive: react-native-web's Alert.alert never renders and never
+ * invokes onPress, so any follow-up action (e.g. navigation after deletion)
+ * would silently never run on web. Falls back to window.alert there and then
+ * invokes onDismiss directly.
+ */
+export function notifyResult(
+  title: string,
+  message: string,
+  onDismiss?: () => void
+): void {
+  if (Platform.OS === "web") {
+    if (typeof window !== "undefined") {
+      window.alert(`${title}\n\n${message}`);
+    }
+    onDismiss?.();
+    return;
+  }
+  Alert.alert(title, message, [{ text: "OK", onPress: onDismiss }]);
+}

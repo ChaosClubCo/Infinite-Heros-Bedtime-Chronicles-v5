@@ -6,7 +6,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { getConsentGiven } from "@/lib/storage";
+import { getConsentGiven } from "@/lib/consent-record";
 
 /**
  * Reactive COPPA-consent state backing the root layout's Stack.Protected
@@ -14,7 +14,7 @@ import { getConsentGiven } from "@/lib/storage";
  * privacy policy is unmountable until consent is granted — this closes the
  * deep-link / restored-state paths that never pass through app/index.tsx.
  *
- * Persistence stays in lib/storage.ts (setParentConsent / clearAllData);
+ * Persistence and exact-copy verification stay in lib/consent-record.ts;
  * call markConsented / markUnconsented right after those writes so the
  * guard flips with the stored state.
  */
@@ -35,7 +35,7 @@ export function ConsentProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     getConsentGiven()
-      // Fail-safe: on a storage error we stay un-consented (COPPA).
+      // Fail-safe: on a storage or hashing error we stay un-consented (COPPA).
       .catch(() => false)
       .then((consented) => {
         if (!cancelled) {

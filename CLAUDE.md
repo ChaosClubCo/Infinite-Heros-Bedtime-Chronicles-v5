@@ -169,6 +169,7 @@ docs/                   # Project documentation
   CHANGELOG.md          # Version history
   COPPA-COMPLIANCE.md   # COPPA audit and privacy analysis
   BETA_TESTING.md       # Beta testing plan
+  VERIFICATION-M1-M3.md # On-device/manual verification checklist for the safety + audio-cache + cloud-sync work
   GITHUB-CUSTOM-AGENTS.md    # GitHub Copilot custom agent configurations
   adr/                  # Architecture Decision Records (5 ADRs)
   agents/               # 15 files: 12 agent spec files + README + pr-review.md + security.md

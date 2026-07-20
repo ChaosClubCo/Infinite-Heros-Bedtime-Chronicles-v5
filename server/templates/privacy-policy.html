@@ -9,10 +9,10 @@
 <body>
   <div class="container">
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Infinity Heroes: Bedtime Chronicles &mdash; Last updated: July 2026</p>
+    <p class="subtitle">Infinity Heroes: Bedtime Chronicles &mdash; Last updated: July 18, 2026</p>
 
     <div class="highlight">
-      <strong>Summary for Parents:</strong> Child profile name and age stay on the device and are discarded by the server before AI requests are built. A parent may create an optional account for cloud backup and Voice Chat. Fictional story inputs and Voice Chat audio are sent to service providers to produce the requested feature. We retain only the server data described below. Delete All Data removes the parent account, cloud records, Voice Chat history, and local device data.
+      <strong>Summary for Parents:</strong> Child profile name and age stay on the device and are discarded by the server before AI requests are built. A parent may create an optional account for cloud backup. Voice Chat is unavailable in this release: the app does not request microphone permission or send Voice Chat audio. Delete All Data removes the parent account, cloud records, any retained legacy Voice Chat history, and local device data after server deletion succeeds.
     </div>
 
     <h2>1. Information We Collect</h2>
@@ -22,6 +22,7 @@
       <li>Child profiles, including name, age range, favorite hero, and avatar choices</li>
       <li>Generated stories, illustrations, narration cache, badges, streaks, and achievements</li>
       <li>App settings and parent controls, including the locally protected parent PIN</li>
+      <li>A parental-consent record containing the consent version, exact disclosure hash, acceptance time, locale, and parent-gate verification method</li>
     </ul>
 
     <p><strong>Optional Parent Account and Cloud Backup:</strong></p>
@@ -35,39 +36,42 @@
     <ul>
       <li>Fictional hero details and parent-selected story preferences needed to create a story</li>
       <li>Explicit child profile name and age fields are discarded by the server and are not included in story or suggestion provider prompts</li>
-      <li>Voice Chat audio, when enabled and used, for speech transcription</li>
       <li>Approved text for narration or other requested media generation</li>
+      <li>No Voice Chat audio is collected or sent by the current release</li>
     </ul>
 
     <p><strong>Retained on Our Servers:</strong></p>
     <ul>
-      <li>Voice Chat conversation titles and sanitized text transcripts tied to the signed-in parent account</li>
       <li>Cloud-backup records when the parent turns that feature on</li>
+      <li>Any legacy Voice Chat conversation titles and sanitized transcripts created by a previously approved build, until their retention period expires or the parent uses Delete All Data</li>
       <li>Security, rate-limit, request, and error information needed to operate and protect the service</li>
     </ul>
-    <p>We do not intentionally retain the raw Voice Chat recording after it is submitted for transcription. AI providers may process or retain request data according to the provider terms and agreements applicable to the production service.</p>
+    <p>The current release does not intentionally collect or retain raw Voice Chat recordings. AI providers may process or retain other requested generation data according to the provider terms and agreements applicable to the production service.</p>
 
     <h2>2. How We Use Information</h2>
     <ul>
-      <li>Generate bedtime stories, illustrations, narration, and optional Voice Chat replies</li>
+      <li>Generate bedtime stories, illustrations, and narration</li>
       <li>Save and synchronize stories and progress when a parent enables cloud backup</li>
       <li>Authenticate the parent account and enforce owner-only access</li>
       <li>Prevent abuse, investigate errors, and protect service reliability</li>
+      <li>Verify that parental consent matches the exact current disclosure version</li>
     </ul>
     <p>We do <strong>not</strong> use child information for targeted advertising, sale of personal information, or behavioral profiling.</p>
 
     <h2>3. Service Providers</h2>
-    <p>Depending on the feature and current production configuration, providers may include Supabase for authentication and cloud storage; OpenAI, Google Gemini, Anthropic Claude, or other approved AI providers for text, image, transcription, and audio generation; ElevenLabs for narration; and infrastructure or error-monitoring providers.</p>
-    <p>A provider is enabled for child Voice Chat in production only after the required data-processing, child-data, privacy-notice, retention, and app-store attestations are recorded in deployment configuration.</p>
+    <p>Depending on the feature and current production configuration, providers may include Supabase for authentication and cloud storage; OpenAI, Google Gemini, Anthropic Claude, or other approved AI providers for text and image generation; ElevenLabs for narration; and infrastructure or error-monitoring providers.</p>
+    <p>Voice Chat processing is not enabled for this release. Any future release that enables microphone or transcription processing requires separately recorded provider, privacy, retention, safety, device, and app-store approvals plus a new parental-consent version.</p>
 
     <h2>4. Children's Privacy and Parental Consent</h2>
     <div class="highlight">
       <ul>
         <li>A parent or guardian must pass the grown-up gate and consent before protected app features are available</li>
+        <li>The consent record stores the current version, exact disclosure hash, timestamp, locale, and parent-gate method</li>
+        <li>Material disclosure changes invalidate older records and require renewed consent</li>
         <li>Accounts and cloud backup are optional parent-controlled features</li>
         <li>There are no public child profiles, stranger messaging, advertising networks, or social feeds</li>
         <li>Child-facing AI responses are generated under a child-safety policy and checked before display or narration</li>
-        <li>Voice Chat is disabled by default and must be explicitly enabled in an approved production configuration</li>
+        <li>Voice Chat is unavailable in this release and cannot receive release credit from configuration alone</li>
       </ul>
     </div>
 
@@ -75,7 +79,7 @@
     <ul>
       <li><strong>Device data:</strong> remains until the parent deletes it, resets the app, or uninstalls the app</li>
       <li><strong>Cloud backup:</strong> remains until deleted by the parent or the parent account is deleted</li>
-      <li><strong>Voice Chat transcripts:</strong> use the approved production retention period and are automatically purged no later than 30 days after creation; they can be deleted sooner from the app</li>
+      <li><strong>Legacy Voice Chat transcripts:</strong> are automatically purged no later than 30 days after creation and are also removed by Delete All Data</li>
       <li><strong>Parent authentication:</strong> remains until the parent account is deleted</li>
       <li><strong>Operational and provider records:</strong> follow documented production settings and applicable provider agreements</li>
     </ul>
@@ -83,19 +87,19 @@
     <h2>6. Parental Rights</h2>
     <p>Parents and guardians can:</p>
     <ul>
-      <li>Review and delete individual Voice Chat conversations</li>
-      <li>Turn cloud backup and Voice Chat off</li>
+      <li>Turn cloud backup off</li>
       <li>Delete individual child profiles, stories, and progress records</li>
-      <li>Use Delete All Data to remove PostgreSQL Voice Chat history, the Supabase account and cloud records, and local device data</li>
+      <li>Use Delete All Data to remove retained server data, the Supabase account and cloud records, and local device data</li>
+      <li>Receive a PII-free server deletion receipt that includes the deployed release identity</li>
       <li>Withdraw consent and restart the parental-consent flow</li>
       <li>Contact us to ask a privacy question or report a deletion problem</li>
     </ul>
 
     <h2>7. Data Security</h2>
-    <p>We protect data in transit using HTTPS/TLS. Server endpoints use authentication, owner scoping, rate limiting, input validation, bounded context, and server-authoritative output safety checks. Production Voice Chat fails closed unless its feature and compliance gates are explicitly approved.</p>
+    <p>We protect data in transit using HTTPS/TLS. Server endpoints use authentication, owner scoping, rate limiting, input validation, bounded context, and server-authoritative output safety checks. The current client contains no Voice Chat microphone, recording, transcript-fetch, or audio-message path.</p>
 
     <h2>8. Changes to This Policy</h2>
-    <p>We may update this policy as the service changes. The Last updated date at the top identifies the current version. Material changes to child-data practices require an updated parent-facing notice and, where required, renewed consent.</p>
+    <p>We may update this policy as the service changes. The Last updated date at the top identifies the current version. Material changes to child-data practices require an updated parent-facing notice and renewed consent.</p>
 
     <h2>9. Contact Us</h2>
     <p>If you have questions about this privacy policy or our data practices, contact us at:</p>

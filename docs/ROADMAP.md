@@ -1,104 +1,123 @@
 # Development Roadmap
 
-**Last Updated:** 2026-07-19 (R3 completion reconciliation + documentation consolidation)
+**Last Updated:** 2026-07-19 (release-salvage stabilization)
 
 Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Time Criticality + Risk Reduction) / Job Size`
 
-Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 8 for Size.
+## Current Release Focus (NO GO)
+
+The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5/issues/376). The current stabilization cycle must finish strict CI/publish/release-proof parity, reconcile Supabase migration history, prove optimized `sync_records` RLS on a disposable branch, fix the deployed `/privacy` 404, align Vercel's Node runtime with repository engines, and then collect exact-candidate device, alert-receipt, restore, rollback, and legal evidence. A merge is remediation delivery, not release approval.
 
 ## Completed
 
 | Item | Category | Date |
-|:---|:---|:---|
-| Reconstruct, validate, and compile release deliverables bundle (v1) | Release Engineering | 2026-07-19 |
-| Align Vercel serverless execution timeout configuration (60s -> 300s) | Infrastructure | 2026-07-17 |
-| Synchronize best practice documentation with actual implementations | Docs | 2026-07-17 |
-| Cloudflare R2 TTS-audio cache (M1 TTS-cache half) | Infrastructure | 2026-07-15 |
-| Remove dead text chat routes (routes.ts, routes.test.ts) | Code Quality | 2026-07-14 |
-| Secure Gemini API Key URL leakage in pingGemini() | Security | 2026-07-14 |
-| Extend health checks live probes to OpenAI/OpenRouter | Reliability | 2026-07-14 |
-| Add integration tests for request-finish alerting + TTS metrics | Testing | 2026-07-14 |
-| Refresh testing coverage numbers in documentation | Docs | 2026-07-14 |
-| M1 (idempotency half) — KV-backed idempotency cache | Infrastructure | 2026-07-12 |
-| M2 — Live health checks | Reliability | 2026-07-12 |
-| M3 — Wire alerting thresholds | Observability | 2026-07-12 |
-| Doc/code audit | Docs | 2026-07-12 |
-| Add Supabase Auth (bearer-token JWT middleware, optional/gated, 503 in production when unconfigured) | Feature/Security | 2026-07-06 |
-| Voice-chat IDOR fix — ownership checks on all conversation reads/writes | Security | 2026-07-06 |
-| Parent-controls PIN brute-force lockout (5 attempts → 30s lockout) | Security | 2026-07-06 |
-| Production-readiness re-audit + HIGH remediations | Security/Reliability | 2026-06-18 |
+|------|----------|------|
+| Unify dual settings systems | Bug Fix | 2026-03-13 |
+| Add security headers | Security | 2026-03-13 |
+| Wire up voice chat routes | Feature | 2026-03-13 |
+| Resolve dead code triage | Maintenance | 2026-03-13 |
+| Restore saveStoryScene persistence | Bug Fix | 2026-03-13 |
+| Fix storyId mismatch in completion | Bug Fix | 2026-03-13 |
+| Create comprehensive documentation | Docs | 2026-03-13 |
+| Update .env.example | Docs | 2026-03-13 |
+| Add testing framework (Vitest) | Tech Debt | 2026-04-07 |
+| Add KeyboardAwareScrollView to forms | Feature | 2026-04-07 |
+| Wire read/unread story indicators | Feature | 2026-04-07 |
+| Wire story feedback/rating UI | Feature | 2026-04-07 |
+| Reuse HeroCard.tsx in hero selection | Feature | 2026-04-07 |
+| Add npm audit to CI | Security | 2026-04-07 |
+| Fix audio pipeline (model name + ffmpeg) | Bug Fix | 2026-03-25 |
+| Model audit (rolling aliases, dead refs) | Maintenance | 2026-03-25 |
+| Wire Gemini image integration route | Feature | 2026-03-25 |
+| Harden input validation (parseInt, content, audio, voice) | Security | 2026-03-25 |
+| Add conversation pagination | Feature | 2026-03-25 |
+| Add Permissions-Policy & X-Permitted-Cross-Domain-Policies headers | Security | 2026-03-25 |
+| Safe JSON parsing for AI responses | Bug Fix | 2026-03-25 |
+| Replace unsafe `catch (error: any)` patterns | Code Quality | 2026-03-25 |
+| Upgrade to Expo SDK 55 | Tech Debt | 2026-04-24 |
+| Thorough 3-way audit + remediation | Security/Quality | 2026-04-24 |
+| COPPA parental-consent gate + in-app privacy policy | Compliance | 2026-06-11 |
+| Fix CI lint toolchain (ESLint 10 → 9) | CI | 2026-06-11 |
+| Patch shell-quote critical CVE | Security | 2026-06-11 |
+| Fix all_heroes badge (now counts custom heroes) | Bug Fix | 2026-06-11 |
+| Fix AI router streaming model field | Bug Fix | 2026-06-11 |
+| Fix suggest-settings JSON re-parse | Bug Fix | 2026-06-11 |
+| Build voice chat mobile UI screen | Feature | 2026-06-11 |
+| Refactor app/story.tsx into hooks + components | Code Quality | 2026-06-11 |
+| Add AI provider test coverage | Testing | 2026-06-11 |
+| Complete server/routes.ts → domain module migration | Code Quality | 2026-06-13 |
+| Provision Supabase production database (conversations + messages) | Infrastructure | 2026-06-13 |
+| Add Sentry error tracking (server + client) | Observability | 2026-06-13 |
+| Add Cloudflare KV persistent rate limiting | Infrastructure | 2026-06-13 |
+| Production-readiness re-audit + HIGH remediations (retry 4xx gate, crash handlers, cost guards) | Security/Reliability | 2026-06-18 |
 | Pre-baked hero portraits + illustrated onboarding flow + 50 story seeds (#245) | Feature | 2026-06-19 |
 | Story playback cleanup + stale-closure fix in app/story.tsx (#245) | Code Quality | 2026-06-19 |
 | Refactor badge system into lib/badges.ts; fix vocab_5 & all_heroes bugs (#247) | Bug Fix | 2026-06-19 |
 | Custom hero storage + Trophies screen progress UI (#247) | Feature | 2026-06-19 |
-| Complete server/routes.ts migration | Code Quality | 2026-06-13 |
-| Provision Supabase production database | Infrastructure | 2026-06-13 |
-| Add Sentry error tracking | Observability | 2026-06-13 |
-| Add Cloudflare KV persistent rate limiting | Infrastructure | 2026-06-13 |
-| Build voice chat mobile UI screen | Feature | 2026-06-11 |
-| Refactor app/story.tsx | Code Quality | 2026-06-11 |
-| Add AI provider test coverage | Testing | 2026-06-11 |
-| COPPA parental-consent gate + privacy policy | Compliance | 2026-06-11 |
-| Fix CI lint toolchain (ESLint 10 -> 9) | CI | 2026-06-11 |
-| Patch shell-quote critical CVE | Security | 2026-06-11 |
-| Fix all_heroes badge | Bug Fix | 2026-06-11 |
-| Fix AI streaming model field | Bug Fix | 2026-06-11 |
-| Fix suggest-settings JSON re-parse | Bug Fix | 2026-06-11 |
-| Upgrade to Expo SDK 55 | Tech Debt | 2026-04-24 |
-| Add supertest + integration tests | Tech Debt | 2026-04-24 |
-| Fix TypeScript errors | Bug Fix | 2026-04-07 |
-| Upgrade drizzle-kit to v0.31.10 | Tech Debt | 2026-04-07 |
-| Apply non-breaking npm audit fixes | Security | 2026-04-07 |
-| Add Vitest test suite | Tech Debt | 2026-04-07 |
-| Add markdown link checker to CI | Docs | 2026-04-07 |
-| Complete documentation suite | Docs | 2026-03-27 |
-| Wire read/unread story indicators into UI | Feature | 2026-03-25 |
-| Wire story feedback/rating UI | Feature | 2026-03-25 |
-| Reuse HeroCard.tsx in hero selection | Feature | 2026-03-25 |
-| Add KeyboardAwareScrollView to input forms | Feature | 2026-03-25 |
-| Unify dual settings systems | Bug Fix | 2026-03-13 |
-| Add security headers | Security | 2026-03-13 |
-| Wire up voice chat routes | Feature | 2026-03-13 |
-
----
+| M2 — Live health checks: circuit-breaker status + cached non-blocking live reachability probes on `/api/health` and `/api/ai-providers` | Reliability | 2026-07-12 |
+| M3 — Wire alerting thresholds: `server/alerting.ts` fires Sentry alerts on 5xx-rate/TTS-failure-rate breaches (server-side Sentry itself already shipped 2026-06-13) | Observability | 2026-07-12 |
+| M1 (idempotency half) — KV-backed idempotency cache: `/api/generate-story` dedup now survives across Vercel serverless invocations, not just within one warm process | Infrastructure | 2026-07-12 |
+| Add Supabase Auth (bearer-token JWT middleware, optional/gated, 503 in production when unconfigured) | Feature/Security | 2026-07-06 |
+| Voice-chat IDOR fix — ownership (`userId`) checks on all conversation reads/writes in `server/replit_integrations/audio/routes.ts` | Security | 2026-07-06 |
+| Parent-controls PIN brute-force lockout (5 attempts → 30s lockout, `lib/storage.ts` + `ParentControlsModal.tsx`) | Security | 2026-07-06 |
+| Doc/code audit — reconciled `CLAUDE.md`, `.claude/CLAUDE.md`, `docs/API.md` project structure, endpoint list, tech-stack versions, and middleware description against actual source | Docs | 2026-07-12 |
+| Secure Gemini API Key URL leakage in pingGemini() | Security | 2026-07-14 |
+| Extend health checks live probes to OpenAI/OpenRouter | Reliability | 2026-07-14 |
+| Remove dead text chat routes (routes.ts, routes.test.ts) | Code Quality | 2026-07-14 |
+| Add integration tests for request-finish alerting + TTS metrics | Testing | 2026-07-14 |
+| Refresh docs/TEST-COVERAGE-ANALYSIS.md coverage numbers | Docs | 2026-07-14 |
+| M1 (TTS-cache half) — Cloudflare R2 object storage caching for binary TTS MP3 blobs with local filesystem fallback | Infrastructure | 2026-07-15 |
 
 ## Backlog (Prioritized)
 
 ### High Priority
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
-|:---|:---|:---|:---|:---|:---|:---|:---|
-| 1 | EAS build & Play Store submission | 8 | 8 | 8 | 5 | 4.8 | eas.json configured; needs EAS secrets + `EXPO_TOKEN` (ChaosClubCo org CI) + AAB build; Android-only; see docs/operations/DEPLOYMENT.md |
-| 2 | Verify M3 cloud sync end-to-end on a device | 5 | 5 | 8 | 3 | 6.0 | Built + unit-tested (all six entities) but flagged "NOT yet verified on a device" in CLAUDE.md; depends on Item 1 for an installable build; harness at scripts/verify-sync.ts |
-| 3 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | 4 moderate vulnerabilities (esbuild, core-utils, esm-loader, drizzle-kit). 0 high/critical. Blocked on upstream updates |
+|---|------|-------|-------------|------|------|------|-------|
+| 1 | Real tests for `server/auth.ts` — the "comprehensive" suite never imports the module | 8 | 5 | 8 | 2 | 10.5 | `server/auth.comprehensive.test.ts` reimplements logic as inline literals instead of calling `requireAuth`; the integration suite mocks `requireAuth` out entirely. Coverage confirms 4.08% stmt / 0% branch on the app's entire Supabase-auth boundary. See `docs/AUDIT-NEXT-SPRINT-2026-07-15.md` finding 1 |
+| 2 | Execute `docs/VERIFICATION-M1-M3.md` cloud-sync verification | 5 | 5 | 5 | 2 | 7.5 | The checklist now exists, but device and disposable Supabase evidence remain incomplete. Cloud sync is off by default (`cloudSyncEnabled: false`) and must not be enabled before isolation proof passes |
+| 3 | Complete exact-SHA release proof | 8 | 8 | 8 | 5 | 4.8 | Freeze only the reviewed stabilization merge SHA; then prove repository gates, canonical deployment identity, privacy route, received alert, device matrix, restore, rollback, and legal approval in issue #376 |
+| 4 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/PLAY_STORE_DEPLOYMENT.md |
+| 5 | Archive and disable the public mirror | 8 | 5 | 8 | 3 | 7.0 | `Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5-main` remains `archived: false`; preserve history, disable automation/deployments, archive through provider controls, then re-fetch metadata |
+
+### Medium Priority
+
+| # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
+|---|------|-------|-------------|------|------|------|-------|
+| 6 | Fix deployed `/privacy` and align Vercel Node runtime | 8 | 8 | 6 | 3 | 7.3 | Canonical linkage is verified, but `/privacy` returns 404 and Vercel reports Node `24.x` while `package.json` permits Node 20.19 or 22.13 ranges; change provider settings only after stabilization review |
+| 7 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | High/critical findings now fail release gates. Moderate transitive findings require a scoped dependency upgrade; never use an unreviewed `--force` migration |
 
 ### Low Priority
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
-|:---|:---|:---|:---|:---|:---|:---|:---|
-| 4 | Encrypt client-side AsyncStorage | 3 | 3 | 3 | 8 | 1.1 | Stored data is non-sensitive (story text, badges) |
-| 5 | M4 — native Kotlin audio engine | 3 | 1 | 1 | 8 | 0.6 | Blocked/future: requires ejecting managed Expo + retrieving the archived Kotlin rewrite (archive/android-kotlin-rewrite/); see CLAUDE.md "Merge Provenance" |
-
----
+|---|------|-------|-------------|------|------|------|-------|
+| 8 | Reconcile remaining historical Voice Chat and Replit documentation | 2 | 1 | 2 | 2 | 2.5 | The old text-chat route file is already absent; remaining historical docs must clearly distinguish archived behavior from release-contained runtime behavior |
+| 9 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | Stored data is non-sensitive (story text, badges) |
+| 10 | Refresh `docs/TEST-COVERAGE-ANALYSIS.md` from an exact-head coverage run | 3 | 1 | 2 | 2 | 3.0 | The 2026-07-19 non-coverage run measured 1,397 Vitest tests across 82 files plus 52 jest-expo tests; coverage percentages require a separate exact-head coverage artifact |
+| 11 | Expo SDK 55 → 57 upgrade | 3 | 2 | 3 | 8 | 1.0 | Root cause of most remaining moderate npm-audit findings (`@expo/config*` chain). Not urgent — no actively-exploited CVE — but a two-major jump on Expo/Expo Router has a track record of multi-day breakage per `docs/CHANGELOG.md`; deserves its own dedicated upgrade sprint, not a slot alongside routine work |
 
 ## Dependencies
 
-- Item 1 (EAS) requires all API keys set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md) plus an `EXPO_TOKEN` in the ChaosClubCo-org CI.
-- Item 2 (M3 device-verify) depends on Item 1 for an installable Android build; run `scripts/verify-sync.ts` against it.
-- Item 3 (npm audit) is blocked on upstream releasing fixes for the remaining moderate transitive chains.
-- Item 5 (M4 native audio) is blocked on ejecting the managed Expo client + retrieving `archive/android-kotlin-rewrite/`.
-
----
+- Item 4 (EAS) requires all API keys set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md) plus an `EXPO_TOKEN` in the ChaosClubCo-org CI.
+- Item 2 (device verification) depends on Item 4 for an installable Android build; run `scripts/verify-sync.ts` against it.
+- Item 7 (dependency remediation) is blocked on reviewed, compatible upstream upgrades for remaining moderate transitive chains.
+- Item 5 requires repository-owner confirmation that no unique work or active automation will be lost before archiving the mirror.
+- (Resolved) M1 TTS-cache → Cloudflare R2 shipped 2026-07-15 (see Completed); the former bucket/token provisioning dependency is satisfied. R2 uses its own S3-compatible client (`server/r2.ts`) since KV isn't suited to binary blobs.
 
 ## Known Audit Issues
 
-`npm audit` reports **4 moderate, 0 high, 0 critical** vulnerabilities:
-- Affected packages in dependency chains: `esbuild`, `core-utils`, `esm-loader`, `drizzle-kit`.
-- All high-severity issues (previously in `tmp` and `undici`) have been resolved using `package.json` overrides.
-- Remaining moderate alerts are transitive and blocked on upstream updates.
+The 2026-07-19 stabilization-branch check measured **4 moderate, 0 high, 0 critical**
+findings. Exact-head `npm audit --audit-level=high` output is still required after the
+final commit, and any high/critical finding fails the candidate. The measured moderate
+chain is:
+- **Moderate:** `esbuild` via `@esbuild-kit/*` and `drizzle-kit`. The suggested
+  `npm audit fix --force` installs `drizzle-kit@0.18.1`, a breaking downgrade;
+  this needs a scoped compatibility review, not a blind force fix.
 
----
+CI, publish, and release proof use `--audit-level=high`. Moderate findings remain
+visible and require a scoped dependency migration rather than `npm audit fix --force`.
 
 ## Tracked TODOs in Code
 
-No open `// TODO` comments found in source files as of last scan (2026-07-19).
+No open `// TODO` comments found in source files as of last scan (2026-06-19). Not
+re-verified in the 2026-07-15 pass.

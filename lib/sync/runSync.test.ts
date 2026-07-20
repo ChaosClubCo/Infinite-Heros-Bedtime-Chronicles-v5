@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { runSync, purgeCloudData } from './runSync';
 import { getSupabaseClient } from '@/lib/AuthContext';
-import { getConsentGiven } from '@/lib/storage';
+import { getConsentGiven } from '@/lib/consent-record';
 import { apiRequest } from '@/lib/query-client';
 import { syncAll } from './engine';
 import { reportSyncError } from './report';
 
 vi.mock('@/lib/AuthContext', () => ({ getSupabaseClient: vi.fn() }));
-vi.mock('@/lib/storage', () => ({ getConsentGiven: vi.fn() }));
+vi.mock('@/lib/consent-record', () => ({ getConsentGiven: vi.fn() }));
 vi.mock('@/lib/query-client', () => ({ apiRequest: vi.fn() }));
 vi.mock('./engine', () => ({ syncAll: vi.fn() }));
 vi.mock('./report', () => ({ reportSyncError: vi.fn() }));
@@ -25,9 +25,10 @@ function clientWithUser(userId: string | null) {
 
 function validDeletionReceipt() {
   return {
-    version: 1,
+    version: 2,
     receiptId: 'receipt-0123456789abcdef',
     completedAt: '2026-07-16T00:00:00.000Z',
+    releaseSha: '0123456789abcdef0123456789abcdef01234567',
     status: 'completed',
     deletedScopes: [
       'voice_chat_history',

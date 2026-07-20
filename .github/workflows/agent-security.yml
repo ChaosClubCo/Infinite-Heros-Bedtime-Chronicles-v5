@@ -11,7 +11,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 concurrency:
   group: agent-security-${{ github.ref }}
@@ -27,7 +26,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -52,13 +51,11 @@ jobs:
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
-    # The analyze step calls the Actions API (run telemetry + scanning the
-    # workflow files themselves), which requires actions:read. A job-level
-    # permissions block overrides the workflow default and sets every unlisted
-    # scope to none, so the scopes CodeQL needs are restated here explicitly.
+    # CodeQL analysis is retained as a SARIF artifact because GitHub Code
+    # Security is not enabled for this private repository. Uploading to code
+    # scanning remains approval/cost gated; analysis failures still fail closed.
     permissions:
       contents: read
-      security-events: write
       actions: read
 
     steps:
@@ -74,9 +71,16 @@ jobs:
         uses: github/codeql-action/autobuild@v4
 
       - name: Analyze
-        # continue-on-error: the upload fails with "Code scanning is not enabled"
-        # until the repo owner enables it in Settings → Security → Code scanning.
-        # Step-level continue-on-error lets the job succeed so it doesn't gate
-        # merges on a repo-settings gap outside this repo's code.
-        continue-on-error: true
         uses: github/codeql-action/analyze@v4
+        with:
+          upload: never
+          output: codeql-results
+
+      - name: Upload CodeQL SARIF
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: codeql-sarif
+          path: codeql-results/*.sarif
+          if-no-files-found: error
+          retention-days: 14

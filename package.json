@@ -2,7 +2,7 @@
   "name": "@krosebrook/infinite-heros-bedtime-chronicles-v5",
   "main": "expo-router/entry",
   "version": "1.0.0",
-  "repository": "https://github.com/Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5",
+  "repository": "https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
@@ -31,7 +31,8 @@
     "dev:expo": "EXPO_PUBLIC_API_URL=http://localhost:5000 npx expo start --web",
     "dev": "npm run dev:server & npm run dev:expo",
     "expo:check": "npx expo install --check",
-    "expo:build:ci": "npx expo export --platform web --output-dir static-build"
+    "expo:build:ci": "npx expo export --platform web --output-dir static-build",
+    "deploy:vercel": "bash scripts/deploy-vercel.sh"
   },
   "engines": {
     "node": ">=20.19.0 <21 || >=22.13.0 <23",

@@ -14,7 +14,14 @@ vi.mock('openai', () => ({
   },
 }));
 
-import { xaiProvider, mistralProvider, cohereProvider, metaLlamaProvider, pingOpenRouter } from './openrouter';
+import {
+  xaiProvider,
+  mistralProvider,
+  cohereProvider,
+  metaLlamaProvider,
+  pingOpenRouter,
+  OPENROUTER_PRIVACY_ROUTING,
+} from './openrouter';
 
 const PROVIDERS = [
   { provider: xaiProvider, name: 'xai', displayName: 'xAI Grok', model: 'x-ai/grok-3-mini' },
@@ -44,6 +51,13 @@ describe('openrouter providers', () => {
     vi.unstubAllEnvs();
   });
 
+  it('locks every request to zero-retention, non-collecting endpoints', () => {
+    expect(OPENROUTER_PRIVACY_ROUTING).toEqual({
+      zdr: true,
+      data_collection: 'deny',
+    });
+  });
+
   describe.each(PROVIDERS)('$name', ({ provider, name, displayName, model }) => {
     it('exposes the expected identity and OpenRouter model', () => {
       expect(provider.name).toBe(name);
@@ -68,7 +82,7 @@ describe('openrouter providers', () => {
       await expect(stream.next()).rejects.toThrow(`${displayName} not configured (requires OpenRouter)`);
     });
 
-    it('sends the mapped model with defaults and supports jsonMode', async () => {
+    it('sends the mapped model with defaults, privacy routing, and jsonMode', async () => {
       chatCreateMock.mockResolvedValue(mockCompletion());
       await provider.generateText({ ...REQ, jsonMode: true });
       expect(chatCreateMock).toHaveBeenCalledWith({
@@ -79,6 +93,7 @@ describe('openrouter providers', () => {
         ],
         temperature: 0.9,
         max_tokens: 8192,
+        provider: { zdr: true, data_collection: 'deny' },
         response_format: { type: 'json_object' },
       });
     });
@@ -94,7 +109,7 @@ describe('openrouter providers', () => {
       });
     });
 
-    it('streams deltas and ends with a done chunk', async () => {
+    it('streams deltas with privacy routing and ends with a done chunk', async () => {
       chatCreateMock.mockResolvedValue((async function* () {
         yield { choices: [{ delta: { content: 'Once' } }] };
         yield { choices: [{ delta: {} }] };
@@ -105,7 +120,11 @@ describe('openrouter providers', () => {
       for await (const chunk of provider.generateTextStream!(REQ)) {
         chunks.push(chunk);
       }
-      expect(chatCreateMock).toHaveBeenCalledWith(expect.objectContaining({ model, stream: true }));
+      expect(chatCreateMock).toHaveBeenCalledWith(expect.objectContaining({
+        model,
+        stream: true,
+        provider: { zdr: true, data_collection: 'deny' },
+      }));
       expect(chunks).toEqual([
         { text: 'Once', done: false },
         { text: ' upon', done: false },

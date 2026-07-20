@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { StarField } from "@/components/StarField";
 import Colors from "@/constants/colors";
-import { setParentConsent } from "@/lib/storage";
+import { CONSENT_DISCLOSURES, recordParentConsent } from "@/lib/consent-record";
 import { useConsent } from "@/lib/ConsentContext";
 
 /**
@@ -91,7 +91,7 @@ export default function ParentalConsentScreen() {
     setSubmitting(true);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await setParentConsent();
+      await recordParentConsent();
       markConsented();
       if (router.canGoBack()) {
         router.back();
@@ -168,26 +168,11 @@ export default function ParentalConsentScreen() {
         ) : (
           <View style={styles.card}>
             <Text style={styles.cardLabel}>What you’re agreeing to</Text>
-            <ConsentPoint
-              icon="phone-portrait-outline"
-              text="Child profile name and age stay on this device. The server accepts older client fields for compatibility but discards those values before story or suggestion prompts are built for AI providers."
-            />
-            <ConsentPoint
-              icon="cloud-outline"
-              text="A parent account and cloud backup are optional. When enabled, Supabase stores the parent account plus stories and progress; the cloud profile stub excludes the child’s name and age."
-            />
-            <ConsentPoint
-              icon="mic-outline"
-              text="Voice Chat is optional and disabled by default. When an approved production configuration enables it, recorded audio is sent for transcription. We do not intentionally retain the raw recording, but sanitized text transcripts and replies are stored in the parent’s private chat history and automatically deleted no later than 30 days after creation or sooner when you delete them."
-            />
-            <ConsentPoint
-              icon="shield-checkmark-outline"
-              text="Child-facing AI text is generated under a child-safety policy and checked before it is displayed or narrated. There are no ads, public child profiles, stranger chat, or behavioral advertising."
-            />
-            <ConsentPoint
-              icon="trash-outline"
-              text="Delete All Data removes the parent account, cloud backup records, Voice Chat history, and local device data. Individual Voice Chat conversations can also be deleted sooner."
-            />
+            <ConsentPoint icon="phone-portrait-outline" text={CONSENT_DISCLOSURES[0]} />
+            <ConsentPoint icon="cloud-outline" text={CONSENT_DISCLOSURES[1]} />
+            <ConsentPoint icon="mic-off-outline" text={CONSENT_DISCLOSURES[2]} />
+            <ConsentPoint icon="shield-checkmark-outline" text={CONSENT_DISCLOSURES[3]} />
+            <ConsentPoint icon="trash-outline" text={CONSENT_DISCLOSURES[4]} />
 
             <Pressable
               onPress={() => router.push("/privacy")}

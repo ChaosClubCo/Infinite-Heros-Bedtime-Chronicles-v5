@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -63,7 +63,7 @@ jobs:
         id: eslint
         run: |
           set -o pipefail
-          npm run lint 2>&1 | tee eslint.log
+          npm run lint -- --max-warnings=0 2>&1 | tee eslint.log
 
       - name: Upload ESLint diagnostics
         if: failure() && steps.eslint.outcome == 'failure'
@@ -109,10 +109,9 @@ jobs:
           retention-days: 7
 
       - name: Security audit
-        # Fail on critical vulnerabilities only; high-severity issues in transitive
-        # deps (drizzle-orm, firebase-admin chain) require breaking-change upgrades
-        # and are tracked separately in Dependabot.
-        run: npm audit --audit-level=critical
+        # High and critical advisories block the candidate. Moderate-only
+        # transitive findings remain visible without weakening this release gate.
+        run: npm audit --audit-level=high
 
       - name: Type check
         id: typecheck
@@ -137,7 +136,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -161,7 +160,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -204,7 +203,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -213,13 +212,44 @@ jobs:
         run: npm install --global npm@11
 
       - name: Install locked dependencies
+        id: expo-npm-ci
         run: bash scripts/npm-ci-retry.sh expo-npm-ci.log
 
+      - name: Upload Expo install diagnostics
+        if: failure() && steps.expo-npm-ci.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: expo-npm-ci-diagnostics
+          path: expo-npm-ci.log
+          retention-days: 7
+
       - name: Verify Expo SDK dependency compatibility
-        run: npm run expo:check
+        id: expo-check
+        run: |
+          set -o pipefail
+          npm run expo:check 2>&1 | tee expo-check.log
+
+      - name: Upload Expo compatibility diagnostics
+        if: failure() && steps.expo-check.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: expo-compatibility-diagnostics
+          path: expo-check.log
+          retention-days: 14
 
       - name: Export production web bundle
-        run: npm run expo:build:ci
+        id: expo-web-export
+        run: |
+          set -o pipefail
+          npm run expo:build:ci 2>&1 | tee expo-web-export.log
+
+      - name: Upload Expo export diagnostics
+        if: failure() && steps.expo-web-export.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: expo-web-export-diagnostics
+          path: expo-web-export.log
+          retention-days: 14
 
       - name: Upload Expo web bundle
         uses: actions/upload-artifact@v7
