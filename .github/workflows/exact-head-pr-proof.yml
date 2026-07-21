@@ -195,5 +195,6 @@ jobs:
             --exclude-path node_modules
             --exclude-path server_dist
             --exclude-path docs/adr/template.md
+            --exclude-path mnt
             './**/*.md'
           fail: true

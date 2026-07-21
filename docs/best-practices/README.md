@@ -37,8 +37,8 @@ Comprehensive best practice guides for Infinity Heroes: Bedtime Chronicles v5. T
 - [docs/SECURITY.md](../SECURITY.md) — Security posture overview (updated 2026-03-27)
 - [docs/ARCHITECTURE.md](../ARCHITECTURE.md) — System architecture
 - [docs/API.md](../API.md) — API endpoint reference
-- [docs/COMPREHENSIVE-AUDIT-2026-03-27.md](../COMPREHENSIVE-AUDIT-2026-03-27.md) — Full audit report
-- [docs/SECURITY-FIXES-2026-03-27.md](../SECURITY-FIXES-2026-03-27.md) — Security fix documentation
+- [docs/COMPREHENSIVE-AUDIT-2026-03-27.md](../archive/audits/COMPREHENSIVE-AUDIT-2026-03-27.md) — Full audit report
+- [docs/SECURITY-FIXES-2026-03-27.md](../archive/audits/SECURITY-FIXES-2026-03-27.md) — Security fix documentation
 
 ---
 
