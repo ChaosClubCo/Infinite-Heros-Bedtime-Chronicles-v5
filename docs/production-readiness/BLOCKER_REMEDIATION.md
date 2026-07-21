@@ -76,7 +76,7 @@ The boolean values are attestations by the responsible operator. They do not cre
 Two controls operate together:
 
 - Request-time pruning applies the configured 1–30 day window before transcripts are read or reused as model context.
-- `supabase/migrations/0002_voice_chat_retention.sql` schedules a daily PostgreSQL purge of all message rows older than 30 days, protecting inactive accounts that never trigger request-time cleanup.
+- `supabase/migrations/20260719064500_voice_chat_retention.sql` schedules a daily PostgreSQL purge of all message rows older than 30 days, protecting inactive accounts that never trigger request-time cleanup.
 
 Deployment must fail if the pg_cron migration cannot be applied. A successful application should be verified in `cron.job`, and a seeded expired row should be deleted by a manual invocation or scheduled run before release.
 

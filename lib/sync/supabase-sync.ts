@@ -1,6 +1,6 @@
 /**
  * Supabase I/O for the cloud-sync engine — the thin layer that reads/writes the
- * `public.sync_records` table (see `supabase/migrations/0001_sync_tables.sql`).
+ * `public.sync_records` table (see `supabase/migrations/20260713000817_0001_sync_tables.sql`).
  *
  * Row-Level Security restricts every row to `auth.uid() = user_id`, so these
  * queries only ever touch the signed-in parent's own data. Takes a

@@ -10,7 +10,7 @@
  * last-write-wins by `updatedAt`; deletions are soft (tombstones) so a delete
  * on one device propagates to others rather than being resurrected by a stale
  * copy. Maps 1:1 to a row in the `public.sync_records` table (see
- * `supabase/migrations/0001_sync_tables.sql`).
+ * `supabase/migrations/20260713000817_0001_sync_tables.sql`).
  */
 
 export interface SyncRecord<T = unknown> {
