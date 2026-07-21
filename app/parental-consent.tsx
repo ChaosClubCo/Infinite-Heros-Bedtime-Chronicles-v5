@@ -49,10 +49,16 @@ export default function ParentalConsentScreen() {
     [challenge],
   );
 
-  // Tick a countdown only while a cooldown is active.
+  // Tick a countdown only while a cooldown is active; stop once expired.
   useEffect(() => {
     if (lockedUntil <= 0) return;
-    const id = setInterval(() => setNow(Date.now()), 500);
+    const id = setInterval(() => {
+      const current = Date.now();
+      setNow(current);
+      if (current >= lockedUntil) {
+        clearInterval(id);
+      }
+    }, 500);
     return () => clearInterval(id);
   }, [lockedUntil]);
 

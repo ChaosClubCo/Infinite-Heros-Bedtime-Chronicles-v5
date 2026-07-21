@@ -1,140 +1,83 @@
 # Runbook: Deploy
 
-<!-- Last verified: 2026-05-05 -->
+<!-- Last verified: 2026-07-21 -->
 
-This runbook covers deploying Infinity Heroes: Bedtime Chronicles to production.
+This runbook covers deploying a new version of Infinity Heroes: Bedtime Chronicles to Replit or Vercel.
 
-**Last Updated:** 2026-05-05
-
----
-
-## Deployment Targets
-
-| Target | Entry Point | Notes |
-|--------|------------|-------|
-| Replit Cloud Run | `npm run server:prod` | Primary deployment; serves API + Expo web static bundle |
-| Vercel | `api/server.mjs` | Serverless; config in `vercel.json`; 60s max duration |
-| Android (Play Store) | EAS Build → `.aab` | See [`docs/operations/PLAY_STORE_DEPLOYMENT.md`](../operations/PLAY_STORE_DEPLOYMENT.md) |
-
----
-
-## Overview (Replit)
-
-The app is deployed on **Replit** using Google Cloud Run (`deploymentTarget = "cloudrun"`) as the infrastructure provider.
-
-**Build process:**
-1. Expo static web build → `web-build/` directory
-2. Express server bundle → `server_dist/index.js`
-
-**Run process:**
-- Express server starts on port 5000, serving both the API and the Expo web bundle as static files
+For the full, detailed deployment guide see [docs/operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md).
 
 ---
 
 ## Prerequisites
 
-Before deploying, ensure:
-- [ ] All environment variables are set in Replit Secrets (Settings → Secrets)
-- [ ] `DATABASE_URL` is configured if voice chat is enabled
-- [ ] At least one AI provider key (`AI_INTEGRATIONS_GEMINI_API_KEY` or `AI_INTEGRATIONS_ANTHROPIC_API_KEY`) is configured
-- [ ] ElevenLabs is connected via Replit Connectors (Settings → Connectors) or `ELEVENLABS_API_KEY` is set
-- [ ] Firebase vars set if auth is required in production: `FIREBASE_SERVICE_ACCOUNT_KEY`, `EXPO_PUBLIC_FIREBASE_API_KEY`, `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`, `EXPO_PUBLIC_FIREBASE_PROJECT_ID`, `EXPO_PUBLIC_FIREBASE_APP_ID`
-- [ ] `npm run typecheck` passes: zero TypeScript errors
-- [ ] `npm run lint` passes: zero lint errors
-- [ ] `npm test` passes: all tests passing
-- [ ] Manual smoke test complete (story generation, TTS, image generation)
+- Changes merged to `main` branch
+- All CI checks passing (lint, typecheck, tests, build)
+- Required environment variables set in the target platform's secrets/config
 
 ---
 
-## Deploy Steps (Replit)
+## Replit Deploy
 
-### Option A: Deploy via Replit UI (recommended)
-1. Open the Replit workspace
-2. Click the **Deploy** button in the top bar
-3. Confirm the build and run commands are correct:
-   - Build: `npm run expo:static:build && npm run server:build`
-   - Run: `npm run server:prod`
-4. Click **Deploy**
-5. Monitor the build logs for errors
-6. Once live, verify the deployment URL is responding
+1. Push or merge changes to the `main` branch (Replit's **Push to Deploy** triggers automatically on push to `main`).
+2. Watch the **Deployments** tab in the Replit workspace — the new build will appear with a progress indicator.
+3. Once the build turns green, proceed to [Post-Deploy Verification](#post-deploy-verification).
 
-### Option B: Deploy via CLI
+---
+
+## Vercel Deploy
+
+Vercel deployments are triggered automatically on push to `main` via the [vercel-deploy.yml](../../.github/workflows/vercel-deploy.yml) workflow.
+
+1. Monitor the workflow run in GitHub Actions.
+2. On success, the new version is live at the configured Vercel production URL.
+3. Proceed to [Post-Deploy Verification](#post-deploy-verification).
+
+---
+
+## Manual / Emergency Deploy
+
 ```bash
-# From within the Replit workspace terminal:
-npm run expo:static:build   # Builds Expo web bundle
-npm run server:build        # Bundles server with esbuild → server_dist/
+# 1. Install dependencies
+npm ci
 
-# Verify the build artifacts exist:
-ls server_dist/index.js
-ls web-build/
+# 2. Build server bundle
+npm run server:build
 
-# Run production locally (test before deploying):
+# 3. Start production server
 npm run server:prod
 ```
+
+See [docs/operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md) for full EAS mobile build and environment variable setup.
 
 ---
 
 ## Post-Deploy Verification
 
-After deployment, verify the following endpoints respond correctly:
+Run these health checks against the deployed instance to confirm a successful deploy:
 
 ```bash
-# Replace <deployment-url> with your Replit deployment URL
-BASE_URL=https://<your-replit-deployment>.replit.app
+BASE_URL=https://<your-deployment-url>.app
 
-# 1. Health check
+# 1. Server health (expected: {"status":"ok", ...})
 curl $BASE_URL/api/health
-# Expected: {"status":"ok","timestamp":...}
 
-# 2. AI providers status
+# 2. AI provider reachability
 curl $BASE_URL/api/ai-providers
-# Expected: {"providers":{"gemini":true,...}}
 
-# 3. Landing page
-curl -I $BASE_URL/
-# Expected: HTTP 200 with Content-Type: text/html
-
-# 4. Voice list
+# 3. Voices list (expected: {"voices": [...], "defaults": {...}})
 curl $BASE_URL/api/voices
-# Expected: {"voices":[...],"defaults":{...}}
 ```
 
-If any check fails, see [incident-response.md](./incident-response.md).
+A healthy deploy shows:
+- `/api/health` → `{ "status": "ok" }`
+- `/api/ai-providers` → at least one provider with `"available": true`
+
+If any check fails, follow the [rollback runbook](./rollback.md).
 
 ---
 
-## Environment Variables Reference
+## See Also
 
-All secrets are managed in Replit Settings → Secrets. See `.env.example` for the full list with descriptions.
-
-Critical variables for production:
-| Variable | Required | Purpose |
-|----------|---------|---------|
-| `AI_INTEGRATIONS_GEMINI_API_KEY` | Yes | Primary AI provider |
-| `AI_INTEGRATIONS_OPENAI_API_KEY` | Recommended | AI fallback |
-| `ELEVENLABS_API_KEY` | Recommended | TTS narration |
-| `DATABASE_URL` | Optional | Voice chat feature |
-| `OPENAI_API_KEY` | Optional | Sora video generation |
-
----
-
-## Firebase Setup (for Auth)
-
-1. Create a Firebase project at https://console.firebase.google.com
-2. Enable Anonymous Authentication in Firebase Console → Authentication → Sign-in method
-3. Add an Android app with package name `com.infinityheroes.bedtime`
-4. Download `google-services.json` (for client) — not needed for anonymous auth with Expo
-5. Create a service account key:
-   - Firebase Console → Project Settings → Service accounts → Generate new private key
-   - Save as JSON, set as `FIREBASE_SERVICE_ACCOUNT_KEY` environment variable on the server
-6. Set client-side Firebase config as EAS secrets:
-   - `EXPO_PUBLIC_FIREBASE_API_KEY`
-   - `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`
-   - `EXPO_PUBLIC_FIREBASE_PROJECT_ID`
-   - `EXPO_PUBLIC_FIREBASE_APP_ID`
-
----
-
-## Rollback
-
-If the deployment is broken, see [rollback.md](./rollback.md).
+- [rollback.md](./rollback.md) — Roll back a bad deployment
+- [incident-response.md](./incident-response.md) — Respond to a production incident
+- [docs/operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md) — Full deployment reference (EAS, Vercel, Replit)

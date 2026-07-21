@@ -114,4 +114,4 @@ bash scripts/build-android.sh submit
 
 This submits to the `internal` track in draft status. Promote to production in the Play Console after internal testing.
 
-See `docs/operations/PLAY_STORE_DEPLOYMENT.md` for the full runbook.
+See `docs/operations/DEPLOYMENT.md` for the full runbook.

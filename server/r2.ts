@@ -16,6 +16,12 @@ export const R2_ENABLED = !!(
 let _s3Client: S3Client | null = null;
 
 export function getS3Client(): S3Client {
+  if (!R2_ENABLED) {
+    throw new Error(
+      "R2 is not configured: set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_R2_BUCKET, " +
+        "CLOUDFLARE_R2_ACCESS_KEY_ID, and CLOUDFLARE_R2_SECRET_ACCESS_KEY",
+    );
+  }
   if (!_s3Client) {
     _s3Client = new S3Client({
       endpoint: `https://${CF_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -42,8 +48,14 @@ export async function r2Get(key: string): Promise<Buffer | null> {
 
     const bytes = await response.Body.transformToByteArray();
     return Buffer.from(bytes);
-  } catch (err: any) {
-    if (err.name === "NoSuchKey" || err.name === "NotFound") {
+  } catch (err: unknown) {
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "name" in err &&
+      ((err as { name: string }).name === "NoSuchKey" ||
+        (err as { name: string }).name === "NotFound")
+    ) {
       logger.debug({ key }, "R2 key not found");
     } else {
       logger.error({ err, key }, "R2 get failed");

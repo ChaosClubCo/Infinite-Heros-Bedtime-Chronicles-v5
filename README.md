@@ -108,9 +108,9 @@ npm run preflight         # typecheck + lint + test in one command
 
 ## Deployment
 
-- **Replit (primary):** Click **Deploy** in the Replit workspace. See [`docs/runbooks/deploy.md`](docs/runbooks/deploy.md) for the full procedure.
+- **Replit (primary):** Click **Deploy** in the Replit workspace. See [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md) for the full procedure.
 - **Vercel:** `api/server.mjs` is the serverless entry point. Config in `vercel.json`. **Production deploys must currently be triggered via the Vercel CLI** — see [`DEPLOY.md`](DEPLOY.md) for the reason (Hobby plan + private repo commit-author check) and the exact commands.
-- **Android (Play Store):** Use EAS Build — see [`docs/operations/PLAY_STORE_DEPLOYMENT.md`](docs/operations/PLAY_STORE_DEPLOYMENT.md).
+- **Android (Play Store):** Use EAS Build — see [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md).
 
 Build commands:
 ```bash
@@ -182,7 +182,7 @@ docs/                   # All project documentation
   adr/                  # Architecture Decision Records (ADR-0001 – ADR-0005)
   agents/               # 12 specialized AI agent instruction files
   best-practices/       # Accessibility, performance, security, testing guides
-  operations/           # PLAY_STORE_DEPLOYMENT.md
+  operations/           # DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md
   runbooks/             # deploy, rollback, incident-response, provider-outage
 api/                    # Vercel serverless entry point
   server.mjs            # Wraps server_dist/index.js for Vercel
@@ -234,11 +234,10 @@ See [docs/API.md](docs/API.md) for full reference.
 | [TODO.md](TODO.md) | WSJF-prioritized backlog |
 | [docs/agents/README.md](docs/agents/README.md) | Specialized AI agent catalog |
 | [docs/best-practices/](docs/best-practices/) | Accessibility, performance, security, testing guides |
-| [docs/runbooks/](docs/runbooks/) | Operational runbooks (deploy, rollback, incident response) |
+| [docs/operations/](docs/operations/) | Operational guides and runbooks (rollback, secrets, etc.) |
 | [docs/adr/](docs/adr/) | Architecture Decision Records |
-| [docs/operations/PLAY_STORE_DEPLOYMENT.md](docs/operations/PLAY_STORE_DEPLOYMENT.md) | EAS Build + Play Store deployment guide |
+| [docs/operations/DEPLOYMENT.md](docs/operations/DEPLOYMENT.md) | EAS Build + Play Store + server deployment manual |
 
 ## License
 
-<!-- HUMAN INPUT REQUIRED: No LICENSE file exists. Select and add a license (e.g., MIT, Apache 2.0, or a proprietary license) before publishing to any app store or making the repository public. -->
-Private project — no license file has been added yet. All rights reserved until a license is selected and committed.
+Proprietary project — All Rights Reserved by ChaosClubCo. See the LICENSE file in the root of the repository for full terms.

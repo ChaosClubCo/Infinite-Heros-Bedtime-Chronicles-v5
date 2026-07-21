@@ -115,6 +115,29 @@ describe('runSync', () => {
     expect(await runSync(true)).toBe(false);
     expect(reportSyncError).toHaveBeenCalledWith('runSync', err);
   });
+
+  it('coalesces concurrent calls into a single in-flight run', async () => {
+    vi.mocked(getSupabaseClient).mockReturnValue(clientWithUser('user1') as never);
+    let resolveSync: (v: { results: never[]; errors: never[] }) => void = () => {};
+    vi.mocked(syncAll).mockReturnValue(
+      new Promise((res) => { resolveSync = res; }) as never,
+    );
+
+    // Two overlapping triggers before the first run resolves.
+    const p1 = runSync(true);
+    const p2 = runSync(true);
+    resolveSync({ results: [], errors: [] });
+    const [r1, r2] = await Promise.all([p1, p2]);
+
+    expect(r1).toBe(true);
+    expect(r2).toBe(true);
+    expect(syncAll).toHaveBeenCalledTimes(1); // not raced
+
+    // A later call after the run settled starts a fresh sync.
+    vi.mocked(syncAll).mockResolvedValue({ results: [], errors: [] });
+    expect(await runSync(true)).toBe(true);
+    expect(syncAll).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('purgeCloudData', () => {

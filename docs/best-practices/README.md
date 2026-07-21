@@ -8,7 +8,7 @@ Comprehensive best practice guides for Infinity Heroes: Bedtime Chronicles v5. T
 
 | Guide | Description | Audience |
 |-------|-------------|----------|
-| [SECURITY.md](./SECURITY.md) | Authentication, input validation, child safety, rate limiting, PIN hashing, API security | All contributors |
+| [SECURITY.md](../SECURITY.md) | Authentication, input validation, child safety, rate limiting, PIN hashing, API security | All contributors |
 | [TESTING.md](./TESTING.md) | Vitest configuration, test patterns, mocking, coverage targets, adding new tests | All contributors |
 | [ACCESSIBILITY.md](./ACCESSIBILITY.md) | WCAG 2.1 AA, accessibilityLabel patterns, touch targets, color contrast, child-friendly UX | Frontend contributors |
 | [PERFORMANCE.md](./PERFORMANCE.md) | Vercel serverless optimization, AI provider timeouts, TTS caching, bundle size, rate limiting | All contributors |
@@ -37,8 +37,8 @@ Comprehensive best practice guides for Infinity Heroes: Bedtime Chronicles v5. T
 - [docs/SECURITY.md](../SECURITY.md) — Security posture overview (updated 2026-03-27)
 - [docs/ARCHITECTURE.md](../ARCHITECTURE.md) — System architecture
 - [docs/API.md](../API.md) — API endpoint reference
-- [docs/COMPREHENSIVE-AUDIT-2026-03-27.md](../COMPREHENSIVE-AUDIT-2026-03-27.md) — Full audit report
-- [docs/SECURITY-FIXES-2026-03-27.md](../SECURITY-FIXES-2026-03-27.md) — Security fix documentation
+- [docs/COMPREHENSIVE-AUDIT-2026-03-27.md](../archive/audits/COMPREHENSIVE-AUDIT-2026-03-27.md) — Full audit report
+- [docs/SECURITY-FIXES-2026-03-27.md](../archive/audits/SECURITY-FIXES-2026-03-27.md) — Security fix documentation
 
 ---
 

@@ -164,27 +164,21 @@ shared/                 # Shared between client & server
 docs/                   # Project documentation
   ARCHITECTURE.md       # System design & data flow
   API.md                # API endpoint reference (40+ endpoints)
-  SECURITY.md           # OWASP assessment
+  SECURITY.md           # Unified security policy, OWASP assessment, and developer guide
   ROADMAP.md            # Development roadmap (WSJF-prioritized)
   CHANGELOG.md          # Version history
-  DEAD-CODE-TRIAGE.md   # Code audit report
   COPPA-COMPLIANCE.md   # COPPA audit and privacy analysis
   BETA_TESTING.md       # Beta testing plan
-  TEST-COVERAGE-ANALYSIS.md  # Test coverage status + known bugs
   VERIFICATION-M1-M3.md # On-device/manual verification checklist for the safety + audio-cache + cloud-sync work
   GITHUB-CUSTOM-AGENTS.md    # GitHub Copilot custom agent configurations
-  AUDIT-SECURITY-2026-03-27.md      # Security audit findings (2026-03-27) — historical; written against the since-removed Firebase auth, see supersession note
-  COMPREHENSIVE-AUDIT-2026-03-27.md # Full codebase audit (2026-03-27) — historical, same caveat
-  SECURITY-FIXES-2026-03-27.md      # Security fixes applied (2026-03-27) — historical, same caveat
-  PRODUCTION-READINESS-AUDIT-2026-06-19.md  # Production-readiness re-audit
-  AUDIT-ROUTING-2026-07-10.md       # Splash/launch-gate routing audit
-  RELEASE-QUALITY-LENSES-2026-07-12.md  # Reliability-sprint release-quality review
   adr/                  # Architecture Decision Records (5 ADRs)
   agents/               # 15 files: 12 agent spec files + README + pr-review.md + security.md
-  best-practices/       # Best-practice guides (ACCESSIBILITY, PERFORMANCE, SECURITY, TESTING)
-  operations/           # PLAY_STORE_DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md, OBSERVABILITY.md, SECRETS-ROTATION.md, BRANCH-PROTECTION-SETUP.md, README.md
-  runbooks/             # deploy, incident-response, database-migrations, provider-outage, rollback, monitoring-alerting, README.md
-  superpowers/plans/    # Maturity & hardening plans (2026-04-08 onward; historical planning docs)
+  best-practices/       # Best-practice guides (ACCESSIBILITY, PERFORMANCE, TESTING)
+  operations/           # DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md, OBSERVABILITY.md, SECRETS-ROTATION.md, BRANCH-PROTECTION-SETUP.md, README.md
+  runbooks/             # incident-response, database-migrations, provider-outage, rollback, monitoring-alerting, README.md
+  archive/              # Consolidated historical records
+    audits/             # Historical audit reports (AUDIT-*, COMPREHENSIVE-*, DEAD-CODE-*)
+    plans/              # Historical maturity, hardening, and readiness plans
 api/                    # Vercel serverless entry point
   server.mjs            # Handler that imports createApp from server_dist
 scripts/                # Build scripts
@@ -584,7 +578,7 @@ Nova (Guardian of Light), Coral (Heart of the Ocean), Orion (Star of Friendship)
 | Story Legend | Complete 25 total stories |
 | Word Wizard | Learn 5 vocabulary words |
 
-Badge evaluation is centralized in `lib/badges.ts` (with tests in `lib/badges.test.ts`). The historical `vocab_5` and `all_heroes` logic bugs were fixed in PR #247 — see `docs/TEST-COVERAGE-ANALYSIS.md` for remaining known hazards.
+Badge evaluation is centralized in `lib/badges.ts` (with tests in `lib/badges.test.ts`). The historical `vocab_5` and `all_heroes` logic bugs were fixed in PR #247 — see `docs/best-practices/TESTING.md` for remaining known hazards.
 
 ## Testing
 

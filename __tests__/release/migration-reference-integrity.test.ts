@@ -14,6 +14,7 @@ const excludedDirectories = new Set([
   'node_modules',
   'server_dist',
   'static-build',
+  'mnt',
 ]);
 
 const searchableExtensions = new Set([

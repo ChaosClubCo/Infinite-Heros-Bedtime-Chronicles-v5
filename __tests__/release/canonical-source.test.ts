@@ -6,7 +6,7 @@ const packageJson = JSON.parse(
   readFileSync(resolve(process.cwd(), 'package.json'), 'utf8'),
 ) as { repository?: string };
 const evidence = readFileSync(
-  resolve(process.cwd(), 'docs/production-readiness/RELEASE_EVIDENCE.md'),
+  resolve(process.cwd(), 'docs/archive/plans/RELEASE_EVIDENCE.md'),
   'utf8',
 );
 
