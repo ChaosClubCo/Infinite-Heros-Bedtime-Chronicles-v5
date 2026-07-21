@@ -1,0 +1,216 @@
+name: One-shot safe branch pruning
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/prune-merged-branches-once.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: one-shot-safe-branch-pruning
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    name: Prune provably dead branches
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Delete merged branches and remove this workflow
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          WORKFLOW_PATH: .github/workflows/prune-merged-branches-once.yml
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const token = process.env.GH_TOKEN;
+          const repository = process.env.REPOSITORY;
+          const defaultBranch = process.env.DEFAULT_BRANCH;
+          const workflowPath = process.env.WORKFLOW_PATH;
+
+          if (!token || !repository || !defaultBranch || !workflowPath) {
+            throw new Error('Missing required workflow environment variables.');
+          }
+
+          const [owner, repo] = repository.split('/');
+          if (!owner || !repo) {
+            throw new Error(`Invalid repository identifier: ${repository}`);
+          }
+
+          const apiBase = 'https://api.github.com';
+          const headers = {
+            Accept: 'application/vnd.github+json',
+            Authorization: `Bearer ${token}`,
+            'X-GitHub-Api-Version': '2022-11-28',
+            'User-Agent': 'one-shot-safe-branch-pruner',
+          };
+
+          async function request(path, options = {}) {
+            const response = await fetch(`${apiBase}${path}`, {
+              method: options.method ?? 'GET',
+              headers,
+              body: options.body === undefined ? undefined : JSON.stringify(options.body),
+            });
+
+            const text = await response.text();
+            if (!response.ok) {
+              throw new Error(`${options.method ?? 'GET'} ${path} failed (${response.status}): ${text}`);
+            }
+
+            return text ? JSON.parse(text) : null;
+          }
+
+          async function listAll(path) {
+            const items = [];
+            for (let page = 1; ; page += 1) {
+              const separator = path.includes('?') ? '&' : '?';
+              const batch = await request(`${path}${separator}per_page=100&page=${page}`);
+              if (!Array.isArray(batch)) {
+                throw new Error(`Expected an array from ${path}.`);
+              }
+              items.push(...batch);
+              if (batch.length < 100) break;
+            }
+            return items;
+          }
+
+          function sameRepositoryPullRequestHead(pull) {
+            return pull?.head?.repo?.full_name === repository && typeof pull?.head?.ref === 'string';
+          }
+
+          function encodeRefPath(name) {
+            return name.split('/').map(encodeURIComponent).join('/');
+          }
+
+          function isLongLivedBranch(name) {
+            const exact = new Set([
+              'develop',
+              'development',
+              'staging',
+              'production',
+              'preview',
+            ]);
+            return exact.has(name) || name.startsWith('release/') || name.startsWith('environment/') || name.startsWith('env/');
+          }
+
+          const branches = await listAll(`/repos/${owner}/${repo}/branches`);
+          const openPulls = await listAll(`/repos/${owner}/${repo}/pulls?state=open`);
+          const closedPulls = await listAll(`/repos/${owner}/${repo}/pulls?state=closed`);
+
+          const openHeads = new Set(
+            openPulls.filter(sameRepositoryPullRequestHead).map((pull) => pull.head.ref),
+          );
+
+          const mergedHeadKeys = new Set(
+            closedPulls
+              .filter((pull) => pull.merged_at && sameRepositoryPullRequestHead(pull) && pull?.head?.sha)
+              .map((pull) => `${pull.head.ref}:${pull.head.sha}`),
+          );
+
+          const deleted = [];
+          const preserved = [];
+          const failures = [];
+
+          for (const branch of branches) {
+            const name = branch?.name;
+            const sha = branch?.commit?.sha;
+
+            if (!name || !sha) {
+              preserved.push({ name: name ?? '<unknown>', reason: 'missing branch metadata' });
+              continue;
+            }
+            if (name === defaultBranch) {
+              preserved.push({ name, reason: 'default branch' });
+              continue;
+            }
+            if (branch.protected) {
+              preserved.push({ name, reason: 'protected branch' });
+              continue;
+            }
+            if (isLongLivedBranch(name)) {
+              preserved.push({ name, reason: 'long-lived branch convention' });
+              continue;
+            }
+            if (openHeads.has(name)) {
+              preserved.push({ name, reason: 'open pull request' });
+              continue;
+            }
+
+            try {
+              const compare = await request(
+                `/repos/${owner}/${repo}/compare/${encodeURIComponent(defaultBranch)}...${encodeURIComponent(name)}`,
+              );
+              const hasNoUniqueCommits = compare?.ahead_by === 0;
+              const isExactMergedPullHead = mergedHeadKeys.has(`${name}:${sha}`);
+
+              if (!hasNoUniqueCommits && !isExactMergedPullHead) {
+                preserved.push({ name, reason: `unmerged unique commits (${compare?.ahead_by ?? 'unknown'} ahead)` });
+                continue;
+              }
+
+              await request(`/repos/${owner}/${repo}/git/refs/heads/${encodeRefPath(name)}`, {
+                method: 'DELETE',
+              });
+              deleted.push({
+                name,
+                reason: hasNoUniqueCommits ? 'no commits ahead of default branch' : 'exact head of a merged pull request',
+              });
+            } catch (error) {
+              failures.push({ name, error: error instanceof Error ? error.message : String(error) });
+            }
+          }
+
+          const summary = [
+            '# One-shot branch prune report',
+            '',
+            `- Repository: \`${repository}\``,
+            `- Default branch: \`${defaultBranch}\``,
+            `- Deleted: ${deleted.length}`,
+            `- Preserved: ${preserved.length}`,
+            `- Failures: ${failures.length}`,
+            '',
+            '## Deleted',
+            deleted.length ? deleted.map((item) => `- \`${item.name}\` — ${item.reason}`).join('\n') : '- None',
+            '',
+            '## Preserved',
+            preserved.length ? preserved.map((item) => `- \`${item.name}\` — ${item.reason}`).join('\n') : '- None',
+            '',
+            '## Failures',
+            failures.length ? failures.map((item) => `- \`${item.name}\` — ${item.error}`).join('\n') : '- None',
+          ].join('\n');
+
+          if (process.env.GITHUB_STEP_SUMMARY) {
+            await require('node:fs/promises').appendFile(process.env.GITHUB_STEP_SUMMARY, `${summary}\n`);
+          }
+
+          const workflowFile = await request(
+            `/repos/${owner}/${repo}/contents/${workflowPath.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(defaultBranch)}`,
+          );
+
+          const deletedNames = deleted.map((item) => item.name);
+          const commitBody = [
+            `Deleted ${deleted.length} branch(es); preserved ${preserved.length}; failures ${failures.length}.`,
+            deletedNames.length ? `Deleted: ${deletedNames.join(', ')}` : 'Deleted: none',
+          ].join('\n\n').slice(0, 60000);
+
+          await request(`/repos/${owner}/${repo}/contents/${workflowPath.split('/').map(encodeURIComponent).join('/')}`, {
+            method: 'DELETE',
+            body: {
+              message: `chore: remove one-shot branch pruner\n\n${commitBody}`,
+              sha: workflowFile.sha,
+              branch: defaultBranch,
+            },
+          });
+
+          if (failures.length > 0) {
+            throw new Error(`Branch pruning completed with ${failures.length} failure(s). See the workflow summary.`);
+          }
+          NODE
