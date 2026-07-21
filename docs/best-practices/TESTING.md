@@ -38,7 +38,7 @@ export default defineConfig({
         branches: 80,
       },
     },
-    testTimeout: 10000,
+    testTimeout: 60000,
   },
 });
 ```
@@ -49,7 +49,7 @@ Key settings:
 |---|---|---|
 | `globals: true` | Enables `describe`, `it`, `expect` without imports (though we import them explicitly for clarity) | Convenience |
 | `environment: 'node'` | Tests run in a Node.js context, not jsdom | Server-focused codebase |
-| `testTimeout: 10000` | 10-second timeout per test | Prevents hanging async tests |
+| `testTimeout: 60000` | 60-second timeout per test | Prevents hanging async tests |
 | `thresholds.branches: 80` | CI fails if branch coverage drops below 80% | Quality gate |
 
 ### Test File Naming
