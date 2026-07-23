@@ -1,7 +1,7 @@
 {
   "version": 2,
   "framework": null,
-  "installCommand": "npm ci --include=dev",
+  "installCommand": "npx npm@11 ci --include=dev",
   "buildCommand": "node scripts/verify-release-provenance.mjs --phase vercel-build && npm run server:build && npx expo export --platform web --output-dir static-build",
   "outputDirectory": ".",
   "functions": {
