@@ -17,6 +17,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
+import { AnimatedView } from "@/components/AnimatedView";
+import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
 import { useProfile } from "@/lib/ProfileContext";
@@ -148,7 +150,8 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: 100 + bottomInset }}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeIn.duration(400)}>
+        <ResponsiveContainer>
+          <AnimatedView entering={FadeIn.duration(400)}>
           <View style={[styles.header, { paddingTop: topInset + 12 }]}>
             <View>
               <Text style={styles.greeting}>{getGreeting()}</Text>
@@ -156,10 +159,10 @@ export default function HomeScreen() {
                 {activeProfile?.name || "Little Explorer"} ✨
               </Text>
               {isSyncing && (
-                <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.syncPill} testID="home_sync_indicator">
+                <AnimatedView entering={FadeIn} exiting={FadeOut} style={styles.syncPill} testID="home_sync_indicator">
                   <ActivityIndicator size="small" color={Colors.accent} />
                   <Text style={styles.syncPillText}>Syncing Chronicles...</Text>
-                </Animated.View>
+                </AnimatedView>
               )}
             </View>
             <View style={styles.headerRight}>
@@ -186,9 +189,9 @@ export default function HomeScreen() {
               </Pressable>
             </View>
           </View>
-        </Animated.View>
+        </AnimatedView>
 
-        <Animated.View entering={FadeInDown.duration(400).delay(100)}>
+        <AnimatedView entering={FadeInDown.duration(400).delay(100)}>
           <View style={styles.searchWrap}>
             <View style={styles.searchBar}>
               <Ionicons name="search" size={18} color="rgba(255,255,255,0.3)" />
@@ -204,9 +207,9 @@ export default function HomeScreen() {
               />
             </View>
           </View>
-        </Animated.View>
+        </AnimatedView>
 
-        <Animated.View entering={FadeInDown.duration(400).delay(200)}>
+        <AnimatedView entering={FadeInDown.duration(400).delay(200)}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -221,9 +224,9 @@ export default function HomeScreen() {
               </Pressable>
             ))}
           </ScrollView>
-        </Animated.View>
+        </AnimatedView>
 
-        <Animated.View entering={FadeInDown.duration(400).delay(220)}>
+        <AnimatedView entering={FadeInDown.duration(400).delay(220)}>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -259,10 +262,10 @@ export default function HomeScreen() {
               </View>
             </LinearGradient>
           </Pressable>
-        </Animated.View>
+        </AnimatedView>
 
         {recentStories.length > 0 && (
-          <Animated.View entering={FadeInDown.duration(400).delay(250)}>
+          <AnimatedView entering={FadeInDown.duration(400).delay(250)}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Continue Reading</Text>
               <Pressable onPress={() => router.push("/(tabs)/library")} accessibilityLabel="See all stories" accessibilityRole="button">
@@ -317,10 +320,10 @@ export default function HomeScreen() {
                 );
               })}
             </ScrollView>
-          </Animated.View>
+          </AnimatedView>
         )}
 
-        <Animated.View entering={FadeInDown.duration(400).delay(350)}>
+        <AnimatedView entering={FadeInDown.duration(400).delay(350)}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Discover Stories</Text>
           </View>
@@ -365,7 +368,8 @@ export default function HomeScreen() {
               </Pressable>
             ))}
           </View>
-        </Animated.View>
+        </AnimatedView>
+        </ResponsiveContainer>
       </ScrollView>
     </View>
   );

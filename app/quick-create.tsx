@@ -14,6 +14,8 @@ import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AnimatedView } from "@/components/AnimatedView";
+import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { StarField } from "@/components/StarField";
@@ -143,11 +145,12 @@ export default function QuickCreateScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <KeyboardAwareScrollViewCompat
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: 120 + bottomInset }]}
-      >
-        <Animated.View entering={FadeInDown.duration(400).delay(100)}>
+      <ResponsiveContainer style={{ flex: 1 }}>
+        <KeyboardAwareScrollViewCompat
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.content, { paddingBottom: 120 + bottomInset }]}
+        >
+        <AnimatedView entering={FadeInDown.duration(400).delay(100)}>
           <Text style={styles.sectionLabel}>Choose a Theme</Text>
           <ScrollView
             horizontal
@@ -185,10 +188,10 @@ export default function QuickCreateScreen() {
               );
             })}
           </ScrollView>
-        </Animated.View>
+        </AnimatedView>
 
         {selectedHero && (
-          <Animated.View entering={FadeInDown.duration(400).delay(150)} style={styles.heroPreview}>
+          <AnimatedView entering={FadeInDown.duration(400).delay(150)} style={styles.heroPreview}>
             <Text style={styles.sectionLabel}>Your Hero</Text>
             <View style={styles.heroCardWrap}>
               <HeroCard
@@ -201,10 +204,10 @@ export default function QuickCreateScreen() {
                 }}
               />
             </View>
-          </Animated.View>
+          </AnimatedView>
         )}
 
-        <Animated.View entering={FadeInDown.duration(400).delay(200)} style={styles.nameSection}>
+        <AnimatedView entering={FadeInDown.duration(400).delay(200)} style={styles.nameSection}>
           <Text style={styles.sectionLabel}>Child&apos;s Name</Text>
           <View style={styles.inputWrap}>
             <Ionicons name="person-outline" size={18} color="rgba(255,255,255,0.3)" style={styles.inputIcon} />
@@ -219,9 +222,9 @@ export default function QuickCreateScreen() {
               testID="child-name-input"
             />
           </View>
-        </Animated.View>
+        </AnimatedView>
 
-        <Animated.View entering={FadeInDown.duration(400).delay(300)}>
+        <AnimatedView entering={FadeInDown.duration(400).delay(300)}>
           <Pressable onPress={toggleAdvanced} style={styles.advancedToggle}>
             <Text style={styles.advancedToggleText}>Advanced Options</Text>
             <Ionicons
@@ -300,10 +303,10 @@ export default function QuickCreateScreen() {
               />
             </View>
           </RNAnimated.View>
-        </Animated.View>
+        </AnimatedView>
       </KeyboardAwareScrollViewCompat>
 
-      <Animated.View
+      <AnimatedView
         entering={FadeInUp.duration(500).delay(300)}
         style={[styles.bottomCTA, { paddingBottom: bottomInset + 16 }]}
       >
@@ -336,7 +339,8 @@ export default function QuickCreateScreen() {
             <Text style={styles.generateBtnText}>Generate Story</Text>
           </LinearGradient>
         </Pressable>
-      </Animated.View>
+      </AnimatedView>
+      </ResponsiveContainer>
     </View>
   );
 }

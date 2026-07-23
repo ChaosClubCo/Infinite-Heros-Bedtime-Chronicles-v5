@@ -11,6 +11,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AnimatedView } from "@/components/AnimatedView";
+import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import * as Haptics from "expo-haptics";
 import Animated, {
   FadeIn,
@@ -88,9 +90,9 @@ function FloatingStar({ delay, x, y, color }: { delay: number; x: number; y: num
   }));
 
   return (
-    <Animated.View style={[{ position: "absolute", left: `${x}%`, top: `${y}%` } as Record<string, string | number>, animStyle]}>
+    <AnimatedView style={[{ position: "absolute", left: `${x}%`, top: `${y}%` } as Record<string, string | number>, animStyle]}>
       <Ionicons name="star" size={16} color={color} />
-    </Animated.View>
+    </AnimatedView>
   );
 }
 
@@ -133,10 +135,10 @@ function PulsingBadge({ emoji, color }: { emoji: string; color: string }) {
 
   return (
     <View style={styles.badgeWrapper}>
-      <Animated.View style={[styles.badgeRing, { borderColor: color }, ringStyle]} />
-      <Animated.View style={[styles.badgeCircle, { borderColor: `${color}50`, backgroundColor: `${color}12` }, badgeStyle]}>
+      <AnimatedView style={[styles.badgeRing, { borderColor: color }, ringStyle]} />
+      <AnimatedView style={[styles.badgeCircle, { borderColor: `${color}50`, backgroundColor: `${color}12` }, badgeStyle]}>
         <Text style={styles.badgeEmoji}>{emoji}</Text>
-      </Animated.View>
+      </AnimatedView>
     </View>
   );
 }
@@ -283,20 +285,21 @@ export default function CompletionScreen() {
       <FloatingStar delay={900} x={80} y={40} color={theme.accent} />
       <FloatingStar delay={1200} x={50} y={65} color={theme.accent} />
 
-      <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingTop: topInset + 20, paddingBottom: bottomInset + 40 }]}
-        showsVerticalScrollIndicator={false}
-      >
+      <ResponsiveContainer style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingTop: topInset + 20, paddingBottom: bottomInset + 40 }]}
+          showsVerticalScrollIndicator={false}
+        >
         {badge && (
-          <Animated.View entering={FadeIn.duration(1000)} style={styles.badgeArea}>
+          <AnimatedView entering={FadeIn.duration(1000)} style={styles.badgeArea}>
             <PulsingBadge emoji={badge.emoji} color={theme.accent} />
             <Text style={[styles.badgeTitle, { color: theme.accent }]}>{badge.title}</Text>
             <Text style={styles.badgeDescription}>{badge.description}</Text>
-          </Animated.View>
+          </AnimatedView>
         )}
 
         {newBadges.length > 0 && (
-          <Animated.View entering={FadeInDown.duration(800).delay(300)} style={styles.newBadgesArea}>
+          <AnimatedView entering={FadeInDown.duration(800).delay(300)} style={styles.newBadgesArea}>
             <Text style={[styles.newBadgesTitle, { color: "#FFD54F" }]}>
               {newBadges.length === 1 ? "New Badge Earned!" : `${newBadges.length} New Badges!`}
             </Text>
@@ -308,10 +311,10 @@ export default function CompletionScreen() {
                 </View>
               ))}
             </View>
-          </Animated.View>
+          </AnimatedView>
         )}
 
-        <Animated.View entering={FadeInDown.duration(800).delay(400)} style={styles.textArea}>
+        <AnimatedView entering={FadeInDown.duration(800).delay(400)} style={styles.textArea}>
           <Text style={[styles.completionLabel, { color: theme.accent }]}>
             {theme.label}
           </Text>
@@ -319,9 +322,9 @@ export default function CompletionScreen() {
             {storyData?.title || "Great Adventure!"}
           </Text>
           <Text style={styles.completionSublabel}>{theme.sublabel}</Text>
-        </Animated.View>
+        </AnimatedView>
 
-        <Animated.View entering={FadeInDown.duration(600).delay(600)} style={styles.extrasArea}>
+        <AnimatedView entering={FadeInDown.duration(600).delay(600)} style={styles.extrasArea}>
           {vocabWord && (
             <Pressable onPress={() => toggleSection("vocab")} style={styles.extraCard}>
               <View style={styles.extraCardHeader}>
@@ -339,9 +342,9 @@ export default function CompletionScreen() {
                 />
               </View>
               {expandedSection === "vocab" && (
-                <Animated.View entering={FadeIn.duration(300)}>
+                <AnimatedView entering={FadeIn.duration(300)}>
                   <Text style={styles.extraCardBody}>{vocabWord.definition}</Text>
-                </Animated.View>
+                </AnimatedView>
               )}
             </Pressable>
           )}
@@ -363,9 +366,9 @@ export default function CompletionScreen() {
                 />
               </View>
               {expandedSection === "joke" && (
-                <Animated.View entering={FadeIn.duration(300)}>
+                <AnimatedView entering={FadeIn.duration(300)}>
                   <Text style={styles.extraCardBody}>{joke}</Text>
-                </Animated.View>
+                </AnimatedView>
               )}
             </Pressable>
           )}
@@ -387,9 +390,9 @@ export default function CompletionScreen() {
                 />
               </View>
               {expandedSection === "lesson" && (
-                <Animated.View entering={FadeIn.duration(300)}>
+                <AnimatedView entering={FadeIn.duration(300)}>
                   <Text style={styles.extraCardBody}>{lesson}</Text>
-                </Animated.View>
+                </AnimatedView>
               )}
             </Pressable>
           )}
@@ -400,9 +403,9 @@ export default function CompletionScreen() {
               <Text style={[styles.tomorrowText, { color: theme.accent }]}>{tomorrowHook}</Text>
             </View>
           )}
-        </Animated.View>
+        </AnimatedView>
 
-        <Animated.View entering={FadeInUp.duration(600).delay(800)} style={styles.actionsArea}>
+        <AnimatedView entering={FadeInUp.duration(600).delay(800)} style={styles.actionsArea}>
           {savedStoryId ? (
             <View style={styles.feedbackArea}>
               <Text style={styles.feedbackLabel}>How was this story?</Text>
@@ -474,8 +477,9 @@ export default function CompletionScreen() {
               <Text style={styles.primaryButtonText}>New Adventure</Text>
             </LinearGradient>
           </Pressable>
-        </Animated.View>
+        </AnimatedView>
       </ScrollView>
+      </ResponsiveContainer>
     </View>
   );
 }

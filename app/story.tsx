@@ -35,6 +35,7 @@ import { SleepTimerBar } from "@/components/SleepTimerBar";
 import { StoryTextDisplay } from "@/components/StoryTextDisplay";
 import { StoryProgressBar } from "@/components/StoryProgressBar";
 import { StoryChoices } from "@/components/StoryChoices";
+import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 
 const PARTICLE_COUNT = 6;
 const PARTICLE_STAGGER_MS = 800;
@@ -324,7 +325,8 @@ export default function StoryScreen() {
         <FloatingParticle key={i} delay={i * PARTICLE_STAGGER_MS} accent={theme.accent} />
       ))}
 
-      <StoryTopBar
+      <ResponsiveContainer style={{ flex: 1 }}>
+        <StoryTopBar
         topInset={topInset}
         isReady={storyState === "ready" && !!storyData}
         storyTitle={storyData?.title}
@@ -423,6 +425,7 @@ export default function StoryScreen() {
           )}
         </>
       )}
+      </ResponsiveContainer>
     </View>
   );
 }

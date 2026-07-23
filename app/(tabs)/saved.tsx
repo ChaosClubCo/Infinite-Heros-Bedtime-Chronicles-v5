@@ -12,6 +12,8 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AnimatedView } from "@/components/AnimatedView";
+import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import { useFocusEffect, router } from "expo-router";
 import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import Colors from "@/constants/colors";
@@ -88,7 +90,7 @@ export default function SavedScreen() {
     const sceneImage = item.scenes ? Object.values(item.scenes)[0] : null;
 
     return (
-      <Animated.View entering={FadeInDown.duration(300).delay(index * 80)}>
+      <AnimatedView entering={FadeInDown.duration(300).delay(index * 80)}>
         <Pressable
           style={styles.storyRow}
           onPress={() => {
@@ -134,7 +136,7 @@ export default function SavedScreen() {
             <Ionicons name="heart" size={20} color="#f43f5e" />
           </Pressable>
         </Pressable>
-      </Animated.View>
+      </AnimatedView>
     );
   };
 
@@ -143,7 +145,8 @@ export default function SavedScreen() {
       <LinearGradient colors={["#0a0a1e", "#0d0d28", "#0a0a1e"]} style={StyleSheet.absoluteFill} />
       <StarField />
 
-      <View style={[styles.header, { paddingTop: topInset + 12 }]}>
+      <ResponsiveContainer style={{ flex: 1 }}>
+        <View style={[styles.header, { paddingTop: topInset + 12 }]}>
         <Ionicons name="heart" size={22} color="#f43f5e" />
         <Text style={styles.headerTitle}>Saved Stories</Text>
         {savedStories.length > 0 && (
@@ -152,10 +155,10 @@ export default function SavedScreen() {
           </View>
         )}
         {isSyncing && (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.syncPill} testID="saved_sync_indicator">
+          <AnimatedView entering={FadeIn} exiting={FadeOut} style={styles.syncPill} testID="saved_sync_indicator">
             <ActivityIndicator size="small" color="#f43f5e" />
             <Text style={styles.syncPillText}>Syncing...</Text>
-          </Animated.View>
+          </AnimatedView>
         )}
       </View>
 
@@ -180,6 +183,7 @@ export default function SavedScreen() {
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
       )}
+      </ResponsiveContainer>
     </View>
   );
 }

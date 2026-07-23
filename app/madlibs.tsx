@@ -12,6 +12,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AnimatedView } from "@/components/AnimatedView";
+import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import Colors from "@/constants/colors";
@@ -98,12 +100,13 @@ export default function MadLibsScreen() {
         </Pressable>
       </View>
 
-      <KeyboardAwareScrollViewCompat
-        style={{ flex: 1 }}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset + 100 }]}
-        showsVerticalScrollIndicator={false}
-      >
-          <Animated.View entering={FadeIn.duration(600)} style={styles.headerArea}>
+      <ResponsiveContainer style={{ flex: 1 }}>
+        <KeyboardAwareScrollViewCompat
+          style={{ flex: 1 }}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset + 100 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <AnimatedView entering={FadeIn.duration(600)} style={styles.headerArea}>
             <View style={styles.madlibBadge}>
               <Ionicons name="happy" size={20} color="#FF8A65" />
               <Text style={styles.madlibBadgeText}>Mad Libs Mode</Text>
@@ -112,10 +115,10 @@ export default function MadLibsScreen() {
             <Text style={styles.headerSubtitle}>
               Type silly words and {hero.name} will use them in your story
             </Text>
-          </Animated.View>
+          </AnimatedView>
 
           {MADLIB_FIELDS.map((field, index) => (
-            <Animated.View
+            <AnimatedView
               key={field.key}
               entering={FadeInDown.duration(400).delay(index * 60)}
               style={styles.fieldContainer}
@@ -145,7 +148,7 @@ export default function MadLibsScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-            </Animated.View>
+            </AnimatedView>
           ))}
 
           <View style={styles.progressRow}>
@@ -180,6 +183,7 @@ export default function MadLibsScreen() {
           </LinearGradient>
         </Pressable>
       </View>
+      </ResponsiveContainer>
     </View>
   );
 }

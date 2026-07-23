@@ -13,6 +13,8 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AnimatedView } from "@/components/AnimatedView";
+import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import { useFocusEffect, router } from "expo-router";
 import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import Colors from "@/constants/colors";
@@ -102,7 +104,7 @@ export default function LibraryScreen() {
     const sceneImage = item.scenes ? Object.values(item.scenes)[0] : null;
 
     return (
-      <Animated.View entering={FadeInDown.duration(300).delay(index * 60)}>
+      <AnimatedView entering={FadeInDown.duration(300).delay(index * 60)}>
         <Pressable
           style={styles.storyCard}
           onPress={() => {
@@ -170,7 +172,7 @@ export default function LibraryScreen() {
             </View>
           </View>
         </Pressable>
-      </Animated.View>
+      </AnimatedView>
     );
   };
 
@@ -179,16 +181,17 @@ export default function LibraryScreen() {
       <LinearGradient colors={["#0a0a1e", "#0d0d28", "#0a0a1e"]} style={StyleSheet.absoluteFill} />
       <StarField />
 
-      <View style={[styles.header, { paddingTop: topInset + 12 }]}>
+      <ResponsiveContainer style={{ flex: 1 }}>
+        <View style={[styles.header, { paddingTop: topInset + 12 }]}>
         <Text style={styles.headerTitle}>Your Library</Text>
         <Text style={styles.headerCount}>
           {stories.length} {stories.length === 1 ? "story" : "stories"}
         </Text>
         {isSyncing && (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.syncPill} testID="library_sync_indicator">
+          <AnimatedView entering={FadeIn} exiting={FadeOut} style={styles.syncPill} testID="library_sync_indicator">
             <ActivityIndicator size="small" color={Colors.accent} />
             <Text style={styles.syncPillText}>Syncing Chronicles...</Text>
-          </Animated.View>
+          </AnimatedView>
         )}
       </View>
 
@@ -212,6 +215,7 @@ export default function LibraryScreen() {
           scrollEnabled={stories.length > 0}
         />
       )}
+      </ResponsiveContainer>
     </View>
   );
 }

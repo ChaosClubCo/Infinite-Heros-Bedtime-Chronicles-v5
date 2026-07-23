@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeIn } from "react-native-reanimated";
+import { AnimatedView } from "@/components/AnimatedView";
 import Colors from "@/constants/colors";
 import { useSettings, type AppSettings } from "@/lib/SettingsContext";
 
@@ -67,14 +68,18 @@ export function SettingsModal({ visible, onClose }: Props) {
     updateSetting(key, value);
   };
 
+  const isWeb = Platform.OS === "web";
+
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
+      animationType={isWeb ? "fade" : "slide"}
+      presentationStyle={isWeb ? "overFullScreen" : "pageSheet"}
+      transparent={isWeb}
       onRequestClose={onClose}
     >
-      <View style={[styles.container, { paddingTop: topInset }]}>
+      <View style={isWeb ? styles.modalOverlay : styles.nativeWrapper}>
+        <View style={[styles.container, isWeb ? styles.webContainer : { paddingTop: topInset }]}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Settings</Text>
           <Pressable onPress={onClose} style={styles.closeBtn} accessibilityLabel="Close settings" accessibilityRole="button">
@@ -114,7 +119,7 @@ export function SettingsModal({ visible, onClose }: Props) {
           showsVerticalScrollIndicator={false}
         >
           {tab === "general" && (
-            <Animated.View entering={FadeIn.duration(300)}>
+            <AnimatedView entering={FadeIn.duration(300)}>
               <Text style={styles.sectionTitle}>Default Story Length</Text>
               <View style={styles.optionGrid}>
                 {STORY_LENGTHS.map((sl) => {
@@ -151,11 +156,11 @@ export function SettingsModal({ visible, onClose }: Props) {
                   );
                 })}
               </View>
-            </Animated.View>
+            </AnimatedView>
           )}
 
           {tab === "voice" && (
-            <Animated.View entering={FadeIn.duration(300)}>
+            <AnimatedView entering={FadeIn.duration(300)}>
               <Text style={styles.sectionTitle}>Narrator Voice</Text>
               <View style={styles.voiceList}>
                 {VOICES.map((v) => {
@@ -192,11 +197,11 @@ export function SettingsModal({ visible, onClose }: Props) {
                   accessibilityRole="switch"
                 />
               </View>
-            </Animated.View>
+            </AnimatedView>
           )}
 
           {tab === "accessibility" && (
-            <Animated.View entering={FadeIn.duration(300)}>
+            <AnimatedView entering={FadeIn.duration(300)}>
               <Text style={styles.sectionTitle}>Text Size</Text>
               <View style={styles.optionGrid}>
                 {(["normal", "large"] as const).map((size) => {
@@ -236,15 +241,38 @@ export function SettingsModal({ visible, onClose }: Props) {
                   accessibilityRole="switch"
                 />
               </View>
-            </Animated.View>
+            </AnimatedView>
           )}
         </ScrollView>
+        </View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  nativeWrapper: {
+    flex: 1,
+  },
+  webContainer: {
+    width: "90%",
+    maxWidth: 500,
+    maxHeight: "85%",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.primary,

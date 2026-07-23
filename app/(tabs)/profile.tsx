@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
+import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import { ProfileModal } from "@/components/ProfileModal";
 import { SettingsModal } from "@/components/SettingsModal";
 import { ParentControlsModal } from "@/components/ParentControlsModal";
@@ -25,7 +26,7 @@ export default function ProfileScreen() {
         style={StyleSheet.absoluteFill}
       />
       <StarField />
-      <View style={[styles.content, { paddingTop: topInset + 20 }]}>
+      <ResponsiveContainer style={[styles.content, { paddingTop: topInset + 20 }]}>
         <View style={styles.avatarWrap}>
           <Text style={styles.avatarEmoji}>{activeProfile?.avatarEmoji || "👤"}</Text>
         </View>
@@ -46,7 +47,7 @@ export default function ProfileScreen() {
             <Text style={styles.actionText}>Parent Controls</Text>
           </Pressable>
         </View>
-      </View>
+      </ResponsiveContainer>
 
       {profileVisible && <ProfileModal visible={profileVisible} onClose={() => setProfileVisible(false)} />}
       {settingsVisible && <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />}
