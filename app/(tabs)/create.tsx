@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AnimatedView } from "@/components/AnimatedView";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import * as Haptics from "expo-haptics";
-import Animated, {
+import {
   FadeInDown,
   FadeIn,
   FadeInUp,

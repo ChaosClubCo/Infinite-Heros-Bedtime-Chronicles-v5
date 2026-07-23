@@ -12,7 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeIn } from "react-native-reanimated";
+import { FadeIn } from "react-native-reanimated";
 import { AnimatedView } from "@/components/AnimatedView";
 import Colors from "@/constants/colors";
 import { useSettings, type AppSettings } from "@/lib/SettingsContext";

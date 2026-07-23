@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AnimatedView } from "@/components/AnimatedView";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import { useFocusEffect, router } from "expo-router";
-import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
+import { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
 import { HEROES } from "@/constants/heroes";

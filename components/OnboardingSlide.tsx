@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, Image, Dimensions, Platform } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
+import { FadeIn } from "react-native-reanimated";
 import { AnimatedView } from "@/components/AnimatedView";
 import { StarField } from "@/components/StarField";
 import Colors from "@/constants/colors";

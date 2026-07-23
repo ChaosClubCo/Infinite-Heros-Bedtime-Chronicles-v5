@@ -13,7 +13,7 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import { FadeIn, FadeInDown } from "react-native-reanimated";
 import { AnimatedView } from "@/components/AnimatedView";
 import Colors from "@/constants/colors";
 import { ChildProfile, AVATAR_EMOJIS } from "@/constants/types";

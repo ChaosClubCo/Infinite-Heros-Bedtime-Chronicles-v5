@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AnimatedView } from "@/components/AnimatedView";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
+import { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { StarField } from "@/components/StarField";
 import Colors from "@/constants/colors";
 import { HEROES } from "@/constants/heroes";

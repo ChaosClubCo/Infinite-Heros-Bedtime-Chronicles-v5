@@ -16,7 +16,7 @@ import { router, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
+import { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import { AnimatedView } from "@/components/AnimatedView";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import Colors from "@/constants/colors";
