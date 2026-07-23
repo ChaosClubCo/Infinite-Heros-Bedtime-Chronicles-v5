@@ -12,8 +12,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AnimatedView } from "@/components/AnimatedView";
+import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { HEROES } from "@/constants/heroes";
 import { StarField } from "@/components/StarField";
@@ -103,11 +105,12 @@ export default function SleepSetupScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <KeyboardAwareScrollViewCompat
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset + 120 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        <Animated.View entering={FadeInDown.duration(500).delay(100)}>
+      <ResponsiveContainer style={{ flex: 1 }}>
+        <KeyboardAwareScrollViewCompat
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset + 120 }]}
+          showsVerticalScrollIndicator={false}
+        >
+        <AnimatedView entering={FadeInDown.duration(500).delay(100)}>
           <Text style={styles.sectionTitle}>Ambient Soundscape</Text>
           <View style={styles.soundGrid}>
             {SOUNDSCAPES.map((s) => {
@@ -138,9 +141,9 @@ export default function SleepSetupScreen() {
               );
             })}
           </View>
-        </Animated.View>
+        </AnimatedView>
 
-        <Animated.View entering={FadeInDown.duration(500).delay(200)}>
+        <AnimatedView entering={FadeInDown.duration(500).delay(200)}>
           <Text style={styles.sectionTitle}>Sleep Timer</Text>
           <ScrollView
             horizontal
@@ -169,9 +172,9 @@ export default function SleepSetupScreen() {
               );
             })}
           </ScrollView>
-        </Animated.View>
+        </AnimatedView>
 
-        <Animated.View entering={FadeInDown.duration(500).delay(300)}>
+        <AnimatedView entering={FadeInDown.duration(500).delay(300)}>
           <View style={styles.heroCard}>
             <View style={styles.heroCardContent}>
               <Text style={styles.heroCardLabel}>TONIGHT&apos;S HERO</Text>
@@ -181,10 +184,10 @@ export default function SleepSetupScreen() {
               <Ionicons name="sparkles" size={80} color={PURPLE} style={{ opacity: 0.2 }} />
             </View>
           </View>
-        </Animated.View>
+        </AnimatedView>
       </KeyboardAwareScrollViewCompat>
 
-      <Animated.View
+      <AnimatedView
         entering={FadeInDown.duration(500).delay(400)}
         style={[styles.bottomBar, { paddingBottom: bottomInset + 20 }]}
       >
@@ -206,7 +209,8 @@ export default function SleepSetupScreen() {
             <Text style={styles.startButtonText}>Begin Sleep Story</Text>
           </LinearGradient>
         </Pressable>
-      </Animated.View>
+      </AnimatedView>
+      </ResponsiveContainer>
     </View>
   );
 }

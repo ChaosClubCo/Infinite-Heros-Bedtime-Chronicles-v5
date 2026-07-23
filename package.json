@@ -143,6 +143,17 @@
     "shell-quote": "^1.8.4",
     "undici": "^6.27.0",
     "tmp": "^0.2.6",
-    "uuid": "^11.1.1"
+    "uuid": "^11.1.1",
+    "esbuild": "$esbuild",
+    "minimatch@3": {
+      "brace-expansion": "^1.1.16"
+    },
+    "eas-cli": {
+      "ajv": "^8.18.0",
+      "diff": "^8.0.3",
+      "joi": "^17.13.4",
+      "minimatch": "^5.1.8",
+      "ts-deepmerge": "^8.0.0"
+    }
   }
 }

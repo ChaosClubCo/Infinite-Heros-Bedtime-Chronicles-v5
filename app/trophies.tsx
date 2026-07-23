@@ -12,7 +12,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
+import { AnimatedView } from "@/components/AnimatedView";
+import { ResponsiveContainer } from "@/components/ResponsiveContainer";
+import { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
 import { useProfile } from "@/lib/ProfileContext";
@@ -111,25 +113,26 @@ export default function TrophiesScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset + 40 }]}
-        showsVerticalScrollIndicator={false}
-      >
+      <ResponsiveContainer style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset + 40 }]}
+          showsVerticalScrollIndicator={false}
+        >
         {isLoading ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color={Colors.accent} />
           </View>
         ) : !activeProfile ? (
-          <Animated.View entering={FadeIn.duration(400)} style={styles.noProfile}>
+          <AnimatedView entering={FadeIn.duration(400)} style={styles.noProfile}>
             <Ionicons name="person-outline" size={48} color="rgba(255,255,255,0.15)" />
             <Text style={styles.noProfileTitle}>No Profile Selected</Text>
             <Text style={styles.noProfileSub}>
               Create or select a profile to start earning badges and tracking streaks
             </Text>
-          </Animated.View>
+          </AnimatedView>
         ) : (
           <>
-            <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.statsGrid}>
+            <AnimatedView entering={FadeInDown.duration(400).delay(100)} style={styles.statsGrid}>
               <View style={styles.statCard}>
                 <Text style={styles.statLabel}>TOTAL STORIES</Text>
                 <Text style={styles.statValue}>{totalStories}</Text>
@@ -151,9 +154,9 @@ export default function TrophiesScreen() {
                 <Text style={styles.statLabel}>TOTAL BADGES</Text>
                 <Text style={styles.statValue}>{badges.length}</Text>
               </View>
-            </Animated.View>
+            </AnimatedView>
 
-            <Animated.View entering={FadeInDown.duration(400).delay(200)}>
+            <AnimatedView entering={FadeInDown.duration(400).delay(200)}>
               <View style={styles.sectionHeader}>
                 <Ionicons name="sparkles" size={18} color={Colors.accent} />
                 <Text style={styles.sectionLabel}>Cosmic Achievements</Text>
@@ -169,7 +172,7 @@ export default function TrophiesScreen() {
 
               <View style={styles.badgeGrid}>
                 {sortedMappedBadges.map(({ def, earned, progress }, i) => (
-                  <Animated.View
+                  <AnimatedView
                     key={def.id}
                     entering={ZoomIn.duration(300).delay(i * 80)}
                     style={styles.badgeCardWrapper}
@@ -180,13 +183,14 @@ export default function TrophiesScreen() {
                       progress={progress}
                       index={i}
                     />
-                  </Animated.View>
+                  </AnimatedView>
                 ))}
               </View>
-            </Animated.View>
+            </AnimatedView>
           </>
         )}
       </ScrollView>
+      </ResponsiveContainer>
     </View>
   );
 }

@@ -16,8 +16,10 @@ import type { ComponentProps } from "react";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AnimatedView } from "@/components/AnimatedView";
+import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import * as Haptics from "expo-haptics";
-import Animated, {
+import {
   FadeInDown,
   FadeIn,
   FadeInUp,
@@ -339,7 +341,8 @@ export default function CreateScreen() {
         contentContainerStyle={{ paddingBottom: bottomInset + 100 }}
         bounces={false}
       >
-        <View style={[s.topBar, { paddingTop: topInset + 8 }]}>
+        <ResponsiveContainer>
+          <View style={[s.topBar, { paddingTop: topInset + 8 }]}>
           <Pressable
             onPress={() => {
               Haptics.selectionAsync();
@@ -384,14 +387,14 @@ export default function CreateScreen() {
         </View>
 
         {activeProfile && (
-          <Animated.View entering={FadeIn.duration(400)} style={s.greetingRow}>
+          <AnimatedView entering={FadeIn.duration(400)} style={s.greetingRow}>
             <Text style={s.greetingText}>
               Welcome back, {activeProfile.name}! {activeProfile.avatarEmoji}
             </Text>
-          </Animated.View>
+          </AnimatedView>
         )}
 
-        <Animated.View entering={FadeIn.duration(800)} style={s.headerBlock}>
+        <AnimatedView entering={FadeIn.duration(800)} style={s.headerBlock}>
           <View style={s.headerTitleRow}>
             <Ionicons name="star" size={22} color={theme.accent} />
             <Text style={s.titleMain}>Infinity</Text>
@@ -402,9 +405,9 @@ export default function CreateScreen() {
             <Text style={s.taglineText}>CREATE YOUR OWN MAGIC</Text>
             <View style={[s.taglineLine, { backgroundColor: theme.accent }]} />
           </View>
-        </Animated.View>
+        </AnimatedView>
 
-        <Animated.View entering={FadeInDown.duration(500)} style={s.modeSection}>
+        <AnimatedView entering={FadeInDown.duration(500)} style={s.modeSection}>
           <View style={s.sectionHeader}>
             <Ionicons name="color-palette" size={14} color={theme.accent} />
             <Text style={s.sectionLabel}>STORY MODE</Text>
@@ -440,10 +443,10 @@ export default function CreateScreen() {
               );
             })}
           </View>
-        </Animated.View>
+        </AnimatedView>
 
         {(suggestionLoading || (suggestion && !suggestionDismissed)) && (
-          <Animated.View entering={FadeInDown.duration(400)} style={s.suggestionCard}>
+          <AnimatedView entering={FadeInDown.duration(400)} style={s.suggestionCard}>
             <View style={s.glassCard}>
               <View style={s.suggestionHeader}>
                 <View style={[s.suggestionIconWrap, { backgroundColor: `${theme.accent}30` }]}>
@@ -508,10 +511,10 @@ export default function CreateScreen() {
                 </>
               ) : null}
             </View>
-          </Animated.View>
+          </AnimatedView>
         )}
 
-        <Animated.View entering={FadeInDown.duration(500).delay(100)}>
+        <AnimatedView entering={FadeInDown.duration(500).delay(100)}>
           <View style={s.sectionHeader}>
             <Ionicons name="person" size={14} color={theme.accent} />
             <Text style={s.sectionLabel}>CHOOSE YOUR HERO</Text>
@@ -556,9 +559,9 @@ export default function CreateScreen() {
                       style={s.heroAvatarImage}
                     />
                   ) : avatarLoading[hero.id] ? (
-                    <Animated.View style={[s.heroAvatarShimmer, { backgroundColor: `${hero.color}40` }, shimmerStyle]}>
+                    <AnimatedView style={[s.heroAvatarShimmer, { backgroundColor: `${hero.color}40` }, shimmerStyle]}>
                       <Ionicons name={hero.iconName} size={28} color={hero.color} />
-                    </Animated.View>
+                    </AnimatedView>
                   ) : (
                     <Ionicons name={hero.iconName} size={28} color={hero.color} />
                   )}
@@ -575,9 +578,9 @@ export default function CreateScreen() {
               <Text style={s.heroDetailDesc}>{hero.description}</Text>
             </View>
           </View>
-        </Animated.View>
+        </AnimatedView>
 
-        <Animated.View entering={FadeInDown.duration(500).delay(200)}>
+        <AnimatedView entering={FadeInDown.duration(500).delay(200)}>
           <View style={s.sectionHeader}>
             <Ionicons name="time" size={14} color={theme.accent} />
             <Text style={s.sectionLabel}>STORY LENGTH</Text>
@@ -617,9 +620,9 @@ export default function CreateScreen() {
               );
             })}
           </View>
-        </Animated.View>
+        </AnimatedView>
 
-        <Animated.View entering={FadeInDown.duration(500).delay(300)}>
+        <AnimatedView entering={FadeInDown.duration(500).delay(300)}>
           <View style={s.sectionHeader}>
             <Ionicons name="mic" size={14} color={theme.accent} />
             <Text style={s.sectionLabel}>NARRATOR VOICE</Text>
@@ -689,9 +692,9 @@ export default function CreateScreen() {
               );
             })}
           </ScrollView>
-        </Animated.View>
+        </AnimatedView>
 
-        <Animated.View entering={FadeInDown.duration(500).delay(350)}>
+        <AnimatedView entering={FadeInDown.duration(500).delay(350)}>
           <View style={s.sectionHeader}>
             <Ionicons name="speedometer-outline" size={14} color={theme.accent} />
             <Text style={s.sectionLabel}>NARRATION SPEED</Text>
@@ -734,9 +737,9 @@ export default function CreateScreen() {
               );
             })}
           </View>
-        </Animated.View>
+        </AnimatedView>
 
-        <Animated.View entering={FadeInUp.duration(600).delay(400)}>
+        <AnimatedView entering={FadeInUp.duration(600).delay(400)}>
           <Pressable
             onPress={handleEngage}
             style={({ pressed }) => [
@@ -758,7 +761,8 @@ export default function CreateScreen() {
               <Ionicons name="arrow-forward" size={18} color="#FFF" />
             </LinearGradient>
           </Pressable>
-        </Animated.View>
+        </AnimatedView>
+        </ResponsiveContainer>
       </ScrollView>
 
       <MemoryJar visible={jarVisible} onClose={() => setJarVisible(false)} />

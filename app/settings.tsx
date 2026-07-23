@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { StarField } from "@/components/StarField";
+import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import Colors from "@/constants/colors";
 import { useSettings, AppSettings } from "@/lib/SettingsContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -214,7 +215,8 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: 40 + bottomInset }]}
       >
-        <View style={styles.card}>
+        <ResponsiveContainer>
+          <View style={styles.card}>
           <SectionHeader title="Audio" icon="headset-outline" />
 
           <SettingRow label="Volume">
@@ -426,6 +428,7 @@ export default function SettingsScreen() {
           <Ionicons name="refresh-circle-outline" size={18} color="rgba(255,100,100,0.7)" />
           <Text style={styles.resetBtnText}>Reset to Defaults</Text>
         </Pressable>
+        </ResponsiveContainer>
       </ScrollView>
     </View>
   );

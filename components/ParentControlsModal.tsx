@@ -12,7 +12,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeIn } from "react-native-reanimated";
+import { FadeIn } from "react-native-reanimated";
+import { AnimatedView } from "@/components/AnimatedView";
 import Colors from "@/constants/colors";
 import { ParentControls, DEFAULT_PARENT_CONTROLS, CONTENT_THEMES } from "@/constants/types";
 import { getParentControls, saveParentControls, hashPin, generatePinSalt, isPinLockedOut, recordFailedPinAttempt, resetPinAttempts } from "@/lib/storage";
@@ -151,14 +152,18 @@ export function ParentControlsModal({ visible, onClose }: Props) {
     return `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
   };
 
+  const isWeb = Platform.OS === "web";
+
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
+      animationType={isWeb ? "fade" : "slide"}
+      presentationStyle={isWeb ? "overFullScreen" : "pageSheet"}
+      transparent={isWeb}
       onRequestClose={onClose}
     >
-      <View style={[styles.container, { paddingTop: topInset }]}>
+      <View style={isWeb ? styles.modalOverlay : styles.nativeWrapper}>
+        <View style={[styles.container, isWeb ? styles.webContainer : { paddingTop: topInset }]}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Parent Controls</Text>
           <Pressable onPress={onClose} style={styles.closeBtn} accessibilityLabel="Close parent controls" accessibilityRole="button">
@@ -167,7 +172,7 @@ export function ParentControlsModal({ visible, onClose }: Props) {
         </View>
 
         {!unlocked ? (
-          <Animated.View entering={FadeIn.duration(300)} style={styles.pinScreen}>
+          <AnimatedView entering={FadeIn.duration(300)} style={styles.pinScreen}>
             <Ionicons name="lock-closed" size={48} color={Colors.accent} />
             <Text style={styles.pinTitle}>Enter PIN</Text>
             <Text style={styles.pinSubtitle}>Enter your 4-digit PIN to access parent controls</Text>
@@ -193,7 +198,7 @@ export function ParentControlsModal({ visible, onClose }: Props) {
                 <Text style={styles.unlockBtnText}>Unlock</Text>
               </Pressable>
             )}
-          </Animated.View>
+          </AnimatedView>
         ) : (
           <KeyboardAwareScrollViewCompat
             contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset + 40 }]}
@@ -238,7 +243,7 @@ export function ParentControlsModal({ visible, onClose }: Props) {
             </View>
 
             {controls.bedtimeEnabled && (
-              <Animated.View entering={FadeIn.duration(200)} style={styles.timeRow}>
+              <AnimatedView entering={FadeIn.duration(200)} style={styles.timeRow}>
                 <Text style={styles.timeLabel}>Bedtime</Text>
                 <View style={styles.timeControls}>
                   <Pressable onPress={() => adjustTime("bedtimeHour", -1)} style={styles.timeBtn} accessibilityLabel="Decrease hour" accessibilityRole="button">
@@ -258,7 +263,7 @@ export function ParentControlsModal({ visible, onClose }: Props) {
                     <Ionicons name="add" size={16} color="rgba(255,255,255,0.6)" />
                   </Pressable>
                 </View>
-              </Animated.View>
+              </AnimatedView>
             )}
 
             <Text style={styles.sectionTitle}>CONTENT THEMES</Text>
@@ -338,12 +343,35 @@ export function ParentControlsModal({ visible, onClose }: Props) {
             )}
           </KeyboardAwareScrollViewCompat>
         )}
+        </View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  nativeWrapper: {
+    flex: 1,
+  },
+  webContainer: {
+    width: "90%",
+    maxWidth: 500,
+    maxHeight: "85%",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+  },
   container: { flex: 1, backgroundColor: Colors.primary },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",

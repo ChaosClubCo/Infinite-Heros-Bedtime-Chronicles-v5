@@ -13,7 +13,8 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import { FadeIn, FadeInDown } from "react-native-reanimated";
+import { AnimatedView } from "@/components/AnimatedView";
 import Colors from "@/constants/colors";
 import { ChildProfile, AVATAR_EMOJIS } from "@/constants/types";
 import { HEROES } from "@/constants/heroes";
@@ -191,14 +192,18 @@ export function ProfileModal({ visible, onClose }: Props) {
     </KeyboardAwareScrollViewCompat>
   );
 
+  const isWeb = Platform.OS === "web";
+
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
+      animationType={isWeb ? "fade" : "slide"}
+      presentationStyle={isWeb ? "overFullScreen" : "pageSheet"}
+      transparent={isWeb}
       onRequestClose={handleCloseModal}
     >
-      <View style={[styles.container, { paddingTop: topInset }]}>
+      <View style={isWeb ? styles.modalOverlay : styles.nativeWrapper}>
+        <View style={[styles.container, isWeb ? styles.webContainer : { paddingTop: topInset }]}>
         <View style={styles.header}>
           {screen !== "list" ? (
             <Pressable
@@ -227,20 +232,20 @@ export function ProfileModal({ visible, onClose }: Props) {
             showsVerticalScrollIndicator={false}
           >
             {profiles.length === 0 && (
-              <Animated.View entering={FadeIn.duration(400)} style={styles.emptyState}>
+              <AnimatedView entering={FadeIn.duration(400)} style={styles.emptyState}>
                 <Ionicons name="people-outline" size={48} color="rgba(255,255,255,0.15)" />
                 <Text style={styles.emptyTitle}>No Profiles Yet</Text>
                 <Text style={styles.emptySubtitle}>
                   Create a profile for each child to track their stories, badges, and streaks
                 </Text>
-              </Animated.View>
+              </AnimatedView>
             )}
 
             {profiles.map((p, i) => {
               const isActive = activeProfile?.id === p.id;
               const hero = HEROES.find((h) => h.id === p.favoriteHeroId);
               return (
-                <Animated.View
+                <AnimatedView
                   key={p.id}
                   entering={FadeInDown.duration(300).delay(i * 60)}
                 >
@@ -283,7 +288,7 @@ export function ProfileModal({ visible, onClose }: Props) {
                       <Ionicons name="trash-outline" size={16} color="rgba(255,100,100,0.5)" />
                     </Pressable>
                   </Pressable>
-                </Animated.View>
+                </AnimatedView>
               );
             })}
 
@@ -311,12 +316,35 @@ export function ProfileModal({ visible, onClose }: Props) {
         ) : (
           renderForm()
         )}
+        </View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  nativeWrapper: {
+    flex: 1,
+  },
+  webContainer: {
+    width: "90%",
+    maxWidth: 500,
+    maxHeight: "85%",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+  },
   container: { flex: 1, backgroundColor: Colors.primary },
   header: {
     flexDirection: "row",

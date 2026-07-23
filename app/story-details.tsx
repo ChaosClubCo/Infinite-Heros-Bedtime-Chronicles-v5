@@ -15,8 +15,10 @@ import type { ComponentProps } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AnimatedView } from "@/components/AnimatedView";
+import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { useProfile } from "@/lib/ProfileContext";
 import { STORY_SEEDS } from "@/constants/story-seeds";
@@ -187,11 +189,12 @@ export default function StoryDetailsScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <KeyboardAwareScrollViewCompat
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 + bottomInset }}
-        bounces={false}
-      >
+      <ResponsiveContainer style={{ flex: 1 }}>
+        <KeyboardAwareScrollViewCompat
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 + bottomInset }}
+          bounces={false}
+        >
         <View style={styles.heroImageWrap}>
           <Image
             source={{ uri: story.image }}
@@ -238,11 +241,11 @@ export default function StoryDetailsScreen() {
         </View>
 
         <View style={styles.contentSection}>
-          <Animated.View entering={FadeIn.duration(400)}>
+          <AnimatedView entering={FadeIn.duration(400)}>
             <Text style={styles.summary}>{story.summary}</Text>
-          </Animated.View>
+          </AnimatedView>
 
-          <Animated.View entering={FadeInDown.duration(400).delay(150)}>
+          <AnimatedView entering={FadeInDown.duration(400).delay(150)}>
             <View style={styles.sectionHeaderRow}>
               <Ionicons name="color-wand" size={18} color={Colors.accent} />
               <Text style={styles.sectionTitle}>Personalize</Text>
@@ -259,9 +262,9 @@ export default function StoryDetailsScreen() {
                 testID="child-name-input"
               />
             </View>
-          </Animated.View>
+          </AnimatedView>
 
-          <Animated.View entering={FadeInDown.duration(400).delay(250)}>
+          <AnimatedView entering={FadeInDown.duration(400).delay(250)}>
             <Text style={styles.subsectionTitle}>Adventure Setting</Text>
             <View style={styles.settingsGrid}>
               {ADVENTURE_SETTINGS.map((setting) => {
@@ -294,9 +297,9 @@ export default function StoryDetailsScreen() {
                 );
               })}
             </View>
-          </Animated.View>
+          </AnimatedView>
 
-          <Animated.View entering={FadeInDown.duration(400).delay(350)}>
+          <AnimatedView entering={FadeInDown.duration(400).delay(350)}>
             <Text style={styles.subsectionTitle}>Narration Tone</Text>
             <View style={styles.tonesRow}>
               {TONES.map((tone) => {
@@ -318,11 +321,11 @@ export default function StoryDetailsScreen() {
                 );
               })}
             </View>
-          </Animated.View>
+          </AnimatedView>
 
           {story.mode === "classic" && (
             <>
-              <Animated.View entering={FadeInDown.duration(400).delay(450)}>
+              <AnimatedView entering={FadeInDown.duration(400).delay(450)}>
                 <Text style={styles.subsectionTitle}>Sidekick Companion</Text>
                 <View style={styles.sidekickRow}>
                   {SIDEKICKS.map((sk) => {
@@ -347,9 +350,9 @@ export default function StoryDetailsScreen() {
                     );
                   })}
                 </View>
-              </Animated.View>
+              </AnimatedView>
 
-              <Animated.View entering={FadeInDown.duration(400).delay(550)}>
+              <AnimatedView entering={FadeInDown.duration(400).delay(550)}>
                 <Text style={styles.subsectionTitle}>Today&apos;s Challenge</Text>
                 <View style={styles.problemRow}>
                   {PROBLEMS.map((p) => {
@@ -371,11 +374,11 @@ export default function StoryDetailsScreen() {
                     );
                   })}
                 </View>
-              </Animated.View>
+              </AnimatedView>
             </>
           )}
 
-          <Animated.View entering={FadeInDown.duration(400).delay(650)}>
+          <AnimatedView entering={FadeInDown.duration(400).delay(650)}>
             <View style={styles.detailChipsRow}>
               <View style={styles.detailChip}>
                 <Ionicons name="volume-high-outline" size={14} color={Colors.accent} />
@@ -390,7 +393,7 @@ export default function StoryDetailsScreen() {
                 <Text style={styles.detailChipText}>English</Text>
               </View>
             </View>
-          </Animated.View>
+          </AnimatedView>
         </View>
       </KeyboardAwareScrollViewCompat>
 
@@ -419,6 +422,7 @@ export default function StoryDetailsScreen() {
           </LinearGradient>
         </Pressable>
       </View>
+      </ResponsiveContainer>
     </View>
   );
 }

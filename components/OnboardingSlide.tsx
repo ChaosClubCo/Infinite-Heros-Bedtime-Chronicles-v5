@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Image, Dimensions, Platform } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
+import { FadeIn } from "react-native-reanimated";
+import { AnimatedView } from "@/components/AnimatedView";
 import { StarField } from "@/components/StarField";
 import Colors from "@/constants/colors";
 import { useSettings } from "@/lib/SettingsContext";
@@ -37,7 +38,7 @@ export function OnboardingSlide({ image, title, body }: OnboardingSlideProps) {
   return (
     <View style={styles.container}>
       <StarField />
-      <Animated.View entering={FadeIn.duration(800)} style={styles.content}>
+      <AnimatedView entering={FadeIn.duration(800)} style={styles.content}>
         <View style={styles.imageContainer}>
           <Image source={image} style={styles.image} resizeMode="contain" />
         </View>
@@ -45,7 +46,7 @@ export function OnboardingSlide({ image, title, body }: OnboardingSlideProps) {
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.body}>{body}</Text>
         </View>
-      </Animated.View>
+      </AnimatedView>
     </View>
   );
 }

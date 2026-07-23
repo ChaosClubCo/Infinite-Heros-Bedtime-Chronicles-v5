@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, Text, StyleSheet, Platform, useWindowDimensions } from "react-native";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
@@ -46,6 +46,9 @@ function TabIcon({ name, focused, label, isCreate }: TabIconProps) {
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const { width } = useWindowDimensions();
+  const isWeb = Platform.OS === "web";
+  const tabWidth = isWeb ? Math.min(width, 600) : width;
 
   return (
     <Tabs
@@ -59,7 +62,16 @@ export default function TabsLayout() {
           height: 60 + bottomInset,
           paddingBottom: bottomInset,
           paddingTop: 6,
-          ...(Platform.OS === "web" ? {} : {
+          width: tabWidth,
+          left: isWeb ? (width - tabWidth) / 2 : 0,
+          ...(isWeb ? {
+            borderLeftWidth: 1,
+            borderRightWidth: 1,
+            borderLeftColor: "rgba(15, 15, 189, 0.2)",
+            borderRightColor: "rgba(15, 15, 189, 0.2)",
+            borderTopLeftRadius: 16,
+            borderTopRightRadius: 16,
+          } : {
             shadowColor: "#000",
             shadowOffset: { width: 0, height: -4 },
             shadowOpacity: 0.3,
