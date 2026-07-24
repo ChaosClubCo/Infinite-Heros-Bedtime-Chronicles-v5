@@ -12,7 +12,7 @@ const VALID_CONFIG = {
   version: 2,
   framework: null,
   buildCommand:
-    'npm run server:build && npx expo export --platform web --output-dir static-build && node scripts/verify-vercel-runtime-assets.mjs --require-build-artifacts',
+    'npm audit --audit-level=high --json && npm run server:build && npx expo export --platform web --output-dir static-build && node scripts/verify-vercel-runtime-assets.mjs --require-build-artifacts',
   functions: {
     'api/server.mjs': {
       maxDuration: 300,
@@ -33,8 +33,20 @@ describe('Vercel runtime asset verification', () => {
     rmSync(rootDirectory, { recursive: true, force: true });
   });
 
-  it('accepts the canonical brace-expanded runtime bundle pattern', () => {
+  it('accepts the canonical brace-expanded runtime bundle pattern and audit gate', () => {
     expect(validateVercelConfig(VALID_CONFIG)).toEqual([]);
+  });
+
+  it('rejects removal of the high and critical dependency audit gate', () => {
+    const invalidConfig = structuredClone(VALID_CONFIG);
+    invalidConfig.buildCommand = invalidConfig.buildCommand.replace(
+      'npm audit --audit-level=high --json && ',
+      '',
+    );
+
+    expect(validateVercelConfig(invalidConfig)).toContain(
+      'buildCommand must fail closed on high and critical dependency advisories',
+    );
   });
 
   it('rejects the comma-delimited pattern that Vercel treats as one literal glob', () => {
