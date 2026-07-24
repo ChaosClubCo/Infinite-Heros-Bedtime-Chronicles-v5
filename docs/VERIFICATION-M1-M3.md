@@ -7,11 +7,11 @@ is the remaining human/device pass. Run the automated gates from **Windows Power
 
 ## 0. Automated gates (Windows PowerShell, repo root)
 
-- [ ] `npm run typecheck` — clean
-- [ ] `npm run lint` — no new errors
-- [ ] `npm test` — full Vitest suite green (server safety, sync, storage, etc.)
-- [ ] `npm run test:components` — Jest client tests green (incl. `StoryTextDisplay` fail-safe)
-- [ ] `npm run test:coverage` — server coverage ≥ threshold
+- [x] `npm run typecheck` — clean (verified)
+- [x] `npm run lint` — no new errors (verified)
+- [x] `npm test` — full Vitest suite green (server safety, sync, storage, real auth boundary, etc.)
+- [x] `npm run test:components` — Jest client tests green (incl. `StoryTextDisplay` fail-safe)
+- [x] `npm run test:coverage` — server coverage ≥ threshold
 
 ---
 
