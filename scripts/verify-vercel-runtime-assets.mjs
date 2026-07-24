@@ -34,7 +34,7 @@ export function validateVercelConfig(config) {
     if (!config.buildCommand.includes('expo export --platform web --output-dir static-build')) {
       errors.push('buildCommand must export the Expo web app to static-build');
     }
-    if (!config.buildCommand.includes('verify:vercel-runtime-assets')) {
+    if (!config.buildCommand.includes('node scripts/verify-vercel-runtime-assets.mjs --require-build-artifacts')) {
       errors.push('buildCommand must verify runtime assets after generating them');
     }
   }
