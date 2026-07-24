@@ -10,6 +10,8 @@ const SPEED_LABELS: Record<string, string> = {
   normal: "Normal",
 };
 
+const BACKGROUND_MUSIC_ENABLED = false;
+
 interface StoryTheme {
   accent: string;
   choiceColors: [string, string][];
@@ -188,27 +190,29 @@ export function StoryPlayerControls({
           />
         </Pressable>
 
-        <Pressable
-          onPress={onToggleMusic}
-          hitSlop={8}
-          style={s.controlBarBtn}
-          disabled={musicLoading}
-        >
-          {musicLoading ? (
-            <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
-          ) : (
-            <View style={s.musicBtnWrap}>
-              <Ionicons
-                name={musicMuted ? "musical-note-outline" : "musical-notes"}
-                size={20}
-                color={
-                  musicMuted ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.6)"
-                }
-              />
-              {musicPlaying && !musicMuted && <View style={s.musicDot} />}
-            </View>
-          )}
-        </Pressable>
+        {BACKGROUND_MUSIC_ENABLED && (
+          <Pressable
+            onPress={onToggleMusic}
+            hitSlop={8}
+            style={s.controlBarBtn}
+            disabled={musicLoading}
+          >
+            {musicLoading ? (
+              <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
+            ) : (
+              <View style={s.musicBtnWrap}>
+                <Ionicons
+                  name={musicMuted ? "musical-note-outline" : "musical-notes"}
+                  size={20}
+                  color={
+                    musicMuted ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.6)"
+                  }
+                />
+                {musicPlaying && !musicMuted && <View style={s.musicDot} />}
+              </View>
+            )}
+          </Pressable>
+        )}
       </View>
 
       {isLastPart && (
