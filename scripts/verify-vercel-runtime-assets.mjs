@@ -5,8 +5,17 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const VERCEL_FUNCTION_ENTRY = 'api/server.mjs';
+export const VERCEL_BUILD_COMMAND = 'bash scripts/vercel-build.sh';
+export const VERCEL_BUILD_SCRIPT = 'scripts/vercel-build.sh';
 export const REQUIRED_INCLUDE_FILES =
   '{server_dist/**,static-build/**,assets/**,server/templates/**,app.json}';
+export const REQUIRED_BUILD_SCRIPT_COMMANDS = [
+  'node scripts/verify-release-provenance.mjs --phase vercel-build',
+  'npm audit --audit-level=high --json',
+  'npm run server:build',
+  'npx expo export --platform web --output-dir static-build',
+  'node scripts/verify-vercel-runtime-assets.mjs --require-build-artifacts',
+];
 export const REQUIRED_BUILD_ARTIFACTS = [
   'server_dist/index.js',
   'static-build/index.html',
@@ -28,15 +37,10 @@ export function validateVercelConfig(config) {
     );
   }
 
-  if (typeof config?.buildCommand !== 'string') {
-    errors.push('buildCommand must be a string');
-  } else {
-    if (!config.buildCommand.includes('expo export --platform web --output-dir static-build')) {
-      errors.push('buildCommand must export the Expo web app to static-build');
-    }
-    if (!config.buildCommand.includes('node scripts/verify-vercel-runtime-assets.mjs --require-build-artifacts')) {
-      errors.push('buildCommand must verify runtime assets after generating them');
-    }
+  if (config?.buildCommand !== VERCEL_BUILD_COMMAND) {
+    errors.push(
+      `buildCommand must be ${JSON.stringify(VERCEL_BUILD_COMMAND)}; received ${JSON.stringify(config?.buildCommand)}`,
+    );
   }
 
   const catchAllRewrite = config?.rewrites?.find(
@@ -44,6 +48,21 @@ export function validateVercelConfig(config) {
   );
   if (!catchAllRewrite) {
     errors.push('Missing catch-all rewrite to /api/server');
+  }
+
+  return errors;
+}
+
+export function validateVercelBuildScript(scriptContent) {
+  const errors = [];
+  if (!scriptContent.includes('set -euo pipefail')) {
+    errors.push(`${VERCEL_BUILD_SCRIPT} must fail closed with set -euo pipefail`);
+  }
+
+  for (const command of REQUIRED_BUILD_SCRIPT_COMMANDS) {
+    if (!scriptContent.includes(command)) {
+      errors.push(`${VERCEL_BUILD_SCRIPT} is missing required command: ${command}`);
+    }
   }
 
   return errors;
@@ -72,6 +91,13 @@ export function verifyVercelRuntimeAssets({
   }
 
   const errors = validateVercelConfig(config);
+  const buildScriptPath = resolve(rootDirectory, VERCEL_BUILD_SCRIPT);
+  if (!existsSync(buildScriptPath)) {
+    errors.push(`${VERCEL_BUILD_SCRIPT} is missing`);
+  } else {
+    errors.push(...validateVercelBuildScript(readFileSync(buildScriptPath, 'utf8')));
+  }
+
   if (requireBuildArtifacts) {
     for (const missingPath of findMissingBuildArtifacts(rootDirectory)) {
       errors.push(`Required Vercel runtime artifact is missing: ${missingPath}`);
@@ -95,7 +121,8 @@ function main() {
 
   console.log(
     `[vercel-runtime-assets] verified Vercel bundle configuration${
-      requireBuildArtifacts ? ' and generated runtime artifacts' : ''}`,
+      requireBuildArtifacts ? ' and generated runtime artifacts' : ''
+    }`,
   );
 }
 
