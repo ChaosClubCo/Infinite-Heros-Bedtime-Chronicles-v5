@@ -3,7 +3,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  REQUIRED_BUILD_SCRIPT_COMMANDS,
   REQUIRED_INCLUDE_FILES,
+  VERCEL_BUILD_COMMAND,
+  VERCEL_BUILD_SCRIPT,
+  validateVercelBuildScript,
   validateVercelConfig,
   verifyVercelRuntimeAssets,
 } from '../scripts/verify-vercel-runtime-assets.mjs';
@@ -11,8 +15,7 @@ import {
 const VALID_CONFIG = {
   version: 2,
   framework: null,
-  buildCommand:
-    'npm audit --audit-level=high --json && npm run server:build && npx expo export --platform web --output-dir static-build && node scripts/verify-vercel-runtime-assets.mjs --require-build-artifacts',
+  buildCommand: VERCEL_BUILD_COMMAND,
   functions: {
     'api/server.mjs': {
       maxDuration: 300,
@@ -21,6 +24,17 @@ const VALID_CONFIG = {
   },
   rewrites: [{ source: '/(.*)', destination: '/api/server' }],
 };
+
+const VALID_BUILD_SCRIPT = `#!/usr/bin/env bash
+set -euo pipefail
+${REQUIRED_BUILD_SCRIPT_COMMANDS.join('\n')}
+`;
+
+function writeConfigAndBuildScript(rootDirectory: string): void {
+  writeFileSync(join(rootDirectory, 'vercel.json'), JSON.stringify(VALID_CONFIG));
+  mkdirSync(join(rootDirectory, 'scripts'), { recursive: true });
+  writeFileSync(join(rootDirectory, VERCEL_BUILD_SCRIPT), VALID_BUILD_SCRIPT);
+}
 
 describe('Vercel runtime asset verification', () => {
   let rootDirectory: string;
@@ -33,19 +47,25 @@ describe('Vercel runtime asset verification', () => {
     rmSync(rootDirectory, { recursive: true, force: true });
   });
 
-  it('accepts the canonical brace-expanded runtime bundle pattern and audit gate', () => {
+  it('accepts the bounded build command and canonical runtime bundle pattern', () => {
     expect(validateVercelConfig(VALID_CONFIG)).toEqual([]);
+    expect(validateVercelBuildScript(VALID_BUILD_SCRIPT)).toEqual([]);
   });
 
   it('rejects removal of the high and critical dependency audit gate', () => {
-    const invalidConfig = structuredClone(VALID_CONFIG);
-    invalidConfig.buildCommand = invalidConfig.buildCommand.replace(
-      'npm audit --audit-level=high --json && ',
-      '',
-    );
+    const invalidScript = VALID_BUILD_SCRIPT.replace('npm audit --audit-level=high --json\n', '');
 
-    expect(validateVercelConfig(invalidConfig)).toContain(
-      'buildCommand must fail closed on high and critical dependency advisories',
+    expect(validateVercelBuildScript(invalidScript)).toContain(
+      `${VERCEL_BUILD_SCRIPT} is missing required command: npm audit --audit-level=high --json`,
+    );
+  });
+
+  it('rejects an expanded inline build command', () => {
+    const invalidConfig = structuredClone(VALID_CONFIG);
+    invalidConfig.buildCommand = REQUIRED_BUILD_SCRIPT_COMMANDS.join(' && ');
+
+    expect(validateVercelConfig(invalidConfig)).toContainEqual(
+      expect.stringContaining('buildCommand must be'),
     );
   });
 
@@ -60,7 +80,7 @@ describe('Vercel runtime asset verification', () => {
   });
 
   it('fails closed when generated runtime files are missing', () => {
-    writeFileSync(join(rootDirectory, 'vercel.json'), JSON.stringify(VALID_CONFIG));
+    writeConfigAndBuildScript(rootDirectory);
 
     const errors = verifyVercelRuntimeAssets({
       rootDirectory,
@@ -71,8 +91,8 @@ describe('Vercel runtime asset verification', () => {
     expect(errors).toContain('Required Vercel runtime artifact is missing: server/templates/landing-page.html');
   });
 
-  it('passes when the generated server, Expo export, templates, app metadata, and assets exist', () => {
-    writeFileSync(join(rootDirectory, 'vercel.json'), JSON.stringify(VALID_CONFIG));
+  it('passes when the build script, server, Expo export, templates, app metadata, and assets exist', () => {
+    writeConfigAndBuildScript(rootDirectory);
     mkdirSync(join(rootDirectory, 'server_dist'), { recursive: true });
     mkdirSync(join(rootDirectory, 'static-build'), { recursive: true });
     mkdirSync(join(rootDirectory, 'server', 'templates'), { recursive: true });
