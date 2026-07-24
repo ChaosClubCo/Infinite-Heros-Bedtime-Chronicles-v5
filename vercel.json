@@ -1,13 +1,14 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "framework": null,
   "installCommand": "npx npm@11 ci --include=dev",
-  "buildCommand": "node scripts/verify-release-provenance.mjs --phase vercel-build && npm run server:build && npx expo export --platform web --output-dir static-build",
+  "buildCommand": "node scripts/verify-release-provenance.mjs --phase vercel-build && npm run server:build && npx expo export --platform web --output-dir static-build && node scripts/verify-vercel-runtime-assets.mjs --require-build-artifacts",
   "outputDirectory": ".",
   "functions": {
     "api/server.mjs": {
       "maxDuration": 300,
-      "includeFiles": "server_dist/**,static-build/**,assets/**,server/templates/**,app.json"
+      "includeFiles": "{server_dist/**,static-build/**,assets/**,server/templates/**,app.json}"
     }
   },
   "rewrites": [
