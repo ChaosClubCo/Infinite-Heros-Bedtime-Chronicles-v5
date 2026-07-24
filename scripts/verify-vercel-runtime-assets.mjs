@@ -31,6 +31,9 @@ export function validateVercelConfig(config) {
   if (typeof config?.buildCommand !== 'string') {
     errors.push('buildCommand must be a string');
   } else {
+    if (!config.buildCommand.includes('npm audit --audit-level=high --json')) {
+      errors.push('buildCommand must fail closed on high and critical dependency advisories');
+    }
     if (!config.buildCommand.includes('expo export --platform web --output-dir static-build')) {
       errors.push('buildCommand must export the Expo web app to static-build');
     }
@@ -95,7 +98,8 @@ function main() {
 
   console.log(
     `[vercel-runtime-assets] verified Vercel bundle configuration${
-      requireBuildArtifacts ? ' and generated runtime artifacts' : ''}`,
+      requireBuildArtifacts ? ' and generated runtime artifacts' : ''
+    }`,
   );
 }
 
