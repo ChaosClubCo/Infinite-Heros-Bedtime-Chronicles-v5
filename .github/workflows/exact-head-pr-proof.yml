@@ -43,23 +43,66 @@ jobs:
         run: npm install --global npm@11
 
       - name: Install locked dependencies
-        run: npm ci
+        run: |
+          set -o pipefail
+          npm ci 2>&1 | tee npm-ci.log
 
-      - name: Run complete repository gates
+      - name: Run preflight
+        env:
+          CI: true
+        run: |
+          set -o pipefail
+          npm run preflight 2>&1 | tee preflight.log
+
+      - name: Run ESLint with zero warnings
+        run: |
+          set -o pipefail
+          npm run lint -- --max-warnings=0 2>&1 | tee eslint.log
+
+      - name: Run complete Vitest suite
+        env:
+          CI: true
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee vitest.log
+
+      - name: Run complete jest-expo component suite
+        env:
+          CI: true
+        run: |
+          set -o pipefail
+          npm run test:components 2>&1 | tee jest-expo.log
+
+      - name: Run typecheck
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee typecheck.log
+
+      - name: Build server
+        run: |
+          set -o pipefail
+          npm run server:build 2>&1 | tee server-build.log
+
+      - name: Check Expo compatibility
         env:
           CI: true
           EXPO_NO_TELEMETRY: '1'
         run: |
-          set -euo pipefail
-          npm run preflight
-          npm run lint -- --max-warnings=0
-          npm test
-          npm run test:components
-          npm audit --audit-level=high
-          npm run typecheck
-          npm run server:build
-          npm run expo:check
-          npm run expo:build:ci
+          set -o pipefail
+          npm run expo:check 2>&1 | tee expo-check.log
+
+      - name: Export Expo web build
+        env:
+          CI: true
+          EXPO_NO_TELEMETRY: '1'
+        run: |
+          set -o pipefail
+          npm run expo:build:ci 2>&1 | tee expo-build.log
+
+      - name: Run high and critical dependency audit
+        run: |
+          set -o pipefail
+          npm audit --audit-level=high --json 2>&1 | tee npm-audit.json
 
       - name: Record exact-head CI evidence
         if: always()
@@ -77,12 +120,23 @@ jobs:
           }, null, 2));
           NODE
 
-      - name: Upload exact-head CI evidence
+      - name: Upload exact-head CI evidence and logs
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: exact-head-ci-${{ env.EXACT_HEAD_SHA }}
-          path: exact-head-ci.json
+          path: |
+            exact-head-ci.json
+            npm-ci.log
+            preflight.log
+            eslint.log
+            vitest.log
+            jest-expo.log
+            typecheck.log
+            server-build.log
+            expo-check.log
+            expo-build.log
+            npm-audit.json
           if-no-files-found: error
           retention-days: 14
 
