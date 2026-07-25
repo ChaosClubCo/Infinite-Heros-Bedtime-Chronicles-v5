@@ -53,6 +53,12 @@ google-services-key.json
 *.keystore
 coverage/
 
+# Vercel CLI generated credential files
+production
+
+# Temporary mount directories
+mnt/
+
 # Local extracted copies / archives
 /Infinite-Heros-Bedtime-Chronicles-v5/
 /Infinite-Heros-Bedtime-Chronicles-v5-main/

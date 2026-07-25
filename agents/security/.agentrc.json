@@ -7,8 +7,8 @@
     "server_dist",
     "dist",
     "coverage",
-    "artifacts",
-    "attached_assets"
+    "archive/artifacts",
+    "archive/attached_assets"
   ],
   "ignoreGlobs": [
     "**/*.test.ts",
