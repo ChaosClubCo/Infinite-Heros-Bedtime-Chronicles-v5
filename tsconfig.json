@@ -21,8 +21,8 @@
   ],
   "exclude": [
     "node_modules",
-    "artifacts",
-    "attached_assets",
+    "archive/artifacts",
+    "archive/attached_assets",
     "server_dist",
     "static-build",
     "**/*.test.ts",
