@@ -2,6 +2,12 @@
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
 
+## [Unreleased] — 2026-07-27 — Test Suite Audit & Documentation Reconciliation
+
+### Added
+- **Test Suite Audit** — Executed and verified 100% pass rate across all test suites: **1401 Vitest tests** across 83 test files (`server/`, `lib/`, `shared/`, `__tests__/`) and **52 Jest component tests** across 8 test files (`__tests__/components/`), totaling **1453 passing tests** across 91 test files.
+- **Documentation Reconciliation** — Updated `GEMINI.md`, `README.md`, and `docs/best-practices/TESTING.md` to remove outdated "no automated test suite" notices and accurately document execution commands (`npm test`, `npm run test:components`) and test counts.
+
 ## [Unreleased] — 2026-07-14 — Cloud Sync (Milestone 3), API Probes, and Reliability Overhaul
 
 ### Added

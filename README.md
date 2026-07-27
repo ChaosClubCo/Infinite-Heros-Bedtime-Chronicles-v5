@@ -92,8 +92,9 @@ See [`.env.example`](./.env.example) for all variables with inline descriptions.
 ## Running Tests
 
 ```bash
-npm test                  # Single run (1000+ tests across 40+ files)
-npm run test:watch        # Watch mode
+npm test                  # Vitest suite (1401 tests across 83 files: unit, integration, release)
+npm run test:components   # Jest component suite (52 tests across 8 files: React Native UI)
+npm run test:watch        # Watch mode (Vitest)
 npm run test:coverage     # Coverage report (≥80% branch target for server utilities)
 ```
 

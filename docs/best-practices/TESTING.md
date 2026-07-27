@@ -2,7 +2,7 @@
 
 > Infinity Heroes: Bedtime Chronicles v5 -- Comprehensive Testing Guide
 
-**Current status:** 1399 passing tests (1347 Vitest unit tests across 75 files + 52 Jest component tests across 8 files), all green.
+**Current status:** 1453 passing tests (1401 Vitest unit/integration/release tests across 83 files + 52 Jest component tests across 8 files), all green.
 
 ---
 
@@ -128,7 +128,7 @@ describe('AIRouter', () => {
 | `lib/query-client.ts` | `query-client.test.ts` | Partial |
 | `shared/schema.ts` | `schema.comprehensive.test.ts` | Covered |
 
-**Total:** 14 test files, 585 tests, all passing.
+**Total:** 83 Vitest test files (1401 tests) + 8 Jest component test suites (52 tests) = 91 test files, 1453 tests total, 100% green.
 
 ---
 

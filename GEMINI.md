@@ -101,6 +101,11 @@ npm run typecheck           # TypeScript, no emit
 npm run lint                # ESLint
 npm run lint:fix            # ESLint auto-fix
 
+# Testing
+npm test                    # Vitest suite (1401 tests across 83 files: unit, integration, release)
+npm run test:components     # Jest component suite (52 tests across 8 files: React Native UI)
+npm run test:coverage       # Coverage report (>=80% branch coverage target for server utilities)
+
 # Production build
 npm run server:build        # esbuild → server_dist/index.js
 npm run server:prod         # Run production bundle
@@ -120,7 +125,7 @@ npm run db:push             # Apply Drizzle schema to DATABASE_URL
 - `server/replit_integrations/` is Replit-provided boilerplate; the voice chat backend is wired up but the mobile UI screen does not exist yet.
 - `components/HeroCard.tsx` is intentionally kept but not currently rendered anywhere — it's preserved for future reuse.
 - `lib/storage.ts` (client AsyncStorage helpers) and `server/storage.ts` (server in-memory cache) are different files serving different purposes.
-- No automated test suite exists yet. Verify changes manually.
+- Comprehensive test suites are present and green: 1401 Vitest tests across 83 files + 52 Jest component tests across 8 files (1453 total tests).
 
 ---
 
