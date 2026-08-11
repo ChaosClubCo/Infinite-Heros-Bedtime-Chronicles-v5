@@ -159,6 +159,12 @@ describe("POST /api/generate-story error paths", () => {
       expect(res.body.error).toBe("Failed to generate story");
       expect(res.body).toHaveProperty("retryable");
     }
+    // Proves the second request actually joined the shared in-flight promise
+    // (exercising the guarded cache-hit catch) rather than missing the cache
+    // and starting its own independent generation, which would happen to
+    // fail the same way and satisfy the assertions above without ever
+    // touching the code path this test exists to cover.
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
   });
 
   it("drops choices from the final part in non-sleep modes", async () => {

@@ -171,7 +171,7 @@ describe('StoryGeneratingView — error state', () => {
       />
     );
     expect(
-      screen.getByText("Too many stories at once — let's wait a moment and try again.")
+      screen.getByText("Too many requests right now — let's wait a moment and try again.")
     ).toBeTruthy();
     expect(screen.queryByText('Could not generate the story. Please try again.')).toBeNull();
   });

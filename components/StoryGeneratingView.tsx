@@ -102,7 +102,7 @@ export function StoryGeneratingView({
       <Text style={s.loadingTitle}>Something went wrong</Text>
       <Text style={s.loadingSubtitle}>
         {errorKind === "rate_limited"
-          ? "Too many stories at once — let's wait a moment and try again."
+          ? "Too many requests right now — let's wait a moment and try again."
           : "Could not generate the story. Please try again."}
       </Text>
       <Pressable
