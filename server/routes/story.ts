@@ -118,8 +118,13 @@ export function registerStoryRoutes(app: Express): void {
     const cached = idempotencyCache.get(idempotencyKey);
     if (cached) {
       req.log?.info('story request deduplicated (idempotency hit)');
-      const result = await cached;
-      return res.json(result);
+      try {
+        const result = await cached;
+        return res.json(result);
+      } catch (error: unknown) {
+        idempotencyCache.delete(idempotencyKey);
+        return sendRouteError(req, res, error, 'story generation failed (cached)', 'Failed to generate story');
+      }
     }
 
     let resolvedFromKv = false;

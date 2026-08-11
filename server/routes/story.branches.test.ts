@@ -122,6 +122,45 @@ describe("POST /api/generate-story error paths", () => {
     expect(mockGenerateText).toHaveBeenCalledTimes(2);
   });
 
+  it("returns a consistent {error, retryable} shape to a concurrent duplicate request when the in-flight generation fails", async () => {
+    // Regression test: the idempotency-hit path must guard its `await cached`
+    // the same way the owning request does. Before the fix, a concurrent
+    // duplicate request that read the same in-flight (later-rejecting)
+    // promise fell through to the global Express error handler instead of
+    // sendRouteError — returning a differently-shaped body (missing
+    // `retryable`, and the raw provider error text) than the owning request
+    // got for the exact same failure.
+    let rejectGeneration: (err: Error) => void = () => {};
+    let generationStarted = false;
+    mockGenerateText.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          generationStarted = true;
+          rejectGeneration = reject;
+        }),
+    );
+
+    const body = { heroName: "ConcurrentFailHero", heroTitle: "unique-concurrent-fail-case" };
+    // See the "only generates once for two concurrent identical requests"
+    // test in story.kv-idempotency.test.ts for why the second request is
+    // fired from a short setTimeout rather than left as a bare reference.
+    const firstReqPromise = request(app).post("/api/generate-story").send(body).then((r) => r);
+    const secondReqPromise = new Promise<void>((resolve) => setTimeout(resolve, 5)).then(() =>
+      request(app).post("/api/generate-story").send(body).then((r) => r),
+    );
+
+    await vi.waitFor(() => expect(generationStarted).toBe(true), { timeout: 2000 });
+    rejectGeneration(new Error("provider exploded: internal detail that should not leak verbatim"));
+
+    const [first, second] = await Promise.all([firstReqPromise, secondReqPromise]);
+
+    for (const res of [first, second]) {
+      expect([500, 503]).toContain(res.status);
+      expect(res.body.error).toBe("Failed to generate story");
+      expect(res.body).toHaveProperty("retryable");
+    }
+  });
+
   it("drops choices from the final part in non-sleep modes", async () => {
     mockStoryResponse({
       ...validStoryPayload,
