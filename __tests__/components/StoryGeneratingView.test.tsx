@@ -143,4 +143,36 @@ describe('StoryGeneratingView — error state', () => {
     );
     expect(screen.queryByText('Weaving your story…')).toBeNull();
   });
+
+  it('shows the generic message when errorKind is omitted', async () => {
+    await render(
+      <StoryGeneratingView
+        storyState="error"
+        hero={MOCK_HERO}
+        theme={MOCK_THEME}
+        loadingMsg={0}
+        messages={MESSAGES}
+        onRetry={jest.fn()}
+      />
+    );
+    expect(screen.getByText('Could not generate the story. Please try again.')).toBeTruthy();
+  });
+
+  it('shows a rate-limit-specific message when errorKind is "rate_limited"', async () => {
+    await render(
+      <StoryGeneratingView
+        storyState="error"
+        errorKind="rate_limited"
+        hero={MOCK_HERO}
+        theme={MOCK_THEME}
+        loadingMsg={0}
+        messages={MESSAGES}
+        onRetry={jest.fn()}
+      />
+    );
+    expect(
+      screen.getByText("Too many requests right now — let's wait a moment and try again.")
+    ).toBeTruthy();
+    expect(screen.queryByText('Could not generate the story. Please try again.')).toBeNull();
+  });
 });

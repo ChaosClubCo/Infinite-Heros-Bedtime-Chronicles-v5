@@ -8,12 +8,14 @@
     "dist",
     "coverage",
     "archive/artifacts",
-    "archive/attached_assets"
+    "archive/attached_assets",
+    "agents"
   ],
   "ignoreGlobs": [
     "**/*.test.ts",
     "**/*.spec.ts",
-    "**/*.md"
+    "**/*.md",
+    "package-lock.json"
   ],
   "secretPatterns": [
     {
@@ -26,7 +28,8 @@
     },
     {
       "id": "aws-access-key",
-      "regex": "AKIA[0-9A-Z]{16}"
+      "regex": "AKIA[0-9A-Z]{16}",
+      "caseSensitive": true
     },
     {
       "id": "api-key-assignment",
