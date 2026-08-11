@@ -23,8 +23,11 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # Expo SDK major versions require coordinated upgrades
+      # Expo SDK major versions require coordinated upgrades — all expo-* packages
+      # must be upgraded together with the Expo SDK to avoid peer-dependency skew.
       - dependency-name: "expo"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "expo-*"
         update-types: ["version-update:semver-major"]
       # drizzle-orm major upgrade requires schema migration
       - dependency-name: "drizzle-orm"
