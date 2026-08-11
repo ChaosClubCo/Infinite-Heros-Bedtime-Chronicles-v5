@@ -111,7 +111,9 @@ jobs:
       - name: Security audit
         # High and critical advisories block the candidate. Moderate-only
         # transitive findings remain visible without weakening this release gate.
-        run: npm audit --audit-level=high
+        # Advisories with no patched upstream release may be temporarily
+        # excepted via the dated allowlist in scripts/audit-gate.mjs.
+        run: node scripts/audit-gate.mjs
 
       - name: Type check
         id: typecheck

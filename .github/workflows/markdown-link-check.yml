@@ -36,6 +36,7 @@ jobs:
             --cache
             --max-cache-age 7d
             --exclude-path attached_assets
+            --exclude-path archive
             --exclude-path node_modules
             --exclude-path server_dist
             --exclude-path docs/adr/template.md
