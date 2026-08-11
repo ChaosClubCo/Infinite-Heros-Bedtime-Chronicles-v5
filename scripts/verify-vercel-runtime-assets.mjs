@@ -11,7 +11,7 @@ export const REQUIRED_INCLUDE_FILES =
   '{server_dist/**,static-build/**,assets/**,server/templates/**,app.json}';
 export const REQUIRED_BUILD_SCRIPT_COMMANDS = [
   'node scripts/verify-release-provenance.mjs --phase vercel-build',
-  'npm audit --audit-level=high --json',
+  'node scripts/audit-gate.mjs',
   'npm run server:build',
   'npx expo export --platform web --output-dir static-build',
   'node scripts/verify-vercel-runtime-assets.mjs --require-build-artifacts',

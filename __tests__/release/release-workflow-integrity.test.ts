@@ -43,7 +43,7 @@ describe('exact-SHA release workflow integrity', () => {
       'npm test',
       'npm run test:components',
       'npm run typecheck',
-      'npm audit --audit-level=high',
+      'node scripts/audit-gate.mjs',
       'npm run server:build',
       'npm run expo:check',
       'npm run expo:build:ci',
@@ -92,7 +92,7 @@ describe('release gate parity', () => {
   it('enforces zero-warning lint and high-severity audit in CI, publish, and release proof', () => {
     for (const workflow of [ciWorkflow, publishWorkflow, releaseWorkflow]) {
       expect(workflow).toContain('npm run lint -- --max-warnings=0');
-      expect(workflow).toContain('npm audit --audit-level=high');
+      expect(workflow).toContain('node scripts/audit-gate.mjs');
       expect(workflow).not.toContain('npm audit --audit-level=critical');
     }
   });
@@ -104,7 +104,7 @@ describe('release gate parity', () => {
       'npm run lint -- --max-warnings=0',
       'npm test',
       'npm run test:components',
-      'npm audit --audit-level=high',
+      'node scripts/audit-gate.mjs',
       'npm run typecheck',
       'npm run server:build',
     ]) {
