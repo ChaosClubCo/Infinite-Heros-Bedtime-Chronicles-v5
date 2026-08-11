@@ -18,7 +18,11 @@
       "Bash(git add:*)",
       "Bash(gh repo *)",
       "Bash(git -C /mnt/f/Infinite-Heros-Bedtime-Chronicles-v5 remote -v)",
-      "Bash(git -C /mnt/f/Infinite-Heros-Bedtime-Chronicles-v5 branch -vv)"
+      "Bash(git -C /mnt/f/Infinite-Heros-Bedtime-Chronicles-v5 branch -vv)",
+      "Bash(gh pr *)",
+      "Bash(gh run *)",
+      "Bash(awk '{print $2}')",
+      "Bash(git diff-tree *)"
     ]
   }
 }

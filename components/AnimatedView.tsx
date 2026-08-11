@@ -1,11 +1,12 @@
 import React from "react";
-import { View, Platform, type ViewProps } from "react-native";
+import { View, Platform, type StyleProp, type ViewProps } from "react-native";
 import Animated from "react-native-reanimated";
 
-interface AnimatedViewProps extends ViewProps {
+interface AnimatedViewProps extends Omit<ViewProps, "style"> {
   entering?: any;
   exiting?: any;
   layout?: any;
+  style?: StyleProp<any>;
   children?: React.ReactNode;
 }
 

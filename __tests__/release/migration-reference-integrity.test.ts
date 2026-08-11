@@ -9,6 +9,7 @@ const excludedDirectories = new Set([
   '.git',
   '.expo',
   '.next',
+  'archive',
   'coverage',
   'dist',
   'node_modules',
