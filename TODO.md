@@ -32,6 +32,8 @@ Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 
 
 | Item | Category | Completed | Notes |
 |------|----------|-----------|-------|
+| Real auth test suite for server/auth.ts | Testing/Security | 2026-07-24 | Created server/auth.test.ts with 100% branch coverage; deleted legacy placebo file |
+| Verification checklist automated updates | Quality | 2026-07-24 | Updated docs/VERIFICATION-M1-M3.md automated gate execution metrics |
 | Cloudflare R2 TTS-audio cache (M1 TTS-cache half) | Infrastructure | 2026-07-15 | server/r2.ts (S3-compatible @aws-sdk/client-s3), wired into server/routes/tts.ts behind writeWithLock; /tmp fallback; gated on R2_ENABLED |
 | Remove dead text chat routes (routes.ts, routes.test.ts) | Code Quality | 2026-07-14 | Removed dead routes file and its test file, and disabled it in chat/index.ts |
 | Secure Gemini API Key URL leakage in pingGemini() | Security | 2026-07-14 | Pass API key in x-goog-api-key header instead of query string |

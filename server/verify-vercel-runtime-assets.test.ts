@@ -53,10 +53,10 @@ describe('Vercel runtime asset verification', () => {
   });
 
   it('rejects removal of the high and critical dependency audit gate', () => {
-    const invalidScript = VALID_BUILD_SCRIPT.replace('npm audit --audit-level=high --json\n', '');
+    const invalidScript = VALID_BUILD_SCRIPT.replace('node scripts/audit-gate.mjs\n', '');
 
     expect(validateVercelBuildScript(invalidScript)).toContain(
-      `${VERCEL_BUILD_SCRIPT} is missing required command: npm audit --audit-level=high --json`,
+      `${VERCEL_BUILD_SCRIPT} is missing required command: node scripts/audit-gate.mjs`,
     );
   });
 

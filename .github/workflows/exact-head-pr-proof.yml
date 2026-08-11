@@ -102,7 +102,7 @@ jobs:
       - name: Run high and critical dependency audit
         run: |
           set -o pipefail
-          npm audit --audit-level=high --json 2>&1 | tee npm-audit.json
+          node scripts/audit-gate.mjs --evidence npm-audit.json
 
       - name: Record exact-head CI evidence
         if: always()
@@ -246,6 +246,7 @@ jobs:
             --cache
             --max-cache-age 7d
             --exclude-path attached_assets
+            --exclude-path archive
             --exclude-path node_modules
             --exclude-path server_dist
             --exclude-path docs/adr/template.md

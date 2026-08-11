@@ -138,7 +138,7 @@ jobs:
           npm test
           npm run test:components
           npm run typecheck
-          npm audit --audit-level=high
+          node scripts/audit-gate.mjs
           npm run server:build
           npm run expo:check
           npm run expo:build:ci
@@ -170,7 +170,7 @@ jobs:
               'npm test',
               'npm run test:components',
               'npm run typecheck',
-              'npm audit --audit-level=high',
+              'node scripts/audit-gate.mjs',
               'npm run server:build',
               'npm run expo:check',
               'npm run expo:build:ci',

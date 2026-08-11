@@ -67,6 +67,8 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 | Add integration tests for request-finish alerting + TTS metrics | Testing | 2026-07-14 |
 | Refresh docs/TEST-COVERAGE-ANALYSIS.md coverage numbers | Docs | 2026-07-14 |
 | M1 (TTS-cache half) — Cloudflare R2 object storage caching for binary TTS MP3 blobs with local filesystem fallback | Infrastructure | 2026-07-15 |
+| Real test suite for `server/auth.ts` — replaced placebo suite with 100% branch coverage tests in `server/auth.test.ts` | Testing/Security | 2026-07-24 |
+| Verification gate execution & `docs/VERIFICATION-M1-M3.md` checklist automated updates | Quality/Verification | 2026-07-24 |
 
 ## Backlog (Prioritized)
 

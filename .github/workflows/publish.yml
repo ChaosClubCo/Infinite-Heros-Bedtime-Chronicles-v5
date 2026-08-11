@@ -48,7 +48,7 @@ jobs:
           CI: true
 
       - name: Security audit
-        run: npm audit --audit-level=high
+        run: node scripts/audit-gate.mjs
 
       - name: Type check
         run: npm run typecheck
