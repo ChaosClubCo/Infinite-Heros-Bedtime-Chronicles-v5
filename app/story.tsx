@@ -94,6 +94,7 @@ export default function StoryScreen() {
 
   const [storyData, setStoryData] = useState<StoryFull | null>(null);
   const [storyState, setStoryState] = useState<StoryState>("generating");
+  const [storyErrorKind, setStoryErrorKind] = useState<"error" | "rate_limited">("error");
   const [currentPartIndex, setCurrentPartIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -164,6 +165,7 @@ export default function StoryScreen() {
   const generateStory = useCallback(async () => {
     if (!hero) return;
     setStoryState("generating");
+    setStoryErrorKind("error");
     setStoryData(null);
     setCurrentPartIndex(0);
     clearSceneImage();
@@ -205,14 +207,30 @@ export default function StoryScreen() {
         body: JSON.stringify(bodyData),
       });
 
-      if (!res.ok) throw new Error("Failed to generate story");
+      if (!res.ok) {
+        let body: { error?: string; retryable?: boolean } | null = null;
+        try {
+          body = await res.json();
+        } catch {
+          // Non-JSON error body (e.g. an upstream proxy error page) — fall through to the status-based message.
+        }
+        const err = new Error(body?.error || `Failed to generate story (${res.status})`) as Error & {
+          status?: number;
+          retryable?: boolean;
+        };
+        err.status = res.status;
+        err.retryable = body?.retryable;
+        throw err;
+      }
 
       const data = await res.json();
       setStoryData(data as StoryFull);
       setStoryState("ready");
     } catch (error) {
-      console.error("Story generation error:", error);
+      const status = (error as { status?: number } | undefined)?.status;
+      console.error("Story generation error:", { status, error });
       setStoryState("error");
+      setStoryErrorKind(status === 429 ? "rate_limited" : "error");
     }
   }, [
     hero,
@@ -342,6 +360,7 @@ export default function StoryScreen() {
       {storyState === "generating" || storyState === "error" ? (
         <StoryGeneratingView
           storyState={storyState}
+          errorKind={storyErrorKind}
           hero={hero}
           theme={theme}
           loadingMsg={loadingMsg}

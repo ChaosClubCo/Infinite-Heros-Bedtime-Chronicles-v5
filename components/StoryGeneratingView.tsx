@@ -59,6 +59,7 @@ function LoadingDot({ delay, color }: { delay: number; color: string }) {
 
 interface StoryGeneratingViewProps {
   storyState: "generating" | "error";
+  errorKind?: "error" | "rate_limited";
   hero: HeroInfo;
   theme: StoryTheme;
   loadingMsg: number;
@@ -68,6 +69,7 @@ interface StoryGeneratingViewProps {
 
 export function StoryGeneratingView({
   storyState,
+  errorKind = "error",
   hero,
   theme,
   loadingMsg,
@@ -99,7 +101,9 @@ export function StoryGeneratingView({
       <Ionicons name="cloud-offline-outline" size={56} color={Colors.textMuted} />
       <Text style={s.loadingTitle}>Something went wrong</Text>
       <Text style={s.loadingSubtitle}>
-        Could not generate the story. Please try again.
+        {errorKind === "rate_limited"
+          ? "Too many requests right now — let's wait a moment and try again."
+          : "Could not generate the story. Please try again."}
       </Text>
       <Pressable
         onPress={onRetry}
