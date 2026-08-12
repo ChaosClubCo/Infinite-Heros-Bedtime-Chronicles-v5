@@ -31,7 +31,7 @@ AI-powered interactive bedtime story app for children ages 3-9. Kids create cust
 
 ## Tech Stack
 
-- **Frontend:** Expo SDK ~55, React Native 0.83 (New Architecture), Expo Router ~55 (file-based routing, single root `app/_layout.tsx` — all navigation params via `useLocalSearchParams<T>()` generics; never use untyped string routes). Exact pins live in `package.json` (`react-native` 0.83.6, `expo-router` ~55.0.17, `react` 19.2.0) — PR #354 re-aligned the tree to SDK 55; treat `package.json` as authoritative over any version stated in prose.
+- **Frontend:** Expo SDK ~55, React Native 0.83 (New Architecture), Expo Router ~55 (file-based routing, single root `app/_layout.tsx` — all navigation params via `useLocalSearchParams<T>()` generics; never use untyped string routes). Exact pins live in `package.json` (`react-native` 0.83.10, `expo-router` ~55.0.17, `react` 19.2.0) — PR #354 re-aligned the tree to SDK 55; treat `package.json` as authoritative over any version stated in prose.
 - **State:** TanStack React Query v5 (server state) + React Context (app settings, profiles)
 - **Local Storage:** AsyncStorage for stories, profiles, badges, streaks, parent controls
 - **Styling:** React Native StyleSheet + react-native-reanimated v4 for animations
@@ -84,6 +84,9 @@ components/             # Reusable React Native components
   SettingsModal.tsx     # Settings overlay
   PulsingOrb.tsx        # Animated orb effect
   StarField.tsx         # Background star animation
+  AnimatedView.tsx      # Reanimated wrapper around View
+  ResponsiveContainer.tsx  # Responsive max-width container (useWindowDimensions)
+  SyncManager.tsx       # Cloud-sync status trigger (mounted in app/_layout.tsx; see lib/sync/ below)
   StoryGeneratingView.tsx / StorySceneDisplay.tsx / StoryPlayerControls.tsx  # Story screen: generation view, scene image/video, player bar
   StoryTopBar.tsx / SleepTimerBar.tsx / StoryTextDisplay.tsx / StoryProgressBar.tsx / StoryChoices.tsx / ChoiceButton.tsx / FloatingParticle.tsx  # Story screen presentational pieces
 constants/              # Types, hero templates, colors, timing
@@ -104,7 +107,9 @@ lib/                    # Client utilities
   storage-migration.test.ts      # Storage migration tests
   launch-gate.ts        # resolveLaunchRoute(): single source of truth for the cold-start consent/onboarding decision; also runs runStorageMigrations() first
   launch-gate.test.ts   # Launch-gate unit tests
-  sync/                 # Cloud-sync engine (M3): reconcile.ts (pure last-write-wins + tombstones), mappers.ts (local⇄SyncRecord, strips base64 blobs), supabase-sync.ts (pull/push/purge on sync_records), engine.ts (syncEntity/syncAll via EntityAdapter), storage-adapters.ts (all six entity adapters), runSync.ts (gated runSync()/purgeCloudData()). Triggered by components/SyncManager.tsx (mounted in app/_layout.tsx; runs on app open, foreground, reconnect, and sign-in — `user?.id` is in the effect deps — then calls refreshProfiles() to merge profile stubs) + app/completion.tsx (after save). See supabase/migrations/20260713000817_0001_sync_tables.sql
+  consent-record.ts     # CONSENT_VERSION/CONSENT_DISCLOSURES + COPPA parent-gate verification logic
+  consent-record.test.ts  # Consent-record unit tests
+  sync/                 # Cloud-sync engine (M3): reconcile.ts (pure last-write-wins + tombstones), mappers.ts (local⇄SyncRecord, strips base64 blobs), supabase-sync.ts (pull/push/purge on sync_records), engine.ts (syncEntity/syncAll via EntityAdapter), storage-adapters.ts (all six entity adapters), runSync.ts (gated runSync()/purgeCloudData()), report.ts (pluggable SyncErrorReporter, forwards sync failures to Sentry via app/_layout.tsx). Triggered by components/SyncManager.tsx (mounted in app/_layout.tsx; runs on app open, foreground, reconnect, and sign-in — `user?.id` is in the effect deps — then calls refreshProfiles() to merge profile stubs) + app/completion.tsx (after save). See supabase/migrations/20260713000817_0001_sync_tables.sql
   ConsentContext.tsx    # Reactive consent state driving the root layout's Stack.Protected guard
   scene-handoff.ts      # In-memory handoff of scene images from story → completion (too large for nav params)
   replay-params.ts      # buildStoryReplayParams(): shared /story replay params for all replay entry points
@@ -123,8 +128,8 @@ lib/                    # Client utilities
   useAutoAdvance.ts / useBackgroundMusic.ts / useLoadingMessages.ts / useSceneGeneration.ts / useSleepTimer.ts / useStoryAudio.ts / useVideoGeneration.ts  # Story-screen hooks extracted from app/story.tsx (not covered by Vitest — they import Expo native modules; exercised by the jest `test:components` suite instead)
 server/                 # Express.js backend
   index.ts              # Server bootstrap, security middleware, CORS, graceful shutdown
-  routes.ts             # Route composer: auth gate + registers domain modules, returns HTTP server (~70 lines)
-  routes/               # Domain route modules (health, story, images, tts, music, suggest, video, github-webhook) + context.ts (singletons) + helpers.ts (rate-limit middleware, error/IP/cache-path helpers)
+  routes.ts             # Route composer: auth gate + registers domain modules, returns HTTP server (~105 lines)
+  routes/               # Domain route modules (health, account, story, images, tts, music, suggest, video, github-webhook) + context.ts (singletons) + helpers.ts (rate-limit middleware, error/IP/cache-path helpers)
   auth.ts               # Supabase bearer-token (JWT) middleware (optional, lazy-init service-role client)
   validation.ts         # Zod request schemas + sanitizeString
   prompts.ts            # Story system/user prompt builders + CHILD_SAFETY_RULES
@@ -154,7 +159,7 @@ server/                 # Express.js backend
   video.ts              # Sora video generation
   storage.ts            # Server-side in-memory story cache (NOT the same as lib/storage.ts)
   db.ts                 # Drizzle ORM client
-  replit_integrations/  # Audio, chat, image, batch modules (audio + image conditionally registered; chat/ implemented but never registered — dead code)
+  replit_integrations/  # Audio, chat, image, batch modules (audio + image conditionally registered; chat/'s route module was removed in the 2026-07-14 Dead Code Cleanup — only index.ts and storage.ts remain)
   templates/            # HTML templates (landing page, privacy policy)
 shared/                 # Shared between client & server
   schema.ts             # Drizzle ORM schema (users table, re-exports models/chat.ts)
@@ -163,7 +168,7 @@ shared/                 # Shared between client & server
   sync-types.ts         # Cloud-sync transport contract (SyncRecord envelope, SyncEntity union) — dependency-free, shared by client + any Edge function
 docs/                   # Project documentation
   ARCHITECTURE.md       # System design & data flow
-  API.md                # API endpoint reference (40+ endpoints)
+  API.md                # API endpoint reference (28 endpoints: 22 always-registered + 6 conditional)
   SECURITY.md           # Unified security policy, OWASP assessment, and developer guide
   ROADMAP.md            # Development roadmap (WSJF-prioritized)
   CHANGELOG.md          # Version history
@@ -171,7 +176,7 @@ docs/                   # Project documentation
   BETA_TESTING.md       # Beta testing plan
   VERIFICATION-M1-M3.md # On-device/manual verification checklist for the safety + audio-cache + cloud-sync work
   GITHUB-CUSTOM-AGENTS.md    # GitHub Copilot custom agent configurations
-  adr/                  # Architecture Decision Records (5 ADRs)
+  adr/                  # Architecture Decision Records (6 ADRs)
   agents/               # 15 files: 12 agent spec files + README + pr-review.md + security.md
   best-practices/       # Best-practice guides (ACCESSIBILITY, PERFORMANCE, TESTING)
   operations/           # DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md, OBSERVABILITY.md, SECRETS-ROTATION.md, BRANCH-PROTECTION-SETUP.md, README.md
@@ -331,10 +336,13 @@ Each provider is wrapped in a circuit breaker (5 failures → open → 60s reset
 **Image generation (conditional — requires AI_INTEGRATIONS_GEMINI_API_KEY, registered by `registerImageRoutes()`):**
 - `POST /api/generate-image` — Replit-integration image generation route (distinct from `/api/generate-avatar` and `/api/generate-scene` above)
 
+**Account:**
+- `DELETE /api/account` — Permanently delete the authenticated user's account and cascade-delete their synced cloud data (`server/routes/account.ts`)
+
 **GitHub Integration:**
 - `POST /api/github/webhook` — GitHub webhook receiver, authenticated via `X-Hub-Signature-256` HMAC (not Supabase auth)
 
-> `server/replit_integrations/chat/routes.ts` also implements a text-chat variant of `POST /api/conversations/:id/messages`, but `registerChatRoutes()` is never called — it is dead code, not a live endpoint.
+> `server/replit_integrations/chat/routes.ts` was removed in the 2026-07-14 Dead Code Cleanup (see `docs/CHANGELOG.md`) — it implemented a text-chat variant of `POST /api/conversations/:id/messages` but was never registered. Only `index.ts` and `storage.ts` remain in `server/replit_integrations/chat/`.
 
 ## Authentication
 
@@ -602,7 +610,7 @@ npm run test:components  # jest — RN components + Expo-native hooks
 
 - **Testing:** Vitest v4 configured with coverage via @vitest/coverage-v8
 - **CI/CD:** GitHub Actions (`.github/workflows/ci.yml` — lint, test, typecheck, build on push/PR to main/develop; `eas-build.yml` — Expo EAS builds; `vercel-deploy.yml` — Vercel deployment; `publish.yml` — release publishing; `auto-merge.yml`, `branch-cleanup.yml`, `stale.yml` — repo hygiene; `agent-pr-review.yml`, `agent-security.yml` — automated AI agent PR review and security scanning; `markdown-link-check.yml` — broken-link checker). Also supports Replit push-to-deploy.
-- **Vercel deployment:** `api/server.mjs` serverless handler wraps `server_dist/index.js` via `createApp()`. Config in `vercel.json` (60s max duration, all routes rewrite to `/api/server`)
+- **Vercel deployment:** `api/server.mjs` serverless handler wraps `server_dist/index.js` via `createApp()`. Config in `vercel.json` (300s max duration, all routes rewrite to `/api/server`)
 - **React Compiler** enabled via app.json experiments
 - **New Architecture** (React Native) enabled
 - **Typed Routes** enabled for Expo Router — all route params via `useLocalSearchParams<T>()` generics; never access params without type parameters
@@ -618,7 +626,7 @@ npm run test:components  # jest — RN components + Expo-native hooks
 ## Known Gotchas
 
 - `app/story.tsx` is a ~440-line composition shell — playback/music/scene/video/timer logic lives in `lib/use*.ts` hooks and presentational pieces in `components/Story*`; mode constants in `constants/story-theme.ts`
-- `server/routes.ts` is a ~70-line composer — handlers live in `server/routes/<domain>.ts` modules; shared singletons in `server/routes/context.ts`, request plumbing in `server/routes/helpers.ts`
+- `server/routes.ts` is a ~105-line composer — handlers live in `server/routes/<domain>.ts` modules; shared singletons in `server/routes/context.ts`, request plumbing in `server/routes/helpers.ts`
 - **`npm run dev` exists but is POSIX-only** — it runs `dev:server & dev:expo` with a shell `&`; on Windows run `npm run server:dev` and `npm run expo:dev` in separate terminals
 - **Never use `./gradlew` or `gradlew`** — EAS Build manages Gradle internally; use `npx expo` or `eas` CLI commands instead
 - **`expo:dev` requires Replit env vars** — outside Replit, use `npx expo start` directly

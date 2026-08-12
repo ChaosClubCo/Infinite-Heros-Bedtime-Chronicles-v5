@@ -28,6 +28,7 @@ ADRs are immutable after acceptance. If a decision is reversed or superseded, a 
 | [0003](./0003-elevenlabs-for-tts.md) | Use ElevenLabs for text-to-speech narration | accepted | 2026-03-11 |
 | [0004](./0004-asyncstorage-as-client-data-store.md) | Use AsyncStorage as client-side data store | accepted | 2026-03-11 |
 | [0005](./0005-express-backend-api-server.md) | Use Express.js as the API backend | accepted | 2026-03-11 |
+| [0006](./0006-supabase-auth-migration.md) | Migrate authentication from Firebase to Supabase | accepted | 2026-07-06 |
 
 ## Status Definitions
 

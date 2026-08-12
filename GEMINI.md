@@ -9,10 +9,10 @@ Custom instructions for Gemini CLI and Gemini-based coding agents working on thi
 
 **Project:** Infinity Heroes: Bedtime Chronicles
 **Type:** Children's bedtime story mobile app (ages 3–9)
-**Architecture:** Expo SDK 54 (React Native) frontend + Express.js v5 backend, TypeScript throughout
+**Architecture:** Expo SDK ~55.0.28 (React Native) frontend + Express.js v5 backend, TypeScript throughout
 **Repo structure:** Single full-stack app — `app/` (screens), `components/`, `lib/`, `server/`, `shared/`, `constants/`, `docs/`
 
-The app lets children pick a superhero character and generate personalized bedtime stories using a multi-provider AI fallback chain (Gemini → OpenAI → Anthropic → OpenRouter). Stories include AI-generated scene illustrations, ElevenLabs TTS narration, and background music.
+The app lets children pick a superhero character and generate personalized bedtime stories using a multi-provider AI fallback chain (story generation: Anthropic → Gemini → OpenAI → OpenRouter/Meta-Llama → OpenRouter/xAI → OpenRouter/Mistral → OpenRouter/Cohere). Stories include AI-generated scene illustrations, ElevenLabs TTS narration, and background music.
 
 ---
 
@@ -20,13 +20,14 @@ The app lets children pick a superhero character and generate personalized bedti
 
 | Concern | Technology |
 |---------|-----------|
-| Mobile | Expo SDK 54, React Native 0.81.5 |
+| Mobile | Expo SDK ~55.0.28, React Native 0.83.10 |
 | Routing | Expo Router v6 (file-based) |
 | Server | Express.js v5, Node.js, TypeScript |
-| Primary AI | Google Gemini (`gemini-2.5-flash`, `gemini-2.5-flash-image`) |
-| AI fallback 1 | OpenAI (`gpt-4o-mini`, `gpt-image-1`) |
-| AI fallback 2 | Anthropic Claude (`claude-sonnet-4-6`) |
-| AI fallback 3 | OpenRouter (xAI Grok, Mistral, Cohere, Meta Llama) |
+| Primary AI (story) | Anthropic Claude (`claude-sonnet-4-6`) |
+| AI fallback 1 (story) | Google Gemini (`gemini-2.5-flash`) |
+| AI fallback 2 (story) | OpenAI (`gpt-4o-mini`) |
+| AI fallback 3+ (story) | OpenRouter (Meta-Llama → xAI Grok → Mistral → Cohere) |
+| Image/avatar/scene AI | Gemini (`gemini-2.5-flash-image`) → OpenAI (`gpt-image-1`) |
 | TTS | ElevenLabs `eleven_multilingual_v2` |
 | Database | PostgreSQL + Drizzle ORM (voice chat only) |
 | Client state | React Context + TanStack React Query v5 |
@@ -102,8 +103,8 @@ npm run lint                # ESLint
 npm run lint:fix            # ESLint auto-fix
 
 # Testing
-npm test                    # Vitest suite (1401 tests across 83 files: unit, integration, release)
-npm run test:components     # Jest component suite (52 tests across 8 files: React Native UI)
+npm test                    # Vitest suite (1401 tests across 83 files: unit, integration, release) — last measured 2026-07-27 (see docs/CHANGELOG.md)
+npm run test:components     # Jest component suite (52 tests across 8 files: React Native UI) — last measured 2026-07-27 (see docs/CHANGELOG.md)
 npm run test:coverage       # Coverage report (>=80% branch coverage target for server utilities)
 
 # Production build
@@ -121,11 +122,11 @@ npm run db:push             # Apply Drizzle schema to DATABASE_URL
 
 - `npm run dev` does not exist. Use `npm run server:dev` and `npm run expo:dev` separately.
 - Expo dev commands embed `REPLIT_DEV_DOMAIN` — outside Replit, use `npx expo start` instead.
-- `patches/expo-asset+12.0.12.patch` is a temporary fix; will be removed on Expo SDK 55 upgrade.
+- The Expo SDK 55 upgrade has landed; the temporary `patches/expo-asset+12.0.12.patch` fix was removed along with it — the `patches/` directory no longer exists in this tree.
 - `server/replit_integrations/` is Replit-provided boilerplate; the voice chat backend is wired up but the mobile UI screen does not exist yet.
 - `components/HeroCard.tsx` is intentionally kept but not currently rendered anywhere — it's preserved for future reuse.
 - `lib/storage.ts` (client AsyncStorage helpers) and `server/storage.ts` (server in-memory cache) are different files serving different purposes.
-- Comprehensive test suites are present and green: 1401 Vitest tests across 83 files + 52 Jest component tests across 8 files (1453 total tests).
+- Comprehensive test suites are present and green: 1401 Vitest tests across 83 files + 52 Jest component tests across 8 files (1453 total tests) — last measured 2026-07-27 (see docs/CHANGELOG.md).
 
 ---
 

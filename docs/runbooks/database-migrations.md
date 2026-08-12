@@ -114,7 +114,7 @@ pg_restore -d $DATABASE_URL backup.dump
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | integer (auto-increment PK) | — |
-| `userId` | text | Firebase UID of the session owner |
+| `userId` | text | Supabase user UID of the session owner |
 | `title` | text | Optional conversation title (≤200 chars) |
 | `createdAt` | timestamp | Auto-set on insert |
 | `updatedAt` | timestamp | Auto-set on update |

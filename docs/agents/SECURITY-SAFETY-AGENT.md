@@ -14,7 +14,7 @@ This agent is authoritative for:
 - Security headers (CSP, HSTS, X-Frame-Options, etc.)
 - CORS configuration
 - TTS filename and video ID validation
-- Firebase authentication (`lib/AuthContext.tsx`)
+- Supabase authentication (`lib/AuthContext.tsx`)
 - Parent controls (`components/ParentControlsModal.tsx`)
 - PIN protection logic
 
@@ -181,13 +181,15 @@ Parent controls are PIN-protected. The PIN is stored hashed in AsyncStorage via 
 
 ---
 
-## Firebase Authentication
+## Supabase Authentication
 
-Anonymous Firebase auth is used for request attribution. Auth context is in `lib/AuthContext.tsx`.
+Supabase bearer-token (JWT) middleware in `server/auth.ts` handles request attribution. A lazy-init service-role client validates the Bearer access token via `supabase.auth.getUser(token)`; the client-side auth context is in `lib/AuthContext.tsx`.
 
-- Token validation happens server-side via Firebase Admin SDK
+- Token validation happens server-side via `server/auth.ts`, using a lazy-init Supabase service-role client (`SUPABASE_SERVICE_ROLE_KEY` + Supabase URL) — never Firebase Admin SDK
 - Never trust client-provided user IDs without server-side token verification
-- Auth is currently anonymous — full auth additions require human review
+- **Production guard:** when `NODE_ENV=production` and Supabase is not configured, every auth-gated route returns 503. There is no opt-out.
+- In dev (no `NODE_ENV=production`), auth is skipped **only when Supabase isn't configured** — `requireAuth()` bypasses tokens exclusively when `getSupabaseAdmin()` returns null (missing `SUPABASE_SERVICE_ROLE_KEY`/URL), assigning an anonymous `req.user` from the client IP. A dev/staging environment with Supabase configured still validates every Bearer token and returns 401 on a missing/invalid one — don't assume configured dev endpoints are anonymous
+- Clients sign in with Supabase email/password via `lib/AuthContext.tsx` and send the session JWT as a `Bearer` header
 
 ---
 
