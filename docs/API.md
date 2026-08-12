@@ -59,6 +59,8 @@ retry.
 - `400 { "error": "A signed-in parent account is required" }` — no user on the request, or the session is anonymous
 - `503 { "error": "Account deletion could not be completed. Your local data was not cleared; please retry." }` — a deletion step failed (e.g. release SHA unresolvable, database or auth-identity deletion error); no partial receipt is ever returned
 
+**Known limitation:** `deletedScopes` unconditionally lists `voice_chat_history`, even when `DATABASE_URL` is unset and the PostgreSQL deletion step above was skipped. This is harmless for a deployment that has never had `DATABASE_URL` configured (no transcripts could exist), but if a deployment previously had `DATABASE_URL` configured — so voice-chat rows may exist — and it was later removed or misconfigured, this endpoint currently issues a "completed" receipt claiming that scope was deleted without verifying no transcript store exists. Treat this as a fail-open edge case pending a code fix (`server/routes/account.ts`), not a doc-only issue.
+
 ---
 
 ## Health & Status

@@ -63,7 +63,11 @@ eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "
 
 ### Server Deployment
 
-The Express server must be deployed separately. Set `SUPABASE_SERVICE_ROLE_KEY` as an environment variable containing the Supabase service-role key.
+The Express server must be deployed separately. It needs both:
+- `SUPABASE_URL` (or `EXPO_PUBLIC_SUPABASE_URL`) — the Supabase project URL; `server/auth.ts`'s `getSupabaseUrl()` requires one of these
+- `SUPABASE_SERVICE_ROLE_KEY` — the Supabase service-role key
+
+The `EXPO_PUBLIC_SUPABASE_URL` EAS secret configured above only reaches the mobile client bundle — it does not configure the server. Without a server-side URL, `getSupabaseUrl()` returns `undefined`, Supabase auth never initializes, and every auth-gated request returns `503` in production (see `docs/SECURITY.md`).
 
 ### Running Tests
 

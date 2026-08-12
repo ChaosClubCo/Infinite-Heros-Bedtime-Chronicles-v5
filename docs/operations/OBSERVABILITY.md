@@ -53,7 +53,7 @@ SENTRY_DSN=https://<key>@<org>.ingest.sentry.io/<project-id>
 
 **Client:** In development, the Sentry SDK logs its initialization. In production, any unhandled JS error will appear in the React Native project's Sentry dashboard.
 
-**Server:** Confirm `SENTRY_DSN` is set in the server environment, then trigger a 5xx response (or watch for one) — `Sentry.captureException(err)` in the global error handler will forward it to the Sentry project's issues stream. Unhandled promise rejections and uncaught exceptions are captured the same way at the process level.
+**Server:** Confirm `SENTRY_DSN` is set in the server environment. Note that most route-level 5xx responses (e.g. from `sendRouteError()` in `server/routes/helpers.ts`) write the response directly via `res.status(...).json(...)` and never reach Sentry — only errors that actually propagate to Express's global error-handling middleware (via `next(err)`, or an uncaught synchronous throw) hit `Sentry.captureException(err)` in `setupErrorHandler`. To verify, trigger (or add) an error that's deliberately left uncaught/unhandled rather than a normal route failure — e.g. a route that throws synchronously outside a try/catch, or calls `next(err)` directly. Unhandled promise rejections and uncaught exceptions are captured the same way at the process level.
 
 ### Alert Rules (Recommended)
 

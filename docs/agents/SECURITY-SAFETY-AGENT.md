@@ -188,7 +188,7 @@ Supabase bearer-token (JWT) middleware in `server/auth.ts` handles request attri
 - Token validation happens server-side via `server/auth.ts`, using a lazy-init Supabase service-role client (`SUPABASE_SERVICE_ROLE_KEY` + Supabase URL) — never Firebase Admin SDK
 - Never trust client-provided user IDs without server-side token verification
 - **Production guard:** when `NODE_ENV=production` and Supabase is not configured, every auth-gated route returns 503. There is no opt-out.
-- In dev (no `NODE_ENV=production`), auth is skipped and an anonymous `req.user` is assigned from the client IP
+- In dev (no `NODE_ENV=production`), auth is skipped **only when Supabase isn't configured** — `requireAuth()` bypasses tokens exclusively when `getSupabaseAdmin()` returns null (missing `SUPABASE_SERVICE_ROLE_KEY`/URL), assigning an anonymous `req.user` from the client IP. A dev/staging environment with Supabase configured still validates every Bearer token and returns 401 on a missing/invalid one — don't assume configured dev endpoints are anonymous
 - Clients sign in with Supabase email/password via `lib/AuthContext.tsx` and send the session JWT as a `Bearer` header
 
 ---

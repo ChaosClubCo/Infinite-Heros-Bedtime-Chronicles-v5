@@ -112,7 +112,7 @@ npm run preflight         # typecheck + lint + test in one command
 ## Deployment
 
 - **Replit (primary):** Click **Deploy** in the Replit workspace. See [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md) for the full procedure.
-- **Vercel:** `api/server.mjs` is the serverless entry point. Config in `vercel.json`. **Production deploys must currently be triggered via the Vercel CLI** — see [`DEPLOY.md`](DEPLOY.md) for the reason (Hobby plan + private repo commit-author check) and the exact commands.
+- **Vercel:** `api/server.mjs` is the serverless entry point. Config in `vercel.json`. **Production deploys go through GitHub Actions only** (`.github/workflows/vercel-deploy.yml` → the `VERCEL_DEPLOY_HOOK_URL` deploy hook) — the Vercel CLI (`vercel --prod`) is intentionally blocked (`scripts/deploy-vercel.sh` exits 1 by design) and builds fail closed without canonical Git metadata. See [`DEPLOY.md`](DEPLOY.md) for the full policy and the reason (Hobby plan + private repo commit-author check).
 - **Android (Play Store):** Use EAS Build — see [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md).
 
 Build commands:
@@ -221,7 +221,7 @@ See [docs/API.md](docs/API.md) for full reference.
 | POST | `/api/generate-video` | Start video generation job |
 | GET | `/api/video-status/:id` | Check video generation progress |
 | GET | `/api/video/:id` | Retrieve generated video |
-| GET | `/api/conversations` *(conditional)* | List voice chat conversations — requires `AI_INTEGRATIONS_OPENAI_API_KEY` + `DATABASE_URL` + the `voiceChatEnabled` feature flag |
+| GET | `/api/conversations` *(conditional)* | List voice chat conversations — requires `AI_INTEGRATIONS_OPENAI_API_KEY` + `DATABASE_URL` + the `voiceChatEnabled` feature flag + passing `isVoiceChatComplianceApproved()` (in production: DPA/child-data/privacy-policy/app-store attestations + a valid `VOICE_CHAT_TRANSCRIPT_RETENTION_DAYS`; always true outside production) — see `server/compliance.ts` |
 | POST | `/api/conversations` *(conditional)* | Create new conversation — same conditional gating as above |
 | GET | `/api/conversations/:id` *(conditional)* | Get a single conversation's history — same conditional gating as above |
 | DELETE | `/api/conversations/:id` *(conditional)* | Delete a conversation — same conditional gating as above |
