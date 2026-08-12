@@ -67,7 +67,7 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 | Add integration tests for request-finish alerting + TTS metrics | Testing | 2026-07-14 |
 | Refresh docs/TEST-COVERAGE-ANALYSIS.md coverage numbers | Docs | 2026-07-14 |
 | M1 (TTS-cache half) — Cloudflare R2 object storage caching for binary TTS MP3 blobs with local filesystem fallback | Infrastructure | 2026-07-15 |
-| Real test suite for `server/auth.ts` — replaced placebo suite with 100% branch coverage tests in `server/auth.test.ts` | Testing/Security | 2026-07-24 |
+| Real test suite for `server/auth.ts` — replaced placebo suite with 100% branch coverage tests in `server/auth.test.ts` (resolves the former P1 backlog item; commit `0b92346`, "test: add auth suite with 100% branch coverage + testing docs") | Testing/Security | 2026-07-24 |
 | Verification gate execution & `docs/VERIFICATION-M1-M3.md` checklist automated updates | Quality/Verification | 2026-07-24 |
 
 ## Backlog (Prioritized)
@@ -76,10 +76,9 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 1 | Real tests for `server/auth.ts` — the "comprehensive" suite never imports the module | 8 | 5 | 8 | 2 | 10.5 | `server/auth.comprehensive.test.ts` reimplements logic as inline literals instead of calling `requireAuth`; the integration suite mocks `requireAuth` out entirely. Coverage confirms 4.08% stmt / 0% branch on the app's entire Supabase-auth boundary. See `docs/AUDIT-NEXT-SPRINT-2026-07-15.md` finding 1 |
 | 2 | Execute `docs/VERIFICATION-M1-M3.md` cloud-sync verification | 5 | 5 | 5 | 2 | 7.5 | The checklist now exists, but device and disposable Supabase evidence remain incomplete. Cloud sync is off by default (`cloudSyncEnabled: false`) and must not be enabled before isolation proof passes |
 | 3 | Complete exact-SHA release proof | 8 | 8 | 8 | 5 | 4.8 | Freeze only the reviewed stabilization merge SHA; then prove repository gates, canonical deployment identity, privacy route, received alert, device matrix, restore, rollback, and legal approval in issue #376 |
-| 4 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/PLAY_STORE_DEPLOYMENT.md |
+| 4 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/DEPLOYMENT.md §3 |
 | 5 | Archive and disable the public mirror | 8 | 5 | 8 | 3 | 7.0 | `Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5-main` remains `archived: false`; preserve history, disable automation/deployments, archive through provider controls, then re-fetch metadata |
 
 ### Medium Priority

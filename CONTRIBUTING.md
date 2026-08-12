@@ -150,7 +150,7 @@ Key rules:
 
 ## Testing Requirements
 
-The project uses **Vitest v4** with **1010+ passing tests** across 41 test files. See [docs/best-practices/TESTING.md](./docs/best-practices/TESTING.md) for the full testing guide.
+The project uses **Vitest v4** with **1,453 tests (1,401 Vitest across 83 files + 52 Jest across 8 files) — last measured 2026-07-27 (see docs/CHANGELOG.md); run `npm test && npm run test:components` for the current figure.** See [docs/best-practices/TESTING.md](./docs/best-practices/TESTING.md) for the full testing guide.
 
 ```bash
 npm test                    # Run all tests (single run)
@@ -167,7 +167,9 @@ npm run test:coverage       # With coverage report
 
 **Test file naming:** `<module>.test.ts` or `<module>.comprehensive.test.ts` alongside the source file.
 
-**Mocking:** Mock all external APIs (AI providers, ElevenLabs, AsyncStorage, Firebase). See existing test files for patterns.
+**Mocking:** Mock all external APIs (AI providers, ElevenLabs, AsyncStorage, Supabase). See existing test files for patterns.
+
+**Test count convention:** Test counts cited in documentation are point-in-time snapshots. Only docs/CHANGELOG.md records a dated, measured count; every other doc should quote that figure and cite the date rather than re-asserting its own number. Never update a count without actually re-running `npm test && npm run test:components`.
 
 ---
 

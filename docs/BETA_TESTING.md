@@ -57,15 +57,17 @@ eas build --platform android --profile production
 Set these before building:
 ```bash
 eas secret:create --scope project --name EXPO_PUBLIC_API_URL --value "https://your-api.example.com"
-eas secret:create --scope project --name EXPO_PUBLIC_FIREBASE_API_KEY --value "..."
-eas secret:create --scope project --name EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN --value "..."
-eas secret:create --scope project --name EXPO_PUBLIC_FIREBASE_PROJECT_ID --value "..."
-eas secret:create --scope project --name EXPO_PUBLIC_FIREBASE_APP_ID --value "..."
+eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_URL --value "..."
+eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "..."
 ```
 
 ### Server Deployment
 
-The Express server must be deployed separately. Set `FIREBASE_SERVICE_ACCOUNT_KEY` as an environment variable containing the JSON service account key.
+The Express server must be deployed separately. It needs both:
+- `SUPABASE_URL` (or `EXPO_PUBLIC_SUPABASE_URL`) — the Supabase project URL; `server/auth.ts`'s `getSupabaseUrl()` requires one of these
+- `SUPABASE_SERVICE_ROLE_KEY` — the Supabase service-role key
+
+The `EXPO_PUBLIC_SUPABASE_URL` EAS secret configured above only reaches the mobile client bundle — it does not configure the server. Without a server-side URL, `getSupabaseUrl()` returns `undefined`, Supabase auth never initializes, and every auth-gated request returns `503` in production (see `docs/SECURITY.md`).
 
 ### Running Tests
 

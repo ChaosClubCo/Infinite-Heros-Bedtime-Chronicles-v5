@@ -13,7 +13,7 @@ Before deploying to any target, verify the following:
 - [ ] `DATABASE_URL` is configured for PostgreSQL (required if voice chat is enabled).
 - [ ] `npm run typecheck` passes cleanly with zero TypeScript errors.
 - [ ] `npm run lint` passes cleanly with zero lint errors.
-- [ ] `npm test` passes cleanly (100% of 1347 tests passing).
+- [ ] `npm test` and `npm run test:components` both pass cleanly (green — no failing tests).
 
 ---
 
@@ -23,23 +23,19 @@ Before deploying to any target, verify the following:
 
 The production configuration lives in `vercel.json` and uses Vercel Serverless functions (mapped via `api/server.mjs`).
 
-#### The CLI Deployment Workaround (Crucial for Hobby Plan)
-The project currently runs on the **Vercel Hobby plan**. 
+#### Production deploys are hook-only
+The project currently runs on the **Vercel Hobby plan**.
 > [!WARNING]
-> Vercel Hobby does not allow collaborators on private repositories and enforces a *commit-author check* on every Git-triggered deployment. Commit authoring by anyone other than the project owner (e.g. bots, Dependabot, other maintainers) will result in a **`BLOCKED`** status on Vercel.
+> Vercel Hobby does not allow collaborators on private repositories and enforces a *commit-author check* on every Git-triggered deployment. Commit authoring by anyone other than the project owner (e.g. bots, Dependabot, other maintainers) will result in a **`BLOCKED`** status on a direct Git-triggered build. This is exactly *why* the deploy-hook workflow below exists — it is the fix, not a fallback to reach for when the hook is unavailable.
 
-**Manual Workaround:** Deploy via the Vercel CLI. This uses the owner's token and bypasses the author check:
-```powershell
-# 1. Login to Vercel (one-time interactive step)
-vercel login
+Production deploys go **only** through: push reviewed changes to canonical `main` → the `Vercel Deploy Hook` GitHub Actions workflow (`.github/workflows/vercel-deploy.yml`) fires → it POSTs the `VERCEL_DEPLOY_HOOK_URL` secret, which instructs Vercel to build the exact Git commit from `main` (preserving repository, branch, and SHA metadata without a local CLI upload) → the workflow polls `https://www.bedtime-chronicles.com/api/health` until it reports the exact triggering commit SHA, then asserts `Cache-Control: no-store` on health/privacy and that the privacy page renders correctly, and uploads evidence artifacts.
 
-# 2. Run production build and deployment from project root
-vercel --prod
-```
-*Note: The repository is linked at `.vercel/project.json` pointing to `infinite-heros-bedtime-chronicles-v5` under the FlashFusion team.*
+`vercel --prod` and `npm run deploy:vercel` are **intentionally disabled** for this project — `scripts/deploy-vercel.sh` (the target of `npm run deploy:vercel`) exits 1 by design, printing an error that manual production deployment is disabled and pointing back to the controlled path above. Even if someone bypassed that script and ran the Vercel CLI directly, the build would still fail closed: `scripts/verify-release-provenance.mjs --phase vercel-build` rejects any build that lacks Vercel's Git metadata (`VERCEL_GIT_COMMIT_REF=main`, a full 40-character `VERCEL_GIT_COMMIT_SHA`, and an exact canonical owner/repo match) — metadata a CLI upload never provides.
+
+See `../../DEPLOY.md` (repo root) for the authoritative, fuller writeup of this policy, including the emergency-containment and release-approval gates.
 
 #### Web Bundle Compilation
-`vercel.json` is configured to run `npm run server:build` and `npx expo export --platform web --output-dir static-build` automatically during build. The static files are bundled inside the serverless functions via `functions.includeFiles` — there is no need to commit the `static-build/` folder to git.
+`vercel.json`'s `buildCommand` runs `bash scripts/vercel-build.sh`, not a raw list of npm/expo commands. That script's first action is `node scripts/verify-release-provenance.mjs --phase vercel-build` — the provenance gate described above — before it proceeds to build the server bundle and the static web export. The static files are bundled inside the serverless functions via `functions.includeFiles` — there is no need to commit the `static-build/` folder to git.
 
 ---
 
@@ -161,7 +157,7 @@ eas build --platform android --profile production
 
 | Symptom | Cause | Resolution |
 | :--- | :--- | :--- |
-| **Vercel deploy gets BLOCKED** | Non-owner Git commit author | Deploy using Vercel CLI (`vercel --prod`) |
+| **Vercel deploy gets BLOCKED** | Non-owner Git commit author on a direct Git-triggered build | Verify the `VERCEL_DEPLOY_HOOK_URL` secret is configured, then re-run the "Vercel Deploy Hook" GitHub Actions workflow; check the workflow run logs for the specific provenance-gate failure reason (`scripts/verify-release-provenance.mjs`). Do not fall back to `vercel --prod` — it is intentionally disabled. |
 | **App crashes on startup** | Missing EAS secrets | Run `eas secret:list` and confirm client URL and keys are populated |
 | **Google Play rejects icon** | Alpha/transparency channel in PNG | Flatten `assets/images/icon.png` (remove transparent channels) |
 | **ElevenLabs narration plays silence**| `ELEVENLABS_API_KEY` missing | Set API key as server secret or EAS secret |

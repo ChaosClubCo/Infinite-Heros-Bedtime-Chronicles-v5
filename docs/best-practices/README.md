@@ -1,6 +1,6 @@
 # Best Practices
 
-Comprehensive best practice guides for Infinity Heroes: Bedtime Chronicles v5. These documents codify lessons learned from the 2026-03-27 comprehensive audit (5-persona, 585-test audit).
+Comprehensive best practice guides for Infinity Heroes: Bedtime Chronicles v5. These documents codify lessons learned from the 2026-03-27 comprehensive audit (5-persona, 585-test audit; the suite has since grown to 1,453 tests as of 2026-07-27 — see the root README.md or docs/CHANGELOG.md for current figures).
 
 ---
 
@@ -52,4 +52,4 @@ These guides were created as part of the comprehensive 5-persona audit conducted
 - **DevOps Engineer** — CI/CD, deployment, monitoring, operational readiness
 - **UX/Accessibility Specialist** — WCAG compliance, child usability, error states
 
-The audit expanded the test suite from 65 to 585 tests and identified/fixed 5 critical security vulnerabilities. These best practices encode the findings as actionable guidelines for ongoing development.
+The audit expanded the test suite from 65 to 585 tests (the suite has since grown to 1,453 tests as of 2026-07-27 — see the root README.md or docs/CHANGELOG.md for current figures) and identified/fixed 5 critical security vulnerabilities. These best practices encode the findings as actionable guidelines for ongoing development.

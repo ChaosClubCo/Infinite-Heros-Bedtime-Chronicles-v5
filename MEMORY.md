@@ -13,7 +13,7 @@ Read this file at session start to rapidly build project context. Keep it dense 
 
 - **Name:** Infinity Heroes: Bedtime Chronicles
 - **Type:** Children's bedtime story app (ages 3–9)
-- **Platform:** Expo SDK 55 (React Native 0.83.6) + Express.js v5 backend
+- **Platform:** Expo SDK 55 (React Native 0.83.10) + Express.js v5 backend
 - **Language:** TypeScript 5.9.2 (strict throughout)
 - **Status:** Release remediation in review; **NO GO** until exact-candidate external proof and release-owner approval
 
@@ -51,7 +51,7 @@ candidate.
 ### Mobile Deployment
 - **eas.json** configured — 3 profiles: development (APK+DevClient), preview (APK), production (AAB)
 - **scripts/build-android.sh** — EAS build helper
-- **docs/operations/PLAY_STORE_DEPLOYMENT.md** — full EAS runbook
+- **docs/operations/DEPLOYMENT.md** — full EAS + Play Store runbook (§3)
 - **docs/operations/EAS-SECRETS-CHECKLIST.md** — all required EAS secrets
 - Android package: `com.infinityheroes.bedtime`
 - iOS bundle: `com.infinityheroes.bedtime` (no App Store submission yet)
@@ -93,7 +93,7 @@ server/replit_integrations/audio/  Voice chat routes (wired, conditionally regis
 shared/           Drizzle schema + Zod types (used by client AND server)
 scripts/          Build helpers: build-android.sh, build.js
 docs/             Architecture, API, security, roadmap, CHANGELOG, ADRs, runbooks, agents
-docs/operations/  PLAY_STORE_DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md
+docs/operations/  DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md, OBSERVABILITY.md, SECRETS-ROTATION.md, BRANCH-PROTECTION-SETUP.md, README.md
 __tests__/        Integration, unit, release-integrity, and jest-expo component tests
 ```
 
@@ -103,7 +103,7 @@ __tests__/        Integration, unit, release-integrity, and jest-expo component 
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Mobile framework | Expo + React Native | SDK 55 / RN 0.83.6 |
+| Mobile framework | Expo + React Native | SDK 55 / RN 0.83.10 |
 | Router | Expo Router | v6 |
 | Backend | Express.js | v5 |
 | Language | TypeScript | 5.9.2 (strict) |

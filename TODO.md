@@ -16,8 +16,8 @@ Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 
 
 | Priority | Item | Category | Business Value | Time Criticality | Risk/Opportunity | Job Size | WSJF | Status | Issue/Notes |
 |----------|------|----------|---------------|-----------------|-----------------|----------|------|--------|-------------|
-| 1 | EAS build & Play Store submission | Deployment | H | H | H | M | 4.8 | ready | eas.json + build-android.sh + PLAY_STORE_DEPLOYMENT.md all set; needs EAS secrets + AAB build |
-| 2 | Resolve remaining npm audit vulnerabilities | Security | M | M | M | S | 5.0 | blocked | Updated 2026-07-15: the 2 high (`tmp`/`undici`) are resolved; 15 moderate remain (`esbuild`→`drizzle-kit`, `uuid`→`@expo/config-plugins`), both needing breaking `--force` bumps — see docs/ROADMAP.md and docs/AUDIT-NEXT-SPRINT-2026-07-15.md |
+| 1 | EAS build & Play Store submission | Deployment | H | H | H | M | 4.8 | ready | eas.json + build-android.sh + docs/operations/DEPLOYMENT.md §3 all set; needs EAS secrets + AAB build |
+| 2 | Resolve remaining npm audit vulnerabilities | Security | M | M | M | S | 5.0 | blocked | Updated 2026-07-15: the 2 high (`tmp`/`undici`) are resolved; 15 moderate remain (`esbuild`→`drizzle-kit`, `uuid`→`@expo/config-plugins`), both needing breaking `--force` bumps — see docs/ROADMAP.md and docs/archive/audits/AUDIT-NEXT-SPRINT-2026-07-15.md |
 
 ### Low Priority
 
