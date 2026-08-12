@@ -67,7 +67,7 @@ docs/                # API.md, ARCHITECTURE.md, SECURITY.md, ROADMAP.md
 ### Server / API
 - All API routes in `server/routes.ts` via `registerRoutes()`.
 - Input sanitization: `sanitizeString(val, maxLen)` on every user-supplied field.
-- Rate limiting: per-UID (Firebase) or per-IP via `checkRateLimit()` in `server/rate-limit.ts`.
+- Rate limiting: per-UID (Supabase) or per-IP via `checkRateLimit()` in `server/rate-limit.ts`.
 - AI calls go through `aiRouter.generateText()` / `aiRouter.generateImage()` — never call providers directly.
 - TTS audio is disk-cached in `/tmp/tts-cache/` with 24-hour TTL.
 - SSE streaming for long-running responses (story generation).

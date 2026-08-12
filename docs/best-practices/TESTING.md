@@ -328,7 +328,7 @@ Test these scenarios for rate limiters:
 
 ```typescript
 // From server/auth.comprehensive.test.ts
-describe('production mode (Firebase configured)', () => {
+describe('production mode (Supabase configured)', () => {
   it('rejects request without Authorization header', () => {
     const authHeader: string | undefined = undefined;
     const hasBearerToken = authHeader?.startsWith('Bearer ');
@@ -350,10 +350,10 @@ describe('production mode (Firebase configured)', () => {
 
 Test these auth scenarios:
 
-- Production mode blocks when Firebase key is missing (no env-var opt-out exists)
+- Production mode blocks when Supabase URL + service-role key are missing (no env-var opt-out exists)
 - Dev mode assigns anonymous user with IP as uid
 - Missing, malformed, and valid Bearer tokens
-- Error responses never leak internal details (no Firebase, token, or stack references)
+- Error responses never leak internal details (no Supabase, token, or stack references)
 
 ### PIN Hashing (Lockout Thresholds, Expiry, Counter Reset)
 
@@ -513,7 +513,7 @@ When adding a new feature or module, follow this checklist:
    - AI providers -- use the `createMockProvider` factory
    - Text-to-speech (ElevenLabs) -- mock the SDK client
    - AsyncStorage -- use the in-memory mock pattern
-   - Firebase Auth -- mock `verifyIdToken` and admin SDK
+   - Supabase Auth -- mock `supabase.auth.getUser()`
    - Database -- mock Drizzle queries or use an in-memory SQLite
    - Environment variables -- set/unset in `beforeEach`
 

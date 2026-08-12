@@ -41,7 +41,7 @@ Please include:
 **In scope:**
 - Server API endpoints (`/api/*`)
 - AI prompt injection that bypasses child safety rules
-- Authentication bypass (Firebase token validation)
+- Authentication bypass (Supabase JWT validation)
 - Rate limiting bypass
 - Input validation bypasses that could cause server errors or data exposure
 - Dependency vulnerabilities with direct exploitation path
@@ -65,7 +65,7 @@ Please include:
 - All API keys and secrets are stored as **environment variables** — never in source code
 - Replit Secrets (`Settings → Secrets`) for Replit deployments
 - EAS Secrets (`eas secret:create`) for mobile builds
-- The `FIREBASE_SERVICE_ACCOUNT_KEY` is a JSON string; treat it as a private key
+- The `SUPABASE_SERVICE_ROLE_KEY` is a server-only secret; never read it into an `EXPO_PUBLIC_*` var or ship it in the client bundle
 - `EXPO_PUBLIC_*` variables are bundled into the client APK — **never** put secrets with this prefix
 - `.env` is in `.gitignore`; `.env.example` contains only blank placeholder values
 
@@ -93,7 +93,7 @@ Please include:
 | Conversation pagination | Active | `limit`/`offset` query params with bounds (max 200 per page) |
 | Safe JSON parsing | Active | AI response `JSON.parse` wrapped in try-catch to prevent crashes |
 | Typed error handling | Active | `catch (error: any)` replaced with `error instanceof Error` checks |
-| Rate limiting | Active | Per-UID (Firebase) or per-IP, 10 req/min (configurable via env vars) |
+| Rate limiting | Active | Per-UID (Supabase) or per-IP, 10 req/min (configurable via env vars) |
 | Rate limit cleanup | Active | Expired entries pruned every 5 minutes |
 | TTS file validation | Active | Filename regex (`/^[a-f0-9]+\.mp3$/`) + path traversal prevention |
 | Video ID validation | Active | Regex validation (`/^[a-f0-9]+$/`) |
@@ -101,8 +101,8 @@ Please include:
 | Graceful shutdown | Active | SIGTERM/SIGINT handlers with 10s timeout |
 | Child safety prompts | Active | `CHILD_SAFETY_RULES` system prompt in `server/prompts.ts` enforces age-appropriate content |
 | Database cascade deletes | Active | Deleting a conversation cascades to all messages |
-| Firebase Authentication | Active | Firebase Auth with Bearer tokens; anonymous sign-in for frictionless UX |
-| Production auth guard | Active | Blocks all POST requests in NODE_ENV=production without Firebase key (503) |
+| Supabase Authentication | Active | Supabase Auth (email/password) with Bearer JWT tokens, verified server-side via `supabase.auth.getUser(token)`; optional — anonymous IP-based identity is used in dev when unconfigured |
+| Production auth guard | Active | Blocks all POST requests in NODE_ENV=production without Supabase configured (`SUPABASE_SERVICE_ROLE_KEY` + Supabase URL) (503) |
 | Parent PIN hashing | Active | SHA-256 hash + random salt via expo-crypto; 5-attempt lockout |
 | Voice chat child safety | Active | VOICE_CHAT_SAFETY_PROMPT prepended to all AI conversations |
 | Voice chat auth | Active | requireAuth middleware on all /api/conversations/* endpoints |
@@ -117,7 +117,7 @@ Please include:
 | Client-side encryption | Low | Cached data is non-sensitive (story text, audio); no PII stored |
 | Explicit prompt injection defense | Low | AI safety filters + child-safety system prompt constrain output |
 | CSP headers | Medium | API-only server; CSP is not applicable to most endpoints |
-| Per-user rate limiting on all routes | Low | UID-based rate limiting already active when Firebase auth is configured |
+| Per-user rate limiting on all routes | Low | UID-based rate limiting already active when Supabase auth is configured |
 | Redis-backed rate limiting | Low | In-memory limiting is acceptable for single-instance deployment |
 
 ## OWASP Top 10 Assessment
@@ -140,6 +140,6 @@ Please include:
 - **Algorithm:** Sliding window (in-memory Map)
 - **Window:** 60 seconds (configurable: `RATE_LIMIT_WINDOW_MS`)
 - **Max requests:** 10 per window (configurable: `RATE_LIMIT_MAX`)
-- **Key:** Firebase UID when auth is configured; falls back to client IP (`req.ip || req.socket.remoteAddress`)
+- **Key:** Supabase user UID (`req.user.uid`) when auth is configured; falls back to client IP (`req.ip || req.socket.remoteAddress`)
 - **Response on limit:** `429 Too Many Requests`
 - **Cleanup:** Expired entries pruned every 5 minutes

@@ -23,10 +23,10 @@ An AI-powered interactive bedtime story app for children ages 3–9. Kids create
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Mobile Framework | Expo (React Native) | SDK 55 / RN 0.86.0 |
-| Router | Expo Router (file-based) | v6 |
+| Mobile Framework | Expo (React Native) | ~55.0.28 / RN 0.83.10 |
+| Router | Expo Router (file-based) | ~55.0.17 |
 | Backend | Express.js (Node.js) | v5 |
-| Language | TypeScript | 6.0 (strict) |
+| Language | TypeScript | ~5.9.2 (strict) |
 | AI Text | Anthropic Claude, Gemini, OpenAI, OpenRouter | fallback chain |
 | AI Images | Gemini 2.5-flash-image, gpt-image-1 | fallback chain |
 | TTS | ElevenLabs | eleven_multilingual_v2 |
@@ -92,11 +92,13 @@ See [`.env.example`](./.env.example) for all variables with inline descriptions.
 ## Running Tests
 
 ```bash
-npm test                  # Vitest suite (1401 tests across 83 files: unit, integration, release)
-npm run test:components   # Jest component suite (52 tests across 8 files: React Native UI)
+npm test                  # Vitest suite (unit, integration, release)
+npm run test:components   # Jest component suite (React Native UI)
 npm run test:watch        # Watch mode (Vitest)
 npm run test:coverage     # Coverage report (≥80% branch target for server utilities)
 ```
+
+1,453 tests (1,401 Vitest across 83 files + 52 Jest across 8 files) — last measured 2026-07-27 (see docs/CHANGELOG.md); run `npm test && npm run test:components` for the current figure.
 
 ## Code Quality
 
@@ -176,15 +178,17 @@ shared/                 # Shared between client and server
   safety-terms.ts       # Canonical banned-term list shared by server moderation + client fail-safe
 docs/                   # All project documentation
   ARCHITECTURE.md       # System design and data flow
-  API.md                # API endpoint reference (40+ endpoints)
+  API.md                # API endpoint reference (28 endpoints — 22 always-registered + 6 conditional: 5 voice-chat + 1 image-gen)
   SECURITY.md           # Security policy and OWASP assessment
   ROADMAP.md            # Prioritized development roadmap
   CHANGELOG.md          # Version history
-  adr/                  # Architecture Decision Records (ADR-0001 – ADR-0005)
+  adr/                  # Architecture Decision Records (6 ADRs: ADR-0001 – ADR-0006)
   agents/               # 12 specialized AI agent instruction files
   best-practices/       # Accessibility, performance, security, testing guides
-  operations/           # DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md
-  runbooks/             # deploy, rollback, incident-response, provider-outage
+  operations/           # DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md, OBSERVABILITY.md, SECRETS-ROTATION.md, BRANCH-PROTECTION-SETUP.md, README.md
+  runbooks/             # incident-response, rollback, provider-outage, deploy, database-migrations, monitoring-alerting
+  archive/              # Historical audits and plans (docs/archive/audits/, docs/archive/plans/)
+  COPPA-COMPLIANCE.md   # COPPA compliance audit and privacy analysis
 api/                    # Vercel serverless entry point
   server.mjs            # Wraps server_dist/index.js for Vercel
 scripts/                # Build helpers
@@ -198,6 +202,8 @@ See [docs/API.md](docs/API.md) for full reference.
 |--------|----------|-------------|
 | GET | `/api/health` | Health check |
 | GET | `/api/ai-providers` | Provider availability status |
+| GET | `/api/metrics` | In-process metrics (request/provider counters) |
+| GET | `/privacy` | Privacy Policy HTML |
 | POST | `/api/generate-story` | Generate a complete story (JSON) |
 | POST | `/api/generate-story-stream` | Generate story via SSE stream |
 | POST | `/api/generate-avatar` | Generate hero avatar image |
@@ -207,16 +213,20 @@ See [docs/API.md](docs/API.md) for full reference.
 | POST | `/api/tts-preview` | Voice preview audio |
 | GET | `/api/voices` | List available narrator voices |
 | GET | `/api/music/:mode` | Serve background music |
+| GET | `/api/music-info/:mode` | Background music track metadata |
 | POST | `/api/suggest-settings` | AI-powered story setting suggestions |
+| POST | `/api/sync/interactions` | Drain target for the client's offline interaction sync-queue |
+| DELETE | `/api/account` | Permanently delete account + cascade-delete synced cloud data |
 | GET | `/api/video-available` | Whether video generation is configured |
 | POST | `/api/generate-video` | Start video generation job |
 | GET | `/api/video-status/:id` | Check video generation progress |
 | GET | `/api/video/:id` | Retrieve generated video |
-| GET | `/api/conversations` | List voice chat conversations |
-| POST | `/api/conversations` | Create new conversation |
-| DELETE | `/api/conversations/:id` | Delete a conversation |
-| POST | `/api/conversations/:id/messages` | Send voice message (SSE response) |
-| POST | `/api/generate-image` | Gemini image generation (Replit integration) |
+| GET | `/api/conversations` *(conditional)* | List voice chat conversations — requires `AI_INTEGRATIONS_OPENAI_API_KEY` + `DATABASE_URL` + the `voiceChatEnabled` feature flag |
+| POST | `/api/conversations` *(conditional)* | Create new conversation — same conditional gating as above |
+| GET | `/api/conversations/:id` *(conditional)* | Get a single conversation's history — same conditional gating as above |
+| DELETE | `/api/conversations/:id` *(conditional)* | Delete a conversation — same conditional gating as above |
+| POST | `/api/conversations/:id/messages` *(conditional)* | Send voice message (SSE response) — same conditional gating as above |
+| POST | `/api/generate-image` *(conditional)* | Gemini image generation (Replit integration) — requires `AI_INTEGRATIONS_GEMINI_API_KEY` |
 | POST | `/api/github/webhook` | GitHub webhook receiver (HMAC-authenticated) |
 
 ## Documentation
@@ -235,9 +245,13 @@ See [docs/API.md](docs/API.md) for full reference.
 | [TODO.md](TODO.md) | WSJF-prioritized backlog |
 | [docs/agents/README.md](docs/agents/README.md) | Specialized AI agent catalog |
 | [docs/best-practices/](docs/best-practices/) | Accessibility, performance, security, testing guides |
-| [docs/operations/](docs/operations/) | Operational guides and runbooks (rollback, secrets, etc.) |
-| [docs/adr/](docs/adr/) | Architecture Decision Records |
+| [docs/operations/](docs/operations/) | Operational guides: DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md, OBSERVABILITY.md, SECRETS-ROTATION.md, BRANCH-PROTECTION-SETUP.md, README.md |
+| [docs/adr/](docs/adr/) | Architecture Decision Records (6 ADRs) |
 | [docs/operations/DEPLOYMENT.md](docs/operations/DEPLOYMENT.md) | EAS Build + Play Store + server deployment manual |
+| [DEPLOY.md](DEPLOY.md) | Production deploy policy — Vercel CLI deploys are intentionally blocked; deploys go through GitHub Actions |
+| [docs/COPPA-COMPLIANCE.md](docs/COPPA-COMPLIANCE.md) | COPPA compliance audit and privacy analysis |
+| [docs/runbooks/](docs/runbooks/) | Incident-response, rollback, provider-outage, deploy, database-migrations, and monitoring-alerting runbooks |
+| [docs/archive/](docs/archive/) | Historical audits and plans (consolidated records) |
 
 ## License
 

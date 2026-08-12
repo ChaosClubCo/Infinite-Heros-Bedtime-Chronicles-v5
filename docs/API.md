@@ -18,6 +18,49 @@ Rate limiting uses the authenticated user's UID when available, falling back to 
 
 ---
 
+## Account
+
+### `DELETE /api/account`
+Parent-initiated account deletion — the COPPA-relevant account/data-deletion
+mechanism. Requires a signed-in (non-anonymous) Supabase access token, same as
+other non-GET `/api/*` routes, including the `503` fallback when Supabase is
+not configured in production.
+
+Permanently deletes the authenticated parent's Supabase Auth identity along
+with all server-retained data tied to it: voice-chat conversation history in
+PostgreSQL (only when `DATABASE_URL` is configured — this step is skipped
+otherwise) and cloud-sync records. `sync_records` and related rows cascade
+via `ON DELETE CASCADE` foreign keys when the `auth.users` row is deleted
+(see `supabase/migrations/*_sync_tables.sql`). Release metadata is resolved
+before any destructive step runs, so an unverifiable deployment fails closed
+instead of deleting data without being able to issue a receipt.
+
+The success response is a PII-free receipt confirming server-side deletion
+only — it deliberately contains no user id, email, profile, story, or
+transcript data. The client is responsible for clearing local device storage
+(profiles, stories, badges, streaks, etc.) after receiving a successful
+response; if the request fails, local data is left intact so the parent can
+retry.
+
+**Response:**
+```json
+{
+  "version": 2,
+  "receiptId": "b3f1c9d0-2e4a-4b3f-9c1a-7e6d5f4a3b2c",
+  "completedAt": "2026-08-12T03:14:00.000Z",
+  "releaseSha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+  "status": "completed",
+  "deletedScopes": ["voice_chat_history", "cloud_sync_records", "parent_auth_identity"],
+  "localDeviceData": "pending_client_cleanup"
+}
+```
+
+**Error Responses:**
+- `400 { "error": "A signed-in parent account is required" }` — no user on the request, or the session is anonymous
+- `503 { "error": "Account deletion could not be completed. Your local data was not cleared; please retry." }` — a deletion step failed (e.g. release SHA unresolvable, database or auth-identity deletion error); no partial receipt is ever returned
+
+---
+
 ## Health & Status
 
 ### `GET /api/health`

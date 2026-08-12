@@ -46,6 +46,51 @@ See also: [ADRs](./adr/) for individual architectural decisions.
 └─────────────────────────────────────────────────────────┘
 ```
 
+```mermaid
+flowchart LR
+    subgraph Client["Expo Mobile App"]
+        Router["Expo Router<br/>(file-based screens)"]
+        Storage["AsyncStorage"]
+        SyncEngine["lib/sync/ engine"]
+    end
+
+    subgraph Server["Express Server — Vercel serverless via api/server.mjs"]
+        direction TB
+        M1["trust proxy setting"] --> M2["Sentry.init()"]
+        M2 --> M3["Security headers"]
+        M3 --> M4["CORS"]
+        M4 --> M5["Body parsing<br/>(JSON, 100KB limit)"]
+        M5 --> M6["Request logging (pino)"]
+        M6 --> M7["Load shedding"]
+        M7 --> M8["Auth gate<br/>(Supabase JWT, requireAuth)"]
+        M8 --> M9["Route registration"]
+        M9 --> Routes9["9 domain modules:<br/>health, account, story, images,<br/>tts, music, suggest, video, github-webhook"]
+        M9 -.->|conditional| Voice["voice-chat"]
+        M9 -.->|conditional| ImageGen["image-gen"]
+        Routes9 --> M10["Global error handler<br/>(Sentry.captureException on 5xx)"]
+        Voice -.-> M10
+        ImageGen -.-> M10
+    end
+
+    subgraph External["External Services"]
+        AIRouter["AI Router<br/>Anthropic → Gemini → OpenAI → OpenRouter<br/>(circuit-broken)"]
+        ElevenLabs["ElevenLabs (TTS)"]
+        SupabaseSvc["Supabase<br/>Auth + Postgres w/ RLS"]
+        CloudflareSvc["Cloudflare<br/>KV (rate-limit) + R2 (TTS cache)"]
+        SentrySvc["Sentry (error tracking)"]
+    end
+
+    Router -->|HTTPS/JSON| M1
+    Routes9 --> AIRouter
+    Routes9 --> ElevenLabs
+    M8 --> SupabaseSvc
+    SyncEngine -.->|opt-in cloud sync| SupabaseSvc
+    M7 -.->|rate-limit state| CloudflareSvc
+    Routes9 -.->|persistent TTS cache| CloudflareSvc
+    M2 -.-> SentrySvc
+    M10 -.-> SentrySvc
+```
+
 ## AI Provider Routing
 
 The AI Router (`server/ai/`) implements task-specific fallback chains with circuit breakers and retry.
@@ -195,7 +240,7 @@ Optional, parent-opt-in cloud backup/continuity of kid data (stories + gamificat
 | Mobile (iOS) | EAS Build | Configured but no App Store submission yet |
 | Database | Supabase PostgreSQL | Required for voice chat only |
 | Rate-limit state | Cloudflare KV | Optional; otherwise in-memory |
-| Error tracking | Sentry | Client wired; server package present but not fully wired |
+| Error tracking | Sentry | Client and server both wired; server captures via explicit Sentry.captureException() calls (no Express middleware); no-op when SENTRY_DSN unset |
 | TTS cache | `/tmp/tts-cache/` | Instance-local cache |
 | AI providers | External APIs | Anthropic, Gemini, OpenAI, OpenRouter |
 

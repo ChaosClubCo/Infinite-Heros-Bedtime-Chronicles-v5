@@ -72,7 +72,7 @@ Via Cloudflare dashboard:
 1. Log in to [dash.cloudflare.com](https://dash.cloudflare.com)
 2. Navigate to **Workers & Pages → KV**
 3. Select namespace `infinity-heroes-rate-limit`
-4. Browse keys — each key is a Firebase UID or IP address
+4. Browse keys — each key is a Supabase user UID or IP address
 
 Via Cloudflare API:
 ```bash

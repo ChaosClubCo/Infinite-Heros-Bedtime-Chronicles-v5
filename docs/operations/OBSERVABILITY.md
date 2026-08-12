@@ -11,15 +11,16 @@ This guide covers the setup and configuration of the two observability systems u
 | System | Purpose | SDK | No-op When |
 |--------|---------|-----|-----------|
 | **Sentry (client)** | Client-side error tracking | `@sentry/react-native` | `EXPO_PUBLIC_SENTRY_DSN` unset |
+| **Sentry (server)** | Server-side error tracking | `@sentry/node` | `SENTRY_DSN` unset |
 | **Cloudflare KV** | Persistent rate-limit state | REST API via `server/rate-limit.ts` | `CLOUDFLARE_*` env vars unset |
 
 Both systems are **opt-in** — the app runs fully without them, falling back to in-memory rate limiting and no error reporting.
 
-> **Note:** `@sentry/node` is installed as a dependency but is **not yet wired** in `server/index.ts`. Server-side error tracking currently relies on pino structured logging and the global Express error handler. To add server-side Sentry, initialize it at the top of `server/index.ts` before all middleware.
+> **Note:** `@sentry/node` is fully wired in `server/index.ts`. An `initSentry()` helper calls `Sentry.init({ dsn, environment, tracesSampleRate })` inside `createApp()`, before all other middleware is set up, guarded by a `SENTRY_DSN` env check plus an idempotence flag so it only initializes once — it no-ops entirely when `SENTRY_DSN` is unset. Error capture is via explicit `Sentry.captureException(err)` calls: once for 5xx responses inside the global error handler, and again for `unhandledRejection`/`uncaughtException` process-level events. There is no Sentry Express handler middleware in use — capture is all manual `captureException` calls, not automatic middleware instrumentation.
 
 ---
 
-## 1. Sentry Setup (Client Only)
+## 1. Sentry Setup (Client + Server)
 
 ### Create a Sentry Project
 
@@ -38,9 +39,21 @@ eas secret:create --scope project --name EXPO_PUBLIC_SENTRY_DSN \
 
 The client SDK is initialized in `app/_layout.tsx`. Because it uses the `EXPO_PUBLIC_` prefix, it is bundled into the APK.
 
+### Server Configuration
+
+Set the `SENTRY_DSN` environment variable (server-only — **not** an `EXPO_PUBLIC_*` var, and **not** an EAS secret since it never ships to the client bundle). Configure it through normal server/Vercel environment variable management (e.g. the Replit Secrets panel, or `vercel env add SENTRY_DSN`):
+
+```bash
+SENTRY_DSN=https://<key>@<org>.ingest.sentry.io/<project-id>
+```
+
+`server/index.ts` reads this at startup via `initSentry()`; when unset, server-side Sentry no-ops and the app runs normally with only pino logging.
+
 ### Verifying Sentry is Working
 
 **Client:** In development, the Sentry SDK logs its initialization. In production, any unhandled JS error will appear in the React Native project's Sentry dashboard.
+
+**Server:** Confirm `SENTRY_DSN` is set in the server environment, then trigger a 5xx response (or watch for one) — `Sentry.captureException(err)` in the global error handler will forward it to the Sentry project's issues stream. Unhandled promise rejections and uncaught exceptions are captured the same way at the process level.
 
 ### Alert Rules (Recommended)
 
@@ -94,7 +107,7 @@ If you see `in-memory mode`, one or more env vars are missing.
 
 ### KV Key Schema
 
-Each key is a Firebase UID (when auth is enabled) or client IP address. Values are JSON:
+Each key is a Supabase user UID (when auth is enabled) or client IP address. Values are JSON:
 
 ```json
 {

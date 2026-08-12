@@ -185,9 +185,9 @@ const streak = await getStreak(profileId);
 | `@anthropic-ai/sdk` | ~50KB | AI text generation (primary) |
 | `@google/genai` | ~80KB | AI text + image generation |
 | `openai` | ~100KB | AI text + image + video + TTS |
-| `firebase` | ~200KB | Client auth |
-| `firebase-admin` | ~150KB | Server auth token verification |
 | `react-native-reanimated` | ~100KB | Animation framework |
+
+**Note:** Auth migrated from Firebase to Supabase (`@supabase/supabase-js`) around 2026-07-06. Bundle-size figures for the current Supabase-based auth stack haven't been re-measured since the migration, so no `@supabase/supabase-js` row is listed here — don't assume a size without a fresh measurement.
 
 **Optimization:** AI SDKs are server-only — they're excluded from the client bundle by Metro's platform-aware bundling. Verify with `npx expo export --dump-sourcemap`.
 
@@ -207,11 +207,11 @@ esbuild externalizes `node_modules` (`--packages=external`), keeping the server 
 
 ```
 Request → IP Rate Limit (10/min, in-memory Map)
-       → User Rate Limit (5/min, in-memory Map by Firebase UID)
+       → User Rate Limit (5/min, in-memory Map by Supabase UID)
        → Route Handler
 ```
 
-The user-based layer is more effective on serverless because Firebase UIDs are stable across instances (unlike IPs which may vary per cold start).
+The user-based layer is more effective on serverless because Supabase user UIDs are stable across instances (unlike IPs which may vary per cold start).
 
 ### Cleanup
 

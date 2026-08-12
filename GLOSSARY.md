@@ -69,7 +69,7 @@ Alphabetical reference for all domain-specific terms, abbreviations, and interna
 
 **Favorites** — Stories the user has starred. Stored as an array of story IDs in AsyncStorage under `@infinity_heroes_favorites`.
 
-**Firebase** — Google's mobile/web platform used for anonymous authentication. The server validates Firebase ID tokens via Firebase Admin SDK (`server/auth.ts`). The client initializes anonymous sign-in via `lib/AuthContext.tsx`.
+**Firebase** — the auth provider used for anonymous sign-in until the 2026-07-06 migration to Supabase Auth (see docs/adr/0006-supabase-auth-migration.md).
 
 ---
 
@@ -149,7 +149,7 @@ Alphabetical reference for all domain-specific terms, abbreviations, and interna
 
 ## R
 
-**Rate Limiter** — Server-side per-user request throttle. Sliding window algorithm, 10 requests/60 seconds by default. Keyed on Firebase UID when auth is active, falls back to client IP. Configurable via `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_MS` env vars.
+**Rate Limiter** — Server-side per-user request throttle. Sliding window algorithm, 10 requests/60 seconds by default. Keyed on Supabase user UID when auth is active, falls back to client IP. Configurable via `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_MS` env vars.
 
 **Reading View** — The screen where a story is read and played back (`app/story.tsx`). Handles part progression, TTS playback, and scene image display.
 
@@ -176,6 +176,8 @@ Alphabetical reference for all domain-specific terms, abbreviations, and interna
 **SSE** — Server-Sent Events. Used by `/api/generate-story-stream` to stream story parts to the client as they are generated.
 
 **Streak** — A gamification mechanic tracking how many consecutive days a child has read a story. Stored as `StreakData` in AsyncStorage under `@infinity_heroes_streaks`.
+
+**Supabase** — the current auth (JWT bearer tokens) and Postgres+RLS backend, verified server-side in `server/auth.ts` via a service-role client; also powers the M3 cloud-sync feature.
 
 ---
 
