@@ -77,6 +77,9 @@ Supabase, Sentry, and Cloudflare KV provisioned through MCP integrations).
   Server init in `server/index.ts` before all middleware; Sentry Express error handler wired just
   before the generic handler in `setupErrorHandler`. Client init in `app/_layout.tsx`. Both
   gracefully no-op when `SENTRY_DSN` / `EXPO_PUBLIC_SENTRY_DSN` are unset.
+  *[Corrected 2026-08-12: Sentry capture is via explicit `Sentry.captureException()` calls in the
+  error handler and process-event listeners, not a Sentry Express handler middleware — see
+  server/index.ts.]*
 - **Supabase production database** — project `aeraxfupuvwiskmfjliq` (us-east-1) restored and
   migrated with the Infinity Heroes schema: `users`, `conversations`, and `messages` tables with
   proper indexes and FK cascade. Connection string documented in `.env.example`.
@@ -122,7 +125,7 @@ failures rather than masking them.
   `eslint.config.js` sets no react-hooks rules, and the installed
   `eslint-plugin-react-hooks` 5.x predates these rules (they ship in the v6
   line). Strict lint (`--max-warnings=0`) passes with zero warnings regardless;
-  see `docs/AUDIT-JEST-MISMATCH-CANONICAL-2026-07-19.md`.]*
+  see `docs/archive/audits/AUDIT-JEST-MISMATCH-CANONICAL-2026-07-19.md`.]*
 
 ## [Unreleased] — 2026-06-11 — COPPA parental-consent gate + in-app privacy policy
 

@@ -185,9 +185,9 @@ const streak = await getStreak(profileId);
 | `@anthropic-ai/sdk` | ~50KB | AI text generation (primary) |
 | `@google/genai` | ~80KB | AI text + image generation |
 | `openai` | ~100KB | AI text + image + video + TTS |
-| `firebase` | ~200KB | Client auth |
-| `firebase-admin` | ~150KB | Server auth token verification |
 | `react-native-reanimated` | ~100KB | Animation framework |
+
+**Note:** Auth migrated from Firebase to Supabase (`@supabase/supabase-js`) around 2026-07-06. Bundle-size figures for the current Supabase-based auth stack haven't been re-measured since the migration, so no `@supabase/supabase-js` row is listed here — don't assume a size without a fresh measurement.
 
 **Optimization:** AI SDKs are server-only — they're excluded from the client bundle by Metro's platform-aware bundling. Verify with `npx expo export --dump-sourcemap`.
 
@@ -203,19 +203,19 @@ esbuild externalizes `node_modules` (`--packages=external`), keeping the server 
 
 ## 6. Rate Limiting Performance
 
-### Dual-Layer Design
+### Single Sliding-Window Limiter
+
+`checkRateLimitAsync()` (`server/rate-limit.ts`) is one per-key sliding-window limiter, not a stacked IP+user pair:
 
 ```
-Request → IP Rate Limit (10/min, in-memory Map)
-       → User Rate Limit (5/min, in-memory Map by Firebase UID)
-       → Route Handler
+Request → rateLimited() middleware → checkRateLimitAsync(key) → Route Handler
 ```
 
-The user-based layer is more effective on serverless because Firebase UIDs are stable across instances (unlike IPs which may vary per cold start).
+`key` is `req.user.uid` when auth is enabled, falling back to client IP otherwise — so a request is checked against exactly one bucket, never two. The default window is `RATE_LIMIT_WINDOW_MS` (60s) allowing `RATE_LIMIT_MAX` (10) requests, both overridable via env vars. Keying on the Supabase UID when available is more effective on serverless because UIDs are stable across instances (unlike IPs, which may vary per cold start) — it's a better key choice within the single limiter, not a second layer.
 
 ### Cleanup
 
-Both rate limit maps are cleaned every 5 minutes to prevent unbounded memory growth:
+The rate limit map is cleaned every 5 minutes to prevent unbounded memory growth:
 
 ```typescript
 setInterval(() => {

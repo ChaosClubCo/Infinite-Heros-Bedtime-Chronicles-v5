@@ -12,7 +12,7 @@ This document defines how API keys and secrets are rotated for Infinity Heroes: 
 |--------|------------------|---------|
 | AI provider API keys (Anthropic, Gemini, OpenAI, OpenRouter) | Every 90 days or on suspected compromise | Scheduled + incident |
 | ElevenLabs API key | Every 90 days or on suspected compromise | Scheduled + incident |
-| Firebase Service Account Key | Every 180 days or on suspected compromise | Scheduled + incident |
+| Supabase Service Role Key | Every 180 days or on suspected compromise | Scheduled + incident |
 | Cloudflare API Token | Every 90 days or on suspected compromise | Scheduled + incident |
 | EXPO_PUBLIC_SENTRY_DSN | On team member departure or suspected compromise | Incident only |
 | Parent PIN (user-set) | User-controlled (hashed on device, never on server) | N/A |
@@ -74,19 +74,17 @@ All secrets required to run the full stack:
 | `AI_INTEGRATIONS_OPENROUTER_API_KEY` | OpenRouter | Server — story generation fallback | No (server-only) |
 | `OPENAI_API_KEY` | OpenAI | Server — video generation (Sora) | No (server-only) |
 | `ELEVENLABS_API_KEY` | ElevenLabs | Server — TTS narration | No (server-only) |
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | Firebase | Server — auth token verification | No (server-only) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase | Server — auth token verification (full-bypass credential) | No (server-only) |
 | `DATABASE_URL` | Supabase | Server — voice chat persistence | No (server-only) |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare | Server — KV rate limiting | No (server-only) |
 | `CLOUDFLARE_KV_NAMESPACE_ID` | Cloudflare | Server — KV rate limiting | No (server-only) |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare | Server — KV rate limiting | No (server-only) |
-| `EXPO_PUBLIC_FIREBASE_API_KEY` | Firebase | Client — anonymous auth | **Yes** |
-| `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase | Client — anonymous auth | **Yes** |
-| `EXPO_PUBLIC_FIREBASE_PROJECT_ID` | Firebase | Client — anonymous auth | **Yes** |
-| `EXPO_PUBLIC_FIREBASE_APP_ID` | Firebase | Client — anonymous auth | **Yes** |
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase | Client — auth (Supabase project URL) | **Yes** |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase | Client — auth (Supabase anon key) | **Yes** |
 | `EXPO_PUBLIC_API_URL` | — | Client — API base URL | **Yes** |
 | `EXPO_PUBLIC_SENTRY_DSN` | Sentry | Client — error tracking | **Yes** |
 
-> **Rule:** Any secret with the `EXPO_PUBLIC_` prefix is bundled into the APK and visible to users who decompile the app. Never put server-side API keys with this prefix. Firebase client config is intentionally public; it is not a security risk when Firebase Security Rules and App Check are configured correctly.
+> **Rule:** Any secret with the `EXPO_PUBLIC_` prefix is bundled into the APK and visible to users who decompile the app. Never put server-side API keys with this prefix. The Supabase anon key is public and safe to expose client-side only because Postgres Row Level Security (RLS) policies enforce per-row access, not key secrecy — see the `auth.uid() = user_id`-style policies already enforced in `supabase/migrations/20260713000817_0001_sync_tables.sql`. This is analogous to how Firebase relied on Security Rules + App Check to make its public client config safe.
 
 ---
 

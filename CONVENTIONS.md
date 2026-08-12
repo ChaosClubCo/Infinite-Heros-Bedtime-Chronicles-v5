@@ -243,7 +243,7 @@ Separate each group with a blank line.
 
 ## Testing
 
-**Framework:** Vitest v4 with @vitest/coverage-v8 — **585 tests, 14 files, all passing**
+**Framework:** Vitest v4 with @vitest/coverage-v8 — **1,453 tests (1,401 Vitest across 83 files + 52 Jest across 8 files) — last measured 2026-07-27 (see docs/CHANGELOG.md); run `npm test && npm run test:components` for the current figure.**
 
 See [docs/best-practices/TESTING.md](./docs/best-practices/TESTING.md) for the full guide.
 
@@ -256,7 +256,7 @@ See [docs/best-practices/TESTING.md](./docs/best-practices/TESTING.md) for the f
     });
   });
   ```
-- Mocks: mock all external APIs (AI providers, ElevenLabs, AsyncStorage, Firebase)
+- Mocks: mock all external APIs (AI providers, ElevenLabs, AsyncStorage, Supabase)
 - Coverage target: ≥80% branch coverage for server utilities
 - Do not test implementation details — test behavior and outputs
 - Run with: `npm test` (single run), `npm run test:watch` (watch mode), `npm run test:coverage` (with report)
