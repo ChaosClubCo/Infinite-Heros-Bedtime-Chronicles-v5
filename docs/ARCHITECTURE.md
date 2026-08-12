@@ -85,7 +85,7 @@ flowchart LR
     Routes9 --> ElevenLabs
     M8 --> SupabaseSvc
     SyncEngine -.->|opt-in cloud sync| SupabaseSvc
-    M7 -.->|rate-limit state| CloudflareSvc
+    M9 -.->|rate-limit state| CloudflareSvc
     Routes9 -.->|persistent TTS cache| CloudflareSvc
     M2 -.-> SentrySvc
     M10 -.-> SentrySvc
