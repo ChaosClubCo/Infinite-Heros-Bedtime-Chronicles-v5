@@ -87,7 +87,7 @@ Unaudited surface. Ranked by what could hurt most.
 
 ### 4.1 The deploy-hook URL should be rotated — **do this**
 
-`https://api.vercel.com/v1/integrations/deploy/prj_n2VB…/giYTKZnkXY` is a **capability URL**: anyone holding it can trigger a production deploy, with no authentication. It has been sitting in plaintext in a GitHub webhook Payload URL field (visible to any repo admin) and has been pasted into at least one AI chat transcript. Regenerate it in Vercel, then store the new one only as an Actions secret.
+`<VERCEL_DEPLOY_HOOK_URL>` is a **capability URL**: anyone holding it can trigger a production deploy, with no authentication. It has been sitting in plaintext in a GitHub webhook Payload URL field (visible to any repo admin) and has been pasted into at least one AI chat transcript. Regenerate it in Vercel, then store the new one only as an Actions secret.
 
 ### 4.2 At least one unidentified sender can deploy production
 
