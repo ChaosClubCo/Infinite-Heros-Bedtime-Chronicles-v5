@@ -99,7 +99,9 @@ Pushes to `main` produced **three** deploy-hook fires; non-`main` pushes produce
 /settings/installations
 ```
 
-Until that is done, there is an unaudited write path into production.
+Until that is done, there is an **unaudited write path into production**. Three lists, about five
+minutes, and it is closed — the only reason it stayed invisible this long is that two of the three
+places cannot be seen from repository settings, so a repo-level check looks complete when it isn't.
 
 ### 4.3 The provenance gate may be a no-op
 
@@ -172,6 +174,40 @@ The engineering here is more sophisticated than most projects this size — circ
 
 The problem is that essentially none of it is **enforced**. The repo has extensive documentation of intent and almost no mechanism. `DEPLOY.md` describes a deployment policy that was never true. `BRANCH-PROTECTION-SETUP.md` describes protection that was never enabled. ADR-0007 was violated by its own commit. A commit message claimed a revert that did not happen. Meanwhile four contributors — three of them AI — merged to `main` faster than anyone verified what landed.
 
-The highest-leverage action is not on the deployment path at all. It is **branch protection**. It converts every existing control from advisory to binding in one step, and it is the direct cause of the currently-red CI.
+The highest-leverage action is not on the deployment path at all. It is **branch protection**. It converts every existing control from advisory to binding in one step, and it is the direct cause of the currently-red CI. With no required checks, `auto-merge.yml`'s `gh pr merge --auto` does not wait for anything — GitHub auto-merge only holds a PR for checks configured as *required*. That is how two breaking Dependabot majors landed on `main` ungated, and why CI is red today. Every other item in this audit is downstream of that one unset setting.
 
-Second: **read the diff before merging.** #415 is the proof, and no amount of tooling substitutes for it.
+Second: **read the diff before merging.** #415 is the proof — the branch held two commits, the broken one and the fix, and the broken one landed while the fix sat one branch over. No amount of tooling substitutes for it.
+
+---
+
+## 8. Errors made during this investigation
+
+Recorded because each wrong turn identifies a source that should not be trusted at face value. These were the investigation's own mistakes, not the repo's.
+
+| Wrong conclusion | Why it was wrong | What not to trust |
+|---|---|---|
+| "`…-v5-main` is a stale duplicate — disconnect it" | Inferred from the project *name*. It is the canonical project. | A project or branch name as evidence of its role |
+| "So `infinity-heroes` is canonical" | Corrected one inference with another | Any single-signal canonicality claim |
+| "Neither project has a custom domain" | `get_project.domains` returns only `*.vercel.app` aliases and silently omits custom domains | `get_project.domains`, `get_deployment.alias` |
+| "The 403 comes from the app's Supabase auth gate" | No global auth gate exists; the handler has no 403 path at all | An incident description inherited from earlier analysis |
+| "The webhook is failing, so it deploys nothing" | It was succeeding, and was the *dominant* production trigger | Assuming a reported error is still current |
+| "PR #415 is closed, so it was abandoned" | It was closed *because it merged*; this tooling exposes no `merged` flag | `state: closed` without checking merge status |
+| "Production lags because of queue latency" | `main` had no working deploy trigger at all | A plausible explanation that was never measured |
+| "A preflight job that skips on a missing secret is a safe fix" | A skipped job counts as **passing** — it produced a green gate that deployed and verified nothing (run `31750113790`, 9 s) | Any gate whose failure mode is a skip |
+
+### The unifying pattern
+
+**Every wrong turn came from trusting a stated value. Every breakthrough came from a measurement.**
+
+| The claim said | The measurement said |
+|---|---|
+| The name says duplicate | The `deployHookId` stamp says canonical |
+| The API says no custom domain | An HTTP request says otherwise |
+| The commit message says reverted | The file still contains the flag |
+| The ADR says Git integration must stay enabled | `vercel.json` had it disabled |
+| The workflow says success | Its 9-second duration says skipped |
+| The code comment says 403 | The UUIDv1 timestamp says five weeks earlier |
+
+That asymmetry is the most portable lesson here. **When a claim and a measurement disagree in this repo, the measurement has won every single time** — and the same failure mode produced both the repo's gaps (§3) and the investigation's errors (§8). Documentation drifts; artifacts do not.
+
+It is also why `deployment-drift.yml` earns its place. It replaces the *claim* that production runs canonical `main` with a measurement of whether it does, every fifteen minutes, independent of which mechanism deployed it or why.
