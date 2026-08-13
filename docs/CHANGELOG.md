@@ -2,6 +2,11 @@
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
 
+## [Unreleased] — 2026-08-13 — Expo SDK 55 Dependency Realignment
+
+### Fixed
+- **`expo:check` CI failure** — `@sentry/react-native` and `react-native-gesture-handler` had drifted above Expo SDK 55's supported range via unreviewed Dependabot major-version bumps (#406, #407), which undid the deliberate SDK 55 alignment landed two days earlier in #408. Re-pinned both to Expo's expected ranges (`@sentry/react-native` `~7.11.0`, `react-native-gesture-handler` `~2.30.0`) and added both packages to `.github/dependabot.yml`'s major-version `ignore` list, alongside `expo`/`expo-*`/`drizzle-orm`, so this can't silently regress again.
+
 ## [Unreleased] — 2026-07-27 — Test Suite Audit & Documentation Reconciliation
 
 ### Added
