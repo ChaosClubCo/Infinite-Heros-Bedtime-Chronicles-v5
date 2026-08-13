@@ -18,11 +18,39 @@ env:
   VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
 
 jobs:
+  # The 'secrets' context is NOT available in a job-level 'if:'. Referencing it there
+  # makes GitHub reject the entire workflow at PARSE time: the run fails in ~0s and is
+  # listed by file path rather than by its 'name:'. The supported way to gate a job on a
+  # secret is a preflight job that reads it through step-level 'env:' and publishes a
+  # job output.
+  check-secret:
+    name: Check Vercel deploy hook secret availability
+    runs-on: ubuntu-latest
+    outputs:
+      has-hook: ${{ steps.check.outputs.has-hook }}
+    steps:
+      - name: Check for VERCEL_DEPLOY_HOOK_URL secret
+        id: check
+        env:
+          HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$HOOK_URL" ]; then
+            echo "has-hook=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-hook=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::VERCEL_DEPLOY_HOOK_URL is not set - skipping the production deploy trigger. This workflow will not deploy anything. See docs/adr/0007-hook-only-vercel-deployment.md."
+          fi
+
   trigger-vercel-deploy:
     name: Trigger and verify canonical Vercel production deployment
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
+    needs: check-secret
+    # BRANCH-PROTECTION HAZARD: a SKIPPED job counts as PASSING for required status
+    # checks. If this workflow is ever added as a required check, an unset secret would
+    # render green while deploying nothing. deployment-drift.yml is the backstop - it
+    # detects production diverging from main regardless of which trigger failed or why.
+    if: needs.check-secret.outputs.has-hook == 'true'
 
     steps:
       - name: Checkout triggering candidate

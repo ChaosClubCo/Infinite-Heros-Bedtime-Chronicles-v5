@@ -2,11 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "framework": null,
-  "git": {
-    "deploymentEnabled": {
-      "main": false
-    }
-  },
   "installCommand": "npx npm@11 ci --include=dev",
   "buildCommand": "bash scripts/vercel-build.sh",
   "outputDirectory": ".",
