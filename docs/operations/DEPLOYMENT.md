@@ -24,9 +24,34 @@ Before deploying to any target, verify the following:
 The production configuration lives in `vercel.json` and uses Vercel Serverless functions (mapped via `api/server.mjs`).
 
 #### Production deploys are hook-only
-The project currently runs on the **Vercel Hobby plan**.
-> [!WARNING]
-> Vercel Hobby does not allow collaborators on private repositories and enforces a *commit-author check* on every Git-triggered deployment. Commit authoring by anyone other than the project owner (e.g. bots, Dependabot, other maintainers) will result in a **`BLOCKED`** status on a direct Git-triggered build. This is exactly *why* the deploy-hook workflow below exists — it is the fix, not a fallback to reach for when the hook is unavailable.
+
+> [!IMPORTANT]
+> **Enforced only as of this change.** Until now this section described intent, not behaviour:
+> `vercel.json` carried no `git` key, so Vercel's native Git integration remained connected and
+> auto-deployed every push to `main` *alongside* the deploy hook. Two independent triggers were
+> producing duplicate production deployments of the same commit. `vercel.json` now sets
+> `git.deploymentEnabled.main = false`, which disables native auto-deploy for `main` only —
+> preview deployments for non-`main` branches are unaffected, and deploy hooks are a separate
+> manual trigger that this setting does not gate.
+
+> [!CAUTION]
+> **Unverified: the Vercel plan tier, and with it the rationale for this whole architecture.**
+> This document previously asserted "The project currently runs on the **Vercel Hobby plan**" and
+> used the Hobby *commit-author check* — under which a non-owner or bot commit author yields a
+> **`BLOCKED`** Git-triggered build — as the sole justification for routing production through a
+> deploy hook. (`.claude/CLAUDE.md` repeats the claim and notes "Permanent fix = upgrade the
+> FlashFusion team to Vercel Pro.")
+>
+> Observed behaviour contradicts it. Git-triggered **production** deployments authored by
+> `dependabot[bot]` have completed with state `READY` — e.g. deployment
+> `dpl_78oUZSAbpMwdiiXvPQfU8yjMr9Pn` (commit `5e6a19a`), which carries `repoPushedAt` and no
+> `deployHookId`, so it came from the native Git integration and not the hook. The described check
+> would have `BLOCKED` it. The project also lives under a Vercel **Team** (`flash-fusion`), and the
+> Vercel API exposes no plan field to settle the question either way.
+>
+> Confirm the tier in the Vercel dashboard, then either restore this rationale with evidence or
+> remove it. If the commit-author check is no longer in force, the deploy-hook indirection may be
+> unnecessary and the native Git integration alone would be simpler.
 
 Production deploys go **only** through: push reviewed changes to canonical `main` → the `Vercel Deploy Hook` GitHub Actions workflow (`.github/workflows/vercel-deploy.yml`) fires → it POSTs the `VERCEL_DEPLOY_HOOK_URL` secret, which instructs Vercel to build the exact Git commit from `main` (preserving repository, branch, and SHA metadata without a local CLI upload) → the workflow polls `https://www.bedtime-chronicles.com/api/health` until it reports the exact triggering commit SHA, then asserts `Cache-Control: no-store` on health/privacy and that the privacy page renders correctly, and uploads evidence artifacts.
 
@@ -158,6 +183,8 @@ eas build --platform android --profile production
 | Symptom | Cause | Resolution |
 | :--- | :--- | :--- |
 | **Vercel deploy gets BLOCKED** | Non-owner Git commit author on a direct Git-triggered build | Verify the `VERCEL_DEPLOY_HOOK_URL` secret is configured, then re-run the "Vercel Deploy Hook" GitHub Actions workflow; check the workflow run logs for the specific provenance-gate failure reason (`scripts/verify-release-provenance.mjs`). Do not fall back to `vercel --prod` — it is intentionally disabled. |
+| **"Vercel Deploy Hook" workflow fails in ~10-15s** | The `VERCEL_DEPLOY_HOOK_URL` secret is unset, so the job's `test -n "$VERCEL_DEPLOY_HOOK_URL"` guard fails before the hook is ever called | Set it under **Settings → Secrets and variables → Actions**. A healthy run takes **minutes, not seconds** — its final step polls `/api/health` for up to 900s until the deployed `releaseSha` matches the triggering commit. Treat any sub-20s run as "nothing was deployed", not as a transient failure. |
+| **Production is live but no deploy trigger works** | `git.deploymentEnabled.main = false` in `vercel.json` disabled native auto-deploy while the deploy-hook workflow was still failing | These two are only safe together. If the workflow is red, production has no working trigger even though the last good deployment keeps serving. Fix the workflow first, confirm a green run, and only then rely on hook-only deploys. |
 | **App crashes on startup** | Missing EAS secrets | Run `eas secret:list` and confirm client URL and keys are populated |
 | **Google Play rejects icon** | Alpha/transparency channel in PNG | Flatten `assets/images/icon.png` (remove transparent channels) |
 | **ElevenLabs narration plays silence**| `ELEVENLABS_API_KEY` missing | Set API key as server secret or EAS secret |
