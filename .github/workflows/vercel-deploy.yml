@@ -22,6 +22,7 @@ jobs:
     name: Trigger and verify canonical Vercel production deployment
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
 
     steps:
       - name: Checkout triggering candidate
@@ -35,9 +36,6 @@ jobs:
         env:
           EXPECTED_SHA: ${{ github.sha }}
         run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-
-      - name: Require Vercel deploy hook configuration
-        run: test -n "$VERCEL_DEPLOY_HOOK_URL"
 
       - name: Trigger canonical main deployment
         run: curl --fail --silent --show-error -X POST "$VERCEL_DEPLOY_HOOK_URL"

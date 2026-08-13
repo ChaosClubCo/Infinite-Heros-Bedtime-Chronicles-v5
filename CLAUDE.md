@@ -180,7 +180,7 @@ docs/                   # Project documentation
   agents/               # 15 files: 12 agent spec files + README + pr-review.md + security.md
   best-practices/       # Best-practice guides (ACCESSIBILITY, PERFORMANCE, TESTING)
   operations/           # DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md, OBSERVABILITY.md, SECRETS-ROTATION.md, BRANCH-PROTECTION-SETUP.md, README.md
-  runbooks/             # incident-response, database-migrations, provider-outage, rollback, monitoring-alerting, README.md
+  runbooks/             # incident-response, database-migrations, provider-outage, rollback, monitoring-alerting, deployment-provenance, README.md
   archive/              # Consolidated historical records
     audits/             # Historical audit reports (AUDIT-*, COMPREHENSIVE-*, DEAD-CODE-*)
     plans/              # Historical maturity, hardening, and readiness plans
@@ -609,7 +609,7 @@ npm run test:components  # jest — RN components + Expo-native hooks
 ## Development Notes
 
 - **Testing:** Vitest v4 configured with coverage via @vitest/coverage-v8
-- **CI/CD:** GitHub Actions (`.github/workflows/ci.yml` — lint, test, typecheck, build on push/PR to main/develop; `eas-build.yml` — Expo EAS builds; `vercel-deploy.yml` — Vercel deployment; `publish.yml` — release publishing; `auto-merge.yml`, `branch-cleanup.yml`, `stale.yml` — repo hygiene; `agent-pr-review.yml`, `agent-security.yml` — automated AI agent PR review and security scanning; `markdown-link-check.yml` — broken-link checker). Also supports Replit push-to-deploy.
+- **CI/CD:** GitHub Actions (`.github/workflows/ci.yml` — lint, test, typecheck, build on push/PR to main/develop; `eas-build.yml` — Expo EAS builds; `vercel-deploy.yml` — Vercel deployment; `deployment-drift.yml` — scheduled check that production's `/api/health` `releaseSha` still matches canonical `main`; `publish.yml` — release publishing; `auto-merge.yml`, `branch-cleanup.yml`, `stale.yml` — repo hygiene; `agent-pr-review.yml`, `agent-security.yml` — automated AI agent PR review and security scanning; `markdown-link-check.yml` — broken-link checker). Also supports Replit push-to-deploy.
 - **Vercel deployment:** `api/server.mjs` serverless handler wraps `server_dist/index.js` via `createApp()`. Config in `vercel.json` (300s max duration, all routes rewrite to `/api/server`)
 - **React Compiler** enabled via app.json experiments
 - **New Architecture** (React Native) enabled

@@ -10,6 +10,7 @@ Operational runbooks for Infinity Heroes: Bedtime Chronicles. Each runbook is a 
 |---------|-------------|
 | [deploy.md](./deploy.md) | Deploying a new version to Replit or Vercel |
 | [rollback.md](./rollback.md) | Rolling back a bad deployment |
+| [deployment-provenance.md](./deployment-provenance.md) | Determining what triggered a deployment, and finding duplicate deploy triggers |
 | [incident-response.md](./incident-response.md) | Responding to a production incident |
 | [provider-outage.md](./provider-outage.md) | Handling AI provider outages |
 | [database-migrations.md](./database-migrations.md) | Running Drizzle schema migrations |
@@ -21,3 +22,4 @@ Operational runbooks for Infinity Heroes: Bedtime Chronicles. Each runbook is a 
 2. If unresolved in 15 minutes → declare incident (`incident-response.md`)
 3. If AI providers are down → `provider-outage.md`
 4. If deployment caused the issue → `rollback.md`
+5. If production does not match canonical `main` (the `Deployment Drift Monitor` workflow is red) → `deployment-provenance.md`
