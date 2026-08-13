@@ -26,13 +26,16 @@ The production configuration lives in `vercel.json` and uses Vercel Serverless f
 #### Production deploys are hook-only
 
 > [!IMPORTANT]
-> **Enforced only as of this change.** Until now this section described intent, not behaviour:
-> `vercel.json` carried no `git` key, so Vercel's native Git integration remained connected and
-> auto-deployed every push to `main` *alongside* the deploy hook. Two independent triggers were
-> producing duplicate production deployments of the same commit. `vercel.json` now sets
-> `git.deploymentEnabled.main = false`, which disables native auto-deploy for `main` only —
-> preview deployments for non-`main` branches are unaffected, and deploy hooks are a separate
-> manual trigger that this setting does not gate.
+> **Previously enforced, now reverted pending hook verification.** This section originally
+> described intent only: `vercel.json` carried no `git` key, so Vercel's native Git integration
+> remained connected and auto-deployed every push to `main` *alongside* the deploy hook, producing
+> duplicate production deployments. A `git.deploymentEnabled.main = false` key was added to
+> prevent that, but it has since been **reverted** because the deploy-hook workflow
+> (`VERCEL_DEPLOY_HOOK_URL`) is not yet confirmed working end-to-end. Disabling native deploys
+> before the hook is verified would leave production with no working trigger. Once a complete,
+> green workflow run is observed, re-add `git.deploymentEnabled.main = false` to `vercel.json`
+> to prevent duplicate deployments. See `docs/adr/0007-hook-only-vercel-deployment.md` for the
+> full decision record.
 
 > [!CAUTION]
 > **Unverified: the Vercel plan tier, and with it the rationale for this whole architecture.**
@@ -52,6 +55,12 @@ The production configuration lives in `vercel.json` and uses Vercel Serverless f
 > Confirm the tier in the Vercel dashboard, then either restore this rationale with evidence or
 > remove it. If the commit-author check is no longer in force, the deploy-hook indirection may be
 > unnecessary and the native Git integration alone would be simpler.
+>
+> **Note:** `.claude/CLAUDE.md` repeats the Hobby-plan claim and adds "Permanent fix = upgrade the
+> FlashFusion team to Vercel Pro." That file also still directs users to the Vercel CLI as a
+> deployment path — guidance that `scripts/deploy-vercel.sh` and `scripts/verify-release-provenance.mjs`
+> intentionally block. Do not follow deployment instructions in `.claude/CLAUDE.md` directly;
+> `docs/operations/DEPLOYMENT.md` and `DEPLOY.md` are the authoritative sources.
 
 Production deploys go **only** through: push reviewed changes to canonical `main` → the `Vercel Deploy Hook` GitHub Actions workflow (`.github/workflows/vercel-deploy.yml`) fires → it POSTs the `VERCEL_DEPLOY_HOOK_URL` secret, which instructs Vercel to build the exact Git commit from `main` (preserving repository, branch, and SHA metadata without a local CLI upload) → the workflow polls `https://www.bedtime-chronicles.com/api/health` until it reports the exact triggering commit SHA, then asserts `Cache-Control: no-store` on health/privacy and that the privacy page renders correctly, and uploads evidence artifacts.
 
