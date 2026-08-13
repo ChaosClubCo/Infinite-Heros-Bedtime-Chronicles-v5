@@ -1,0 +1,149 @@
+# Deployment Drift Monitor
+#
+# Answers one question continuously: does production actually run the SHA at the
+# tip of canonical main?
+#
+# Every other deployment control in this repo is a *claim* (DEPLOY.md, DEPLOYMENT.md,
+# BRANCH-PROTECTION-SETUP.md). This is a *measurement*. It is deliberately independent
+# of how a deployment was triggered, so it stays correct no matter which mechanism is
+# in use, and it keeps working if that mechanism silently breaks.
+#
+# Background: the "Vercel Deploy Hook" workflow failed 6/6 runs over three days without
+# anyone noticing, because main is unprotected (no required status checks) and nothing
+# watched the release path itself. A fail-closed gate whose own failure is unmonitored
+# is fail-open. This job is the thing that watches.
+#
+# COST: the 15-minute schedule is ~96 runs/day on a private repo, which consumes GitHub
+# Actions minutes. Widen to '*/30' or '0 * * * *' if minutes are tight; the check is just
+# as valid at a coarser interval, it only detects drift more slowly.
+
+name: Deployment Drift Monitor
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deployment-drift
+  cancel-in-progress: true
+
+env:
+  HEALTH_URL: "https://www.bedtime-chronicles.com/api/health"
+  CANONICAL_REPO: "ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5"
+  CANONICAL_REF: "main"
+  # Seconds to wait before re-checking a mismatch, so a deployment that is genuinely
+  # in flight is not reported as drift.
+  REGRACE_SECONDS: "120"
+
+jobs:
+  drift:
+    name: Production matches canonical main
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out canonical main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve expected SHA
+        id: expected
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Compare production against canonical main
+        env:
+          EXPECTED_SHA: ${{ steps.expected.outputs.sha }}
+        run: |
+          set -uo pipefail
+
+          # Fetch health and emit: <status> <sha> <repo> <ref>, or "FETCH_FAILED".
+          probe() {
+            rm -f health.json health-headers.txt
+            if ! curl --fail --silent --show-error --location --max-time 20 \
+                 -H 'Cache-Control: no-cache' -D health-headers.txt \
+                 "$HEALTH_URL" --output health.json; then
+              echo "FETCH_FAILED"
+              return
+            fi
+            printf '%s %s %s %s\n' \
+              "$(jq -r '.status // "none"' health.json)" \
+              "$(jq -r '.releaseSha // "none"' health.json)" \
+              "$(jq -r '.releaseRepo // "none"' health.json)" \
+              "$(jq -r '.releaseRef // "none"' health.json)"
+          }
+
+          matches() {
+            [ "$1" = "ok" ] && [ "$2" = "$EXPECTED_SHA" ] \
+              && [ "$3" = "$CANONICAL_REPO" ] && [ "$4" = "$CANONICAL_REF" ]
+          }
+
+          echo "Expected SHA: $EXPECTED_SHA"
+
+          read -r status sha repo ref <<< "$(probe)"
+          echo "Attempt 1: status=$status sha=$sha repo=$repo ref=$ref"
+
+          if ! matches "$status" "$sha" "$repo" "$ref"; then
+            echo "Mismatch on first probe; a deploy may be in flight."
+            echo "Waiting ${REGRACE_SECONDS}s before re-checking..."
+            sleep "$REGRACE_SECONDS"
+            read -r status sha repo ref <<< "$(probe)"
+            echo "Attempt 2: status=$status sha=$sha repo=$repo ref=$ref"
+          fi
+
+          if ! matches "$status" "$sha" "$repo" "$ref"; then
+            {
+              echo "## Deployment drift detected"
+              echo ""
+              echo "Production is not running the tip of canonical \`main\`."
+              echo ""
+              echo "| field | expected | actual |"
+              echo "|---|---|---|"
+              echo "| status | \`ok\` | \`$status\` |"
+              echo "| releaseSha | \`$EXPECTED_SHA\` | \`$sha\` |"
+              echo "| releaseRepo | \`$CANONICAL_REPO\` | \`$repo\` |"
+              echo "| releaseRef | \`$CANONICAL_REF\` | \`$ref\` |"
+              echo ""
+              echo "Drift persisted across a ${REGRACE_SECONDS}s re-check, so this is not"
+              echo "an in-flight deployment. Likely causes: the deployment trigger is"
+              echo "broken, a deploy failed silently, or something deployed a non-canonical"
+              echo "commit. See \`docs/runbooks/deployment-provenance.md\` to identify which"
+              echo "mechanism last deployed."
+            } >> "$GITHUB_STEP_SUMMARY"
+
+            echo "::error title=Deployment drift::production releaseSha=$sha does not match canonical main $EXPECTED_SHA"
+            exit 1
+          fi
+
+          echo "Production matches canonical main at $EXPECTED_SHA"
+          echo "## Production matches canonical main" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`releaseSha\` = \`$EXPECTED_SHA\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Assert health is not cached
+        run: |
+          set -euo pipefail
+          # A cached /api/health would let this monitor pass on stale data, which would
+          # make every assertion above meaningless.
+          if ! grep -Eiq '^cache-control:.*no-store' health-headers.txt; then
+            echo "::error title=Health endpoint is cacheable::/api/health did not return Cache-Control: no-store; drift readings cannot be trusted"
+            exit 1
+          fi
+          echo "Cache-Control: no-store confirmed"
+
+      - name: Upload drift evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: deployment-drift-${{ github.run_id }}
+          path: |
+            health.json
+            health-headers.txt
+          if-no-files-found: warn
+          retention-days: 14
