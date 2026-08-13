@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: production-vercel-deploy
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   HEALTH_CHECK_URL: "https://www.bedtime-chronicles.com/api/health"

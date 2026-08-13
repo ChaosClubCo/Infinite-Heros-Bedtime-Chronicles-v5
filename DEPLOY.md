@@ -31,7 +31,15 @@ Do **not** run `vercel --prod` for this project. Manual CLI uploads can include 
 
 A production alias may be returned to a known clean `main` candidate by creating a documented clean commit on `main`, which triggers the same controlled deploy-hook workflow. This is containment only. It does not approve release and invalidates prior exact-SHA evidence.
 
-## Vercel Hobby limitation
+## Vercel Hobby limitation (unverified — status under review)
+
+> [!CAUTION]
+> The rationale below was the original justification for this architecture, but observed behaviour
+> contradicts it. Git-triggered production deployments authored by `dependabot[bot]` have completed
+> with state `READY` (e.g. deployment `dpl_78oUZSAbpMwdiiXvPQfU8yjMr9Pn`, commit `5e6a19a`),
+> which is inconsistent with the Hobby commit-author check. The project also lives under a Vercel
+> **Team** (`flash-fusion`), not a personal Hobby account. Confirm the current plan tier in the
+> Vercel dashboard, then either restore or remove this section.
 
 The GitHub workflow uses a Vercel deploy hook because direct Git-triggered builds on a private repository can be blocked by the Hobby plan's commit-author restrictions. The deploy hook still instructs Vercel to build the configured canonical Git branch, preserving repository, branch, and SHA metadata without allowing a local CLI upload.
 
