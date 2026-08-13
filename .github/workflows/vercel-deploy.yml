@@ -18,11 +18,30 @@ env:
   VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
 
 jobs:
+  check-secret:
+    name: Check Vercel deploy hook secret availability
+    runs-on: ubuntu-latest
+    outputs:
+      has-hook: ${{ steps.check.outputs.has-hook }}
+    steps:
+      - name: Check for VERCEL_DEPLOY_HOOK_URL secret
+        id: check
+        env:
+          HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$HOOK_URL" ]; then
+            echo "has-hook=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-hook=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::VERCEL_DEPLOY_HOOK_URL secret is not set; skipping Vercel deployment trigger."
+          fi
+
   trigger-vercel-deploy:
     name: Trigger and verify canonical Vercel production deployment
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
+    needs: check-secret
+    if: needs.check-secret.outputs.has-hook == 'true'
 
     steps:
       - name: Checkout triggering candidate
