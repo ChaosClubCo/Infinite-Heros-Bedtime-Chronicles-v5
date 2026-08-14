@@ -75,5 +75,6 @@ firebase-debug.*.log
 
 # Editor (local, per-developer settings — not shared)
 .vscode/
+.snapshots/
 .vercel
 .env*
