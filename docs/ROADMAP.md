@@ -69,6 +69,10 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 | M1 (TTS-cache half) — Cloudflare R2 object storage caching for binary TTS MP3 blobs with local filesystem fallback | Infrastructure | 2026-07-15 |
 | Real test suite for `server/auth.ts` — replaced placebo suite with 100% branch coverage tests in `server/auth.test.ts` (resolves the former P1 backlog item; commit `0b92346`, "test: add auth suite with 100% branch coverage + testing docs") | Testing/Security | 2026-07-24 |
 | Verification gate execution & `docs/VERIFICATION-M1-M3.md` checklist automated updates | Quality/Verification | 2026-07-24 |
+| Release provenance CLI entry resolution fix & cross-platform normalization (`scripts/verify-release-provenance.mjs`) | Security/Release Gate | 2026-08-14 |
+| Fix deployed `/privacy` route variants & align Vercel serverless Node runtime to `nodejs22.x` | Reliability/Compliance | 2026-08-14 |
+| Harden EAS Build workflow with explicit permissions block | Security | 2026-08-14 |
+| Reconcile EAS client-visible secrets vs server environment variables documentation | Docs/Security | 2026-08-14 |
 
 ## Backlog (Prioritized)
 
@@ -85,7 +89,7 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 6 | Fix deployed `/privacy` and align Vercel Node runtime | 8 | 8 | 6 | 3 | 7.3 | Canonical linkage is verified, but `/privacy` returns 404 and Vercel reports Node `24.x` while `package.json` permits Node 20.19 or 22.13 ranges; change provider settings only after stabilization review |
+| 6 | Fix deployed `/privacy` and align Vercel Node runtime | 8 | 8 | 6 | 3 | 7.3 | (Resolved 2026-08-14) Added /privacy handlers & pinned runtime nodejs22.x in vercel.json |
 | 7 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | High/critical findings now fail release gates. Moderate transitive findings require a scoped dependency upgrade; never use an unreviewed `--force` migration |
 
 ### Low Priority

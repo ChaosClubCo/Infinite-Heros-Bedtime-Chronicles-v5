@@ -146,21 +146,14 @@ eas credentials --platform android
 
 ### Configure EAS Environment Secrets
 
-EAS builds run in the cloud, so you must register server-side and client-side variables in the EAS dashboard so they can be injected at build time:
+EAS client builds only require client-visible configuration (`EXPO_PUBLIC_*`). Server API keys must remain strictly on the backend host:
 
 ```bash
-eas secret:create --scope project --name AI_INTEGRATIONS_GEMINI_API_KEY --value "your-key"
-eas secret:create --scope project --name AI_INTEGRATIONS_GEMINI_BASE_URL --value "your-url"
-eas secret:create --scope project --name AI_INTEGRATIONS_OPENAI_API_KEY --value "your-key"
-eas secret:create --scope project --name AI_INTEGRATIONS_OPENAI_BASE_URL --value "your-url"
-eas secret:create --scope project --name AI_INTEGRATIONS_ANTHROPIC_API_KEY --value "your-key"
-eas secret:create --scope project --name AI_INTEGRATIONS_ANTHROPIC_BASE_URL --value "your-url"
-eas secret:create --scope project --name AI_INTEGRATIONS_OPENROUTER_API_KEY --value "your-key"
-eas secret:create --scope project --name AI_INTEGRATIONS_OPENROUTER_BASE_URL --value "your-url"
-eas secret:create --scope project --name ELEVENLABS_API_KEY --value "your-key"
-eas secret:create --scope project --name EXPO_PUBLIC_API_URL --value "https://your-server-domain.com"
+eas secret:create --scope project --name EXPO_PUBLIC_API_URL --value "https://www.bedtime-chronicles.com"
+eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_URL --value "https://aeraxfupuvwiskmfjliq.supabase.co"
+eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "your-supabase-anon-key"
 ```
-*See `docs/operations/EAS-SECRETS-CHECKLIST.md` for a full list of required secrets.*
+*See `docs/operations/EAS-SECRETS-CHECKLIST.md` for the complete client and server configuration reference.*
 
 ### Build and Submit Procedures
 

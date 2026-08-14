@@ -2,6 +2,18 @@
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
 
+## [Unreleased] — 2026-08-14 — Release Gate Provenance & Deployment Security Hardening
+
+### Added
+- **Privacy Policy Multi-Route Handlers** — Registered handlers for `/privacy`, `/privacy/`, `/privacy-policy`, `/privacy-policy/`, and `/api/privacy` in `server/routes/health.ts` to ensure consistent delivery across all reverse proxies and trailing slash variations.
+- **Vercel Serverless Runtime Pinning** — Added `"runtime": "nodejs22.x"` to `vercel.json` to lock production serverless function execution to Node 22 matching `.nvmrc` and `package.json` engines.
+
+### Fixed
+- **Release Provenance Gate CLI Entry Detection** — Refactored `scripts/verify-release-provenance.mjs` to use `path.resolve` and `fileURLToPath` for reliable entry-point detection across Windows/POSIX environments and percent-encoded paths.
+- **Vercel Deploy Hook Preflight Fix** — Removed dangling `needs: check-secret` reference from `.github/workflows/vercel-deploy.yml` to prevent silent workflow skips when secrets are missing.
+- **EAS Build Workflow Permissions** — Added explicit `permissions:` block (`contents: read`, `pull-requests: write`, `issues: write`) to `.github/workflows/eas-build.yml`.
+- **EAS Secrets Documentation** — Reconciled `docs/operations/EAS-SECRETS-CHECKLIST.md` and `docs/operations/DEPLOYMENT.md` to clearly distinguish client-only build parameters (`EXPO_PUBLIC_*`) from backend-only secrets.
+
 ## [Unreleased] — 2026-08-13 — Expo SDK 55 Dependency Realignment
 
 ### Fixed

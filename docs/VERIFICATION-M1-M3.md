@@ -31,7 +31,7 @@ is the remaining human/device pass. Run the automated gates from **Windows Power
 - [ ] Enable airplane mode, then replay a previously-played part → **still plays** (offline).
 - [ ] Play many parts, then confirm the cache stays bounded (LRU eviction under `TTS_CACHE_MAX_BYTES`, 50 MB).
 - [ ] A cache/crypto failure degrades to streaming (hard to force; covered by unit tests).
-- [ ] (Deferred) Durable **R2** server cache is not built — server cache is still `/tmp` (ephemeral on serverless).
+- [ ] Server narration cache: Cloudflare R2 binary cache (`server/r2.ts`) is active when `CLOUDFLARE_R2_*` env vars are configured; falls back gracefully to local `/tmp` caching when disabled.
 
 ## 3. M3 — Supabase cloud sync (OFF by default)
 
