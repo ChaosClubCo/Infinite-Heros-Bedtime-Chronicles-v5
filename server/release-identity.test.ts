@@ -53,6 +53,21 @@ describe('getReleaseSha', () => {
 
     expect(getReleaseSha()).toBeNull();
   });
+
+  it('prefers provider-native commit metadata over APP_RELEASE_SHA', () => {
+    clearReleaseEnvironment();
+    process.env.APP_RELEASE_SHA = '1111111111111111111111111111111111111111';
+    process.env.VERCEL_GIT_COMMIT_SHA = '2222222222222222222222222222222222222222';
+
+    expect(getReleaseSha()).toBe('2222222222222222222222222222222222222222');
+  });
+
+  it('falls back to APP_RELEASE_SHA only when provider-native metadata is absent', () => {
+    clearReleaseEnvironment();
+    process.env.APP_RELEASE_SHA = '3333333333333333333333333333333333333333';
+
+    expect(getReleaseSha()).toBe('3333333333333333333333333333333333333333');
+  });
 });
 
 describe('getReleaseRepo', () => {

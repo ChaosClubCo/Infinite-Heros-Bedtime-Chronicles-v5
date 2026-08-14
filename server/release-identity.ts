@@ -3,17 +3,24 @@ const RELEASE_SHA_PATTERN = /^[0-9a-f]{40}$/i;
 /**
  * Return the deployment's exact source revision when the runtime exposes one.
  *
- * Provider-specific variables are read in precedence order so operators can
- * override an incorrect provider value with APP_RELEASE_SHA. Short or malformed
- * revisions return null because release attestation must never publish an
- * ambiguous candidate identifier.
+ * Prefer provider-native variables first. APP_RELEASE_SHA stays as a fallback
+ * for non-provider runtimes where no native git metadata exists. This avoids a
+ * stale APP_RELEASE_SHA override masking the actual deployed Vercel commit and
+ * breaking release attestation.
+ *
+ * Short or malformed revisions return null because release attestation must
+ * never publish an ambiguous candidate identifier.
  */
 export function getReleaseSha(): string | null {
-  const value = process.env.APP_RELEASE_SHA
-    || process.env.VERCEL_GIT_COMMIT_SHA
+  const value = process.env.VERCEL_GIT_COMMIT_SHA
     || process.env.GITHUB_SHA;
 
-  return value && RELEASE_SHA_PATTERN.test(value) ? value.toLowerCase() : null;
+  if (value && RELEASE_SHA_PATTERN.test(value)) {
+    return value.toLowerCase();
+  }
+
+  const fallback = process.env.APP_RELEASE_SHA;
+  return fallback && RELEASE_SHA_PATTERN.test(fallback) ? fallback.toLowerCase() : null;
 }
 
 /**

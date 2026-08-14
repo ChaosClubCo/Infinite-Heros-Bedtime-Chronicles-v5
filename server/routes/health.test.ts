@@ -34,10 +34,12 @@ let app: Express;
 let server: Server;
 const previousElevenLabsKey = process.env.ELEVENLABS_API_KEY;
 const previousReleaseSha = process.env.APP_RELEASE_SHA;
+const previousVercelCommitSha = process.env.VERCEL_GIT_COMMIT_SHA;
 
 beforeAll(async () => {
   process.env.ELEVENLABS_API_KEY = "test-key";
-  process.env.APP_RELEASE_SHA = "8a65b4b98aff49177853165aac7b54979c9119f9";
+  process.env.VERCEL_GIT_COMMIT_SHA = "8a65b4b98aff49177853165aac7b54979c9119f9";
+  process.env.APP_RELEASE_SHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
   const { registerHealthRoutes } = await import("./health");
   app = express();
   registerHealthRoutes(app);
@@ -58,6 +60,11 @@ afterAll(async () => {
     delete process.env.APP_RELEASE_SHA;
   } else {
     process.env.APP_RELEASE_SHA = previousReleaseSha;
+  }
+  if (previousVercelCommitSha === undefined) {
+    delete process.env.VERCEL_GIT_COMMIT_SHA;
+  } else {
+    process.env.VERCEL_GIT_COMMIT_SHA = previousVercelCommitSha;
   }
 });
 
