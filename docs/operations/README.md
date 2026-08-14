@@ -15,6 +15,7 @@ Operations guides for Infinity Heroes: Bedtime Chronicles — deployment, infras
 | [SECRETS-ROTATION.md](./SECRETS-ROTATION.md) | API key rotation schedule and procedures |
 | [MIRROR-ARCHIVAL-RUNBOOK.md](./MIRROR-ARCHIVAL-RUNBOOK.md) | Legacy mirror archival and decommissioning runbook |
 | [WEBHOOK-SURFACE-AUDIT.md](./WEBHOOK-SURFACE-AUDIT.md) | Comprehensive inbound and outbound webhook surface audit |
+| [DEPENDENCY-AUDIT-REMEDIATION.md](./DEPENDENCY-AUDIT-REMEDIATION.md) | Dependency vulnerability posture & transitive audit analysis |
 
 ## See Also
 

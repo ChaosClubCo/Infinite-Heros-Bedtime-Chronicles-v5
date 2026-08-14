@@ -83,6 +83,9 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 | Implement Milestone M1–M3 programmatic verification engine & suite (`scripts/verify-milestones.mjs` & `server/verify-milestones.test.ts`) | Tooling/Testing | 2026-08-14 |
 | Author Legacy Mirror Archival & Decommissioning Runbook (`docs/operations/MIRROR-ARCHIVAL-RUNBOOK.md`) | Operations/Security | 2026-08-14 |
 | Complete Webhook Ingress & Surface Security Audit (`docs/operations/WEBHOOK-SURFACE-AUDIT.md`) | Security/Architecture | 2026-08-14 |
+| Implement Exact-SHA Release Proof Engine & Verification Suite (`scripts/verify-release-proof.mjs` & `server/verify-release-proof.test.ts`) | Tooling/Testing | 2026-08-14 |
+| Implement EAS Mobile Build & Play Store Preflight Engine (`scripts/build-preflight-eas.mjs` & `server/build-preflight-eas.test.ts`) | Tooling/Testing | 2026-08-14 |
+| Author Dependency Vulnerability Posture & Transitive Remediation Analysis (`docs/operations/DEPENDENCY-AUDIT-REMEDIATION.md`) | Security/Docs | 2026-08-14 |
 
 ## Backlog (Prioritized)
 

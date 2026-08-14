@@ -47,6 +47,9 @@ unaudited surface are in that audit; these are the actions.
 
 | Item | Category | Completed | Notes |
 |------|----------|-----------|-------|
+| Implement Exact-SHA Release Proof Engine & Verification Suite | Tooling/Testing | 2026-08-14 | Added scripts/verify-release-proof.mjs, server/verify-release-proof.test.ts, and npm run verify:release-proof |
+| Implement EAS Mobile Build & Play Store Preflight Engine | Tooling/Testing | 2026-08-14 | Added scripts/build-preflight-eas.mjs, server/build-preflight-eas.test.ts, and npm run preflight:eas |
+| Author Dependency Vulnerability Posture & Transitive Remediation Analysis | Security/Docs | 2026-08-14 | Documented 0-high/0-critical production profile in docs/operations/DEPENDENCY-AUDIT-REMEDIATION.md |
 | Implement Milestone M1–M3 programmatic verification engine | Tooling/Testing | 2026-08-14 | Added scripts/verify-milestones.mjs, server/verify-milestones.test.ts, and npm run verify:milestones |
 | Author Legacy Mirror Archival & Decommissioning Runbook | Operations/Security | 2026-08-14 | Created docs/operations/MIRROR-ARCHIVAL-RUNBOOK.md for Krosebrook repository decommissioning |
 | Complete Webhook Ingress & Surface Security Audit | Security/Architecture | 2026-08-14 | Created docs/operations/WEBHOOK-SURFACE-AUDIT.md covering GitHub, Vercel, Supabase, and Sentry webhooks |
