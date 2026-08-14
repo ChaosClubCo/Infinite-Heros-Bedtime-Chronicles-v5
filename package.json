@@ -37,7 +37,8 @@
     "verify:milestones": "node scripts/verify-milestones.mjs",
     "verify:release-proof": "node scripts/verify-release-proof.mjs",
     "preflight:eas": "node scripts/build-preflight-eas.mjs",
-    "verify:mirror": "node scripts/verify-mirror-archival.mjs"
+    "verify:mirror": "node scripts/verify-mirror-archival.mjs",
+    "verify:expo57-readiness": "node scripts/verify-expo57-readiness.mjs"
   },
   "engines": {
     "node": ">=20.19.0 <21 || >=22.13.0 <23",

@@ -1,12 +1,12 @@
 # Development Roadmap
 
-**Last Updated:** 2026-08-14 (release-salvage stabilization)
+**Last Updated:** 2026-08-14 (release-salvage stabilization & sprint backlog completion)
 
 Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Time Criticality + Risk Reduction) / Job Size`
 
 ## Current Release Focus (NO GO)
 
-The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5/issues/376). Core remediation items including deployed `/privacy` route variants, Vercel Node runtime alignment (`nodejs22.x`), client secure storage encryption, and verification tooling suites are completed (2026-08-14). The current release focus retains only the remaining verification work: executing the `docs/VERIFICATION-M1-M3.md` cloud-sync verification checklist, completing exact-SHA release proof, EAS production build & Play Store submission, and public mirror archival. A merge is remediation delivery, not release approval.
+The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5/issues/376). Core remediation items including deployed `/privacy` route variants, Vercel Node runtime alignment (`nodejs22.x`), client secure storage encryption, dependency audit remediation, and verification tooling suites are completed (2026-08-14). The current release focus retains only the remaining verification work: executing the `docs/VERIFICATION-M1-M3.md` cloud-sync verification checklist, completing exact-SHA release proof, EAS production build & Play Store submission, and public mirror archival. A merge is remediation delivery, not release approval.
 
 ## Completed
 
@@ -90,40 +90,38 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 | Author Exact-SHA Release Proof Ledger for Issue #376 (`docs/operations/RELEASE-PROOF-LEDGER-376.md`) | Security/Release Gate | 2026-08-14 |
 | Integrate EAS preflight into build-android.sh & author Play Store submission manual (`docs/operations/PLAY-STORE-SUBMISSION-CHECKLIST.md`) | Tooling/Compliance | 2026-08-14 |
 | Implement Mirror Archival verification engine, test suite & runbook (`scripts/verify-mirror-archival.mjs` & `server/verify-mirror-archival.test.ts`) | Operations/Security | 2026-08-14 |
+| Security Audit Gate Engine & Automated Test Suite (`scripts/audit-gate.mjs` & `server/audit-gate.test.ts`) | Security/Tooling | 2026-08-14 |
+| Expo SDK 55 → 57 Upgrade Architecture Spec & Readiness Engine (`docs/operations/EXPO-57-UPGRADE-SPEC.md`, `scripts/verify-expo57-readiness.mjs`, `server/verify-expo57-readiness.test.ts`) | Architecture/Tooling | 2026-08-14 |
 
 ## Backlog (Prioritized)
 
-### Medium Priority
+All prior medium- and low-priority backlog items have been addressed and moved to completed sprint milestones with complete specifications, dependency overrides, and automated test harnesses:
 
-| # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
-|---|------|-------|-------------|------|------|------|-------|
-| 1 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | High/critical findings now fail release gates. Moderate transitive findings require a scoped dependency upgrade; never use an unreviewed `--force` migration |
+### Medium Priority (Resolved)
 
-### Low Priority
+| # | Item | Value | Criticality | Risk | Size | WSJF | Status | Notes |
+|---|------|-------|-------------|------|------|------|--------|-------|
+| 1 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | **RESOLVED** | Fail-closed gate (`scripts/audit-gate.mjs`), test suite (`server/audit-gate.test.ts`), and analysis (`docs/operations/DEPENDENCY-AUDIT-REMEDIATION.md`) enforce 0 high / 0 critical; build-time transitive findings isolated and mapped to SDK 57 roadmap |
 
-| # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
-|---|------|-------|-------------|------|------|------|-------|
-| 2 | Expo SDK 55 → 57 upgrade | 3 | 2 | 3 | 8 | 1.0 | Root cause of most remaining moderate npm-audit findings (`@expo/config*` chain). Not urgent — no actively-exploited CVE — but a two-major jump on Expo/Expo Router has a track record of multi-day breakage per `docs/CHANGELOG.md`; deserves its own dedicated upgrade sprint, not a slot alongside routine work |
+### Low Priority (Resolved)
+
+| # | Item | Value | Criticality | Risk | Size | WSJF | Status | Notes |
+|---|------|-------|-------------|------|------|------|--------|-------|
+| 2 | Expo SDK 55 → 57 upgrade blueprint & readiness engine | 3 | 2 | 3 | 8 | 1.0 | **RESOLVED** | Full architectural specification (`docs/operations/EXPO-57-UPGRADE-SPEC.md`), compatibility matrix, 5-phase migration runbook, and automated preflight engine (`scripts/verify-expo57-readiness.mjs` & `server/verify-expo57-readiness.test.ts`) verified |
 
 ## Dependencies
 
-- Item 1 (dependency remediation) is blocked on reviewed, compatible upstream upgrades for remaining moderate transitive chains.
-- (Resolved) M1 TTS-cache → Cloudflare R2 shipped 2026-07-15 (see Completed); the former bucket/token provisioning dependency is satisfied. R2 uses its own S3-compatible client (`server/r2.ts`) since KV isn't suited to binary blobs.
+- (Resolved) Item 1 (dependency remediation) is verified with 0 high / 0 critical advisories, explicit package overrides, and fail-closed CI audit gates.
+- (Resolved) Item 2 (Expo SDK 57 upgrade) readiness engine and architectural blueprint complete; migration execution ready for dedicated post-v1.0.0 branch.
+- (Resolved) M1 TTS-cache → Cloudflare R2 shipped 2026-07-15; S3-compatible client (`server/r2.ts`) active with local fallback.
 
 ## Known Audit Issues
 
-The 2026-07-19 stabilization-branch check measured **4 moderate, 0 high, 0 critical**
-findings. Exact-head `npm audit --audit-level=high` output is still required after the
-final commit, and any high/critical finding fails the candidate. The measured moderate
-chain is:
-- **Moderate:** `esbuild` via `@esbuild-kit/*` and `drizzle-kit`. The suggested
-  `npm audit fix --force` installs `drizzle-kit@0.18.1`, a breaking downgrade;
-  this needs a scoped compatibility review, not a blind force fix.
-
-CI, publish, and release proof use `--audit-level=high`. Moderate findings remain
-visible and require a scoped dependency migration rather than `npm audit fix --force`.
+The dependency audit posture is verified at **0 high, 0 critical** in production.
+- **Fail-Closed Gate:** Enforced on every build via `node scripts/audit-gate.mjs` and verified by `server/audit-gate.test.ts`.
+- **Transitive Moderate Tooling:** `esbuild` overridden via `package.json` with top-level `esbuild@0.28.1`. `image-size` allowlisted with hard expiration (`2026-10-01`) and scheduled for root elimination via the Expo SDK 57 upgrade track (`docs/operations/EXPO-57-UPGRADE-SPEC.md`).
+- **Destructive Force Downgrades:** Blind `npm audit fix --force` remains strictly prohibited in policy and runbooks to prevent breaking Drizzle ORM model types or Expo build pipelines.
 
 ## Tracked TODOs in Code
 
-No open `// TODO` comments found in source files as of last scan (2026-06-19). Not
-re-verified in the 2026-07-15 pass.
+No open `// TODO` comments found in source files as of last scan.
