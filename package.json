@@ -109,6 +109,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@expo/ngrok": "^4.1.0",
+    "@react-native/jest-preset": "0.86.2",
     "@testing-library/react-native": "^14.0.1",
     "@types/express": "^5.0.0",
     "@types/jest": "29.5.14",
