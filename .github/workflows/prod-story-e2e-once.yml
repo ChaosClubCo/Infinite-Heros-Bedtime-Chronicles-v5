@@ -1,0 +1,182 @@
+name: Production Story E2E Once
+
+on:
+  push:
+    branches:
+      - qa/prod-story-e2e-20260814
+
+permissions:
+  contents: read
+
+jobs:
+  production-story-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install isolated Playwright harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bedtime-prod-e2e
+          cd /tmp/bedtime-prod-e2e
+          npm init -y >/dev/null
+          npm install --save-dev @playwright/test@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run production hero → story → narration → completion → Memory Jar journey
+        shell: bash
+        env:
+          BASE_URL: https://www.bedtime-chronicles.com
+        run: |
+          set -euo pipefail
+          cd /tmp/bedtime-prod-e2e
+          cat > playwright.config.cjs <<'EOF'
+          const { defineConfig } = require('@playwright/test');
+          module.exports = defineConfig({
+            testDir: '.',
+            timeout: 180000,
+            retries: 0,
+            reporter: [['line']],
+            use: {
+              baseURL: process.env.BASE_URL,
+              browserName: 'chromium',
+              viewport: { width: 1440, height: 1000 },
+              screenshot: 'only-on-failure',
+              trace: 'retain-on-failure',
+              video: 'retain-on-failure',
+            },
+            outputDir: 'test-results',
+          });
+          EOF
+
+          cat > production-story.spec.cjs <<'EOF'
+          const { test, expect } = require('@playwright/test');
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const resultsDir = path.join(process.cwd(), 'test-results');
+          const summaryPath = path.join(resultsDir, 'journey-summary.json');
+
+          function writeSummary(summary) {
+            fs.mkdirSync(resultsDir, { recursive: true });
+            fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
+          }
+
+          async function clickStoryControl(page, childIndex) {
+            await page.getByTestId('voice-cycle-btn').waitFor({ state: 'visible', timeout: 120000 });
+            const clicked = await page.evaluate((index) => {
+              const anchor = document.querySelector('[data-testid="voice-cycle-btn"]');
+              const parent = anchor?.parentElement;
+              const target = parent?.children?.[index];
+              if (!(target instanceof HTMLElement)) return false;
+              target.click();
+              return true;
+            }, childIndex);
+            expect(clicked).toBe(true);
+          }
+
+          test('production bedtime story journey', async ({ page, request }) => {
+            const summary = {
+              baseUrl: process.env.BASE_URL,
+              hero: 'Coral',
+              duration: 'short',
+              health: null,
+              generationStatus: null,
+              narrationStatus: null,
+              narrationSucceeded: null,
+              completionReached: false,
+              savedToMemoryJar: false,
+              finalUrl: null,
+            };
+
+            page.on('pageerror', (error) => console.log(`[pageerror] ${error.message}`));
+            page.on('console', (message) => {
+              if (message.type() === 'error') console.log(`[browser-console-error] ${message.text()}`);
+            });
+
+            try {
+              const healthResponse = await request.get('/api/health');
+              expect(healthResponse.status()).toBe(200);
+              summary.health = await healthResponse.json();
+
+              await page.goto('/create', { waitUntil: 'domcontentloaded', timeout: 60000 });
+              await expect(page.getByTestId('engage-mission-button')).toBeVisible({ timeout: 60000 });
+
+              await page.getByLabel('Hero: Coral, Heart of the Ocean').click();
+              await page.getByTestId('duration-short').click();
+
+              const generationResponsePromise = page.waitForResponse(
+                (response) => response.url().includes('/api/generate-story') && response.request().method() === 'POST',
+                { timeout: 150000 },
+              );
+
+              await page.getByTestId('engage-mission-button').click();
+              await expect(page).toHaveURL(/\/story(?:\?|$)/, { timeout: 30000 });
+
+              const generationResponse = await generationResponsePromise;
+              summary.generationStatus = generationResponse.status();
+              expect(generationResponse.ok()).toBe(true);
+
+              await expect(page.getByTestId('voice-cycle-btn')).toBeVisible({ timeout: 120000 });
+
+              const ttsResponsePromise = page.waitForResponse(
+                (response) => response.url().includes('/api/tts') && response.request().method() === 'POST',
+                { timeout: 30000 },
+              ).catch(() => null);
+
+              // StoryPlayerControls direct child order is speed, voice, prev, play, next, headset, music.
+              // Clicking the real play control exercises the deployed UI and narration request path.
+              await clickStoryControl(page, 3);
+              const ttsResponse = await ttsResponsePromise;
+              summary.narrationStatus = ttsResponse ? ttsResponse.status() : null;
+              summary.narrationSucceeded = Boolean(ttsResponse?.ok());
+
+              // Narration is a checkpoint, not a prerequisite for completing the rest of the story journey.
+              // Advance through every story part using the deployed player's real next control.
+              for (let part = 0; part < 10; part += 1) {
+                if (await page.getByTestId('finish-story-button').isVisible().catch(() => false)) break;
+                await clickStoryControl(page, 4);
+                await page.waitForTimeout(500);
+              }
+
+              await expect(page.getByTestId('finish-story-button')).toBeVisible({ timeout: 10000 });
+              await page.getByTestId('finish-story-button').click();
+              await expect(page).toHaveURL(/\/completion(?:\?|$)/, { timeout: 30000 });
+              summary.completionReached = true;
+
+              await expect(page.getByTestId('save-to-jar-button')).toBeVisible({ timeout: 10000 });
+              await page.getByTestId('save-to-jar-button').click();
+              await expect(page.getByText('Saved to Memory Jar', { exact: true })).toBeVisible({ timeout: 10000 });
+              summary.savedToMemoryJar = true;
+              summary.finalUrl = page.url();
+
+              await page.screenshot({ path: path.join(resultsDir, 'production-completion-memory-jar.png'), fullPage: true });
+              writeSummary(summary);
+
+              console.log(`PRODUCTION_E2E_SUMMARY=${JSON.stringify(summary)}`);
+            } catch (error) {
+              summary.finalUrl = page.url();
+              writeSummary(summary);
+              throw error;
+            }
+          });
+          EOF
+
+          npx playwright test production-story.spec.cjs --config=playwright.config.cjs
+
+      - name: Upload production journey evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-story-e2e-evidence
+          path: /tmp/bedtime-prod-e2e/test-results
+          if-no-files-found: warn
+          retention-days: 14
