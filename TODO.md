@@ -30,9 +30,9 @@ unaudited surface are in that audit; these are the actions.
 | D2 | Enable branch protection on `main` | Process | H | H | H | S | 12.0 | blocked | Blocked on D3 (cannot require checks while CI is red). Root cause of ungated Dependabot merges — `auto-merge.yml` does not wait for CI because GitHub auto-merge only holds for *required* checks. Three rollout traps documented in the audit §5 |
 | D3 | Fix CI — `Expo Compatibility and Web Build` | CI | H | H | M | S | 10.5 | ready | `npx expo install --fix` → `npm install` → `npm run expo:check` must exit 0. Commit `package.json` + `package-lock.json` together or the next `npm ci` fails `EUSAGE`. Restores `@sentry/react-native ~7.11.0`, `react-native-gesture-handler ~2.30.0` |
 | D4 | Enumerate every webhook / GitHub App surface | Security | M | H | H | S | 10.5 | ready | At least one **unidentified** sender can fire the production deploy hook. Org-level hooks and App hooks never appear in repo settings — check `/settings/hooks`, `/organizations/ChaosClubCo/settings/hooks`, `/settings/installations` |
-| D5 | Verify `verify-release-provenance.mjs` is not a no-op | Security | H | M | H | S | 10.5 | ready | Its CLI-entry check may diverge on percent-encoded paths, making the gate load, check nothing, and exit 0 — read as a pass. Unverified, but it is the primary release security control |
+| D5 | Verify `verify-release-provenance.mjs` is not a no-op | Security | H | M | H | S | 10.5 | completed | Resolved 2026-08-14: switched to path.resolve and fileURLToPath for cross-platform/percent-encoding proof CLI detection |
 | D6 | Confirm the Vercel plan tier | Deployment | M | M | S | S | 6.5 | ready | Gates whether the deploy-hook indirection is needed at all. Evidence says the Hobby commit-author check is not firing (`dpl_78oUZ…`, a dependabot-authored Git-triggered production build, `READY`) |
-| D7 | Add a `permissions:` block to `eas-build.yml` | Security | M | S | M | S | 6.5 | ready | Only workflow of thirteen without one; `GITHUB_TOKEN` inherits the repository default while handling `secrets.EXPO_TOKEN` |
+| D7 | Add a `permissions:` block to `eas-build.yml` | Security | M | S | M | S | 6.5 | completed | Resolved 2026-08-14: added contents:read, pull-requests:write, issues:write |
 
 ### Low Priority
 
@@ -47,6 +47,11 @@ unaudited surface are in that audit; these are the actions.
 
 | Item | Category | Completed | Notes |
 |------|----------|-----------|-------|
+| Add permissions block to eas-build.yml (D7) | Security | 2026-08-14 | Hardened eas-build.yml workflow with explicit permissions |
+| Fix release provenance CLI entry detection (D5) | Security | 2026-08-14 | Fixed verify-release-provenance.mjs to use fileURLToPath + path.resolve |
+| Support all privacy policy route variants & /api/privacy | Compliance | 2026-08-14 | Added /privacy, /privacy/, /privacy-policy, /privacy-policy/, /api/privacy handlers |
+| Lock Vercel serverless runtime to nodejs22.x | Reliability | 2026-08-14 | Added runtime nodejs22.x to vercel.json api/server.mjs config |
+| Fix vercel-deploy.yml missing check-secret dependency | CI/CD | 2026-08-14 | Removed invalid needs/if on trigger-vercel-deploy to fail loudly if secret is missing |
 | Real auth test suite for server/auth.ts | Testing/Security | 2026-07-24 | Created server/auth.test.ts with 100% branch coverage; deleted legacy placebo file |
 | Verification checklist automated updates | Quality | 2026-07-24 | Updated docs/VERIFICATION-M1-M3.md automated gate execution metrics |
 | Cloudflare R2 TTS-audio cache (M1 TTS-cache half) | Infrastructure | 2026-07-15 | server/r2.ts (S3-compatible @aws-sdk/client-s3), wired into server/routes/tts.ts behind writeWithLock; /tmp fallback; gated on R2_ENABLED |

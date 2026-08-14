@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { getProviderStatuses, getBreakerStatuses } from "../ai";
 import { getFeatureFlags } from "../feature-flags";
 import { getMetrics } from "../metrics";
@@ -68,10 +68,15 @@ export function registerHealthRoutes(app: Express): void {
   // The privacy notice is bundled as source code rather than read from a runtime
   // filesystem path. Vercel serverless functions do not guarantee that arbitrary
   // template files remain beside the compiled function.
-  app.get("/privacy", (_req, res) => {
+  const handlePrivacy = (_req: Request, res: Response) => {
     res.setHeader("Cache-Control", "no-store");
     res.type("html").status(200).send(PRIVACY_POLICY_HTML);
-  });
+  };
+  app.get("/privacy", handlePrivacy);
+  app.get("/privacy/", handlePrivacy);
+  app.get("/privacy-policy", handlePrivacy);
+  app.get("/privacy-policy/", handlePrivacy);
+  app.get("/api/privacy", handlePrivacy);
 
   app.get("/api/ai-providers", (_req, res) => {
     res.json({ providers: getProviderStatuses(), breakers: getBreakerStatuses() });

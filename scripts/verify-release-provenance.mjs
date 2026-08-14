@@ -15,6 +15,9 @@
  *                   exact expected SHA, canonical repository, and `main` ref.
  */
 
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 export const CANONICAL_REPO_OWNER = "ChaosClubCo";
 export const CANONICAL_REPO_NAME = "Infinite-Heros-Bedtime-Chronicles-v5";
 export const CANONICAL_REPO = `${CANONICAL_REPO_OWNER}/${CANONICAL_REPO_NAME}`;
@@ -105,8 +108,10 @@ export function evaluateProvenance(env, phase) {
   return { ok: false, failures: [`Unknown provenance phase "${phase}".`], warnings };
 }
 
-const isCliEntry = process.argv[1]
-  && import.meta.url === new URL(`file://${process.argv[1]}`).href;
+const isCliEntry = Boolean(
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+);
 
 if (isCliEntry) {
   const phaseArgIndex = process.argv.indexOf("--phase");
