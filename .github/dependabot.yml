@@ -34,11 +34,16 @@ updates:
         update-types: ["version-update:semver-major"]
       # @sentry/react-native and react-native-gesture-handler must track the
       # version Expo SDK 55 bundles — a bare Dependabot major bump (#406, #407)
-      # previously overshot the Expo-supported range and broke `expo:check` CI
+      # previously overshot the Expo-supported range and broke `expo:check` CI.
+      # Unlike expo/expo-* (whose own minor releases stay within the same SDK
+      # by Expo's versioning convention), these are independent third-party
+      # libraries — a semver-minor bump (e.g. 7.11.x -> 7.12.0) is a real
+      # version increase that can also land above Expo's tilde-pinned range,
+      # so both major and minor updates must be ignored here.
       - dependency-name: "@sentry/react-native"
-        update-types: ["version-update:semver-major"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "react-native-gesture-handler"
-        update-types: ["version-update:semver-major"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   # GitHub Actions updates — monthly, grouped into one PR
   - package-ecosystem: "github-actions"
