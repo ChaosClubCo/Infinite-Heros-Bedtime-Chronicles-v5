@@ -12,6 +12,9 @@ echo "Profile: $PROFILE"
 echo ""
 
 # Preflight
+echo "Running EAS build preflight checks..."
+node scripts/build-preflight-eas.mjs
+
 if ! command -v eas &>/dev/null; then
   echo "Installing eas-cli..."
   npm install -g eas-cli

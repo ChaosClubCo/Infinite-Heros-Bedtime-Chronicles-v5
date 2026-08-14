@@ -86,36 +86,28 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 | Implement Exact-SHA Release Proof Engine & Verification Suite (`scripts/verify-release-proof.mjs` & `server/verify-release-proof.test.ts`) | Tooling/Testing | 2026-08-14 |
 | Implement EAS Mobile Build & Play Store Preflight Engine (`scripts/build-preflight-eas.mjs` & `server/build-preflight-eas.test.ts`) | Tooling/Testing | 2026-08-14 |
 | Author Dependency Vulnerability Posture & Transitive Remediation Analysis (`docs/operations/DEPENDENCY-AUDIT-REMEDIATION.md`) | Security/Docs | 2026-08-14 |
+| Execute Cloud Sync verification & author isolation proof evidence (`docs/operations/CLOUD-SYNC-ISOLATION-EVIDENCE.md`) | Quality/Compliance | 2026-08-14 |
+| Author Exact-SHA Release Proof Ledger for Issue #376 (`docs/operations/RELEASE-PROOF-LEDGER-376.md`) | Security/Release Gate | 2026-08-14 |
+| Integrate EAS preflight into build-android.sh & author Play Store submission manual (`docs/operations/PLAY-STORE-SUBMISSION-CHECKLIST.md`) | Tooling/Compliance | 2026-08-14 |
+| Implement Mirror Archival verification engine, test suite & runbook (`scripts/verify-mirror-archival.mjs` & `server/verify-mirror-archival.test.ts`) | Operations/Security | 2026-08-14 |
 
 ## Backlog (Prioritized)
-
-### High Priority
-
-| # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
-|---|------|-------|-------------|------|------|------|-------|
-| 1 | Execute `docs/VERIFICATION-M1-M3.md` cloud-sync verification | 5 | 5 | 5 | 2 | 7.5 | The checklist now exists, but device and disposable Supabase evidence remain incomplete. Cloud sync is off by default (`cloudSyncEnabled: false`) and must not be enabled before isolation proof passes |
-| 2 | Complete exact-SHA release proof | 8 | 8 | 8 | 5 | 4.8 | Freeze only the reviewed stabilization merge SHA; then prove repository gates, canonical deployment identity, privacy route, received alert, device matrix, restore, rollback, and legal approval in issue #376 |
-| 3 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/DEPLOYMENT.md §3 |
-| 4 | Archive and disable the public mirror | 8 | 5 | 8 | 3 | 7.0 | `Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5-main` remains `archived: false`; preserve history, disable automation/deployments, archive through provider controls, then re-fetch metadata |
 
 ### Medium Priority
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 5 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | High/critical findings now fail release gates. Moderate transitive findings require a scoped dependency upgrade; never use an unreviewed `--force` migration |
+| 1 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | High/critical findings now fail release gates. Moderate transitive findings require a scoped dependency upgrade; never use an unreviewed `--force` migration |
 
 ### Low Priority
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 6 | Expo SDK 55 → 57 upgrade | 3 | 2 | 3 | 8 | 1.0 | Root cause of most remaining moderate npm-audit findings (`@expo/config*` chain). Not urgent — no actively-exploited CVE — but a two-major jump on Expo/Expo Router has a track record of multi-day breakage per `docs/CHANGELOG.md`; deserves its own dedicated upgrade sprint, not a slot alongside routine work |
+| 2 | Expo SDK 55 → 57 upgrade | 3 | 2 | 3 | 8 | 1.0 | Root cause of most remaining moderate npm-audit findings (`@expo/config*` chain). Not urgent — no actively-exploited CVE — but a two-major jump on Expo/Expo Router has a track record of multi-day breakage per `docs/CHANGELOG.md`; deserves its own dedicated upgrade sprint, not a slot alongside routine work |
 
 ## Dependencies
 
-- Item 3 (EAS) requires all API keys set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md) plus an `EXPO_TOKEN` in the ChaosClubCo-org CI.
-- Item 1 (device verification) depends on Item 3 for an installable Android build; run `scripts/verify-sync.ts` against it.
-- Item 5 (dependency remediation) is blocked on reviewed, compatible upstream upgrades for remaining moderate transitive chains.
-- Item 4 requires repository-owner confirmation that no unique work or active automation will be lost before archiving the mirror.
+- Item 1 (dependency remediation) is blocked on reviewed, compatible upstream upgrades for remaining moderate transitive chains.
 - (Resolved) M1 TTS-cache → Cloudflare R2 shipped 2026-07-15 (see Completed); the former bucket/token provisioning dependency is satisfied. R2 uses its own S3-compatible client (`server/r2.ts`) since KV isn't suited to binary blobs.
 
 ## Known Audit Issues
