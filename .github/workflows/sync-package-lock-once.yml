@@ -1,0 +1,41 @@
+name: Sync Package Lock Once
+
+on:
+  push:
+    branches:
+      - copilot/fix-lock-file-mismatch
+
+permissions:
+  contents: write
+
+jobs:
+  sync-lock:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          ref: copilot/fix-lock-file-mismatch
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install repository npm version
+        run: npm install --global npm@11
+
+      - name: Synchronize package lock
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Commit lockfile and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/sync-package-lock-once.yml
+          git add package-lock.json
+          git commit -m "chore: sync package-lock for React Native Jest preset"
+          git push origin HEAD:copilot/fix-lock-file-mismatch
