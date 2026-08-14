@@ -58,7 +58,7 @@
     "drizzle-zod": "^0.8.3",
     "elevenlabs": "^1.59.0",
     "eslint": "10.8.1",
-    "eslint-config-expo": "~55.0.1",
+    "eslint-config-expo": "~57.0.1",
     "expo": "~55.0.28",
     "expo-asset": "~55.0.18",
     "expo-audio": "~55.0.16",
