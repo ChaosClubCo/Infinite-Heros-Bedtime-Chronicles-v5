@@ -41,6 +41,8 @@ jobs:
     name: Trigger and verify canonical Vercel production deployment
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: check-secret
+    if: needs.check-secret.outputs.has-hook == 'true'
 
     steps:
       - name: Checkout triggering candidate
