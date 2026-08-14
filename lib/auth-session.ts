@@ -1,10 +1,10 @@
 export interface AuthSessionClient {
   auth: {
     getSession: () => Promise<{
-      data: { session: { access_token: string } | null };
+      data: { session: { access_token: string } | null } | null;
     }>;
     signInAnonymously: () => Promise<{
-      data: { session: { access_token: string } | null };
+      data: { session: { access_token: string } | null } | null;
       error: { message: string } | null;
     }>;
   };
@@ -20,7 +20,7 @@ export interface AuthSessionClient {
  */
 export async function getOrCreateAccessToken(client: AuthSessionClient): Promise<string | null> {
   const { data: existing } = await client.auth.getSession();
-  if (existing.session?.access_token) {
+  if (existing?.session?.access_token) {
     return existing.session.access_token;
   }
 
@@ -30,5 +30,5 @@ export async function getOrCreateAccessToken(client: AuthSessionClient): Promise
     return null;
   }
 
-  return data.session?.access_token ?? null;
+  return data?.session?.access_token ?? null;
 }
