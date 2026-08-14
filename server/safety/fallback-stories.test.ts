@@ -33,7 +33,8 @@ describe('Fallback Stories Engine', () => {
   it('returns deep cloned copies to prevent template mutation', () => {
     const story1 = getFallbackStory('classic');
     const story2 = getFallbackStory('classic');
+    const originalTitle = story2.title;
     story1.title = 'Mutated Title';
-    expect(story2.title).toBe('The Kindness Garden');
+    expect(story2.title).toBe(originalTitle);
   });
 });
