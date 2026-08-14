@@ -80,6 +80,9 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 | Resolve account deletion dynamic scope precision (`shared/account-deletion.ts` & `server/routes/account.ts`) | Security/Compliance | 2026-08-14 |
 | Harden sync verification script and automated test suite (`scripts/verify-sync.ts` & `server/verify-sync.test.ts`) | Tooling/Testing | 2026-08-14 |
 | Integrate secure storage helpers into client storage layer (`lib/storage.ts` & `lib/storage.test.ts`) | Security/Storage | 2026-08-14 |
+| Implement Milestone M1–M3 programmatic verification engine & suite (`scripts/verify-milestones.mjs` & `server/verify-milestones.test.ts`) | Tooling/Testing | 2026-08-14 |
+| Author Legacy Mirror Archival & Decommissioning Runbook (`docs/operations/MIRROR-ARCHIVAL-RUNBOOK.md`) | Operations/Security | 2026-08-14 |
+| Complete Webhook Ingress & Surface Security Audit (`docs/operations/WEBHOOK-SURFACE-AUDIT.md`) | Security/Architecture | 2026-08-14 |
 
 ## Backlog (Prioritized)
 

@@ -12,6 +12,8 @@ is the remaining human/device pass. Run the automated gates from **Windows Power
 - [x] `npm test` — full Vitest suite green (server safety, sync, storage, real auth boundary, etc.)
 - [x] `npm run test:components` — Jest client tests green (incl. `StoryTextDisplay` fail-safe)
 - [x] `npm run test:coverage` — server coverage ≥ threshold
+- [x] `npm run verify:milestones` — programmatic validation of M1 safety terms/fallbacks, M2 narration cache bounds, M3 cloud sync reconciliation & secure storage envelope
+- [x] `npm run verify:sync` — end-to-end sync engine reconciliation and entity mapper verification
 
 ---
 

@@ -29,7 +29,7 @@ unaudited surface are in that audit; these are the actions.
 | D1 | Rotate the Vercel deploy hook URL | Security | H | H | H | S | 12.0 | ready | It is a **capability URL** — anyone holding it can deploy production, unauthenticated. It sat in plaintext in webhook `645778760`'s Payload URL field and has been pasted into an AI transcript. Regenerate in Vercel, then store only as an Actions **repository** secret |
 | D2 | Enable branch protection on `main` | Process | H | H | H | S | 12.0 | blocked | Blocked on D3 (cannot require checks while CI is red). Root cause of ungated Dependabot merges — `auto-merge.yml` does not wait for CI because GitHub auto-merge only holds for *required* checks. Three rollout traps documented in the audit §5 |
 | D3 | Fix CI — `Expo Compatibility and Web Build` | CI | H | H | M | S | 10.5 | ready | `npx expo install --fix` → `npm install` → `npm run expo:check` must exit 0. Commit `package.json` + `package-lock.json` together or the next `npm ci` fails `EUSAGE`. Restores `@sentry/react-native ~7.11.0`, `react-native-gesture-handler ~2.30.0` |
-| D4 | Enumerate every webhook / GitHub App surface | Security | M | H | H | S | 10.5 | ready | At least one **unidentified** sender can fire the production deploy hook. Org-level hooks and App hooks never appear in repo settings — check `/settings/hooks`, `/organizations/ChaosClubCo/settings/hooks`, `/settings/installations` |
+| D4 | Enumerate every webhook / GitHub App surface | Security | M | H | H | S | 10.5 | completed | Resolved 2026-08-14: completed full inbound/outbound webhook matrix audit in docs/operations/WEBHOOK-SURFACE-AUDIT.md |
 | D5 | Verify `verify-release-provenance.mjs` is not a no-op | Security | H | M | H | S | 10.5 | completed | Resolved 2026-08-14: switched to path.resolve and fileURLToPath for cross-platform/percent-encoding proof CLI detection |
 | D6 | Confirm the Vercel plan tier | Deployment | M | M | S | S | 6.5 | ready | Gates whether the deploy-hook indirection is needed at all. Evidence says the Hobby commit-author check is not firing (`dpl_78oUZ…`, a dependabot-authored Git-triggered production build, `READY`) |
 | D7 | Add a `permissions:` block to `eas-build.yml` | Security | M | S | M | S | 6.5 | completed | Resolved 2026-08-14: added contents:read, pull-requests:write, issues:write |
@@ -47,6 +47,9 @@ unaudited surface are in that audit; these are the actions.
 
 | Item | Category | Completed | Notes |
 |------|----------|-----------|-------|
+| Implement Milestone M1–M3 programmatic verification engine | Tooling/Testing | 2026-08-14 | Added scripts/verify-milestones.mjs, server/verify-milestones.test.ts, and npm run verify:milestones |
+| Author Legacy Mirror Archival & Decommissioning Runbook | Operations/Security | 2026-08-14 | Created docs/operations/MIRROR-ARCHIVAL-RUNBOOK.md for Krosebrook repository decommissioning |
+| Complete Webhook Ingress & Surface Security Audit | Security/Architecture | 2026-08-14 | Created docs/operations/WEBHOOK-SURFACE-AUDIT.md covering GitHub, Vercel, Supabase, and Sentry webhooks |
 | Resolve account deletion dynamic scope precision | Security/Compliance | 2026-08-14 | Precise dynamic deletedScopes based on DATABASE_URL in shared/account-deletion.ts & server/routes/account.ts |
 | Harden sync verification script and automated test suite | Tooling/Testing | 2026-08-14 | Normalized imports, added server/verify-sync.test.ts, and added npm run verify:sync |
 | Integrate secure storage helpers into client storage layer | Security/Storage | 2026-08-14 | Added saveSecureParentControls and getSecureParentControls to lib/storage.ts with unit test suite |
