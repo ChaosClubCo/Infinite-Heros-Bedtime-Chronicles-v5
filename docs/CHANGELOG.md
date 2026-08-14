@@ -5,9 +5,15 @@ All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
 ## [Unreleased] — 2026-08-14 — Release Gate Provenance & Deployment Security Hardening
 
 ### Added
+- **Test Coverage & Suite Architecture Manual** — Created `docs/TEST-COVERAGE-ANALYSIS.md` documenting the full 1,453 test suite matrix (1,401 Vitest unit/integration/release tests across 83 files + 52 Jest-Expo component tests across 8 files), subsystem breakdown, CI gates, and coverage threshold enforcement.
+- **Client Secure Storage Envelope** — Added `lib/secureStorage.ts` and `lib/secureStorage.test.ts` providing tamper-evident cryptographic envelopes with SHA-256 integrity signatures, salt generation, and reversible masking for client secrets.
+- **Cloud Sync Reconciliation Comprehensive Suite** — Added `lib/sync/reconcile.comprehensive.test.ts` testing multi-entity edge cases, timestamp tie-breakers, idempotency, and clock skew resilience.
 - **Google Play Store Compliance & Submission Manual** — Created `docs/operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md` covering Designed for Families policies, COPPA declarations, Data Safety questionnaire answers, in-app/web account deletion paths, and AAB store assets.
 - **Privacy Policy Multi-Route Handlers** — Registered handlers for `/privacy`, `/privacy/`, `/privacy-policy`, `/privacy-policy/`, and `/api/privacy` in `server/routes/health.ts` to ensure consistent delivery across all reverse proxies and trailing slash variations.
 - **Vercel Serverless Runtime Pinning** — Added `"runtime": "nodejs22.x"` to `vercel.json` to lock production serverless function execution to Node 22 matching `.nvmrc` and `package.json` engines.
+
+### Changed
+- **Operational Runbooks Reconciliation** — Updated `docs/runbooks/rollback.md`, `docs/runbooks/deploy.md`, and `docs/runbooks/incident-response.md` to reflect Vercel serverless and EAS Build as canonical deployment paths, replacing legacy references to Replit.
 
 ### Fixed
 - **Release Provenance Gate CLI Entry Detection** — Refactored `scripts/verify-release-provenance.mjs` to use `path.resolve` and `fileURLToPath` for reliable entry-point detection across Windows/POSIX environments and percent-encoded paths.

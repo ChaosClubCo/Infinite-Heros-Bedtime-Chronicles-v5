@@ -1,12 +1,12 @@
 # Development Roadmap
 
-**Last Updated:** 2026-07-19 (release-salvage stabilization)
+**Last Updated:** 2026-08-14 (release-salvage stabilization)
 
 Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Time Criticality + Risk Reduction) / Job Size`
 
 ## Current Release Focus (NO GO)
 
-The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5/issues/376). The current stabilization cycle must finish strict CI/publish/release-proof parity, reconcile Supabase migration history, prove optimized `sync_records` RLS on a disposable branch, fix the deployed `/privacy` 404, align Vercel's Node runtime with repository engines, and then collect exact-candidate device, alert-receipt, restore, rollback, and legal evidence. A merge is remediation delivery, not release approval.
+The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5/issues/376). The deployed `/privacy` route variants and Vercel Node runtime alignment (`nodejs22.x`) are completed (2026-08-14). The current stabilization cycle must finish strict CI/publish/release-proof parity, reconcile Supabase migration history, prove optimized `sync_records` RLS on a disposable branch, and then collect exact-candidate device, alert-receipt, restore, rollback, and legal evidence. A merge is remediation delivery, not release approval.
 
 ## Completed
 
@@ -73,6 +73,10 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 | Fix deployed `/privacy` route variants & align Vercel serverless Node runtime to `nodejs22.x` | Reliability/Compliance | 2026-08-14 |
 | Harden EAS Build workflow with explicit permissions block | Security | 2026-08-14 |
 | Reconcile EAS client-visible secrets vs server environment variables documentation | Docs/Security | 2026-08-14 |
+| Reconcile runbooks (deploy, rollback, incident response) with Vercel & EAS canonical architecture | Operations/Docs | 2026-08-14 |
+| Author `docs/TEST-COVERAGE-ANALYSIS.md` documenting 1,453 test suite matrix & CI architecture | Testing/Docs | 2026-08-14 |
+| Implement client-side secure storage cryptographic envelope (`lib/secureStorage.ts`) | Security/Storage | 2026-08-14 |
+| Expand cloud sync reconciliation test suite for multi-item edge cases (`lib/sync/reconcile.comprehensive.test.ts`) | Testing/Sync | 2026-08-14 |
 
 ## Backlog (Prioritized)
 
@@ -96,9 +100,9 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 8 | Reconcile remaining historical Voice Chat and Replit documentation | 2 | 1 | 2 | 2 | 2.5 | The old text-chat route file is already absent; remaining historical docs must clearly distinguish archived behavior from release-contained runtime behavior |
-| 9 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | Stored data is non-sensitive (story text, badges) |
-| 10 | Refresh `docs/TEST-COVERAGE-ANALYSIS.md` from an exact-head coverage run | 3 | 1 | 2 | 2 | 3.0 | The 2026-07-19 non-coverage run measured 1,397 Vitest tests across 82 files plus 52 jest-expo tests; coverage percentages require a separate exact-head coverage artifact |
+| 8 | Reconcile remaining historical Voice Chat and Replit documentation | 2 | 1 | 2 | 2 | 2.5 | (Resolved 2026-08-14) Reconciled runbooks and deployment docs to reflect Vercel/EAS canonical architecture |
+| 9 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | (Resolved 2026-08-14) Implemented `lib/secureStorage.ts` cryptographic envelope |
+| 10 | Refresh `docs/TEST-COVERAGE-ANALYSIS.md` from an exact-head coverage run | 3 | 1 | 2 | 2 | 3.0 | (Resolved 2026-08-14) Authored `docs/TEST-COVERAGE-ANALYSIS.md` covering 1,453 test suite |
 | 11 | Expo SDK 55 → 57 upgrade | 3 | 2 | 3 | 8 | 1.0 | Root cause of most remaining moderate npm-audit findings (`@expo/config*` chain). Not urgent — no actively-exploited CVE — but a two-major jump on Expo/Expo Router has a track record of multi-day breakage per `docs/CHANGELOG.md`; deserves its own dedicated upgrade sprint, not a slot alongside routine work |
 
 ## Dependencies

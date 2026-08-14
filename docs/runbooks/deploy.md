@@ -16,21 +16,31 @@ For the full, detailed deployment guide see [docs/operations/DEPLOYMENT.md](../o
 
 ---
 
-## Replit Deploy
+## Canonical Deployment Workflow
 
-1. Push or merge changes to the `main` branch (Replit's **Push to Deploy** triggers automatically on push to `main`).
-2. Watch the **Deployments** tab in the Replit workspace — the new build will appear with a progress indicator.
-3. Once the build turns green, proceed to [Post-Deploy Verification](#post-deploy-verification).
+### 1. Backend: Vercel Serverless
+Vercel deployments are triggered automatically on push to `main` via the [.github/workflows/vercel-deploy.yml](../../.github/workflows/vercel-deploy.yml) workflow (or native Git integration fallback).
+
+1. Monitor the workflow run in GitHub Actions.
+2. The deployed serverless endpoints run Node 22 (`nodejs22.x`) matching `package.json` engines.
+3. On success, the API is live at the production domain.
+4. Proceed to [Post-Deploy Verification](#post-deploy-verification).
 
 ---
 
-## Vercel Deploy
+### 2. Mobile Client: EAS Build
+Native mobile binaries (Android AAB/APK and iOS IPA) are built via EAS:
+- **Preview (internal APK testing):** `bash scripts/build-android.sh preview`
+- **Production (Google Play AAB):** `bash scripts/build-android.sh production`
+- See [docs/operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md) and [docs/operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md](../operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md) for signing credentials and submission steps.
 
-Vercel deployments are triggered automatically on push to `main` via the [vercel-deploy.yml](../../.github/workflows/vercel-deploy.yml) workflow.
+---
 
-1. Monitor the workflow run in GitHub Actions.
-2. On success, the new version is live at the configured Vercel production URL.
-3. Proceed to [Post-Deploy Verification](#post-deploy-verification).
+### 3. Historical / Secondary: Replit Dev Environment
+Replit is supported as a local cloud IDE and testbed.
+1. Push or merge changes to the `main` branch.
+2. Watch the **Deployments** tab in the Replit workspace.
+3. Once green, run health verification.
 
 ---
 

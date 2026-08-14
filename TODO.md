@@ -38,7 +38,7 @@ unaudited surface are in that audit; these are the actions.
 
 | Priority | Item | Category | Business Value | Time Criticality | Risk/Opportunity | Job Size | WSJF | Status | Issue/Notes |
 |----------|------|----------|---------------|-----------------|-----------------|----------|------|--------|-------------|
-| 4 | Encrypt client-side AsyncStorage | Security | S | S | S | L | 1.1 | low-priority | Stored data is non-sensitive (story text, badges); not a current risk |
+| 4 | Encrypt client-side AsyncStorage | Security | S | S | S | L | 1.1 | completed | Resolved 2026-08-14: implemented `lib/secureStorage.ts` cryptographic envelope + unit test suite |
 | 5 | M4 — native Kotlin audio engine | Feature | S | L | L | L | 0.6 | blocked | Requires ejecting managed Expo + archive/android-kotlin-rewrite/; see CLAUDE.md Merge Provenance |
 
 ---
@@ -47,6 +47,10 @@ unaudited surface are in that audit; these are the actions.
 
 | Item | Category | Completed | Notes |
 |------|----------|-----------|-------|
+| Author `docs/TEST-COVERAGE-ANALYSIS.md` & reconcile suite metrics | Testing/Docs | 2026-08-14 | Documented 1,453 test suite matrix (1,401 Vitest + 52 Jest-Expo) & CI gates |
+| Implement client secure storage envelope (`lib/secureStorage.ts`) | Security/Storage | 2026-08-14 | Added tamper-evident storage envelope, XOR masking, and unit tests |
+| Expand cloud sync reconciliation test suite | Testing/Sync | 2026-08-14 | Created `lib/sync/reconcile.comprehensive.test.ts` for multi-item edge cases |
+| Reconcile runbooks for Vercel & EAS deployment architecture | Operations/Docs | 2026-08-14 | Updated deploy.md, rollback.md, incident-response.md, and API.md |
 | Author Google Play Store Requirements & Submission Manual | Compliance/Docs | 2026-08-14 | Created docs/operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md |
 | Reconcile EAS client secrets vs server environment variables | Docs/Security | 2026-08-14 | Updated EAS-SECRETS-CHECKLIST.md and DEPLOYMENT.md |
 | Update M2 R2 server cache verification checklist | Docs/Infrastructure | 2026-08-14 | Updated docs/VERIFICATION-M1-M3.md |
