@@ -70,29 +70,41 @@ jobs:
             fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
           }
 
-          async function completeConsentIfNeeded(page, summary) {
-            const input = page.getByTestId('parent-gate-input');
-            if (!(await input.isVisible({ timeout: 5000 }).catch(() => false))) return;
+          async function prepareFirstRun(page, summary) {
+            const parentInput = page.getByTestId('parent-gate-input');
+            const onboardingSkip = page.getByText('Skip', { exact: true });
+            const createTab = page.getByLabel('Create a story');
 
-            const prompt = await page.locator('text=/What is \\d+ \\+ \\d+\\?/').textContent();
-            const match = prompt?.match(/What is (\d+) \+ (\d+)\?/);
-            if (!match) throw new Error(`Could not parse parent-gate challenge: ${prompt}`);
+            await Promise.race([
+              parentInput.waitFor({ state: 'visible', timeout: 20000 }),
+              onboardingSkip.waitFor({ state: 'visible', timeout: 20000 }),
+              createTab.waitFor({ state: 'visible', timeout: 20000 }),
+            ]);
 
-            const answer = String(Number(match[1]) + Number(match[2]));
-            await input.fill(answer);
-            await page.getByTestId('parent-gate-submit').click();
-            await expect(page.getByTestId('consent-agree-btn')).toBeVisible({ timeout: 10000 });
-            await page.getByTestId('consent-agree-btn').click();
-            summary.parentalConsentCompleted = true;
-          }
+            if (await parentInput.isVisible()) {
+              const promptLocator = page.getByText(/^What is \d+ \+ \d+\?$/);
+              const prompt = await promptLocator.textContent();
+              const match = prompt?.match(/What is (\d+) \+ (\d+)\?/);
+              if (!match) throw new Error(`Could not parse parent-gate challenge: ${prompt}`);
 
-          async function completeOnboardingIfNeeded(page, summary) {
-            await page.waitForTimeout(1500);
-            const skip = page.getByText('Skip', { exact: true });
-            if (await skip.isVisible({ timeout: 5000 }).catch(() => false)) {
-              await skip.click();
+              await parentInput.fill(String(Number(match[1]) + Number(match[2])));
+              await page.getByTestId('parent-gate-submit').click();
+              await expect(page.getByTestId('consent-agree-btn')).toBeVisible({ timeout: 10000 });
+              await page.getByTestId('consent-agree-btn').click();
+              summary.parentalConsentCompleted = true;
+
+              await Promise.race([
+                onboardingSkip.waitFor({ state: 'visible', timeout: 20000 }),
+                createTab.waitFor({ state: 'visible', timeout: 20000 }),
+              ]);
+            }
+
+            if (await onboardingSkip.isVisible()) {
+              await onboardingSkip.click();
               summary.onboardingCompleted = true;
             }
+
+            await expect(createTab).toBeVisible({ timeout: 30000 });
           }
 
           async function clickStoryControl(page, childIndex) {
@@ -136,10 +148,8 @@ jobs:
               summary.health = await healthResponse.json();
 
               await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 60000 });
-              await completeConsentIfNeeded(page, summary);
-              await completeOnboardingIfNeeded(page, summary);
+              await prepareFirstRun(page, summary);
 
-              await expect(page.getByLabel('Create a story')).toBeVisible({ timeout: 30000 });
               await page.getByLabel('Create a story').click();
               await expect(page.getByTestId('engage-mission-button')).toBeVisible({ timeout: 30000 });
               summary.createReached = true;
