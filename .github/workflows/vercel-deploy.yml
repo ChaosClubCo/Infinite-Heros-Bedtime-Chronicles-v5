@@ -18,39 +18,29 @@ env:
   VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
 
 jobs:
-  # The 'secrets' context is NOT available in a job-level 'if:'. Referencing it there
-  # makes GitHub reject the entire workflow at PARSE time: the run fails in ~0s and is
-  # listed by file path rather than by its 'name:'. The supported way to gate a job on a
-  # secret is a preflight job that reads it through step-level 'env:' and publishes a
-  # job output.
-  check-secret:
-    name: Check Vercel deploy hook secret availability
-    runs-on: ubuntu-latest
-    outputs:
-      has-hook: ${{ steps.check.outputs.has-hook }}
-    steps:
-      - name: Check for VERCEL_DEPLOY_HOOK_URL secret
-        id: check
-        env:
-          HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
-        run: |
-          if [ -n "$HOOK_URL" ]; then
-            echo "has-hook=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has-hook=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::VERCEL_DEPLOY_HOOK_URL is not set - skipping the production deploy trigger. This workflow will not deploy anything. See docs/adr/0007-hook-only-vercel-deployment.md."
-          fi
-
+  # Do NOT gate this job on the presence of the deploy-hook secret.
+  #
+  # Two patterns have already failed here and neither should be reintroduced:
+  #
+  #  1. `if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}` at JOB level. The 'secrets'
+  #     context is not available in `jobs.<job_id>.if` (only github/needs/vars/inputs
+  #     are), so GitHub rejects the whole workflow at PARSE time - the run fails in ~0s
+  #     and is listed by file path instead of by 'name:'. Nothing deploys.
+  #
+  #  2. A preflight job publishing a has-hook output, with this job skipped when the
+  #     secret is missing. That parses, but GitHub counts a SKIPPED job as PASSING, so
+  #     the run reports SUCCESS while deploying nothing and verifying nothing. Run
+  #     31750113790 did exactly that: check-secret succeeded, this job was skipped, the
+  #     run went green in 9s. A silent green on a release gate is worse than a red X.
+  #
+  # A missing secret means the release pipeline is broken. Fail loudly (see the
+  # "Require Vercel deploy hook configuration" step below). If a genuine off-switch is
+  # ever wanted, gate on a repository VARIABLE - `vars` IS available in job-level `if:`,
+  # e.g. `if: vars.ENABLE_VERCEL_DEPLOY == 'true'` - which is explicit and auditable.
   trigger-vercel-deploy:
     name: Trigger and verify canonical Vercel production deployment
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: check-secret
-    # BRANCH-PROTECTION HAZARD: a SKIPPED job counts as PASSING for required status
-    # checks. If this workflow is ever added as a required check, an unset secret would
-    # render green while deploying nothing. deployment-drift.yml is the backstop - it
-    # detects production diverging from main regardless of which trigger failed or why.
-    if: needs.check-secret.outputs.has-hook == 'true'
 
     steps:
       - name: Checkout triggering candidate
@@ -65,8 +55,20 @@ jobs:
           EXPECTED_SHA: ${{ github.sha }}
         run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
 
+      - name: Require Vercel deploy hook configuration
+        run: |
+          if [ -z "${VERCEL_DEPLOY_HOOK_URL:-}" ]; then
+            echo "::error title=Deploy hook not configured::VERCEL_DEPLOY_HOOK_URL is unset, so production was NOT deployed by this workflow. Set it under Settings > Secrets and variables > Actions > *Repository secrets* (an Environment secret or a Variable will not be visible here). See docs/adr/0007-hook-only-vercel-deployment.md."
+            exit 1
+          fi
+
+      # --retry-all-errors so a transient 5xx from api.vercel.com does not silently skip
+      # a production deploy; --max-time so a hung POST cannot eat the job timeout.
       - name: Trigger canonical main deployment
-        run: curl --fail --silent --show-error -X POST "$VERCEL_DEPLOY_HOOK_URL"
+        run: |
+          curl --fail --silent --show-error \
+            --max-time 30 --retry 3 --retry-delay 5 --retry-all-errors \
+            -X POST "$VERCEL_DEPLOY_HOOK_URL"
 
       - name: Wait for exact canonical candidate and privacy notice
         env:
@@ -84,9 +86,16 @@ jobs:
             attempt=$((attempt + 1))
             rm -f health.json health-headers.txt privacy.html privacy-headers.txt
 
+            # `set -e` is on, so a bare `last_x=$(jq ...)` would ABORT the whole step the
+            # first time the endpoint returns a non-JSON 200 (a CDN/WAF interstitial, a
+            # Vercel rollout placeholder, an empty body). That is exactly the transient
+            # state this 900s loop exists to ride out. Validating the document inside the
+            # `if` condition keeps a malformed response non-fatal - commands in an `if`
+            # test are exempt from `set -e` - so we retry instead of dying.
             if curl --fail --silent --show-error --location --max-time 20 \
-              -H 'Cache-Control: no-cache' -D health-headers.txt \
-              "$HEALTH_CHECK_URL" --output health.json; then
+              -H 'Accept: application/json' -H 'Cache-Control: no-cache' \
+              -D health-headers.txt "$HEALTH_CHECK_URL" --output health.json \
+              && jq -e . health.json >/dev/null 2>&1; then
               last_status=$(jq -r '.status // empty' health.json)
               last_sha=$(jq -r '.releaseSha // empty' health.json)
               last_repo=$(jq -r '.releaseRepo // empty' health.json)
