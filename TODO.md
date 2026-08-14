@@ -19,6 +19,21 @@ Scale: H = 8, M = 5, S = 3, L = 1 for Value/Criticality/Risk. S = 2, M = 5, L = 
 | 1 | EAS build & Play Store submission | Deployment | H | H | H | M | 4.8 | ready | eas.json + build-android.sh + docs/operations/DEPLOYMENT.md §3 all set; needs EAS secrets + AAB build |
 | 2 | Resolve remaining npm audit vulnerabilities | Security | M | M | M | S | 5.0 | blocked | Updated 2026-07-15: the 2 high (`tmp`/`undici`) are resolved; 15 moderate remain (`esbuild`→`drizzle-kit`, `uuid`→`@expo/config-plugins`), both needing breaking `--force` bumps — see docs/ROADMAP.md and docs/archive/audits/AUDIT-NEXT-SPRINT-2026-07-15.md |
 
+### Deployment Control — from `docs/archive/audits/AUDIT-DEPLOYMENT-TOPOLOGY-2026-08-13.md`
+
+Production had no enforced deploy path and no working release gate. Full findings, evidence, and the
+unaudited surface are in that audit; these are the actions.
+
+| Priority | Item | Category | Business Value | Time Criticality | Risk/Opportunity | Job Size | WSJF | Status | Issue/Notes |
+|----------|------|----------|---------------|-----------------|-----------------|----------|------|--------|-------------|
+| D1 | Rotate the Vercel deploy hook URL | Security | H | H | H | S | 12.0 | ready | It is a **capability URL** — anyone holding it can deploy production, unauthenticated. It sat in plaintext in webhook `645778760`'s Payload URL field and has been pasted into an AI transcript. Regenerate in Vercel, then store only as an Actions **repository** secret |
+| D2 | Enable branch protection on `main` | Process | H | H | H | S | 12.0 | blocked | Blocked on D3 (cannot require checks while CI is red). Root cause of ungated Dependabot merges — `auto-merge.yml` does not wait for CI because GitHub auto-merge only holds for *required* checks. Three rollout traps documented in the audit §5 |
+| D3 | Fix CI — `Expo Compatibility and Web Build` | CI | H | H | M | S | 10.5 | ready | `npx expo install --fix` → `npm install` → `npm run expo:check` must exit 0. Commit `package.json` + `package-lock.json` together or the next `npm ci` fails `EUSAGE`. Restores `@sentry/react-native ~7.11.0`, `react-native-gesture-handler ~2.30.0` |
+| D4 | Enumerate every webhook / GitHub App surface | Security | M | H | H | S | 10.5 | ready | At least one **unidentified** sender can fire the production deploy hook. Org-level hooks and App hooks never appear in repo settings — check `/settings/hooks`, `/organizations/ChaosClubCo/settings/hooks`, `/settings/installations` |
+| D5 | Verify `verify-release-provenance.mjs` is not a no-op | Security | H | M | H | S | 10.5 | ready | Its CLI-entry check may diverge on percent-encoded paths, making the gate load, check nothing, and exit 0 — read as a pass. Unverified, but it is the primary release security control |
+| D6 | Confirm the Vercel plan tier | Deployment | M | M | S | S | 6.5 | ready | Gates whether the deploy-hook indirection is needed at all. Evidence says the Hobby commit-author check is not firing (`dpl_78oUZ…`, a dependabot-authored Git-triggered production build, `READY`) |
+| D7 | Add a `permissions:` block to `eas-build.yml` | Security | M | S | M | S | 6.5 | ready | Only workflow of thirteen without one; `GITHUB_TOKEN` inherits the repository default while handling `secrets.EXPO_TOKEN` |
+
 ### Low Priority
 
 | Priority | Item | Category | Business Value | Time Criticality | Risk/Opportunity | Job Size | WSJF | Status | Issue/Notes |
