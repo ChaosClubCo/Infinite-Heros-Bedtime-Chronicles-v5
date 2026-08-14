@@ -112,7 +112,7 @@ npm run preflight         # typecheck + lint + test in one command
 ## Deployment
 
 - **Replit (primary):** Click **Deploy** in the Replit workspace. See [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md) for the full procedure.
-- **Vercel:** `api/server.mjs` is the serverless entry point. Config in `vercel.json`. **Production deploys go through GitHub Actions only** (`.github/workflows/vercel-deploy.yml` → the `VERCEL_DEPLOY_HOOK_URL` deploy hook) — the Vercel CLI (`vercel --prod`) is intentionally blocked (`scripts/deploy-vercel.sh` exits 1 by design) and builds fail closed without canonical Git metadata. See [`DEPLOY.md`](DEPLOY.md) for the full policy and the reason (Hobby plan + private repo commit-author check).
+- **Vercel:** `api/server.mjs` is the serverless entry point. Config in `vercel.json`. **Production deploys go through GitHub Actions only** (`.github/workflows/vercel-deploy.yml` → the `VERCEL_DEPLOY_HOOK_URL` deploy hook) — the Vercel CLI (`vercel --prod`) is intentionally blocked (`scripts/deploy-vercel.sh` exits 1 by design) and builds fail closed without canonical Git metadata. See [`DEPLOY.md`](DEPLOY.md) for the full policy. Note: the original Hobby-plan commit-author rationale for this design is currently unverified — see the `DEPLOY.md` "Vercel Hobby limitation" section for details.
 - **Android (Play Store):** Use EAS Build — see [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md).
 
 Build commands:
