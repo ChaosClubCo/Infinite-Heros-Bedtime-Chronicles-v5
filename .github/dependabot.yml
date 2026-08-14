@@ -32,6 +32,13 @@ updates:
       # drizzle-orm major upgrade requires schema migration
       - dependency-name: "drizzle-orm"
         update-types: ["version-update:semver-major"]
+      # These two are pinned just as strictly by Expo SDK 55's compatibility
+      # manifest as expo-* packages are, but don't match that glob — #406/#407
+      # bumped them past what `expo install --check` allows and broke CI.
+      - dependency-name: "@sentry/react-native"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-native-gesture-handler"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions updates — monthly, grouped into one PR
   - package-ecosystem: "github-actions"
