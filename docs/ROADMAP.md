@@ -6,7 +6,7 @@ Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Ti
 
 ## Current Release Focus (NO GO)
 
-The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5/issues/376). The deployed `/privacy` route variants and Vercel Node runtime alignment (`nodejs22.x`) are completed (2026-08-14). The current stabilization cycle must finish strict CI/publish/release-proof parity, reconcile Supabase migration history, prove optimized `sync_records` RLS on a disposable branch, and then collect exact-candidate device, alert-receipt, restore, rollback, and legal evidence. A merge is remediation delivery, not release approval.
+The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5/issues/376). Core remediation items including deployed `/privacy` route variants, Vercel Node runtime alignment (`nodejs22.x`), client secure storage encryption, and verification tooling suites are completed (2026-08-14). The current release focus retains only the remaining verification work: executing the `docs/VERIFICATION-M1-M3.md` cloud-sync verification checklist, completing exact-SHA release proof, EAS production build & Play Store submission, and public mirror archival. A merge is remediation delivery, not release approval.
 
 ## Completed
 
@@ -93,33 +93,29 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 2 | Execute `docs/VERIFICATION-M1-M3.md` cloud-sync verification | 5 | 5 | 5 | 2 | 7.5 | The checklist now exists, but device and disposable Supabase evidence remain incomplete. Cloud sync is off by default (`cloudSyncEnabled: false`) and must not be enabled before isolation proof passes |
-| 3 | Complete exact-SHA release proof | 8 | 8 | 8 | 5 | 4.8 | Freeze only the reviewed stabilization merge SHA; then prove repository gates, canonical deployment identity, privacy route, received alert, device matrix, restore, rollback, and legal approval in issue #376 |
-| 4 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/DEPLOYMENT.md §3 |
-| 5 | Archive and disable the public mirror | 8 | 5 | 8 | 3 | 7.0 | `Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5-main` remains `archived: false`; preserve history, disable automation/deployments, archive through provider controls, then re-fetch metadata |
+| 1 | Execute `docs/VERIFICATION-M1-M3.md` cloud-sync verification | 5 | 5 | 5 | 2 | 7.5 | The checklist now exists, but device and disposable Supabase evidence remain incomplete. Cloud sync is off by default (`cloudSyncEnabled: false`) and must not be enabled before isolation proof passes |
+| 2 | Complete exact-SHA release proof | 8 | 8 | 8 | 5 | 4.8 | Freeze only the reviewed stabilization merge SHA; then prove repository gates, canonical deployment identity, privacy route, received alert, device matrix, restore, rollback, and legal approval in issue #376 |
+| 3 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/DEPLOYMENT.md §3 |
+| 4 | Archive and disable the public mirror | 8 | 5 | 8 | 3 | 7.0 | `Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5-main` remains `archived: false`; preserve history, disable automation/deployments, archive through provider controls, then re-fetch metadata |
 
 ### Medium Priority
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 6 | Fix deployed `/privacy` and align Vercel Node runtime | 8 | 8 | 6 | 3 | 7.3 | (Resolved 2026-08-14) Added /privacy handlers & pinned runtime nodejs22.x in vercel.json |
-| 7 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | High/critical findings now fail release gates. Moderate transitive findings require a scoped dependency upgrade; never use an unreviewed `--force` migration |
+| 5 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | High/critical findings now fail release gates. Moderate transitive findings require a scoped dependency upgrade; never use an unreviewed `--force` migration |
 
 ### Low Priority
 
 | # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
 |---|------|-------|-------------|------|------|------|-------|
-| 8 | Reconcile remaining historical Voice Chat and Replit documentation | 2 | 1 | 2 | 2 | 2.5 | (Resolved 2026-08-14) Reconciled runbooks and deployment docs to reflect Vercel/EAS canonical architecture |
-| 9 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | (Resolved 2026-08-14) Implemented `lib/secureStorage.ts` cryptographic envelope |
-| 10 | Refresh `docs/TEST-COVERAGE-ANALYSIS.md` from an exact-head coverage run | 3 | 1 | 2 | 2 | 3.0 | (Resolved 2026-08-14) Authored `docs/TEST-COVERAGE-ANALYSIS.md` covering 1,453 test suite |
-| 11 | Expo SDK 55 → 57 upgrade | 3 | 2 | 3 | 8 | 1.0 | Root cause of most remaining moderate npm-audit findings (`@expo/config*` chain). Not urgent — no actively-exploited CVE — but a two-major jump on Expo/Expo Router has a track record of multi-day breakage per `docs/CHANGELOG.md`; deserves its own dedicated upgrade sprint, not a slot alongside routine work |
+| 6 | Expo SDK 55 → 57 upgrade | 3 | 2 | 3 | 8 | 1.0 | Root cause of most remaining moderate npm-audit findings (`@expo/config*` chain). Not urgent — no actively-exploited CVE — but a two-major jump on Expo/Expo Router has a track record of multi-day breakage per `docs/CHANGELOG.md`; deserves its own dedicated upgrade sprint, not a slot alongside routine work |
 
 ## Dependencies
 
-- Item 4 (EAS) requires all API keys set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md) plus an `EXPO_TOKEN` in the ChaosClubCo-org CI.
-- Item 2 (device verification) depends on Item 4 for an installable Android build; run `scripts/verify-sync.ts` against it.
-- Item 7 (dependency remediation) is blocked on reviewed, compatible upstream upgrades for remaining moderate transitive chains.
-- Item 5 requires repository-owner confirmation that no unique work or active automation will be lost before archiving the mirror.
+- Item 3 (EAS) requires all API keys set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md) plus an `EXPO_TOKEN` in the ChaosClubCo-org CI.
+- Item 1 (device verification) depends on Item 3 for an installable Android build; run `scripts/verify-sync.ts` against it.
+- Item 5 (dependency remediation) is blocked on reviewed, compatible upstream upgrades for remaining moderate transitive chains.
+- Item 4 requires repository-owner confirmation that no unique work or active automation will be lost before archiving the mirror.
 - (Resolved) M1 TTS-cache → Cloudflare R2 shipped 2026-07-15 (see Completed); the former bucket/token provisioning dependency is satisfied. R2 uses its own S3-compatible client (`server/r2.ts`) since KV isn't suited to binary blobs.
 
 ## Known Audit Issues
