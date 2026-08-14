@@ -70,6 +70,31 @@ jobs:
             fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
           }
 
+          async function completeConsentIfNeeded(page, summary) {
+            const input = page.getByTestId('parent-gate-input');
+            if (!(await input.isVisible({ timeout: 5000 }).catch(() => false))) return;
+
+            const prompt = await page.locator('text=/What is \\d+ \\+ \\d+\\?/').textContent();
+            const match = prompt?.match(/What is (\d+) \+ (\d+)\?/);
+            if (!match) throw new Error(`Could not parse parent-gate challenge: ${prompt}`);
+
+            const answer = String(Number(match[1]) + Number(match[2]));
+            await input.fill(answer);
+            await page.getByTestId('parent-gate-submit').click();
+            await expect(page.getByTestId('consent-agree-btn')).toBeVisible({ timeout: 10000 });
+            await page.getByTestId('consent-agree-btn').click();
+            summary.parentalConsentCompleted = true;
+          }
+
+          async function completeOnboardingIfNeeded(page, summary) {
+            await page.waitForTimeout(1500);
+            const skip = page.getByText('Skip', { exact: true });
+            if (await skip.isVisible({ timeout: 5000 }).catch(() => false)) {
+              await skip.click();
+              summary.onboardingCompleted = true;
+            }
+          }
+
           async function clickStoryControl(page, childIndex) {
             await page.getByTestId('voice-cycle-btn').waitFor({ state: 'visible', timeout: 120000 });
             const clicked = await page.evaluate((index) => {
@@ -89,6 +114,9 @@ jobs:
               hero: 'Coral',
               duration: 'short',
               health: null,
+              parentalConsentCompleted: false,
+              onboardingCompleted: false,
+              createReached: false,
               generationStatus: null,
               narrationStatus: null,
               narrationSucceeded: null,
@@ -107,12 +135,14 @@ jobs:
               expect(healthResponse.status()).toBe(200);
               summary.health = await healthResponse.json();
 
-              // Enter through the deployed SPA shell. Direct /create currently returns 404,
-              // so this also proves the user-reachable tab navigation path independently.
               await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 60000 });
-              await expect(page.getByLabel('Create a story')).toBeVisible({ timeout: 60000 });
+              await completeConsentIfNeeded(page, summary);
+              await completeOnboardingIfNeeded(page, summary);
+
+              await expect(page.getByLabel('Create a story')).toBeVisible({ timeout: 30000 });
               await page.getByLabel('Create a story').click();
-              await expect(page.getByTestId('engage-mission-button')).toBeVisible({ timeout: 60000 });
+              await expect(page.getByTestId('engage-mission-button')).toBeVisible({ timeout: 30000 });
+              summary.createReached = true;
 
               await page.getByLabel('Hero: Coral, Heart of the Ocean').click();
               await page.getByTestId('duration-short').click();
@@ -136,14 +166,11 @@ jobs:
                 { timeout: 30000 },
               ).catch(() => null);
 
-              // StoryPlayerControls direct child order is speed, voice, prev, play, next, headset, music.
               await clickStoryControl(page, 3);
               const ttsResponse = await ttsResponsePromise;
               summary.narrationStatus = ttsResponse ? ttsResponse.status() : null;
               summary.narrationSucceeded = Boolean(ttsResponse?.ok());
 
-              // Narration is measured independently so a missing TTS credential does not hide
-              // whether the rest of the deployed story lifecycle works.
               for (let part = 0; part < 10; part += 1) {
                 if (await page.getByTestId('finish-story-button').isVisible().catch(() => false)) break;
                 await clickStoryControl(page, 4);
