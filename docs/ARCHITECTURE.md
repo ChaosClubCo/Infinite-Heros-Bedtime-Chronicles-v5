@@ -1,308 +1,191 @@
+<!-- Last verified: 2026-08-14 -->
 # Architecture
 
-<!-- Last verified: 2026-07-09 -->
+See also: [ADR index](./adr/README.md) and [security policy](./SECURITY.md).
 
-See also: [ADRs](./adr/) for individual architectural decisions.
-
-## System Overview
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Expo App (Client)                   │
-│  ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌────────┐ │
-│  │  Screens │ │Components│ │   Contexts   │ │Storage │ │
-│  │ (Router) │ │          │ │Settings/Auth │ │(Async) │ │
-│  └────┬─────┘ └──────────┘ └──────────────┘ └────────┘ │
-│       │ HTTPS + Auth Header                             │
-└───────┼─────────────────────────────────────────────────┘
-        │
-┌───────▼─────────────────────────────────────────────────┐
-│               Express Server (port 5000)               │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │              Security + Middleware Layer         │   │
-│  │  Security Headers → CORS → Body Parser (100KB)  │   │
-│  │  → Load Shedding → Auth (Supabase JWT)          │   │
-│  │  → Rate Limiter → Idempotency → Request Logger  │   │
-│  └──────────────────────────────────────────────────┘   │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │     Route Composer (server/routes.ts ~63 lines) │   │
-│  │  health  → /api/health, /api/metrics            │   │
-│  │  story   → /api/generate-story[-stream]         │   │
-│  │  images  → /api/generate-avatar/scene           │   │
-│  │  tts     → /api/tts, /api/voices                │   │
-│  │  music   → /api/music/:mode                     │   │
-│  │  suggest → /api/suggest-settings                │   │
-│  │  video   → /api/generate-video                  │   │
-│  └──────────────────────────────────────────────────┘   │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │               AI Router (server/ai/)            │   │
-│  │  Anthropic → Gemini → OpenAI → OpenRouter       │   │
-│  │  Circuit breakers + retry + per-provider jitter │   │
-│  └──────────────────────────────────────────────────┘   │
-│  ┌──────────┐ ┌───────────┐ ┌───────────────────────┐  │
-│  │ElevenLabs│ │OpenAI Sora│ │  PostgreSQL (Drizzle) │  │
-│  │  (TTS)   │ │  (Video)  │ │ conversations/messages│  │
-│  └──────────┘ └───────────┘ └───────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-```
+## System context
 
 ```mermaid
 flowchart LR
-    subgraph Client["Expo Mobile App"]
-        Router["Expo Router<br/>(file-based screens)"]
-        Storage["AsyncStorage"]
-        SyncEngine["lib/sync/ engine"]
-    end
+    Client[Expo app\napp/ + components/ + lib/]
+    API[Express API\nserver/]
+    AIRouter[AI router\nAnthropic -> Gemini -> OpenAI -> OpenRouter]
+    TTS[ElevenLabs]
+    Video[OpenAI Sora]
+    Supabase[Supabase\nAuth + Postgres + RLS]
+    Cloudflare[Cloudflare\nKV + R2]
+    Sentry[Sentry]
+    Vercel[Vercel serverless]
+    EAS[EAS Build]
 
-    subgraph Server["Express Server — Vercel serverless via api/server.mjs"]
-        direction TB
-        M1["trust proxy setting"] --> M2["Sentry.init()"]
-        M2 --> M3["Security headers"]
-        M3 --> M4["CORS"]
-        M4 --> M5["Body parsing<br/>(JSON, 100KB limit)"]
-        M5 --> M6["Request logging (pino)"]
-        M6 --> M7["Load shedding"]
-        M7 --> M8["Auth gate<br/>(Supabase JWT, requireAuth)"]
-        M8 --> M9["Route registration"]
-        M9 --> Routes9["9 domain modules:<br/>health, account, story, images,<br/>tts, music, suggest, video, github-webhook"]
-        M9 -.->|conditional| Voice["voice-chat"]
-        M9 -.->|conditional| ImageGen["image-gen"]
-        Routes9 --> M10["Global error handler<br/>(Sentry.captureException on 5xx)"]
-        Voice -.-> M10
-        ImageGen -.-> M10
-    end
-
-    subgraph External["External Services"]
-        AIRouter["AI Router<br/>Anthropic → Gemini → OpenAI → OpenRouter<br/>(circuit-broken)"]
-        ElevenLabs["ElevenLabs (TTS)"]
-        SupabaseSvc["Supabase<br/>Auth + Postgres w/ RLS"]
-        CloudflareSvc["Cloudflare<br/>KV (rate-limit) + R2 (TTS cache)"]
-        SentrySvc["Sentry (error tracking)"]
-    end
-
-    Router -->|HTTPS/JSON| M1
-    Routes9 --> AIRouter
-    Routes9 --> ElevenLabs
-    M8 --> SupabaseSvc
-    SyncEngine -.->|opt-in cloud sync| SupabaseSvc
-    M9 -.->|rate-limit state| CloudflareSvc
-    Routes9 -.->|persistent TTS cache| CloudflareSvc
-    M2 -.-> SentrySvc
-    M10 -.-> SentrySvc
+    Client -->|HTTPS/JSON + SSE| API
+    API --> AIRouter
+    API --> TTS
+    API --> Video
+    API --> Supabase
+    API -. optional .-> Cloudflare
+    API -. telemetry .-> Sentry
+    Client -. telemetry .-> Sentry
+    API --> Vercel
+    Client --> EAS
 ```
 
-## AI Provider Routing
+## Repository type
 
-The AI Router (`server/ai/`) implements task-specific fallback chains with circuit breakers and retry.
+Single full-stack application: Expo client + Express backend in one repository.
 
-### Story Generation Chain (`taskType: "story"`)
+## Component breakdown
 
-| Priority | Provider | Model |
-|----------|----------|-------|
-| 1 | Anthropic | `claude-sonnet-4-6` |
-| 2 | Gemini | `gemini-2.5-flash` |
-| 3 | OpenAI | `gpt-4o-mini` |
-| 4 | OpenRouter / Meta Llama | `meta-llama/llama-4-scout-17b-16e-instruct` |
-| 5 | OpenRouter / xAI | `x-ai/grok-3-mini` |
-| 6 | OpenRouter / Mistral | `mistralai/mistral-small-3.1-24b-instruct` |
-| 7 | OpenRouter / Cohere | `cohere/command-a-03-2025` |
+| Component | Purpose | Inputs | Outputs | Key dependencies |
+|----------|---------|--------|---------|------------------|
+| `app/` | Route-level UI screens | navigation params, context state, server responses | interactive child/parent flows | Expo Router, React Native, React Query |
+| `components/` | Reusable UI and presentation primitives | props, hooks, theme tokens | composed screens | React Native, Reanimated, Expo modules |
+| `lib/` | Client state, storage, sync, and helpers | AsyncStorage, auth session, API responses | persisted client state, sync operations | AsyncStorage, Supabase client, React Query |
+| `server/routes/` | HTTP route modules by domain | validated requests | JSON/SSE responses | Express, validation, AI router, helper utilities |
+| `server/ai/` | AI abstraction and fallback routing | prompt payloads, task types | text/image responses | Anthropic, Gemini, OpenAI, OpenRouter |
+| `server/safety/` | Output moderation and safe fallbacks | generated story payloads | approved story JSON or safe fallback | banned-term sets, moderation logic |
+| `server/auth.ts` | Bearer-token auth gate | Authorization header | `req.user` or 401/503 | Supabase service-role client |
+| `shared/` | Shared transport and schema types | TypeScript/Drizzle models | compile-time contracts | Drizzle ORM, Zod-compatible shapes |
+| `docs/adr/` | Architectural decisions | design changes | immutable ADR record | Markdown docs |
 
-### Suggestion Chain (`taskType: "suggestion"`)
+## Runtime request flow
 
-Gemini-first: `gemini → mistral → anthropic → meta-llama → xai → cohere`
+### Story generation
 
-### Image Generation Chain (`taskType: "image" | "avatar" | "scene"`)
+1. The client collects hero and story settings.
+2. `apiRequest()` sends a POST to `/api/generate-story` or `/api/generate-story-stream`.
+3. The server validates the payload with Zod schemas from `server/validation.ts` and sanitizes user-controlled strings.
+4. Compliance, auth, rate limiting, idempotency, and load-shedding middleware run before the handler completes the request.
+5. The route builds prompts using `server/prompts.ts` and sends them through `aiRouter.generateText()`.
+6. The result is JSON-normalized, then checked by `server/safety/story-guard.ts`.
+7. If moderation blocks the output, the server regenerates once with a stricter prompt; if that still fails, it serves a known-safe fallback story.
+8. The client optionally requests scene art, narration, and video, then stores the story locally and awards badges.
 
-| Priority | Provider | Model |
-|----------|----------|-------|
-| 1 | Gemini | `gemini-2.5-flash-image` |
-| 2 | OpenAI | `gpt-image-1` |
+### Offline-first persistence and sync
 
-If all providers in a chain fail, the router returns a 503.
+- **Local first:** settings, stories, badges, favorites, streaks, and read-state live in AsyncStorage through `lib/storage.ts`.
+- **Cloud sync:** `lib/sync/` syncs non-PII progress records to Supabase only when `cloudSyncEnabled` is on and the parent has opted in.
+- **Offline queue:** `lib/sync-queue.ts` records like/unlike/story-completion events and drains them to `/api/sync/interactions` when connectivity returns.
 
-## Data Flow
+## Authentication and authorization model
 
-### Story Generation Flow
+### Client auth
 
-```
-User selects hero + mode + settings
-  → Client POST /api/generate-story
-    → Server validates and sanitizes input
-    → Server builds system prompt + user prompt
-    → AI Router calls provider chain until success
-    → Server parses JSON response and normalizes parts
-    → Output safety gate (server/safety): moderate the generated text
-      → if unsafe, regenerate once with a stricter prompt
-      → if still unsafe, serve a known-safe fallback story
-    → Client receives (guaranteed-safe) story and begins playback
-      → Per-part optional scene generation
-      → Per-part optional TTS narration (served from on-device cache when available)
-    → On completion: save story + scenes to AsyncStorage
-    → Award badges based on profile history
-```
+- `lib/AuthContext.tsx` initializes Supabase Auth when the client env vars are present.
+- Authenticated requests obtain a bearer token via `getIdToken()` and attach it in `apiRequest()`.
+- If auth is not configured in development, the app can still run local-only flows.
 
-### Settings Architecture
+### Server auth
 
-```
-SettingsContext (lib/SettingsContext.tsx)
-  ├── AppSettings interface (source of truth)
-  ├── AsyncStorage key: @infinity_heroes_app_settings
-  ├── Used by: SettingsModal.tsx, settings.tsx, story.tsx
-  └── Legacy migration: reads @infinity_heroes_preferences on first load
-```
+- `server/routes.ts` applies `requireAuth()` to all non-webhook `POST/PUT/DELETE` API routes and to `GET /api/conversations*`.
+- `server/auth.ts` validates bearer tokens with `supabase.auth.getUser(token)`.
+- In production, missing Supabase server auth configuration fails closed with `503` on auth-gated routes.
+- In development, the server can fall back to anonymous IP-based identity for local workflows.
 
-## Client State Management
+### Authorization boundaries
 
-| Data | Storage | Mechanism |
-|------|---------|-----------|
-| App Settings | AsyncStorage (`@infinity_heroes_app_settings`) | React Context + Reducer |
-| Stories | AsyncStorage (`@infinity_heroes_stories`) | Direct read/write |
-| Child Profiles | AsyncStorage (`@infinity_heroes_profiles`) | Direct read/write |
-| Badges | AsyncStorage (`@infinity_heroes_badges`) | Direct read/write |
-| Streaks | AsyncStorage (`@infinity_heroes_streaks`) | Direct read/write |
-| Parent Controls | AsyncStorage (`@infinity_heroes_parent_controls`) | Direct read/write |
-| Favorites | AsyncStorage (`@infinity_heroes_favorites`) | Direct read/write |
+- Voice-chat history is tied to the authenticated user in PostgreSQL.
+- Cloud-sync records use Row Level Security with `auth.uid() = user_id`.
+- Account deletion cascades cloud-sync records and, when configured, voice-chat history.
 
-## Server Architecture
+## Database schema summary
 
-### Middleware Stack (in order)
+### PostgreSQL / Drizzle
 
-1. **Environment Validation** — warns on missing providers at startup
-2. **Security Headers** — X-Content-Type-Options, X-Frame-Options, Referrer-Policy, CSP, HSTS
-3. **CORS** — dynamic origin matching (Replit domains, localhost, bedtime-chronicles.com, Vercel previews)
-4. **Body Parser** — JSON + URL-encoded (100KB limit)
-5. **Request Logger** — pino structured logging (method, path, status, duration)
-6. **Load Shedding** — rejects when active-request ceiling is exceeded (503)
-7. **Expo Manifest Routing + Static File Serving**
-8. **Route Registration** — auth gate for API writes and protected reads (`GET /api/conversations*`), then domain modules (`/api/github/webhook` exempt)
-9. **Global Error Handler** — sanitized responses via `sanitizeErrorMessage()`
+| Table | Purpose | Key relationships | Notes |
+|------|---------|-------------------|-------|
+| `users` | App-level auth identity anchor | parent for child tables | Supabase-managed identity linkage |
+| `conversations` | Voice-chat conversation metadata | belongs to a user | used only when voice chat is enabled |
+| `messages` | Voice-chat messages | belongs to `conversations` | cascades on conversation deletion |
+| `sync_records` | Opt-in cloud-sync envelopes | keyed by `(user_id, entity, id)` | RLS-protected; stores non-PII story progress |
 
-### Rate Limiting
+### Local storage domains
 
-- Sliding-window limiter keyed by authenticated user UID, fallback to IP
-- Default 10 requests per 60 seconds
-- Configurable via `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_MAX`
-- Applied to generation endpoints (story, avatar, scene, TTS, video, suggestions)
-- Optional Cloudflare KV persistence via `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_KV_NAMESPACE_ID`, `CLOUDFLARE_API_TOKEN`
+- `@infinity_heroes_app_settings`
+- `@infinity_heroes_profiles`
+- `@infinity_heroes_active_profile`
+- `@infinity_heroes_stories`
+- `@infinity_heroes_badges`
+- `@infinity_heroes_streaks`
+- `@infinity_heroes_favorites`
+- `@infinity_heroes_read`
+- `@infinity_heroes_parent_controls`
+- `@infinity_heroes_parent_consent`
+- `@infinity_heroes_offline_queue`
 
-### TTS Caching
+## Infrastructure topology
 
-**Server-side** (`server/routes/tts.ts`, `server/tts-cache.ts`):
-- Audio cached to `/tmp/tts-cache/`
-- Cache key: MD5 of `voice:mode:text`
-- Expired files cleaned hourly
-- Max age via `TTS_CACHE_MAX_AGE_MS` (default 24h)
-- Note: ephemeral on serverless (lost on cold start); a durable Cloudflare R2 backend is a roadmap item.
+| Layer | Provider / runtime | Role |
+|------|---------------------|------|
+| Web/API hosting | Vercel serverless (`api/server.mjs`) | canonical hosted backend and static web entrypoint |
+| Native builds | Expo Application Services | Android/iOS build pipeline |
+| Local/dev cloud workspace | Replit | dev environment and historical deployment path |
+| Database and auth | Supabase | bearer-token auth, Postgres, RLS-backed sync |
+| AI providers | Anthropic, Gemini, OpenAI, OpenRouter | story, suggestion, image, and optional video generation |
+| TTS | ElevenLabs | narration audio |
+| Cache / shared state | Cloudflare KV + R2 (optional) | rate-limit/idempotency persistence and durable TTS cache |
+| Observability | Sentry + pino logs + `/api/metrics` | server/client errors and app metrics |
 
-**On-device** (`lib/tts-cache.ts`, `lib/narration.ts`):
-- Each narration clip is also persisted on the device (`expo-file-system`), keyed by the same MD5 of `voice:mode:text`.
-- `resolveNarrationUri()` returns the local `file://` clip on a hit — instant, offline-capable, no network — and downloads + caches on a miss. Any filesystem/crypto failure degrades gracefully to streaming the server URL.
-- LRU eviction (`TTS_CACHE_MAX_BYTES`, default 50 MB). `prefetchNarration()` can warm the next part.
+## Key architectural decisions
 
-## Output Content Safety
+| Decision | Why | Reference |
+|---------|-----|-----------|
+| Use Expo + React Native for the client | one codebase for mobile/web flows | [ADR-0001](./adr/0001-use-expo-react-native.md) |
+| Route AI through a single fallback router | reliability, cost control, provider isolation | [ADR-0002](./adr/0002-multi-provider-ai-fallback-chain.md) |
+| Use ElevenLabs for narration | consistent voice quality across modes | [ADR-0003](./adr/0003-elevenlabs-for-tts.md) |
+| Keep local state in AsyncStorage first | offline-first child experience | [ADR-0004](./adr/0004-asyncstorage-as-client-data-store.md) |
+| Keep backend as Express in-repo | thin API boundary with shared TypeScript types | [ADR-0005](./adr/0005-express-backend-api-server.md) |
+| Use Supabase for auth and sync storage | managed auth + Postgres + RLS | [ADR-0006](./adr/0006-supabase-auth-migration.md) |
+| Prefer controlled Vercel deployment path | provenance and release gating | [ADR-0007](./adr/0007-hook-only-vercel-deployment.md) |
 
-Every generated story passes a server-authoritative moderation gate before it reaches the client (`server/routes/story.ts` → `server/safety/story-guard.ts`):
+## Failure modes and recovery
 
-1. `moderateStory()` (`content-safety.ts`) scans all child-facing text with HARD terms (single hit blocks) and SOFT/contextual terms (block on co-occurrence), plus structural, model-leakage, and PII checks.
-2. On a block, the story is regenerated **once** with a stricter prompt (`buildStricterSystemPrompt`).
-3. If still unsafe, a pre-written known-safe fallback (`fallback-stories.ts`) is served.
+| Failure mode | What breaks | Recovery path |
+|-------------|-------------|---------------|
+| Primary AI provider outage | story/image generation slows or fails over | AI router retries and moves to the next provider |
+| Full AI chain outage | new story/image generation unavailable | route returns `503`; local stories remain usable |
+| ElevenLabs outage | narration generation unavailable | story text and images still work; cached audio still replays |
+| Supabase outage | auth-gated server writes, voice chat, and cloud sync fail | local-only reading flows continue; auth routes fail closed in production |
+| Cloudflare KV/R2 outage | persistent limiter/cache layer unavailable | server falls back to in-memory rate-limit/idempotency and `/tmp` TTS caching |
+| Server overload | latency spikes / queue pressure | load-shedding rejects excess requests with `503` |
+| Unsafe model output | child-visible content risk | moderation gate regenerates once, then serves safe fallback |
 
-The child never sees flagged text or a raw error. Gated by `FEATURE_CONTENT_SAFETY_ENABLED` (default on). The HARD term list lives in `shared/safety-terms.ts` and is reused by a client render fail-safe (`components/StoryTextDisplay.tsx`). Leak-safe metrics (category counts only) are exposed via `/api/metrics`.
+## Scaling model
 
-## Cloud Sync (Milestone 3 — foundation)
+### Current model
 
-Optional, parent-opt-in cloud backup/continuity of kid data (stories + gamification only — **never** child-profile PII). Off by default; the app remains offline-first-local.
+- Request handling is stateless enough for serverless/server restart behavior.
+- AI latency is the primary response-time bottleneck.
+- `/tmp` and in-memory maps are ephemeral unless Cloudflare persistence is configured.
 
-- **Model**: every synced item is a `SyncRecord` envelope (`shared/sync-types.ts`) — `{ id, updatedAt, deleted, payload }`. Conflicts resolve **last-write-wins** by `updatedAt`; deletions are soft tombstones so they propagate instead of being resurrected.
-- **Reconcile** (`lib/sync/reconcile.ts`, pure/tested): diffs local vs cloud record maps into `{ applyLocal, pushRemote }`.
-- **Storage** (`supabase/migrations/20260713000817_0001_sync_tables.sql`): a single `sync_records` table keyed by `(user_id, entity, id)`, with **RLS** (`auth.uid() = user_id`) and `on delete cascade` from `auth.users` so deleting the account purges all synced data.
-- **PII boundary**: badges/streaks key on `profileId`; to line them up across devices without leaking names/ages, only a minimal profile stub (`id` + `createdAt`) syncs. Story base64 blobs (avatar/scenes) are stripped before sync (regenerable, would bloat Postgres).
+### Bottlenecks
 
-- **Flow** (`lib/sync/engine.ts` + `supabase-sync.ts`): for each entity, pull the cloud copy, reconcile vs local, push local winners, apply remote winners. Gated by `runSync()` (`lib/sync/runSync.ts`) on the parent opt-in flag (`cloudSyncEnabled`, default off) + a signed-in session. Triggered on app open/foreground (`components/SyncManager.tsx`) and after a story completes (`app/completion.tsx`). Opt-in toggle lives in Settings (Cloud Backup section). `purgeCloudData()` is wired into "delete all data".
+- Story and image generation latency at external providers
+- Narration generation for uncached audio
+- Voice-chat database usage when that feature is enabled
 
-**Status**: built and tested for **all six entities** — stories (blob-preserving), badges, streaks, favorites/read (change-time sidecar `@infinity_heroes_sync_meta`), and profileStub (creates an editable placeholder profile for unknown ids so gamification anchors across devices; name/age never sync). Not yet verified on a device — the opt-in toggle, triggers, and placeholder behavior need an end-to-end pass.
+### Scaling direction
 
-## Authentication Flow
+- Horizontal API scale works best when KV/R2 persistence is configured.
+- Additional shared cache layers would reduce repeated TTS/image work.
+- The client already absorbs many reads because stories and progression remain on-device.
 
-1. `AuthProvider` in `app/_layout.tsx` initializes Supabase Auth when `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` are configured.
-2. `AuthBridge` passes `getIdToken()` to `query-client.ts` so requests can attach an Authorization header when a session exists.
-3. Server middleware (`server/auth.ts`) validates bearer tokens through Supabase (`supabase.auth.getUser`).
-4. Rate limiting keys on `req.user.uid` when authenticated, otherwise falls back to IP.
-5. In production, missing Supabase server auth config causes auth-gated routes to return 503; in development, auth can run anonymous.
+## Security boundaries
 
-## Infrastructure Topology
+| Trust zone | Boundary rule |
+|-----------|---------------|
+| Client bundle | `EXPO_PUBLIC_*` values only; no server secrets |
+| API server | validates, sanitizes, rate-limits, and moderates all child-facing AI output |
+| External AI providers | accessed only through `server/ai/`; direct client access is forbidden |
+| TTS media | served only through validated hex `.mp3` filenames |
+| Auth boundary | verified Supabase bearer tokens on protected routes |
+| Data privacy | cloud sync excludes child-profile PII; profile stubs are minimal IDs only |
+| Secrets management | environment variables only; `.env.example` contains placeholders only |
 
-| Component | Provider | Notes |
-|-----------|----------|-------|
-| API + Web server | Replit Cloud Run | Primary deployment; `deploymentTarget = "cloudrun"` in `.replit` |
-| API serverless | Vercel | `api/server.mjs` entry point; 60s max duration; all routes rewrite to `/api/server` |
-| Mobile (Android) | EAS Build | `.aab` uploaded to Play Console; package `com.infinityheroes.bedtime` |
-| Mobile (iOS) | EAS Build | Configured but no App Store submission yet |
-| Database | Supabase PostgreSQL | Required for voice chat only |
-| Rate-limit state | Cloudflare KV | Optional; otherwise in-memory |
-| Error tracking | Sentry | Client and server both wired; server captures via explicit Sentry.captureException() calls (no Express middleware); no-op when SENTRY_DSN unset |
-| TTS cache | `/tmp/tts-cache/` | Instance-local cache |
-| AI providers | External APIs | Anthropic, Gemini, OpenAI, OpenRouter |
+## Operational references
 
-Single-instance Express today; no shared cache or load balancer. Voice-chat state is PostgreSQL-backed; story state is client AsyncStorage.
-
-## Failure Modes and Recovery
-
-| Failure | Impact | Recovery |
-|---------|--------|----------|
-| AI provider outage | Story generation may fail if chain exhausts | Router falls through provider chain; returns 503 after exhaustion |
-| ElevenLabs outage | TTS unavailable | Story generation still works without narration |
-| PostgreSQL unavailable | Voice chat fails | Core story features unaffected |
-| Server crash | API down | Runtime restarts process/invocation |
-| Circuit breaker open | Provider bypassed temporarily | Auto-reset after timeout |
-| TTS cache full | Cache churn increases | Eviction by age and size |
-
-## Scaling Model
-
-**Current ceiling (single instance):**
-
-- Rate limiter: 10 requests / 60 s per user or IP
-- Load shedding: 503 on active-request ceiling
-- In-memory state resets on restart for non-KV paths
-
-**Bottlenecks:**
-
-- AI provider latency dominates request time
-- TTS generation latency (improved by caching)
-- PostgreSQL affects voice chat only
-
-**Horizontal scaling notes:**
-
-- In-process limiter/circuit state is instance-local unless KV-backed
-- Shared media/cache storage would be needed for multi-instance TTS/video cache reuse
-
-## Security Boundaries
-
-| Boundary | Policy |
-|----------|--------|
-| AI provider keys | Server-side env vars only; never exposed to client |
-| Client data | AsyncStorage on-device; no PII stored server-side |
-| Auth tokens | Supabase access tokens validated server-side on auth-gated routes |
-| TTS filenames | Regex `/^[a-f0-9]+\.mp3$/` enforced before serving; path traversal impossible |
-| Video IDs | Regex `/^[a-f0-9]+$/` enforced before lookup |
-| CORS | Replit domains + localhost only; no wildcard |
-| Error messages | `sanitizeErrorMessage()` strips stack traces and internal paths before sending to client |
-| `EXPO_PUBLIC_*` vars | Bundled into client APK — never put secrets with this prefix |
-
-See [SECURITY.md](./SECURITY.md) for the full policy and OWASP assessment.
-
-## Assets
-
-Stock hero portraits live in `assets/heroes/`. `scripts/generate-hero-portraits.mjs` can regenerate via local `/api/generate-avatar`.
-
-## Voice Chat Module
-
-When `AI_INTEGRATIONS_OPENAI_API_KEY` and `DATABASE_URL` are set:
-
-- Conversation history in PostgreSQL (`conversations`, `messages`)
-- Audio input auto-format detection (WAV/MP3/WebM/MP4/OGG)
-- STT: `gpt-4o-mini-transcribe`
-- Voice response: `gpt-4o-audio-preview` with streaming output
-- Delivery: SSE
-- Validation: strict ID/message/audio/voice constraints
-- Pagination support via `limit` / `offset`
+- [docs/API.md](./API.md)
+- [docs/SECURITY.md](./SECURITY.md)
+- [docs/runbooks/deploy.md](./runbooks/deploy.md)
+- [docs/runbooks/rollback.md](./runbooks/rollback.md)
+- [docs/operations/DEPLOYMENT.md](./operations/DEPLOYMENT.md)

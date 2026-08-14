@@ -1,212 +1,62 @@
-<!-- Last verified: 2026-05-05 -->
+<!-- Last verified: 2026-08-14 -->
 # GLOSSARY.md — Domain Vocabulary
 
-Alphabetical reference for all domain-specific terms, abbreviations, and internal jargon used in this codebase, commit messages, and documentation.
+Alphabetical reference for project-specific terms used across the app, docs, and agent context files.
 
-**Target audience:** New developer, AI coding agent, or non-technical stakeholder encountering these terms for the first time.
+**ADR** — Architecture Decision Record. Short immutable design record stored in [`docs/adr/`](./docs/adr/README.md).
 
----
+**AI Router** — The server-side abstraction in `server/ai/` that routes text and image requests through task-specific fallback chains with retry and circuit breakers.
 
-## A
+**AsyncStorage** — Client-side persistent key-value storage used for settings, stories, badges, streaks, consent, and other offline-first data through `lib/storage.ts`.
 
-**ADR** — Architecture Decision Record. A short document capturing a significant architectural decision: its context, the choice made, and the consequences. Stored in `docs/adr/`. See [docs/adr/README.md](./docs/adr/README.md).
+**Badge** — Achievement granted for reading or story behavior milestones. Badge evaluation is centralized in `lib/badges.ts`.
 
-**AI Router** — The multi-provider abstraction layer at `server/ai/index.ts` that routes AI requests through a priority fallback chain (Gemini → OpenAI → Anthropic → OpenRouter). Callers never interact with provider SDKs directly.
+**Classic Mode** — Story mode with branching choices and adventure-style progression.
 
-**AsyncStorage** — React Native's persistent key-value storage mechanism (similar to `localStorage` on the web). Used as the primary client-side data store for stories, profiles, settings, and badges. All access is through helpers in `lib/storage.ts`.
+**Cloud Sync** — Optional parent-enabled sync of non-PII progress data to Supabase using `lib/sync/` and `shared/sync-types.ts`.
 
----
+**COPPA Gate** — The parental-consent flow that runs before protected app use. Implemented through `app/parental-consent.tsx`, `lib/consent-record.ts`, and `lib/ConsentContext.tsx`.
 
-## B
+**Custom Hero** — A user-created hero stored locally with the helpers in `lib/customHeroStorage.ts`.
 
-**Badge** — A gamification achievement awarded after story completion. 12 badges total, defined in `lib/storage.ts`. Examples: "First Story", "Sleep Champion", "Mad Libs Master". Stored as `EarnedBadge[]` in AsyncStorage under `@infinity_heroes_badges`.
+**Fallback Story** — Prewritten safe content served when AI output moderation rejects generated content even after one retry.
 
-**Bedtime Chronicles** — The subtitle of the app. Refers to the collection of personalized bedtime stories created by a child across sessions.
+**Feature Flag** — Runtime capability switch read from `server/feature-flags.ts`, such as voice chat or stricter content safety.
 
----
+**Hero** — A built-in or custom character used as the protagonist for story generation. Built-in heroes are defined in `constants/heroes.ts`.
 
-## C
+**Idempotency Cache** — Server-side dedup layer in `server/idempotency.ts` that prevents duplicate expensive POST work within a short TTL.
 
-**CachedStory** — The TypeScript interface (`constants/types.ts`) for a saved story. Contains the full story JSON, scene images (as base64 data URIs), hero ID, mode, profile ID, and optional feedback. Stored in AsyncStorage under `@infinity_heroes_stories`.
+**Mad Libs Mode** — Story mode that weaves child-provided words into a playful story.
 
-**Child Profile** — A named profile representing a child user. Stores name, age, favorite hero ID, avatar emoji, and creation timestamp. Multiple profiles supported. Defined as `ChildProfile` in `constants/types.ts`.
+**Memory Jar** — UI element for saving or recalling story moments, implemented in `components/MemoryJar.tsx`.
 
-**Child Safety Rules** — A system prompt constant (`CHILD_SAFETY_RULES`) injected into every story generation request. Enforces age-appropriate content (no violence, no scary content, positive values). Located in `server/prompts.ts`.
+**Offline Queue** — Best-effort local queue in `lib/sync-queue.ts` that stores interaction events until connectivity returns.
 
-**Circuit Breaker** — A resilience pattern wrapping each AI provider in `server/circuit-breaker.ts`. Opens after 5 consecutive provider failures and resets after 60 seconds, preventing the AI router from repeatedly calling a failing provider.
+**Profile Stub** — Minimal sync-safe profile anchor containing no child name or age, used so badges/streaks can reconcile across devices.
 
-**Classic Mode** — One of three story modes. Generates a traditional adventure story with 3–5 parts and branching choices. Identified as `"classic"` in the `mode` field.
+**Prompt Sanitization** — Truncation and normalization of user-supplied strings before they are used in prompts, handled in `server/validation.ts`.
 
-**Completion Screen** — The screen shown after all story parts are read (`app/completion.tsx`). Awards badges, displays the vocabulary word and joke, and shows streak progress.
+**Replit Integrations** — Prebuilt backend modules under `server/replit_integrations/` for optional features such as audio/image workflows.
 
-**Constellation** — A decorative attribute of each built-in hero (e.g., "The Shield", "The Wave"). Displayed in hero selection UI. Defined in `constants/heroes.ts`.
+**RLS** — Row Level Security in Supabase/Postgres. Used to keep cloud-sync records scoped to the authenticated user.
 
----
+**Scene** — AI-generated illustration for a story part. Scene assets are requested separately from the main story payload.
 
-## D
+**Sleep Mode** — Story mode that removes conflict and choices in favor of a calm, guided bedtime flow.
 
-**Data URI** — A base64-encoded image embedded directly in a string (e.g., `data:image/png;base64,...`). Used to store AI-generated scene images and avatars in AsyncStorage without a file server.
+**Story Guard** — The moderation pipeline in `server/safety/story-guard.ts` that approves, retries, or replaces generated stories.
 
-**Drizzle ORM** — The TypeScript ORM used for PostgreSQL database access (`drizzle-orm` package). Schema defined in `shared/schema.ts`. Used only for voice chat features.
+**Story Seed** — Curated starter prompt/configuration defined in `constants/story-seeds.ts` and surfaced by `app/story-seeds.tsx`.
 
-**Duration** — Story length parameter. Valid values: `"short"`, `"medium-short"`, `"medium"`, `"long"`, `"epic"`. Controls the number of story parts and word count per part.
+**Supabase Auth** — The bearer-token authentication model used by the client and server for protected features.
 
----
+**Sync Record** — Envelope stored in cloud sync with `id`, `updatedAt`, `deleted`, and payload data.
 
-## E
+**TTS** — Text-to-speech narration generated through ElevenLabs and cached on-device and optionally in Cloudflare R2.
 
-**ElevenLabs** — Third-party text-to-speech service. Generates natural-sounding narration audio from story text using the `eleven_multilingual_v2` model. Integrated via `server/elevenlabs.ts`. API key injected via Replit Connectors or `ELEVENLABS_API_KEY` env var.
+**Voice Chat** — Conditional feature set for audio conversations backed by OpenAI audio APIs and PostgreSQL transcript storage.
 
-**Expo** — The React Native framework and toolchain used for this app. Provides the SDK, build tools, file-based routing (Expo Router), and access to native APIs. Version: SDK 55.
+**WSJF** — Weighted Shortest Job First. Backlog scoring method used in [`TODO.md`](./TODO.md).
 
-**Expo Router** — Expo's file-based routing library (v6). Screen files in `app/` are automatically registered as routes. Tab screens are under `app/(tabs)/`.
-
----
-
-## F
-
-**Fallback Chain** — The ordered list of AI providers tried in sequence if the primary fails. Story chain: Anthropic → Gemini → OpenAI → Meta Llama → xAI → Mistral → Cohere. Image chain: Gemini → OpenAI. Implemented in `server/ai/router.ts`.
-
-**Favorites** — Stories the user has starred. Stored as an array of story IDs in AsyncStorage under `@infinity_heroes_favorites`.
-
-**Firebase** — the auth provider used for anonymous sign-in until the 2026-07-06 migration to Supabase Auth (see docs/adr/0006-supabase-auth-migration.md).
-
----
-
-## G
-
-**Gemini** — Google's AI model family. Used for image generation (`gemini-2.5-flash-image`) and as a fallback text provider (`gemini-2.5-flash`). Anthropic Claude is the primary story text provider.
-
-**Glassmorphism** — The visual design style used in this app: semi-transparent cards with frosted-glass blur effects on a dark midnight/indigo/purple background.
-
----
-
-## H
-
-**Hero** — A pre-defined or custom superhero character. Pre-defined heroes are listed in `constants/heroes.ts`: Nova (Guardian of Light), Coral (Heart of the Ocean), Orion (Star of Friendship), Luna (Dream Weaver), Nimbus (Brave Cloud), Bloom (Garden Keeper), Whistle (Night Train Conductor), Shade (Shadow Friend). Custom heroes can have a user-provided name, title, and AI-generated avatar.
-
-**HeroCard** — A React Native component (`components/HeroCard.tsx`) for displaying a hero in a card layout. Used in the hero selection grid on the Create screen.
-
----
-
-## I
-
-**Idempotency Cache** — A server-side cache (`server/idempotency.ts`) that deduplicates expensive POST requests within a 5-minute TTL window using a hash of the request body as the key. Prevents duplicate AI story generation calls from network retries.
-
-**Infinity Heroes** — The app name. The full title is "Infinity Heroes: Bedtime Chronicles".
-
----
-
-## L
-
-**Landing Page** — A branded HTML page served at `GET /` from the Express server. Targets parents/visitors discovering the app. Source: `server/templates/landing-page.html`.
-
-**Library** — The tab screen (`app/(tabs)/library.tsx`) that shows saved stories. Supports sorting, filtering by favorites, and browsing story history.
-
-**Load Shedding** — A server middleware (`server/load-shedding.ts`) that rejects incoming requests with 503 when the active-request count exceeds a configured ceiling. Prevents the server from becoming overwhelmed under spike traffic.
-
----
-
-## M
-
-**Mad Libs Mode** — One of three story modes. Fills user-provided words (noun, adjective, etc.) into a story template for a silly, comedic result. Identified as `"madlibs"` in the `mode` field.
-
-**Memory Jar** — A feature allowing children to record memorable story moments. Referenced in UI but details depend on current implementation.
-
-**Mode** — Story generation mode. One of: `"classic"` (adventure), `"madlibs"` (fill-in-the-blank comedy), `"sleep"` (calming/meditative).
-
----
-
-## N
-
-**Narration** — Audio playback of story text using ElevenLabs TTS. Each story part can be narrated by a selected voice at an adjustable speed.
-
----
-
-## O
-
-**OpenRouter** — An AI gateway service providing access to multiple model providers (xAI Grok, Mistral, Cohere, Meta Llama). Used as the fourth fallback in the AI chain.
-
----
-
-## P
-
-**Parent Controls** — Settings accessible via PIN (SHA-256 + salt hashed via expo-crypto; 5-attempt lockout) that restrict story content: max story length, bedtime scheduling, theme filtering. Stored as `ParentControls` in AsyncStorage under `@infinity_heroes_parent_controls`.
-
-**Part** — A single segment of a story. A story contains 3–5 parts (depending on duration). Each part has text, optional branching choices, and an optional scene illustration. Defined as `StoryPart` in `constants/types.ts`.
-
-**Pino** — Structured JSON logging library used by the Express server (`server/logger.ts`). All server log events are pino-formatted with timestamp, log level, and context fields.
-
-**Profile** — See *Child Profile*.
-
----
-
-## Q
-
-**Quick Create** — An onboarding screen (`app/quick-create.tsx`) for first-time users to choose a theme and create their first story without going through the full hero creation flow.
-
----
-
-## R
-
-**Rate Limiter** — Server-side per-user request throttle. Sliding window algorithm, 10 requests/60 seconds by default. Keyed on Supabase user UID when auth is active, falls back to client IP. Configurable via `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_MS` env vars.
-
-**Reading View** — The screen where a story is read and played back (`app/story.tsx`). Handles part progression, TTS playback, and scene image display.
-
-**Replit** — The cloud development and deployment platform where this project was bootstrapped and primarily developed.
-
-**Replit Connectors** — Replit's managed service integration mechanism. Used to auto-provision ElevenLabs API key and PostgreSQL without manual credential setup.
-
-**Replit Integrations** — Pre-built Express route modules in `server/replit_integrations/` for voice chat, audio processing, image generation, and batch processing.
-
----
-
-## S
-
-**Sanitization** — The process of cleaning and truncating user-provided string inputs before use in AI prompts. Handled by `sanitizeString()` in `server/validation.ts`.
-
-**Scene** — An AI-generated illustration for a story part. Generated as a data URI image. Stored in `CachedStory.scenes` as a map of `partIndex → dataURI`.
-
-**Settings** — App-wide configuration managed by `SettingsContext` (`lib/SettingsContext.tsx`). Includes audio volume, story length, voice selection, auto-play, and accessibility options. Persisted under `@infinity_heroes_app_settings`.
-
-**Sleep Mode** — One of three story modes. Generates a calming, meditative story intended to help children fall asleep. Uses soft pacing, soothing imagery, and a slower narration style. Identified as `"sleep"` in the `mode` field.
-
-**Soundscape** — Ambient background audio (crickets, rain, ocean, fire, wind) layered under story narration. Audio files in `assets/sounds/`.
-
-**SSE** — Server-Sent Events. Used by `/api/generate-story-stream` to stream story parts to the client as they are generated.
-
-**Streak** — A gamification mechanic tracking how many consecutive days a child has read a story. Stored as `StreakData` in AsyncStorage under `@infinity_heroes_streaks`.
-
-**Supabase** — the current auth (JWT bearer tokens) and Postgres+RLS backend, verified server-side in `server/auth.ts` via a service-role client; also powers the M3 cloud-sync feature.
-
----
-
-## T
-
-**Tomorrow Hook** — A story epilogue teaser ("What happens tomorrow...") included in every generated story. Encourages the child to return the next night.
-
-**TTS** — Text-to-Speech. Audio narration of story text generated by ElevenLabs. Audio files cached server-side under a hex-named `.mp3` filename.
-
----
-
-## V
-
-**Vocab Word** — An age-appropriate vocabulary word introduced in each story. Part of the `StoryFull` interface (`vocabWord.word` + `vocabWord.definition`). Shown in the completion screen.
-
-**Voice** — A TTS voice character. 9 voices available, curated by story mode (sleep, classic, fun). Defined in `server/elevenlabs.ts` as `VoiceConfig` objects in a `VOICE_MAP`.
-
-**Voice Chat** — A feature allowing the child to speak to their hero via audio messages. Backend routes are functional in `server/replit_integrations/audio/`; mobile UI screen not yet built.
-
-**VoiceCategory** — TypeScript type (`"sleep" | "classic" | "fun"`) used to match narrator voices to story modes. Defined in `server/elevenlabs.ts`.
-
----
-
-## W
-
-**WSJF** — Weighted Shortest Job First. A backlog prioritization formula: `(Business Value + Time Criticality + Risk Reduction) / Job Size`. Used in `TODO.md` and `docs/ROADMAP.md`.
-
----
-
-## Z
-
-**Zod** — TypeScript-first schema validation library. Used to validate all API request bodies. Schemas defined inline in `server/routes.ts` or in `shared/schema.ts`.
+**Zod** — Runtime validation library used for request schema parsing and defensive API input handling.
