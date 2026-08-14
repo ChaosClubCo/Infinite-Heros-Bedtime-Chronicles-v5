@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-07-15 -->
+<!-- Last verified: 2026-08-14 -->
 <!-- Generated from codebase scan + docs/ROADMAP.md. Re-run scan to refresh TODO signals. -->
 <!-- docs/ROADMAP.md is the actively-maintained backlog; this file lags behind it — reconcile against ROADMAP.md before trusting stale-looking rows. -->
 
@@ -47,6 +47,9 @@ unaudited surface are in that audit; these are the actions.
 
 | Item | Category | Completed | Notes |
 |------|----------|-----------|-------|
+| Author Google Play Store Requirements & Submission Manual | Compliance/Docs | 2026-08-14 | Created docs/operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md |
+| Reconcile EAS client secrets vs server environment variables | Docs/Security | 2026-08-14 | Updated EAS-SECRETS-CHECKLIST.md and DEPLOYMENT.md |
+| Update M2 R2 server cache verification checklist | Docs/Infrastructure | 2026-08-14 | Updated docs/VERIFICATION-M1-M3.md |
 | Add permissions block to eas-build.yml (D7) | Security | 2026-08-14 | Hardened eas-build.yml workflow with explicit permissions |
 | Fix release provenance CLI entry detection (D5) | Security | 2026-08-14 | Fixed verify-release-provenance.mjs to use fileURLToPath + path.resolve |
 | Support all privacy policy route variants & /api/privacy | Compliance | 2026-08-14 | Added /privacy, /privacy/, /privacy-policy, /privacy-policy/, /api/privacy handlers |

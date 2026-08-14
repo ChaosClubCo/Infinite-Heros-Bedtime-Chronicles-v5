@@ -5,6 +5,7 @@ All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
 ## [Unreleased] — 2026-08-14 — Release Gate Provenance & Deployment Security Hardening
 
 ### Added
+- **Google Play Store Compliance & Submission Manual** — Created `docs/operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md` covering Designed for Families policies, COPPA declarations, Data Safety questionnaire answers, in-app/web account deletion paths, and AAB store assets.
 - **Privacy Policy Multi-Route Handlers** — Registered handlers for `/privacy`, `/privacy/`, `/privacy-policy`, `/privacy-policy/`, and `/api/privacy` in `server/routes/health.ts` to ensure consistent delivery across all reverse proxies and trailing slash variations.
 - **Vercel Serverless Runtime Pinning** — Added `"runtime": "nodejs22.x"` to `vercel.json` to lock production serverless function execution to Node 22 matching `.nvmrc` and `package.json` engines.
 
