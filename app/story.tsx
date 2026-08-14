@@ -15,6 +15,7 @@ import Colors from "@/constants/colors";
 import { HEROES } from "@/constants/heroes";
 import { StarField } from "@/components/StarField";
 import { getApiUrl } from "@/lib/query-client";
+import { useAuth } from "@/lib/AuthContext";
 import { fetch } from "expo/fetch";
 import { StoryFull } from "@/constants/types";
 import { MODE_THEME, MODE_VOICES, type StoryState } from "@/constants/story-theme";
@@ -97,6 +98,7 @@ export default function StoryScreen() {
   const [storyErrorKind, setStoryErrorKind] = useState<"error" | "rate_limited">("error");
   const [currentPartIndex, setCurrentPartIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+  const { getIdToken } = useAuth();
 
   const hero = HEROES.find((h) => h.id === heroId);
 
@@ -201,9 +203,13 @@ export default function StoryScreen() {
       }
       if (childName) bodyData.childName = childName;
 
+      const token = await getIdToken();
       const res = await fetch(url.toString(), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(bodyData),
       });
 
@@ -245,6 +251,7 @@ export default function StoryScreen() {
     customPrompt,
     childName,
     clearSceneImage,
+    getIdToken,
   ]);
 
   // Mount-only effect: kick off generation (or replay) and start background music.
