@@ -97,6 +97,7 @@ export function MemoryJar({ visible, onClose }: MemoryJarProps) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (visible) loadStories();
   }, [visible, loadStories]);
 

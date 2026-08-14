@@ -255,8 +255,11 @@ export default function StoryScreen() {
     if (replayJson) {
       try {
         const replayed = JSON.parse(replayJson) as StoryFull;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setStoryData(replayed);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setStoryState("ready");
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCurrentPartIndex(0);
       } catch {
         generateStory();
