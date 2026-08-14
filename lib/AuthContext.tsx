@@ -9,6 +9,7 @@ import {
   type Session,
   type User,
 } from '@supabase/supabase-js';
+import { getOrCreateAccessToken } from './auth-session';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -38,7 +39,7 @@ if (hasSupabaseConfig) {
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  /** Returns the current Supabase access token (JWT) for the Authorization header, or null. */
+  /** Returns the current Supabase access token (JWT), lazily creating an anonymous session when needed. */
   getIdToken: () => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
@@ -94,10 +95,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const getIdToken = async (): Promise<string | null> => {
     if (!supabase) return null;
     try {
-      // getSession() returns the stored token and refreshes it if expired.
-      const { data } = await supabase.auth.getSession();
-      return data.session?.access_token ?? null;
-    } catch {
+      return await getOrCreateAccessToken(supabase);
+    } catch (err) {
+      console.error('[Auth] token acquisition failed:', err instanceof Error ? err.message : String(err));
       return session?.access_token ?? null;
     }
   };
