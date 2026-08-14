@@ -39,7 +39,6 @@ export default function TrophiesScreen() {
 
   useEffect(() => {
     if (activeProfile) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoading(true);
       Promise.all([
         getBadges(activeProfile.id).then(setBadges),
