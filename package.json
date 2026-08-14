@@ -32,7 +32,8 @@
     "dev": "npm run dev:server & npm run dev:expo",
     "expo:check": "npx expo install --check",
     "expo:build:ci": "npx expo export --platform web --output-dir static-build",
-    "deploy:vercel": "bash scripts/deploy-vercel.sh"
+    "deploy:vercel": "bash scripts/deploy-vercel.sh",
+    "verify:sync": "node --import tsx scripts/verify-sync.ts"
   },
   "engines": {
     "node": ">=20.19.0 <21 || >=22.13.0 <23",

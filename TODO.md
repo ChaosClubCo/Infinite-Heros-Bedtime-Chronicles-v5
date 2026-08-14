@@ -47,6 +47,9 @@ unaudited surface are in that audit; these are the actions.
 
 | Item | Category | Completed | Notes |
 |------|----------|-----------|-------|
+| Resolve account deletion dynamic scope precision | Security/Compliance | 2026-08-14 | Precise dynamic deletedScopes based on DATABASE_URL in shared/account-deletion.ts & server/routes/account.ts |
+| Harden sync verification script and automated test suite | Tooling/Testing | 2026-08-14 | Normalized imports, added server/verify-sync.test.ts, and added npm run verify:sync |
+| Integrate secure storage helpers into client storage layer | Security/Storage | 2026-08-14 | Added saveSecureParentControls and getSecureParentControls to lib/storage.ts with unit test suite |
 | Author `docs/TEST-COVERAGE-ANALYSIS.md` & reconcile suite metrics | Testing/Docs | 2026-08-14 | Documented 1,453 test suite matrix (1,401 Vitest + 52 Jest-Expo) & CI gates |
 | Implement client secure storage envelope (`lib/secureStorage.ts`) | Security/Storage | 2026-08-14 | Added tamper-evident storage envelope, XOR masking, and unit tests |
 | Expand cloud sync reconciliation test suite | Testing/Sync | 2026-08-14 | Created `lib/sync/reconcile.comprehensive.test.ts` for multi-item edge cases |

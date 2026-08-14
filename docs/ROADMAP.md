@@ -77,6 +77,9 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 | Author `docs/TEST-COVERAGE-ANALYSIS.md` documenting 1,453 test suite matrix & CI architecture | Testing/Docs | 2026-08-14 |
 | Implement client-side secure storage cryptographic envelope (`lib/secureStorage.ts`) | Security/Storage | 2026-08-14 |
 | Expand cloud sync reconciliation test suite for multi-item edge cases (`lib/sync/reconcile.comprehensive.test.ts`) | Testing/Sync | 2026-08-14 |
+| Resolve account deletion dynamic scope precision (`shared/account-deletion.ts` & `server/routes/account.ts`) | Security/Compliance | 2026-08-14 |
+| Harden sync verification script and automated test suite (`scripts/verify-sync.ts` & `server/verify-sync.test.ts`) | Tooling/Testing | 2026-08-14 |
+| Integrate secure storage helpers into client storage layer (`lib/storage.ts` & `lib/storage.test.ts`) | Security/Storage | 2026-08-14 |
 
 ## Backlog (Prioritized)
 

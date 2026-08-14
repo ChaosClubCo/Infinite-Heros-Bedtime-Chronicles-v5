@@ -25,7 +25,12 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 // Mock only that boundary so Node-only storage tests do not load React Native.
 vi.mock('expo-crypto', () => ({
   CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
-  digestStringAsync: vi.fn(() => Promise.resolve('a'.repeat(64))),
+  digestStringAsync: vi.fn((_algo: string, str: string) => Promise.resolve('hash-' + str.slice(0, 32))),
+  getRandomBytes: vi.fn((length: number) => {
+    const bytes = new Uint8Array(length);
+    for (let i = 0; i < length; i++) bytes[i] = (i * 17 + 3) % 256;
+    return bytes;
+  }),
 }));
 
 // Mock the constants/types module
@@ -73,6 +78,13 @@ import {
   setActiveProfileId,
   getParentControls,
   saveParentControls,
+  saveSecureParentControls,
+  getSecureParentControls,
+  hashPin,
+  generatePinSalt,
+  recordFailedPinAttempt,
+  resetPinAttempts,
+  isPinLockedOut,
   getParentConsent,
   getConsentGiven,
   setParentConsent,
@@ -687,3 +699,75 @@ describe('clearAllData', () => {
     expect(mockStorage).toEqual({ some_other_lib_key: 'keep-me' });
   });
 });
+
+describe('parent controls & secure storage', () => {
+  it('reads and writes standard parent controls', async () => {
+    const defaults = await getParentControls();
+    expect(defaults.bedtimeEnabled).toBe(false);
+
+    await saveParentControls({ ...defaults, bedtimeEnabled: true, bedtimeHour: 19 });
+    const updated = await getParentControls();
+    expect(updated.bedtimeEnabled).toBe(true);
+    expect(updated.bedtimeHour).toBe(19);
+  });
+
+  it('handles PIN hashing and salt generation', async () => {
+    const salt = await generatePinSalt();
+    expect(salt).toHaveLength(32); // 16 bytes = 32 hex chars
+
+    const hash1 = await hashPin('1234', salt);
+    const hash2 = await hashPin('1234', salt);
+    expect(hash1).toBe(hash2);
+    expect(typeof hash1).toBe('string');
+  });
+
+  it('manages PIN lockout after maximum failed attempts', async () => {
+    let controls = await getParentControls();
+    expect(isPinLockedOut(controls)).toBe(false);
+
+    for (let i = 0; i < 4; i++) {
+      controls = await recordFailedPinAttempt(controls);
+      expect(isPinLockedOut(controls)).toBe(false);
+    }
+
+    // 5th attempt triggers lockout
+    controls = await recordFailedPinAttempt(controls);
+    expect(isPinLockedOut(controls)).toBe(true);
+    expect(controls.lockoutUntil).toBeGreaterThan(Date.now());
+
+    // Reset unlocks
+    controls = await resetPinAttempts(controls);
+    expect(isPinLockedOut(controls)).toBe(false);
+    expect(controls.failedAttempts).toBe(0);
+  });
+
+  it('saves and reads parent controls via secure envelope', async () => {
+    const controls = {
+      ...(await getParentControls()),
+      pinCode: 'hashed_pin_test',
+      bedtimeEnabled: true,
+    };
+
+    await saveSecureParentControls(controls);
+
+    // Retrieve via secure storage helper
+    const retrieved = await getSecureParentControls();
+    expect(retrieved.pinCode).toBe('hashed_pin_test');
+    expect(retrieved.bedtimeEnabled).toBe(true);
+  });
+
+  it('falls back to standard parent controls when secure envelope is uninitialized', async () => {
+    mockStorage['@infinity_heroes_parent_controls'] = JSON.stringify({
+      bedtimeHour: 21,
+      bedtimeMinute: 30,
+      bedtimeEnabled: true,
+      allowedThemes: ['courage'],
+    });
+
+    const retrieved = await getSecureParentControls();
+    expect(retrieved.bedtimeHour).toBe(21);
+    expect(retrieved.bedtimeMinute).toBe(30);
+    expect(retrieved.bedtimeEnabled).toBe(true);
+  });
+});
+

@@ -37,11 +37,17 @@ export function registerAccountRoutes(app: Express): void {
       // and then fail to issue an exact-candidate receipt.
       const releaseSha = requireReleaseSha();
 
+      const deletedScopes: ServerDeletionReceipt['deletedScopes'] = [
+        'cloud_sync_records',
+        'parent_auth_identity',
+      ];
+
       // Voice-chat transcripts only exist when a PostgreSQL database is
       // configured. Skip the step when there can be no transcripts.
       if (process.env.DATABASE_URL) {
         const { chatStorage } = await import('../replit_integrations/chat/storage');
         await chatStorage.deleteAllConversationsForUser(user.uid);
+        deletedScopes.unshift('voice_chat_history');
       }
       await deleteAuthenticatedUser(user.uid);
 
@@ -51,11 +57,7 @@ export function registerAccountRoutes(app: Express): void {
         completedAt: new Date().toISOString(),
         releaseSha,
         status: 'completed',
-        deletedScopes: [
-          'voice_chat_history',
-          'cloud_sync_records',
-          'parent_auth_identity',
-        ],
+        deletedScopes,
         localDeviceData: 'pending_client_cleanup',
       };
 

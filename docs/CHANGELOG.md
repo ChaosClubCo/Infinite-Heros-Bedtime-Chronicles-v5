@@ -5,6 +5,9 @@ All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
 ## [Unreleased] — 2026-08-14 — Release Gate Provenance & Deployment Security Hardening
 
 ### Added
+- **Account Deletion Dynamic Scope Resolution** — Refactored `server/routes/account.ts` and `shared/account-deletion.ts` to dynamically construct and validate `deletedScopes` (`['cloud_sync_records', 'parent_auth_identity']`, plus `'voice_chat_history'` when `DATABASE_URL` is active and PostgreSQL transcripts are purged), ensuring verification receipts accurately reflect data stores. Added unit test suite `shared/account-deletion.test.ts`.
+- **Sync Verification Test Harness & CLI Script** — Normalized `scripts/verify-sync.ts` with standard relative imports and exported verification engine, added test suite `server/verify-sync.test.ts`, and exposed `npm run verify:sync`.
+- **Client Secure Storage Integration Helpers** — Added `saveSecureParentControls` and `getSecureParentControls` to `lib/storage.ts` with transparent fallback to AsyncStorage and comprehensive tests in `lib/storage.test.ts`.
 - **Test Coverage & Suite Architecture Manual** — Created `docs/TEST-COVERAGE-ANALYSIS.md` documenting the full 1,453 test suite matrix (1,401 Vitest unit/integration/release tests across 83 files + 52 Jest-Expo component tests across 8 files), subsystem breakdown, CI gates, and coverage threshold enforcement.
 - **Client Secure Storage Envelope** — Added `lib/secureStorage.ts` and `lib/secureStorage.test.ts` providing tamper-evident cryptographic envelopes with SHA-256 integrity signatures, salt generation, and reversible masking for client secrets.
 - **Cloud Sync Reconciliation Comprehensive Suite** — Added `lib/sync/reconcile.comprehensive.test.ts` testing multi-entity edge cases, timestamp tie-breakers, idempotency, and clock skew resilience.

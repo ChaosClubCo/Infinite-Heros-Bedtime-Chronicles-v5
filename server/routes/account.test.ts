@@ -128,6 +128,10 @@ describe('DELETE /api/account', () => {
     expect(mocks.deleteAllConversationsForUser).not.toHaveBeenCalled();
     expect(mocks.deleteAuthenticatedUser).toHaveBeenCalledWith('parent-123');
     expect(response.body.status).toBe('completed');
+    expect(response.body.deletedScopes).toEqual([
+      'cloud_sync_records',
+      'parent_auth_identity',
+    ]);
   });
 
   it('rejects anonymous sessions', async () => {
