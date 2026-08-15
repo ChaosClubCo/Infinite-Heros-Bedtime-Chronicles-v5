@@ -4,24 +4,53 @@ import { resolve } from 'node:path';
 
 describe('Operational Runbooks & Architecture Specs Integrity Suite', () => {
   const specsToCheck = [
-    'docs/ROADMAP.md',
-    'docs/CHANGELOG.md',
-    'docs/operations/EXPO-57-UPGRADE-SPEC.md',
-    'docs/operations/DEPENDENCY-AUDIT-REMEDIATION.md',
-    'docs/operations/RELEASE-PROOF-LEDGER-376.md',
-    'docs/operations/PLAY-STORE-SUBMISSION-CHECKLIST.md',
-    'docs/operations/CLOUD-SYNC-ISOLATION-EVIDENCE.md',
-    'docs/operations/MIRROR-ARCHIVAL-RUNBOOK.md',
-    'docs/operations/WEBHOOK-SURFACE-AUDIT.md',
+    {
+      path: 'docs/ROADMAP.md',
+      requiredMarkers: ['#', 'Roadmap'],
+    },
+    {
+      path: 'docs/CHANGELOG.md',
+      requiredMarkers: ['#', 'Changelog'],
+    },
+    {
+      path: 'docs/operations/EXPO-57-UPGRADE-SPEC.md',
+      requiredMarkers: ['#', 'Expo 57', 'Upgrade'],
+    },
+    {
+      path: 'docs/operations/DEPENDENCY-AUDIT-REMEDIATION.md',
+      requiredMarkers: ['#', 'Dependency', 'Remediation'],
+    },
+    {
+      path: 'docs/operations/RELEASE-PROOF-LEDGER-376.md',
+      requiredMarkers: ['#', 'Release', 'Proof', 'Ledger'],
+    },
+    {
+      path: 'docs/operations/PLAY-STORE-SUBMISSION-CHECKLIST.md',
+      requiredMarkers: ['#', 'Play Store', 'Checklist'],
+    },
+    {
+      path: 'docs/operations/CLOUD-SYNC-ISOLATION-EVIDENCE.md',
+      requiredMarkers: ['#', 'Cloud Sync', 'Isolation', 'Evidence'],
+    },
+    {
+      path: 'docs/operations/MIRROR-ARCHIVAL-RUNBOOK.md',
+      requiredMarkers: ['#', 'Mirror', 'Archival', 'Runbook'],
+    },
+    {
+      path: 'docs/operations/WEBHOOK-SURFACE-AUDIT.md',
+      requiredMarkers: ['#', 'Webhook', 'Audit'],
+    },
   ];
 
-  specsToCheck.forEach((specPath) => {
-    it(`validates specification document exists and is non-empty: "${specPath}"`, () => {
+  specsToCheck.forEach(({ path: specPath, requiredMarkers }) => {
+    it(`validates specification document exists and is well-formed: "${specPath}"`, () => {
       const fullPath = resolve(__dirname, '..', specPath);
       expect(existsSync(fullPath)).toBe(true);
       const content = readFileSync(fullPath, 'utf8');
       expect(content.length).toBeGreaterThan(100);
-      expect(content).toContain('#');
+      requiredMarkers.forEach((marker) => {
+        expect(content).toContain(marker);
+      });
     });
   });
 
