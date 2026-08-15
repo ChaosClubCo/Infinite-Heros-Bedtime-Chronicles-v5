@@ -67,19 +67,16 @@ describe('Exact-SHA Release Proof Engine', () => {
   });
 
   it('flags repository metadata issues when release identity validation fails', () => {
+    fsState.readFileSyncOverride = (p) => {
+      if (p.endsWith('package.json')) {
+        return JSON.stringify({ repository: { url: 'https://github.com/example/not-canonical-repo.git' } });
+      }
+      return null;
+    };
+
     const result = validateReleaseIdentity('0123456789abcdef0123456789abcdef01234567');
-    if (!result.ok) {
-      expect(
-        result.failures.some(
-          (failure) =>
-            failure.includes('package.json') ||
-            failure.includes('repository') ||
-            failure.includes(CANONICAL_REPO),
-        ),
-      ).toBe(true);
-    } else {
-      expect(result.failures).toHaveLength(0);
-    }
+    expect(result.ok).toBe(false);
+    expect(result.failures.join('\n')).toContain(CANONICAL_REPO);
   });
 
   it('validates runtime engine configuration across vercel.json, .nvmrc, and package.json', () => {
@@ -99,7 +96,7 @@ describe('Exact-SHA Release Proof Engine', () => {
   it('fails when vercel.json runtime is invalid', () => {
     fsState.readFileSyncOverride = (p) => {
       if (p.endsWith('vercel.json')) {
-        return JSON.stringify({ functions: { 'api/**/*.ts': { runtime: 'nodejs18.x' } } });
+        return JSON.stringify({ functions: { 'api/server.mjs': { runtime: 'nodejs18.x' } } });
       }
       return null;
     };
@@ -125,7 +122,20 @@ describe('Exact-SHA Release Proof Engine', () => {
     expect(result.failures.join('\n')).toContain('.nvmrc');
   });
 
-  it('fails when package.json engines.node is missing or invalid', () => {
+  it('fails when package.json engines.node is missing', () => {
+    fsState.readFileSyncOverride = (p) => {
+      if (p.endsWith('package.json')) {
+        return JSON.stringify({ engines: {} });
+      }
+      return null;
+    };
+
+    const result = validateRuntimeConfiguration();
+    expect(result.ok).toBe(false);
+    expect(result.failures.join('\n')).toContain('engines.node');
+  });
+
+  it('fails when package.json engines.node version is invalid', () => {
     fsState.readFileSyncOverride = (p) => {
       if (p.endsWith('package.json')) {
         return JSON.stringify({ engines: { node: '18.x' } });
