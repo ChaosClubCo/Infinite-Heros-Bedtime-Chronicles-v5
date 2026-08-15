@@ -18,7 +18,7 @@ describe('Built-in Stock Heroes Constants', () => {
 
   it('validates hero metadata properties and color configurations', () => {
     HEROES.forEach((hero: Hero) => {
-      expect(hero.id).toMatch(/^hero-\d$/);
+      expect(hero.id).toMatch(/^hero-\d+$/);
       expect(hero.name).toBeTruthy();
       expect(hero.title).toBeTruthy();
       expect(hero.power).toBeTruthy();
