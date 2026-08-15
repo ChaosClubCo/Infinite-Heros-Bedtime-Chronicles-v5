@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   nanoid,
   sanitizeString,
@@ -8,9 +7,28 @@ import {
   deleteCustomHero,
 } from './customHeroStorage';
 
+let mockStorage: Record<string, string> = {};
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: vi.fn((key: string) => Promise.resolve(mockStorage[key] ?? null)),
+    setItem: vi.fn((key: string, value: string) => {
+      mockStorage[key] = value;
+      return Promise.resolve();
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete mockStorage[key];
+      return Promise.resolve();
+    }),
+    clear: vi.fn(() => {
+      mockStorage = {};
+      return Promise.resolve();
+    }),
+  },
+}));
+
 describe('Custom Hero Storage Engine', () => {
-  beforeEach(async () => {
-    await AsyncStorage.clear();
+  beforeEach(() => {
+    mockStorage = {};
   });
 
   it('generates random nanoid string of specified length', () => {

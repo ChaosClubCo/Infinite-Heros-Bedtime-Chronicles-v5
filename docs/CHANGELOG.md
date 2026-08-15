@@ -1,3 +1,4 @@
+<!-- Last verified: 2026-08-14 -->
 # Changelog
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.

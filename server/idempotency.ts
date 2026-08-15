@@ -54,6 +54,16 @@ export class IdempotencyCache {
     return crypto.createHash('sha256').update(json).digest('hex').slice(0, 32);
   }
 
+  has(key: string): boolean {
+    const entry = this.cache.get(key);
+    if (!entry) return false;
+    if (Date.now() - entry.createdAt > this.ttlMs) {
+      this.cache.delete(key);
+      return false;
+    }
+    return true;
+  }
+
   get(key: string): Promise<unknown> | undefined {
     const entry = this.cache.get(key);
     if (!entry) return undefined;

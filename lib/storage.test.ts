@@ -25,7 +25,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 // Mock only that boundary so Node-only storage tests do not load React Native.
 vi.mock('expo-crypto', () => ({
   CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
-  digestStringAsync: vi.fn((_algo: string, str: string) => Promise.resolve('hash-' + str.slice(0, 32))),
+  digestStringAsync: vi.fn(() => Promise.resolve('a'.repeat(64))),
   getRandomBytes: vi.fn((length: number) => {
     const bytes = new Uint8Array(length);
     for (let i = 0; i < length; i++) bytes[i] = (i * 17 + 3) % 256;

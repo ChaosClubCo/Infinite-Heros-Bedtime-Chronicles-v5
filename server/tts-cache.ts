@@ -39,6 +39,18 @@ export class TtsCacheManager {
     return this.maxSizeBytes;
   }
 
+  /** Return the cached file path for `fileName` if it exists, otherwise null. */
+  get(fileName: string): string | null {
+    const filePath = path.join(this.cacheDir, fileName);
+    return fs.existsSync(filePath) ? filePath : null;
+  }
+
+  /** Write `data` to the cache directory under `fileName`. */
+  async put(fileName: string, data: Buffer): Promise<void> {
+    const filePath = path.join(this.cacheDir, fileName);
+    await fs.promises.writeFile(filePath, data);
+  }
+
   shouldEvict(currentSizeBytes: number): boolean {
     return currentSizeBytes > this.maxSizeBytes;
   }
