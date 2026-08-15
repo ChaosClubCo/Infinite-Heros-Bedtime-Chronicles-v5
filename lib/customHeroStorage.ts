@@ -15,7 +15,7 @@ export function nanoid(size = 21): string {
 
 export function sanitizeString(val: unknown, maxLen: number): string {
   if (typeof val !== 'string') return '';
-  return val.slice(0, maxLen).trim();
+  return val.trim().slice(0, maxLen);
 }
 
 export async function getCustomHeroes(): Promise<Hero[]> {

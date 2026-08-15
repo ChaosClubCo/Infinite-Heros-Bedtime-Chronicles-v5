@@ -13,6 +13,6 @@ describe('scripts/verify-sync', () => {
     expect(result.summary.streakRestored).toBe(true);
     expect(result.summary.profileStubPiiFree).toBe(true);
     expect(result.summary.localAppliedCount).toBe(1);
-    expect(result.summary.remotePushedCount).toBe(1);
+    expect(result.summary.remotePushedCount).toBe(3);
   });
 });

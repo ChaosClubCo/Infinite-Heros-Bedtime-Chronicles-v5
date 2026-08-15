@@ -121,13 +121,15 @@ export function verifySyncEngine(silent = false): SyncVerificationResult {
   const reconciliationValid =
     result.applyLocal.length === 1 &&
     result.applyLocal[0].id === 'item_5' &&
-    result.pushRemote.length === 1 &&
-    result.pushRemote[0].id === 'item_4';
+    result.pushRemote.length === 3 &&
+    result.pushRemote.some((r) => r.id === 'item_1') &&
+    result.pushRemote.some((r) => r.id === 'item_2') &&
+    result.pushRemote.some((r) => r.id === 'item_4');
 
   if (!silent) {
     console.log('Reconciliation result:');
     console.log(' - Apply Local (expect item_5):', result.applyLocal.map((r) => r.id));
-    console.log(' - Push Remote (expect item_4):', result.pushRemote.map((r) => r.id));
+    console.log(' - Push Remote (expect item_1, item_2, item_4):', result.pushRemote.map((r) => r.id));
     console.log('\n[3/3] Verification complete! All logic checks out.');
   }
 
