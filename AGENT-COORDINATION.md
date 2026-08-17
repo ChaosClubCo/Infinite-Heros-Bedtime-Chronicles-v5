@@ -23,7 +23,11 @@ agent edits ONLY the paths it owns and claims anything new here before starting.
 - `lib/storage.ts` (both sync systems touch it)
 
 ## Active claims (append before you start; clear when done)
-- _(none)_
+- _(none)_ <!-- [claude] 2026-08-14 clean-code refactor pass completed: app/**, components/**,
+  constants/**, lib/{useScreenInsets,useRequireHero,format-date,customHeroStorage,query-client,
+  useSyncOffline,SyncOfflineContext,replay-params}; changes verified (tsc/jest/lint) but not
+  yet committed -->
+
 
 ## Rules
 1. Edit only files in your ownership block. If you need a file you don't own, add a claim

@@ -3,14 +3,13 @@ import { useSyncOffline } from "@/lib/useSyncOffline";
 
 /**
  * Mounts lib/useSyncOffline.ts's reconnect-drain effect exactly once at the
- * app root and shares its { isSyncing, lastSyncCount } state with any screen
- * that wants a syncing indicator. Screens must not call useSyncOffline()
- * directly - multiple independent instances can each read the same queue on
- * reconnect and race to POST the same batch before any of them clears it.
+ * app root and shares its { isSyncing } state with any screen that wants a
+ * syncing indicator. Screens must not call useSyncOffline() directly -
+ * multiple independent instances can each read the same queue on reconnect
+ * and race to POST the same batch before any of them clears it.
  */
 interface SyncOfflineState {
   isSyncing: boolean;
-  lastSyncCount: number;
 }
 
 const SyncOfflineContext = createContext<SyncOfflineState | null>(null);

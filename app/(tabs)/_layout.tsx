@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, Platform, useWindowDimensions } from "react-nat
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useScreenInsets } from "@/lib/useScreenInsets";
 
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 
@@ -44,8 +44,7 @@ function TabIcon({ name, focused, label, isCreate }: TabIconProps) {
 }
 
 export default function TabsLayout() {
-  const insets = useSafeAreaInsets();
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const { bottomInset } = useScreenInsets();
   const { width } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const tabWidth = isWeb ? Math.min(width, 600) : width;

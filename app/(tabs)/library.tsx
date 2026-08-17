@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Platform,
   FlatList,
   Pressable,
   Dimensions,
@@ -12,7 +11,6 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AnimatedView } from "@/components/AnimatedView";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import { useFocusEffect, router } from "expo-router";
@@ -27,30 +25,15 @@ import { queueInteraction } from "@/lib/sync-queue";
 import { useSyncOfflineStatus } from "@/lib/SyncOfflineContext";
 import { confirmDestructive } from "@/lib/confirmDestructive";
 import { buildStoryReplayParams } from "@/lib/replay-params";
+import { useScreenInsets } from "@/lib/useScreenInsets";
+import { formatDate } from "@/lib/format-date";
+import { MODE_META, resolveStoryMode } from "@/constants/story-theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
 
-const MODE_COLORS: Record<string, string> = {
-  classic: "#6366f1",
-  sleep: "#A855F7",
-  madlibs: "#F97316",
-};
-
-function formatDate(timestamp: number): string {
-  const d = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays} days ago`;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
 export default function LibraryScreen() {
-  const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const { topInset } = useScreenInsets();
   const { activeProfile } = useProfile();
   const [stories, setStories] = useState<CachedStory[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -100,7 +83,7 @@ export default function LibraryScreen() {
     const hero = getHero(item.heroId);
     const isFav = favorites.includes(item.id);
     const isUnread = !readStories.includes(item.id);
-    const modeColor = MODE_COLORS[item.mode] || Colors.accent;
+    const modeColor = MODE_META[resolveStoryMode(item.mode)].color;
     const sceneImage = item.scenes ? Object.values(item.scenes)[0] : null;
 
     return (

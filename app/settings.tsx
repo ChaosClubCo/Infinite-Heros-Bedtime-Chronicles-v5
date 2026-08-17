@@ -4,14 +4,12 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  Platform,
   ScrollView,
   Switch,
 } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { StarField } from "@/components/StarField";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
@@ -22,6 +20,7 @@ import { useConsent } from "@/lib/ConsentContext";
 import { clearAllData } from "@/lib/storage";
 import { confirmDestructive, notifyResult } from "@/lib/confirmDestructive";
 import { purgeCloudData, runSync } from "@/lib/sync/runSync";
+import { useScreenInsets } from "@/lib/useScreenInsets";
 
 const VOICES = [
   { id: "moonbeam", label: "Moonbeam" },
@@ -138,9 +137,7 @@ function VolumeSlider({ value, onChange }: { value: number; onChange: (v: number
 }
 
 export default function SettingsScreen() {
-  const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const { topInset, bottomInset } = useScreenInsets();
   const { settings, updateSetting, resetSettings } = useSettings();
   const { signOut, user } = useAuth();
   const { markUnconsented } = useConsent();

@@ -4,12 +4,10 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  Platform,
   ScrollView,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { HEROES } from "@/constants/heroes";
@@ -18,7 +16,8 @@ import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/AuthContext";
 import { fetch } from "expo/fetch";
 import { StoryFull } from "@/constants/types";
-import { MODE_THEME, MODE_VOICES, type StoryState } from "@/constants/story-theme";
+import { MODE_THEME, MODE_VOICES, resolveStoryMode, type StoryState } from "@/constants/story-theme";
+import { useScreenInsets } from "@/lib/useScreenInsets";
 import { useLoadingMessages } from "@/lib/useLoadingMessages";
 import { setPendingScenes } from "@/lib/scene-handoff";
 import { useBackgroundMusic } from "@/lib/useBackgroundMusic";
@@ -40,8 +39,6 @@ import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 
 const PARTICLE_COUNT = 6;
 const PARTICLE_STAGGER_MS = 800;
-const WEB_INSET_TOP = 67;
-const WEB_INSET_BOTTOM = 34;
 const PLAYER_CONTROLS_RESERVED_HEIGHT = 160;
 
 type StoryRouteParams = {
@@ -81,16 +78,14 @@ export default function StoryScreen() {
     problem,
     customPrompt,
   } = params;
-  const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? WEB_INSET_TOP : insets.top;
-  const bottomInset = Platform.OS === "web" ? WEB_INSET_BOTTOM : insets.bottom;
+  const { topInset, bottomInset } = useScreenInsets();
 
-  const storyMode = (mode || "classic") as keyof typeof MODE_THEME;
-  const theme = MODE_THEME[storyMode] || MODE_THEME.classic;
+  const storyMode = resolveStoryMode(mode);
+  const theme = MODE_THEME[storyMode];
 
   const defaultSpeed = initialSpeed || (storyMode === "sleep" ? "gentle" : "medium");
 
-  const modeVoices = MODE_VOICES[storyMode] || MODE_VOICES.classic;
+  const modeVoices = MODE_VOICES[storyMode];
   const defaultVoice = voice || modeVoices[0].id;
 
   const [storyData, setStoryData] = useState<StoryFull | null>(null);

@@ -4,7 +4,6 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  Platform,
   ScrollView,
   ActivityIndicator,
   Alert,
@@ -15,7 +14,6 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AnimatedView } from "@/components/AnimatedView";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import * as Haptics from "expo-haptics";
@@ -33,13 +31,13 @@ import { HEROES, Hero } from "@/constants/heroes";
 import { StarField } from "@/components/StarField";
 import { HeroCard } from "@/components/HeroCard";
 import { PulsingOrb } from "@/components/PulsingOrb";
-import { MemoryJar } from "@/components/MemoryJar";
-import { SettingsModal } from "@/components/SettingsModal";
 import { ProfileModal } from "@/components/ProfileModal";
 import { ParentControlsModal } from "@/components/ParentControlsModal";
 import { useProfile } from "@/lib/ProfileContext";
 import { apiRequest } from "@/lib/query-client";
+import { useScreenInsets } from "@/lib/useScreenInsets";
 import { TTS_PREVIEW_TIMEOUT_MS } from "@/constants/timing";
+import { MODE_THEME, StoryMode } from "@/constants/story-theme";
 
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 type MCIName = ComponentProps<typeof MaterialCommunityIcons>["name"];
@@ -52,40 +50,54 @@ interface AISuggestion {
   tip: string;
 }
 
-const MODE_THEMES = {
+// Colors alias MODE_THEME (constants/story-theme.ts) — only the create-screen
+// copy (glow, label, tagline) lives here.
+const MODE_THEMES: Record<
+  StoryMode,
+  {
+    accent: string;
+    accentLight: string;
+    gradient: [string, string, string];
+    buttonGradient: [string, string];
+    cardAccent: string;
+    glow: string;
+    label: string;
+    tagline: string;
+  }
+> = {
   classic: {
-    accent: "#6366f1",
-    accentLight: "#818cf8",
-    gradient: ["#05051e", "#0a0a2e", "#05051e"] as [string, string, string],
-    buttonGradient: ["#6366f1", "#4f46e5"] as [string, string],
-    cardAccent: "#6366f1",
+    accent: MODE_THEME.classic.accent,
+    accentLight: MODE_THEME.classic.accentLight,
+    gradient: MODE_THEME.classic.gradient,
+    buttonGradient: MODE_THEME.classic.choiceColors[0],
+    cardAccent: MODE_THEME.classic.accent,
     glow: "rgba(99,102,241,0.25)",
     label: "Classic",
     tagline: "Choose your own adventure",
   },
   madlibs: {
-    accent: "#F97316",
-    accentLight: "#FB923C",
-    gradient: ["#05051e", "#1A0A00", "#05051e"] as [string, string, string],
-    buttonGradient: ["#F97316", "#EA580C"] as [string, string],
-    cardAccent: "#F97316",
+    accent: MODE_THEME.madlibs.accent,
+    accentLight: MODE_THEME.madlibs.accentLight,
+    gradient: MODE_THEME.madlibs.gradient,
+    buttonGradient: MODE_THEME.madlibs.choiceColors[0],
+    cardAccent: MODE_THEME.madlibs.accent,
     glow: "rgba(249,115,22,0.25)",
     label: "Mad Libs",
     tagline: "Fill in the silly words",
   },
   sleep: {
-    accent: "#A855F7",
-    accentLight: "#C084FC",
-    gradient: ["#05051e", "#0D0520", "#05051e"] as [string, string, string],
-    buttonGradient: ["#A855F7", "#7C3AED"] as [string, string],
-    cardAccent: "#A855F7",
+    accent: MODE_THEME.sleep.accent,
+    accentLight: MODE_THEME.sleep.accentLight,
+    gradient: MODE_THEME.sleep.gradient,
+    buttonGradient: MODE_THEME.sleep.choiceColors[0],
+    cardAccent: MODE_THEME.sleep.accent,
     glow: "rgba(168,85,247,0.25)",
     label: "Sleepy",
     tagline: "Drift off to dreamland",
   },
 };
 
-type ModeId = keyof typeof MODE_THEMES;
+type ModeId = StoryMode;
 const VALID_MODES_LIST: ModeId[] = ["classic", "madlibs", "sleep"];
 
 const MODES: { id: ModeId; icon: MCIName; iconSet: "mci" }[] = [
@@ -142,9 +154,7 @@ const MODE_DEFAULT_SPEED: Record<ModeId, string> = {
 
 
 export default function CreateScreen() {
-  const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const { topInset, bottomInset } = useScreenInsets();
 
   const [heroIndex, setHeroIndex] = useState(0);
   const [mode, setMode] = useState<ModeId>("classic");
@@ -153,8 +163,6 @@ export default function CreateScreen() {
   const [previewLoading, setPreviewLoading] = useState<string | null>(null);
   const previewSoundRef = useRef<Audio.Sound | null>(null);
   const [speed, setSpeed] = useState(MODE_DEFAULT_SPEED["classic"]);
-  const [jarVisible, setJarVisible] = useState(false);
-  const [settingsVisible, setSettingsVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
   const [parentControlsVisible, setParentControlsVisible] = useState(false);
   const { activeProfile } = useProfile();
@@ -765,8 +773,6 @@ export default function CreateScreen() {
         </ResponsiveContainer>
       </ScrollView>
 
-      <MemoryJar visible={jarVisible} onClose={() => setJarVisible(false)} />
-      {settingsVisible && <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />}
       {profileVisible && <ProfileModal visible={profileVisible} onClose={() => setProfileVisible(false)} />}
       {parentControlsVisible && <ParentControlsModal visible={parentControlsVisible} onClose={() => setParentControlsVisible(false)} />}
     </View>
