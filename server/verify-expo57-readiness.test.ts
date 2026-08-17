@@ -11,14 +11,14 @@ vi.mock('node:fs', async (importOriginal) => {
     ...actual,
     existsSync: (p: unknown) => {
       if (fsState.existsSyncOverride) {
-        const r = fsState.existsSyncOverride(String(p));
+        const r = fsState.existsSyncOverride(String(p).replace(/\\/g, '/'));
         if (r !== null) return r;
       }
       return actual.existsSync(p as import('node:fs').PathLike);
     },
     readFileSync: (p: unknown, options?: unknown) => {
       if (fsState.readFileSyncOverride) {
-        const r = fsState.readFileSyncOverride(String(p));
+        const r = fsState.readFileSyncOverride(String(p).replace(/\\/g, '/'));
         if (r === 'THROW') {
           const err = Object.assign(new Error(`ENOENT: no such file: ${p}`), { code: 'ENOENT' });
           throw err;

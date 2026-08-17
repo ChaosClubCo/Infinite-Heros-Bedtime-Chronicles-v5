@@ -674,7 +674,7 @@ export async function saveParentControls(controls: ParentControls): Promise<void
  */
 export async function saveSecureParentControls(controls: ParentControls): Promise<void> {
   const { setSecureItem } = await import('./secureStorage');
-  await setSecureItem('parent_controls', JSON.stringify(controls));
+  await setSecureItem('parent_controls', controls);
   await AsyncStorage.setItem(PARENT_CONTROLS_KEY, JSON.stringify(controls));
 }
 
