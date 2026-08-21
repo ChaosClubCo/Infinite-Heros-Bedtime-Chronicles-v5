@@ -55,7 +55,9 @@ describe("DEFAULT_SETTINGS", () => {
     expect(DEFAULT_SETTINGS.sleepTheme).toBe("Cloud Kingdom");
     expect(DEFAULT_SETTINGS.isMuted).toBe(false);
     expect(DEFAULT_SETTINGS.reducedMotion).toBe(false);
-    expect(DEFAULT_SETTINGS.fontSize).toBe("normal");
+    // `fontSize` was a second, never-consumed text-size key. It was folded into
+    // `textSize` and removed from the settings model entirely.
+    expect("fontSize" in DEFAULT_SETTINGS).toBe(false);
   });
 });
 
@@ -145,7 +147,9 @@ describe("Legacy migration logic", () => {
     if (legacy.sleepTheme && !result.sleepTheme) result.sleepTheme = legacy.sleepTheme as string;
     if (legacy.isMuted !== undefined && result.isMuted === undefined) result.isMuted = legacy.isMuted as boolean;
     if (legacy.reducedMotion !== undefined && result.reducedMotion === undefined) result.reducedMotion = legacy.reducedMotion as boolean;
-    if (legacy.fontSize && !result.fontSize) result.fontSize = legacy.fontSize as "normal" | "large";
+    if (legacy.fontSize && !result.textSize) {
+      result.textSize = legacy.fontSize === "large" ? "large" : "medium";
+    }
     if (legacy.narratorVoice && !result.narratorVoice) result.narratorVoice = legacy.narratorVoice as string;
     if (legacy.storyLength && !result.storyLength) result.storyLength = legacy.storyLength as AppSettings["storyLength"];
     return result;
@@ -166,7 +170,9 @@ describe("Legacy migration logic", () => {
     expect(result.sleepTheme).toBe("Starry Night");
     expect(result.isMuted).toBe(true);
     expect(result.reducedMotion).toBe(true);
-    expect(result.fontSize).toBe("large");
+    // legacy fontSize "large" maps onto the surviving textSize scale
+    expect(result.textSize).toBe("large");
+    expect("fontSize" in result).toBe(false);
     expect(result.narratorVoice).toBe("captain");
     expect(result.storyLength).toBe("long");
   });
