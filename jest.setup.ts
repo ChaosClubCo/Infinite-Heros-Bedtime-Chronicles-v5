@@ -54,6 +54,10 @@ jest.mock('react-native-reanimated', () => {
     withSequence: jest.fn((...vs: unknown[]) => vs[vs.length - 1]),
     withRepeat: jest.fn((v: unknown) => v),
     withDecay: jest.fn((v: unknown) => v),
+    // The OS reduce-motion signal. Defaults to "device is not asking for
+    // reduced motion" so existing tests exercise the animated path; a test can
+    // flip it with `(useReducedMotion as jest.Mock).mockReturnValue(true)`.
+    useReducedMotion: jest.fn(() => false),
     runOnJS: jest.fn((fn: unknown) => fn),
     runOnUI: jest.fn((fn: unknown) => fn),
     cancelAnimation: jest.fn(),
@@ -82,6 +86,35 @@ jest.mock('react-native-reanimated', () => {
       inOut: jest.fn((fn: unknown) => fn),
     },
     ReduceMotion: { System: 'system', Always: 'always', Never: 'never' },
+  };
+});
+
+// AsyncStorage: no native module in the Jest environment. Components that read
+// settings pull in SettingsContext, which imports this at module load.
+jest.mock('@react-native-async-storage/async-storage', () => {
+  const store = new Map<string, string>();
+  return {
+    __esModule: true,
+    default: {
+      getItem: jest.fn((key: string) => Promise.resolve(store.get(key) ?? null)),
+      setItem: jest.fn((key: string, value: string) => {
+        store.set(key, value);
+        return Promise.resolve();
+      }),
+      removeItem: jest.fn((key: string) => {
+        store.delete(key);
+        return Promise.resolve();
+      }),
+      multiRemove: jest.fn((keys: string[]) => {
+        keys.forEach((k) => store.delete(k));
+        return Promise.resolve();
+      }),
+      getAllKeys: jest.fn(() => Promise.resolve([...store.keys()])),
+      clear: jest.fn(() => {
+        store.clear();
+        return Promise.resolve();
+      }),
+    },
   };
 });
 

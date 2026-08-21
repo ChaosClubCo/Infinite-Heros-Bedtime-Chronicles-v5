@@ -8,18 +8,26 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
+import { useMotionPreference } from '@/lib/useMotionPreference';
 
 interface StarProps {
   size: number;
   top: number;
   left: number;
   delay: number;
+  reducedMotion: boolean;
 }
 
-function Star({ size, top, left, delay }: StarProps) {
-  const opacity = useSharedValue(0.2);
+function Star({ size, top, left, delay, reducedMotion }: StarProps) {
+  // Settle at a mid opacity when motion is reduced: the starfield still reads
+  // as a night sky, it just stops twinkling.
+  const opacity = useSharedValue(reducedMotion ? 0.6 : 0.2);
 
   useEffect(() => {
+    if (reducedMotion) {
+      opacity.value = 0.6;
+      return;
+    }
     opacity.value = withDelay(
       delay,
       withRepeat(
@@ -30,7 +38,7 @@ function Star({ size, top, left, delay }: StarProps) {
     );
   // Shared value (opacity) is a stable Reanimated ref; delay is mount-time config.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -65,10 +73,25 @@ const STARS = Array.from({ length: 40 }, (_, i) => ({
 }));
 
 export function StarField() {
+  const { reducedMotion } = useMotionPreference();
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View
+      style={StyleSheet.absoluteFill}
+      pointerEvents="none"
+      // Purely decorative: announcing 40 stars would bury the screen's real
+      // content for a screen-reader user.
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
       {STARS.map((star) => (
-        <Star key={star.id} size={star.size} top={star.top} left={star.left} delay={star.delay} />
+        <Star
+          key={star.id}
+          size={star.size}
+          top={star.top}
+          left={star.left}
+          delay={star.delay}
+          reducedMotion={reducedMotion}
+        />
       ))}
     </View>
   );

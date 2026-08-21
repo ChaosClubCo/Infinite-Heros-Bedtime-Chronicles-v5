@@ -10,7 +10,12 @@ const Colors = {
   starlight: '#E8E4F0',
   textPrimary: '#FFFFFF',
   textSecondary: '#94a3b8',
-  textMuted: '#6f7fa0', // WCAG AA: ~5:1 against primary (#64748b measured ~4.2:1, below the 4.5:1 threshold)
+  // WCAG AA on every surface it can land on, not just the darkest one.
+  // The previous #6f7fa0 was tuned against `primary` (4.99:1) but measured
+  // 4.14:1 on `secondary` — below the 4.5:1 threshold. This value keeps the
+  // same hue and clears AA on primary, primaryLight, secondary and background
+  // (worst case 4.55:1). Verified by constants/colors.test.ts.
+  textMuted: '#7686a7',
   cardBg: 'rgba(255, 255, 255, 0.05)',
   cardBorder: 'rgba(255, 255, 255, 0.1)',
   glassBg: 'rgba(255, 255, 255, 0.03)',

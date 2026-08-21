@@ -13,7 +13,16 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./__tests__/setup.ts'],
-    include: ['server/**/*.test.ts', 'lib/**/*.test.ts', '__tests__/**/*.test.ts', 'shared/**/*.test.ts'],
+    // `constants/**` was missing, so the five test files in that folder had
+    // never executed — including colors.test.ts, which is why a test named for
+    // WCAG AA compliance could assert nothing of the kind without being noticed.
+    include: [
+      'server/**/*.test.ts',
+      'lib/**/*.test.ts',
+      '__tests__/**/*.test.ts',
+      'shared/**/*.test.ts',
+      'constants/**/*.test.ts',
+    ],
     exclude: ['node_modules', 'server_dist', 'static-build', '__tests__/components/**'],
     coverage: {
       provider: 'v8',

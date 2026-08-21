@@ -11,6 +11,7 @@ import Animated, {
   withDelay,
   Easing,
 } from "react-native-reanimated";
+import { useMotionPreference } from "@/lib/useMotionPreference";
 import Colors from "@/constants/colors";
 import { LoadingOrb } from "@/components/PulsingOrb";
 import type { IoniconsName } from "@/constants/heroes";
@@ -28,8 +29,15 @@ interface HeroInfo {
 
 function LoadingDot({ delay, color }: { delay: number; color: string }) {
   const opacity = useSharedValue(0.2);
+  const { reducedMotion } = useMotionPreference();
 
   useEffect(() => {
+    if (reducedMotion) {
+      // The dots still communicate "working"; they just stop pulsing. Progress
+      // is announced separately via the live region on the container.
+      opacity.value = 0.6;
+      return;
+    }
     opacity.value = withDelay(
       delay,
       withRepeat(
@@ -43,7 +51,7 @@ function LoadingDot({ delay, color }: { delay: number; color: string }) {
     );
   // Shared value (opacity) is a stable Reanimated ref; delay is mount-time config.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reducedMotion]);
 
   const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
