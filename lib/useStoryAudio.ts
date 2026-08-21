@@ -3,6 +3,7 @@ import { Audio } from "expo-av";
 import * as Haptics from "expo-haptics";
 import { resolveNarrationUri } from "@/lib/narration";
 import { SPEED_RATES, type ModeVoice, type StoryMode } from "@/constants/story-theme";
+import { useSettings } from "@/lib/SettingsContext";
 import type { StoryPart } from "@/constants/types";
 
 export interface StoryAudioOptions {
@@ -28,6 +29,10 @@ export interface StoryAudioState {
 
 /** TTS narration playback for the current story part. */
 export function useStoryAudio({ currentPart, storyMode, initialVoice, initialSpeed, modeVoices }: StoryAudioOptions): StoryAudioState {
+  // Narration honours the parent's audio settings. Both were previously stored
+  // but never read, so the Settings controls had no effect on playback.
+  const { settings } = useSettings();
+  const narrationVolume = settings?.isMuted ? 0 : (settings?.audioVolume ?? 80) / 100;
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
   const [audioPosition, setAudioPosition] = useState(0);
@@ -74,7 +79,7 @@ export function useStoryAudio({ currentPart, storyMode, initialVoice, initialSpe
       const rate = SPEED_RATES[playbackSpeed] || 0.9;
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioFileUrl },
-        { shouldPlay: false, rate, shouldCorrectPitch: true }
+        { shouldPlay: false, rate, shouldCorrectPitch: true, volume: narrationVolume }
       );
       soundRef.current = sound;
 

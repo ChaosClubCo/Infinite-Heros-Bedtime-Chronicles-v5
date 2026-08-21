@@ -8,6 +8,7 @@ import Animated, {
   withSequence,
   Easing,
 } from "react-native-reanimated";
+import { useMotionPreference } from "@/lib/useMotionPreference";
 
 interface PulsingOrbProps {
   color: string;
@@ -30,8 +31,16 @@ export function PulsingOrb({
 }: PulsingOrbProps) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(maxOpacity);
+  const { reducedMotion } = useMotionPreference();
 
   useEffect(() => {
+    if (reducedMotion) {
+      // Hold the orb at its resting size and full opacity: the glow stays part
+      // of the composition, it just stops breathing.
+      scale.value = 1;
+      opacity.value = maxOpacity;
+      return;
+    }
     scale.value = withRepeat(
       withTiming(maxScale, { duration, easing: Easing.inOut(Easing.ease) }),
       -1,
@@ -45,7 +54,7 @@ export function PulsingOrb({
   // Shared values (scale, opacity) are stable Reanimated refs; animation props
   // (maxScale, duration, minOpacity) are treated as mount-time configuration.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reducedMotion]);
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -66,6 +75,8 @@ export function PulsingOrb({
         animStyle,
       ]}
       pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
     />
   );
 }
@@ -73,8 +84,14 @@ export function PulsingOrb({
 export function LoadingOrb({ color }: { color: string }) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(0.3);
+  const { reducedMotion } = useMotionPreference();
 
   useEffect(() => {
+    if (reducedMotion) {
+      scale.value = 1;
+      opacity.value = 0.3;
+      return;
+    }
     scale.value = withRepeat(
       withSequence(
         withTiming(1.4, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
@@ -93,7 +110,7 @@ export function LoadingOrb({ color }: { color: string }) {
     );
   // Shared values (scale, opacity) are stable Reanimated refs.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reducedMotion]);
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],

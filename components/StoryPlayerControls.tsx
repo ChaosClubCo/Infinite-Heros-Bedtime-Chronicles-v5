@@ -83,7 +83,16 @@ export function StoryPlayerControls({
       style={[s.bottomControlBar, { paddingBottom: bottomInset + 12 }]}
     >
       {isSpeaking && audioDuration > 0 && (
-        <View style={s.seekBarWrap}>
+        <View
+          style={s.seekBarWrap}
+          accessibilityRole="progressbar"
+          accessibilityLabel="Narration progress"
+          accessibilityValue={{
+            min: 0,
+            max: Math.round(audioDuration / 1000),
+            now: Math.round(audioPosition / 1000),
+          }}
+        >
           <View style={s.seekBarTrack}>
             <View
               style={[
@@ -114,6 +123,9 @@ export function StoryPlayerControls({
           hitSlop={8}
           style={s.controlBarBtn}
           testID="speed-cycle-btn"
+          accessibilityRole="button"
+          accessibilityLabel={`Reading speed: ${SPEED_LABELS[playbackSpeed]}`}
+          accessibilityHint="Cycles to the next reading speed"
         >
           <Text style={[s.controlAaText, { color: theme.accent }]}>
             {SPEED_LABELS[playbackSpeed]}
@@ -125,6 +137,11 @@ export function StoryPlayerControls({
           hitSlop={8}
           style={s.controlBarBtn}
           testID="voice-cycle-btn"
+          accessibilityRole="button"
+          accessibilityLabel={`Narrator voice: ${
+            modeVoices.find((v) => v.id === currentVoice)?.label ?? currentVoice
+          }`}
+          accessibilityHint="Cycles to the next narrator voice"
         >
           <Ionicons name="mic-outline" size={16} color={theme.accent} />
           <Text style={[s.controlVoiceText, { color: theme.accent }]}>
@@ -137,6 +154,10 @@ export function StoryPlayerControls({
           hitSlop={8}
           style={s.controlBarBtn}
           disabled={currentPartIndex === 0}
+          testID="prev-part-btn"
+          accessibilityRole="button"
+          accessibilityLabel="Previous part"
+          accessibilityState={{ disabled: currentPartIndex === 0 }}
         >
           <Ionicons
             name="play-back"
@@ -154,6 +175,18 @@ export function StoryPlayerControls({
           hitSlop={8}
           style={[s.controlPlayBtn, { backgroundColor: theme.accent }]}
           disabled={audioLoading}
+          testID="play-pause-btn"
+          accessibilityRole="button"
+          // The label carries the state, not just the icon: a screen-reader
+          // user needs to know whether pressing this starts or stops narration.
+          accessibilityLabel={
+            audioLoading
+              ? "Loading narration"
+              : isSpeaking
+                ? "Pause narration"
+                : "Play narration"
+          }
+          accessibilityState={{ disabled: audioLoading, busy: audioLoading }}
         >
           {audioLoading ? (
             <ActivityIndicator size="small" color="#FFF" />
@@ -172,6 +205,10 @@ export function StoryPlayerControls({
           hitSlop={8}
           style={s.controlBarBtn}
           disabled={isLastPart}
+          testID="next-part-btn"
+          accessibilityRole="button"
+          accessibilityLabel="Next part"
+          accessibilityState={{ disabled: isLastPart }}
         >
           <Ionicons
             name="play-forward"
@@ -180,7 +217,14 @@ export function StoryPlayerControls({
           />
         </Pressable>
 
-        <Pressable onPress={onSpeakToggle} hitSlop={8} style={s.controlBarBtn}>
+        <Pressable
+          onPress={onSpeakToggle}
+          hitSlop={8}
+          style={s.controlBarBtn}
+          testID="narration-toggle-btn"
+          accessibilityRole="button"
+          accessibilityLabel={isSpeaking ? "Stop narration" : "Start narration"}
+        >
           <Ionicons
             name="headset-outline"
             size={20}
@@ -193,6 +237,16 @@ export function StoryPlayerControls({
           hitSlop={8}
           style={s.controlBarBtn}
           disabled={musicLoading}
+          testID="music-toggle-btn"
+          accessibilityRole="button"
+          accessibilityLabel={
+            musicLoading
+              ? "Loading background music"
+              : musicMuted
+                ? "Unmute background music"
+                : "Mute background music"
+          }
+          accessibilityState={{ disabled: musicLoading, busy: musicLoading }}
         >
           {musicLoading ? (
             <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
@@ -219,6 +273,8 @@ export function StoryPlayerControls({
             { transform: [{ scale: pressed ? 0.95 : 1 }], marginTop: 8 },
           ]}
           testID="finish-story-button"
+          accessibilityRole="button"
+          accessibilityLabel={finishLabel}
         >
           <LinearGradient
             colors={[theme.accent, theme.choiceColors[0][1]]}

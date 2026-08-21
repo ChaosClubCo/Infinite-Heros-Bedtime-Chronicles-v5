@@ -20,6 +20,8 @@ import { MODE_THEME, MODE_VOICES, resolveStoryMode, type StoryState } from "@/co
 import { useScreenInsets } from "@/lib/useScreenInsets";
 import { useLoadingMessages } from "@/lib/useLoadingMessages";
 import { setPendingScenes } from "@/lib/scene-handoff";
+import { announceForAccessibility } from "@/lib/announce";
+import { confirmDestructive } from "@/lib/confirmDestructive";
 import { useBackgroundMusic } from "@/lib/useBackgroundMusic";
 import { useStoryAudio } from "@/lib/useStoryAudio";
 import { useSceneGeneration } from "@/lib/useSceneGeneration";
@@ -138,7 +140,11 @@ export default function StoryScreen() {
     (haptic?: Haptics.ImpactFeedbackStyle) => {
       if (haptic !== undefined) Haptics.impactAsync(haptic);
       stopAudio();
-      setCurrentPartIndex((prev) => prev + 1);
+      setCurrentPartIndex((prev) => {
+        const next = prev + 1;
+        announceForAccessibility(`Part ${next + 1}`);
+        return next;
+      });
       scrollRef.current?.scrollTo({ y: 0, animated: true });
     },
     [stopAudio],
@@ -225,13 +231,23 @@ export default function StoryScreen() {
       }
 
       const data = await res.json();
-      setStoryData(data as StoryFull);
+      const story = data as StoryFull;
+      setStoryData(story);
       setStoryState("ready");
+      // Generation is invisible to a screen-reader user until something says so.
+      announceForAccessibility(
+        `Story ready: ${story.title}. ${story.parts.length} parts.`,
+      );
     } catch (error) {
       const status = (error as { status?: number } | undefined)?.status;
       console.error("Story generation error:", { status, error });
       setStoryState("error");
       setStoryErrorKind(status === 429 ? "rate_limited" : "error");
+      announceForAccessibility(
+        status === 429
+          ? "Too many stories right now. Please wait a moment and try again."
+          : "The story could not be created. You can try again.",
+      );
     }
   }, [
     hero,
@@ -297,15 +313,39 @@ export default function StoryScreen() {
   };
 
   const handleClose = () => {
-    teardownPlayback();
-    router.dismissAll();
+    // Stories are only saved at /completion, so leaving mid-way discards the
+    // whole thing. Confirm first when there is actually progress to lose —
+    // leaving from the loading, error, or first-part state has no cost, and
+    // prompting there would be friction without consequence.
+    const hasProgressToLose =
+      storyState === "ready" && storyData !== null && currentPartIndex > 0;
+
+    if (!hasProgressToLose) {
+      teardownPlayback();
+      router.dismissAll();
+      return;
+    }
+
+    confirmDestructive(
+      "Leave this story?",
+      "This story hasn't been saved yet. If you leave now, you'll lose it and have to start a new one.",
+      "Leave",
+      () => {
+        teardownPlayback();
+        router.dismissAll();
+      },
+    );
   };
 
   const handlePrevPart = () => {
     if (currentPartIndex > 0) {
       Haptics.selectionAsync();
       stopAudio();
-      setCurrentPartIndex((prev) => prev - 1);
+      setCurrentPartIndex((prev) => {
+        const next = prev - 1;
+        announceForAccessibility(`Part ${next + 1}`);
+        return next;
+      });
       scrollRef.current?.scrollTo({ y: 0, animated: true });
     }
   };
@@ -323,6 +363,9 @@ export default function StoryScreen() {
         <Text style={styles.errorText}>Hero not found</Text>
         <Pressable
           onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)"))}
+          testID="hero-not-found-back"
+          accessibilityRole="button"
+          accessibilityLabel="Go back and choose a hero"
         >
           <Text style={styles.errorLink}>Go Back</Text>
         </Pressable>

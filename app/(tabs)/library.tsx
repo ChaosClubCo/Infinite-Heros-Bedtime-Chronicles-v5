@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -39,28 +39,40 @@ export default function LibraryScreen() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [readStories, setReadStories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const { isSyncing } = useSyncOfflineStatus();
+  // Guards against a focus change or unmount landing state from a stale load.
+  const cancelledRef = useRef(false);
+
+  const load = useCallback(async () => {
+    cancelledRef.current = false;
+    setIsLoading(true);
+    setLoadFailed(false);
+    try {
+      const [s, f, r] = await Promise.all([
+        activeProfile ? getStoriesForProfile(activeProfile.id) : getAllStories(),
+        getFavorites(),
+        getReadStories(),
+      ]);
+      if (cancelledRef.current) return;
+      setStories(s);
+      setFavorites(f);
+      setReadStories(r);
+    } catch (error) {
+      // Without this the rejection went unhandled, isLoading stayed true, and
+      // the screen sat on a spinner forever with no way back.
+      console.error("Failed to load library", error);
+      if (!cancelledRef.current) setLoadFailed(true);
+    } finally {
+      if (!cancelledRef.current) setIsLoading(false);
+    }
+  }, [activeProfile]);
 
   useFocusEffect(
     useCallback(() => {
-      let cancelled = false;
-      async function load() {
-        setIsLoading(true);
-        const [s, f, r] = await Promise.all([
-          activeProfile ? getStoriesForProfile(activeProfile.id) : getAllStories(),
-          getFavorites(),
-          getReadStories(),
-        ]);
-        if (!cancelled) {
-          setStories(s);
-          setFavorites(f);
-          setReadStories(r);
-          setIsLoading(false);
-        }
-      }
-      load();
-      return () => { cancelled = true; };
-    }, [activeProfile])
+      void load();
+      return () => { cancelledRef.current = true; };
+    }, [load])
   );
 
   const handleFavorite = async (id: string, wasFavorite: boolean) => {
@@ -178,7 +190,25 @@ export default function LibraryScreen() {
         )}
       </View>
 
-      {!isLoading && stories.length === 0 ? (
+      {!isLoading && loadFailed ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="cloud-offline-outline" size={56} color="rgba(99,102,241,0.2)" />
+          <Text style={styles.emptyTitle}>Could not open your library</Text>
+          <Text style={styles.emptySubtitle}>
+            Your stories are still saved on this device.{"\n"}Try again in a moment.
+          </Text>
+          <Pressable
+            onPress={() => void load()}
+            style={styles.retryBtn}
+            testID="library-retry-btn"
+            accessibilityRole="button"
+            accessibilityLabel="Try loading your library again"
+          >
+            <Ionicons name="refresh" size={16} color={Colors.accent} />
+            <Text style={styles.retryText}>Try Again</Text>
+          </Pressable>
+        </View>
+      ) : !isLoading && stories.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="book-outline" size={56} color="rgba(99,102,241,0.2)" />
           <Text style={styles.emptyTitle}>No stories yet</Text>
@@ -319,6 +349,23 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 11,
     color: "rgba(255,255,255,0.5)",
+  },
+  retryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: `${Colors.accent}40`,
+    backgroundColor: `${Colors.accent}12`,
+  },
+  retryText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
+    color: Colors.accent,
   },
   emptyState: {
     flex: 1,

@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { setOnboardingComplete } from "@/lib/storage";
-import { useSettings } from "@/lib/SettingsContext";
+import { useMotionPreference } from "@/lib/useMotionPreference";
 import { useScreenInsets } from "@/lib/useScreenInsets";
 import { OnboardingSlide } from "@/components/OnboardingSlide";
 
@@ -47,8 +47,7 @@ const SLIDES = [
 export default function WelcomeScreen() {
   const { topInset, bottomInset } = useScreenInsets();
 
-  const { settings } = useSettings();
-  const reducedMotion = settings?.reducedMotion ?? false;
+  const { reducedMotion } = useMotionPreference();
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);

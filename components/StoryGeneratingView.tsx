@@ -11,6 +11,7 @@ import Animated, {
   withDelay,
   Easing,
 } from "react-native-reanimated";
+import { useMotionPreference } from "@/lib/useMotionPreference";
 import Colors from "@/constants/colors";
 import { LoadingOrb } from "@/components/PulsingOrb";
 import type { IoniconsName } from "@/constants/heroes";
@@ -28,8 +29,15 @@ interface HeroInfo {
 
 function LoadingDot({ delay, color }: { delay: number; color: string }) {
   const opacity = useSharedValue(0.2);
+  const { reducedMotion } = useMotionPreference();
 
   useEffect(() => {
+    if (reducedMotion) {
+      // The dots still communicate "working"; they just stop pulsing. Progress
+      // is announced separately via the live region on the container.
+      opacity.value = 0.6;
+      return;
+    }
     opacity.value = withDelay(
       delay,
       withRepeat(
@@ -43,7 +51,7 @@ function LoadingDot({ delay, color }: { delay: number; color: string }) {
     );
   // Shared value (opacity) is a stable Reanimated ref; delay is mount-time config.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reducedMotion]);
 
   const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
@@ -78,16 +86,31 @@ export function StoryGeneratingView({
 }: StoryGeneratingViewProps) {
   if (storyState === "generating") {
     return (
-      <Animated.View entering={FadeIn.duration(600)} style={s.loadingContainer}>
+      <Animated.View
+        entering={FadeIn.duration(600)}
+        style={s.loadingContainer}
+        // Android reads changes here aloud; story.tsx pairs this with an
+        // announceForAccessibility call so iOS is covered too.
+        accessibilityLiveRegion="polite"
+        accessibilityState={{ busy: true }}
+      >
         <LoadingOrb color={theme.orbColor} />
-        <View style={[s.loadingIconWrap, { borderColor: `${theme.accent}30` }]}>
+        <View
+          style={[s.loadingIconWrap, { borderColor: `${theme.accent}30` }]}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
           <Ionicons name={hero.iconName} size={44} color={hero.color} />
         </View>
         <Text style={s.loadingTitle}>{messages[loadingMsg]}</Text>
         <Text style={s.loadingSubtitle}>
           {hero.name} is preparing tonight&apos;s story
         </Text>
-        <View style={s.loadingDotsRow}>
+        <View
+          style={s.loadingDotsRow}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
           <LoadingDot delay={0} color={theme.accent} />
           <LoadingDot delay={200} color={theme.accent} />
           <LoadingDot delay={400} color={theme.accent} />
@@ -97,8 +120,18 @@ export function StoryGeneratingView({
   }
 
   return (
-    <Animated.View entering={FadeIn.duration(600)} style={s.loadingContainer}>
-      <Ionicons name="cloud-offline-outline" size={56} color={Colors.textMuted} />
+    <Animated.View
+      entering={FadeIn.duration(600)}
+      style={s.loadingContainer}
+      accessibilityLiveRegion="assertive"
+    >
+      <Ionicons
+        name="cloud-offline-outline"
+        size={56}
+        color={Colors.textMuted}
+        accessibilityElementsHidden
+        importantForAccessibility="no"
+      />
       <Text style={s.loadingTitle}>Something went wrong</Text>
       <Text style={s.loadingSubtitle}>
         {errorKind === "rate_limited"

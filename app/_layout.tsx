@@ -17,14 +17,14 @@ import { SettingsProvider } from "@/lib/SettingsContext";
 import { SyncOfflineProvider } from "@/lib/SyncOfflineContext";
 import { setSyncErrorReporter } from "@/lib/sync/report";
 import { StatusBar } from "expo-status-bar";
+// Only the weights actually referenced in a StyleSheet are loaded. Nunito
+// appears exactly twice in the app (voice-chat and OfflineBanner), and Bangers
+// was loaded but never referenced anywhere — four typefaces were being fetched
+// and held in memory for nothing.
 import {
-  Nunito_400Regular,
-  Nunito_500Medium,
   Nunito_600SemiBold,
   Nunito_700Bold,
-  Nunito_800ExtraBold,
 } from "@expo-google-fonts/nunito";
-import { Bangers_400Regular } from "@expo-google-fonts/bangers";
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -156,12 +156,8 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Nunito_400Regular,
-    Nunito_500Medium,
     Nunito_600SemiBold,
     Nunito_700Bold,
-    Nunito_800ExtraBold,
-    Bangers_400Regular,
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,

@@ -66,3 +66,71 @@ describe('runStorageMigrations', () => {
     expect(STORAGE_VERSION).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('migration v3 — fontSize folded into textSize', () => {
+  const SETTINGS_KEY = '@infinity_heroes_app_settings';
+  const VERSION_KEY = '@infinity_heroes_storage_version';
+
+  beforeEach(() => {
+    store.clear();
+  });
+
+  it('maps a persisted fontSize "large" onto textSize and drops the old key', async () => {
+    store.set(VERSION_KEY, '2');
+    store.set(SETTINGS_KEY, JSON.stringify({ fontSize: 'large', audioVolume: 80 }));
+
+    await runStorageMigrations();
+
+    const settings = JSON.parse(store.get(SETTINGS_KEY)!);
+    expect(settings.textSize).toBe('large');
+    expect('fontSize' in settings).toBe(false);
+    // unrelated keys survive untouched
+    expect(settings.audioVolume).toBe(80);
+  });
+
+  it('maps a persisted fontSize "normal" onto the medium step', async () => {
+    store.set(VERSION_KEY, '2');
+    store.set(SETTINGS_KEY, JSON.stringify({ fontSize: 'normal' }));
+
+    await runStorageMigrations();
+
+    expect(JSON.parse(store.get(SETTINGS_KEY)!).textSize).toBe('medium');
+  });
+
+  it('never clobbers an explicit textSize the user already chose', async () => {
+    store.set(VERSION_KEY, '2');
+    store.set(SETTINGS_KEY, JSON.stringify({ fontSize: 'large', textSize: 'small' }));
+
+    await runStorageMigrations();
+
+    const settings = JSON.parse(store.get(SETTINGS_KEY)!);
+    expect(settings.textSize).toBe('small');
+    expect('fontSize' in settings).toBe(false);
+  });
+
+  it('is a no-op when no settings have been persisted yet', async () => {
+    store.set(VERSION_KEY, '2');
+
+    await runStorageMigrations();
+
+    expect(store.get(SETTINGS_KEY)).toBeUndefined();
+    expect(store.get(VERSION_KEY)).toBe(String(STORAGE_VERSION));
+  });
+
+  it('leaves settings alone when fontSize was never present', async () => {
+    store.set(VERSION_KEY, '2');
+    store.set(SETTINGS_KEY, JSON.stringify({ textSize: 'large' }));
+
+    await runStorageMigrations();
+
+    expect(JSON.parse(store.get(SETTINGS_KEY)!)).toEqual({ textSize: 'large' });
+  });
+
+  it('survives corrupt settings JSON without throwing', async () => {
+    store.set(VERSION_KEY, '2');
+    store.set(SETTINGS_KEY, '{not valid json');
+
+    await expect(runStorageMigrations()).resolves.toBeUndefined();
+    expect(store.get(VERSION_KEY)).toBe(String(STORAGE_VERSION));
+  });
+});
