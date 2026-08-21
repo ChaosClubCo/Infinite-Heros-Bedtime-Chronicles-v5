@@ -21,6 +21,7 @@ import { useScreenInsets } from "@/lib/useScreenInsets";
 import { useLoadingMessages } from "@/lib/useLoadingMessages";
 import { setPendingScenes } from "@/lib/scene-handoff";
 import { announceForAccessibility } from "@/lib/announce";
+import { confirmDestructive } from "@/lib/confirmDestructive";
 import { useBackgroundMusic } from "@/lib/useBackgroundMusic";
 import { useStoryAudio } from "@/lib/useStoryAudio";
 import { useSceneGeneration } from "@/lib/useSceneGeneration";
@@ -312,8 +313,28 @@ export default function StoryScreen() {
   };
 
   const handleClose = () => {
-    teardownPlayback();
-    router.dismissAll();
+    // Stories are only saved at /completion, so leaving mid-way discards the
+    // whole thing. Confirm first when there is actually progress to lose —
+    // leaving from the loading, error, or first-part state has no cost, and
+    // prompting there would be friction without consequence.
+    const hasProgressToLose =
+      storyState === "ready" && storyData !== null && currentPartIndex > 0;
+
+    if (!hasProgressToLose) {
+      teardownPlayback();
+      router.dismissAll();
+      return;
+    }
+
+    confirmDestructive(
+      "Leave this story?",
+      "This story hasn't been saved yet. If you leave now, you'll lose it and have to start a new one.",
+      "Leave",
+      () => {
+        teardownPlayback();
+        router.dismissAll();
+      },
+    );
   };
 
   const handlePrevPart = () => {
