@@ -166,7 +166,14 @@ function ExpandableExtraCard({
   onToggle: () => void;
 }) {
   return (
-    <Pressable onPress={onToggle} style={styles.extraCard}>
+    <Pressable
+      onPress={onToggle}
+      style={styles.extraCard}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${title}`}
+      accessibilityHint={expanded ? "Collapses this card" : "Expands this card"}
+      accessibilityState={{ expanded }}
+    >
       <View style={styles.extraCardHeader}>
         <View style={[styles.extraIconWrap, { backgroundColor: iconBg }]}>
           <Ionicons name={icon} size={18} color={iconColor} />
@@ -309,7 +316,12 @@ export default function CompletionScreen() {
   if (!hero) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <Pressable onPress={() => router.dismissAll()}>
+        <Pressable
+          onPress={() => router.dismissAll()}
+          testID="completion-go-home"
+          accessibilityRole="button"
+          accessibilityLabel="Go home"
+        >
           <Text style={[styles.linkText, { color: theme.accent }]}>Go Home</Text>
         </Pressable>
       </View>
@@ -423,7 +435,7 @@ export default function CompletionScreen() {
           {savedStoryId ? (
             <View style={styles.feedbackArea}>
               <Text style={styles.feedbackLabel}>How was this story?</Text>
-              <View style={styles.feedbackRow}>
+              <View style={styles.feedbackRow} accessibilityRole="radiogroup" accessibilityLabel="How was this story?">
                 {([
                   { emoji: "😍", label: "Loved it!", rating: 5 },
                   { emoji: "😊", label: "Good", rating: 4 },
@@ -443,6 +455,12 @@ export default function CompletionScreen() {
                       feedbackRating !== null && feedbackRating !== rating && styles.feedbackBtnDim,
                     ]}
                     testID={`feedback-${rating}`}
+                    accessibilityRole="radio"
+                    accessibilityLabel={`Rate this story: ${label}`}
+                    accessibilityState={{
+                      selected: feedbackRating === rating,
+                      disabled: feedbackRating !== null,
+                    }}
                   >
                     <Text style={styles.feedbackEmoji}>{emoji}</Text>
                     <Text style={styles.feedbackBtnLabel}>{label}</Text>
@@ -461,6 +479,9 @@ export default function CompletionScreen() {
               { transform: [{ scale: pressed && !saved ? 0.96 : 1 }] },
             ]}
             testID="save-to-jar-button"
+            accessibilityRole="button"
+            accessibilityLabel={saved ? "Saved to Memory Jar" : "Save to Memory Jar"}
+            accessibilityState={{ disabled: saved }}
           >
             <Ionicons
               name={saved ? "checkmark-circle" : "archive-outline"}
@@ -480,6 +501,8 @@ export default function CompletionScreen() {
               { transform: [{ scale: pressed ? 0.96 : 1 }] },
             ]}
             testID="new-story-button"
+            accessibilityRole="button"
+            accessibilityLabel="Start a new adventure"
           >
             <LinearGradient
               colors={[theme.accent, theme.accentDark]}
