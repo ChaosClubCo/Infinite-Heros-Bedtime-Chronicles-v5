@@ -66,7 +66,7 @@ retry.
 ## Health & Status
 
 ### `GET /api/health`
-Returns server health status, including AI/TTS availability, circuit-breaker state, and feature flags. `ttsLive`/`aiProvidersLive` come from a short-TTL background-refreshed cache (see `server/health-checks.ts`) — never a synchronous network probe — so they read `{ reachable: null, checkedAt: null }` until the first background check completes (e.g. right after a serverless cold start).
+Returns server health status, including AI/TTS availability, circuit-breaker state, and feature flags. **Production contract:** `https://www.bedtime-chronicles.com/api/health` must return `200 OK` with `status: "ok"` and a `releaseSha` matching canonical `main` (polled by the Deployment Drift Monitor workflow). A `403` with Cloudflare `error code: 1014` is a DNS/edge misconfiguration, not an app failure — see [`docs/runbooks/production-domain-routing.md`](./runbooks/production-domain-routing.md). `ttsLive`/`aiProvidersLive` come from a short-TTL background-refreshed cache (see `server/health-checks.ts`) — never a synchronous network probe — so they read `{ reachable: null, checkedAt: null }` until the first background check completes (e.g. right after a serverless cold start).
 
 **Response:**
 ```json
