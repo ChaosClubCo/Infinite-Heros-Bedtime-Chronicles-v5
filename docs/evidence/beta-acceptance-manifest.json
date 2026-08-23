@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "manifestVersion": "1.0.0",
+  "project": "Infinity Heroes: Bedtime Chronicles v5",
+  "repository": "ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5",
+  "candidate": {
+    "baseBranch": "main",
+    "baseSha": "c63aa3ac608e6a73a1c32874d86c99ae38931566",
+    "readinessBranch": "beta/readiness-2026-08-22",
+    "evaluatedAt": "2026-08-22T20:10:00-05:00"
+  },
+  "policy": {
+    "mandatoryStatuses": ["PASS"],
+    "blockingStatuses": ["FAIL", "BLOCKED", "NOT_RUN"],
+    "maxOpenP0": 0,
+    "maxOpenP1": 0
+  },
+  "gates": [
+    {
+      "id": "BR-01",
+      "name": "Package lock synchronization",
+      "mandatory": true,
+      "status": "FAIL",
+      "evidence": [
+        "GitHub Actions run 32608207889 / Lint and Test job 97116690473",
+        "npm ci: package.json and package-lock.json are not in sync"
+      ]
+    },
+    {
+      "id": "BR-02",
+      "name": "Exact-head CI",
+      "mandatory": true,
+      "status": "BLOCKED",
+      "evidence": [
+        "GitHub Actions run 32608207900 / Exact Head CI job 97116690534",
+        "Blocked at locked dependency install by BR-01"
+      ]
+    },
+    {
+      "id": "BR-03",
+      "name": "Exact-head security agent",
+      "mandatory": true,
+      "status": "BLOCKED",
+      "evidence": [
+        "GitHub Actions run 32608207900 / Exact Head Security Agent job 97116690476",
+        "Blocked at locked dependency install by BR-01"
+      ]
+    },
+    {
+      "id": "BR-04",
+      "name": "Exact-head CodeQL",
+      "mandatory": true,
+      "status": "PASS",
+      "evidence": [
+        "GitHub Actions run 32608207900 / Exact Head CodeQL job 97116690520"
+      ]
+    },
+    {
+      "id": "BR-05",
+      "name": "Markdown link integrity",
+      "mandatory": true,
+      "status": "PASS",
+      "evidence": [
+        "GitHub Actions run 32608207878",
+        "GitHub Actions run 32608207900 / Exact Head Markdown Links job 97116690596"
+      ]
+    },
+    {
+      "id": "BR-06",
+      "name": "Production deployment",
+      "mandatory": true,
+      "status": "FAIL",
+      "evidence": [
+        "Vercel status failure on c63aa3ac608e6a73a1c32874d86c99ae38931566",
+        "Vercel status failure on readiness head cec16c5d13db05b71e53bd7471c7ff943103de68"
+      ]
+    },
+    {
+      "id": "BR-07",
+      "name": "Physical Android critical journey",
+      "mandatory": true,
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "BR-08",
+      "name": "COPPA consent and launch gate on device",
+      "mandatory": true,
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "BR-09",
+      "name": "Offline and reconnect recovery on device",
+      "mandatory": true,
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "BR-10",
+      "name": "Cloud sync account isolation",
+      "mandatory": true,
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "BR-11",
+      "name": "Accessibility critical journey on Android",
+      "mandatory": true,
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "BR-12",
+      "name": "Rollback rehearsal",
+      "mandatory": true,
+      "status": "NOT_RUN",
+      "evidence": []
+    }
+  ],
+  "defects": {
+    "openP0": 0,
+    "openP1": 0
+  },
+  "decision": "BLOCKED"
+}
