@@ -10,8 +10,25 @@ export function sanitizeString(val: unknown, maxLen: number): string {
   return val.slice(0, maxLen).trim();
 }
 
+/**
+ * Sanitize a user-controlled string before interpolating it into an LLM prompt.
+ * Beyond truncation, this neutralizes prompt-injection vectors: it flattens the
+ * value to a single line (control chars/newlines -> spaces), collapses runs of
+ * whitespace, and defangs instruction-delimiter sequences and role markers that
+ * could be used to break out of the surrounding prompt context.
+ * The result is plain inline data — never multi-line, never delimiter-bearing.
+ */
 export function sanitizePromptInput(val: unknown, maxLen = 500): string {
-  return sanitizeString(val, maxLen);
+  if (typeof val !== 'string') return '';
+  let s = val.slice(0, maxLen);
+  s = s.replace(/%[0-1][0-9a-fA-F]/gi, ' ');
+  // eslint-disable-next-line no-control-regex
+  s = s.replace(/[\x00-\x1F\x7F]+/g, ' ');
+  s = s.replace(/`+/g, "'").replace(/"{3,}/g, '"').replace(/~{3,}/g, '');
+  s = s.replace(/\b(system|assistant|user)\s*:/gi, '$1');
+  s = s.replace(/(^|\s)[#>\-*_]{2,}/g, '$1');
+  s = s.replace(/\s{2,}/g, ' ').trim();
+  return s;
 }
 
 export function validateMadlibWords(input: unknown): Record<string, string> | undefined {
