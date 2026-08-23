@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
-import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import { ProfileModal } from "@/components/ProfileModal";
+import { SettingsModal } from "@/components/SettingsModal";
 import { ParentControlsModal } from "@/components/ParentControlsModal";
 import { useProfile } from "@/lib/ProfileContext";
 import { useScreenInsets } from "@/lib/useScreenInsets";
@@ -15,6 +15,7 @@ export default function ProfileScreen() {
   const { topInset } = useScreenInsets();
   const { activeProfile } = useProfile();
   const [profileVisible, setProfileVisible] = useState(false);
+  const [settingsVisible, setSettingsVisible] = useState(false);
   const [parentControlsVisible, setParentControlsVisible] = useState(false);
 
   return (
@@ -36,7 +37,7 @@ export default function ProfileScreen() {
             <Ionicons name="person-outline" size={20} color={Colors.accent} />
             <Text style={styles.actionText}>Edit Profile</Text>
           </Pressable>
-          <Pressable style={styles.actionBtn} onPress={() => router.push("/settings")} testID="open-settings" accessibilityLabel="Open settings" accessibilityRole="button">
+          <Pressable style={styles.actionBtn} onPress={() => setSettingsVisible(true)} testID="open-settings" accessibilityLabel="Open settings" accessibilityRole="button">
             <Ionicons name="settings-outline" size={20} color={Colors.accent} />
             <Text style={styles.actionText}>Settings</Text>
           </Pressable>
@@ -48,6 +49,7 @@ export default function ProfileScreen() {
       </ResponsiveContainer>
 
       {profileVisible && <ProfileModal visible={profileVisible} onClose={() => setProfileVisible(false)} />}
+      {settingsVisible && <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />}
       {parentControlsVisible && <ParentControlsModal visible={parentControlsVisible} onClose={() => setParentControlsVisible(false)} />}
     </View>
   );

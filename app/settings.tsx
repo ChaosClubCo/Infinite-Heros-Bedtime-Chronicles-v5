@@ -15,7 +15,6 @@ import { StarField } from "@/components/StarField";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import Colors from "@/constants/colors";
 import { useSettings, AppSettings } from "@/lib/SettingsContext";
-import { MODE_VOICES } from "@/constants/story-theme";
 import { useAuth } from "@/lib/AuthContext";
 import { useConsent } from "@/lib/ConsentContext";
 import { clearAllData } from "@/lib/storage";
@@ -23,11 +22,12 @@ import { confirmDestructive, notifyResult } from "@/lib/confirmDestructive";
 import { purgeCloudData, runSync } from "@/lib/sync/runSync";
 import { useScreenInsets } from "@/lib/useScreenInsets";
 
-// Voices come from MODE_VOICES so this list can never drift from the ids the
-// TTS layer can actually resolve. The previous hardcoded list contained three
-// invented ids ("stargazer", "dreamweaver", "whisperwind") that no narrator
-// backs; selecting one persisted a value the player could not use.
-const VOICES = Object.values(MODE_VOICES).flat();
+const VOICES = [
+  { id: "moonbeam", label: "Moonbeam" },
+  { id: "stargazer", label: "Stargazer" },
+  { id: "dreamweaver", label: "Dreamweaver" },
+  { id: "whisperwind", label: "Whisper Wind" },
+];
 
 const SPEED_OPTIONS = [
   { id: 0.5, label: "0.5×" },
@@ -45,18 +45,11 @@ const SORT_ORDERS: { id: AppSettings["librarySortOrder"]; label: string }[] = [
   { id: "theme", label: "By Theme" },
 ];
 const AGE_RANGES: AppSettings["ageRange"][] = ["2-4", "4-6", "6-8", "8-10"];
-// All five values the AppSettings type allows. The previous list omitted
-// "medium-short" and "epic", so those were unreachable from the UI and an
-// install already set to one showed no selected chip at all.
 const STORY_LENGTHS: { id: AppSettings["storyLength"]; label: string; desc: string }[] = [
   { id: "short", label: "Short", desc: "~300 words" },
-  { id: "medium-short", label: "Medium Short", desc: "~400 words" },
   { id: "medium", label: "Medium", desc: "~600 words" },
-  { id: "long", label: "Long", desc: "~850 words" },
-  { id: "epic", label: "Epic", desc: "~1150 words" },
+  { id: "long", label: "Long", desc: "~1000 words" },
 ];
-
-const SLEEP_THEMES = ["Cloud Kingdom", "Starlit Ocean", "Moonlit Forest", "Crystal Cave"];
 const THEMES = [
   { id: "fantasy", label: "Fantasy" },
   { id: "space", label: "Space" },
@@ -91,41 +84,28 @@ function ChipSelector<T extends string | number>({
   selected,
   onSelect,
   getLabel,
-  groupLabel,
 }: {
   options: T[];
   selected: T;
   onSelect: (v: T) => void;
   getLabel?: (v: T) => string;
-  /** Names the setting this group controls, so each chip announces in context. */
-  groupLabel: string;
 }) {
   return (
-    <View style={styles.chipRow} accessibilityRole="radiogroup" accessibilityLabel={groupLabel}>
-      {options.map((opt) => {
-        const isSelected = selected === opt;
-        const optionLabel = getLabel ? getLabel(opt) : String(opt);
-        return (
-          <Pressable
-            key={String(opt)}
-            style={[styles.chip, isSelected && styles.chipActive]}
-            onPress={() => {
-              Haptics.selectionAsync();
-              onSelect(opt);
-            }}
-            accessibilityRole="radio"
-            accessibilityLabel={`${groupLabel}: ${optionLabel}`}
-            accessibilityState={{ selected: isSelected }}
-            // The chip is deliberately compact; hitSlop lifts the effective
-            // target to the 44pt minimum without changing the visual density.
-            hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
-          >
-            <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
-              {optionLabel}
-            </Text>
-          </Pressable>
-        );
-      })}
+    <View style={styles.chipRow}>
+      {options.map((opt) => (
+        <Pressable
+          key={String(opt)}
+          style={[styles.chip, selected === opt && styles.chipActive]}
+          onPress={() => {
+            Haptics.selectionAsync();
+            onSelect(opt);
+          }}
+        >
+          <Text style={[styles.chipText, selected === opt && styles.chipTextActive]}>
+            {getLabel ? getLabel(opt) : String(opt)}
+          </Text>
+        </Pressable>
+      ))}
     </View>
   );
 }
@@ -134,13 +114,7 @@ function VolumeSlider({ value, onChange }: { value: number; onChange: (v: number
   const levels = [20, 40, 60, 80, 100];
   return (
     <View style={styles.volumeRow}>
-      <Ionicons
-        name="volume-low-outline"
-        size={14}
-        color="rgba(255,255,255,0.35)"
-        accessibilityElementsHidden
-        importantForAccessibility="no"
-      />
+      <Ionicons name="volume-low-outline" size={14} color="rgba(255,255,255,0.35)" />
       <View style={styles.volumeTrack}>
         {levels.map((level) => (
           <Pressable
@@ -153,20 +127,10 @@ function VolumeSlider({ value, onChange }: { value: number; onChange: (v: number
               Haptics.selectionAsync();
               onChange(level);
             }}
-            accessibilityRole="adjustable"
-            accessibilityLabel={`Set volume to ${level} percent`}
-            accessibilityState={{ selected: value >= level }}
-            hitSlop={{ top: 12, bottom: 12, left: 2, right: 2 }}
           />
         ))}
       </View>
-      <Ionicons
-        name="volume-high-outline"
-        size={14}
-        color="rgba(255,255,255,0.35)"
-        accessibilityElementsHidden
-        importantForAccessibility="no"
-      />
+      <Ionicons name="volume-high-outline" size={14} color="rgba(255,255,255,0.35)" />
       <Text style={styles.volumeValue}>{value}</Text>
     </View>
   );
@@ -237,14 +201,7 @@ export default function SettingsScreen() {
       <StarField />
 
       <View style={[styles.topBar, { paddingTop: topInset + 8 }]}>
-        <Pressable
-          onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)"))}
-          hitSlop={12}
-          style={styles.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          testID="settings-back-btn"
-        >
+        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.8)" />
         </Pressable>
         <Text style={styles.screenTitle}>Settings</Text>
@@ -268,7 +225,6 @@ export default function SettingsScreen() {
 
           <SettingRow label="Speed">
             <ChipSelector
-              groupLabel="Speed"
               options={SPEED_OPTIONS.map((s) => s.id)}
               selected={settings.audioSpeed}
               onSelect={(v) => updateSetting("audioSpeed", v as AppSettings["audioSpeed"])}
@@ -278,7 +234,6 @@ export default function SettingsScreen() {
 
           <SettingRow label="Narrator Voice">
             <ChipSelector
-              groupLabel="Narrator Voice"
               options={VOICES.map((v) => v.id)}
               selected={settings.narratorVoice}
               onSelect={(v) => updateSetting("narratorVoice", v)}
@@ -286,25 +241,12 @@ export default function SettingsScreen() {
             />
           </SettingRow>
 
-          <SettingRow label="Auto-play on open">
+          <SettingRow label="Auto-play on open" last>
             <Switch
               value={settings.autoPlay}
               onValueChange={(v) => updateSetting("autoPlay", v)}
               trackColor={{ false: "rgba(255,255,255,0.1)", true: `${Colors.accent}80` }}
               thumbColor={settings.autoPlay ? Colors.accent : "rgba(255,255,255,0.5)"}
-              accessibilityLabel="Auto-play on open"
-              accessibilityRole="switch"
-            />
-          </SettingRow>
-
-          <SettingRow label="Mute all audio" last>
-            <Switch
-              value={settings.isMuted}
-              onValueChange={(v) => updateSetting("isMuted", v)}
-              trackColor={{ false: "rgba(255,255,255,0.1)", true: `${Colors.accent}80` }}
-              thumbColor={settings.isMuted ? Colors.accent : "rgba(255,255,255,0.5)"}
-              accessibilityLabel="Mute all audio"
-              accessibilityRole="switch"
             />
           </SettingRow>
         </View>
@@ -314,7 +256,6 @@ export default function SettingsScreen() {
 
           <SettingRow label="Story Length">
             <ChipSelector
-              groupLabel="Story Length"
               options={STORY_LENGTHS.map((l) => l.id)}
               selected={settings.storyLength}
               onSelect={(v) => updateSetting("storyLength", v as AppSettings["storyLength"])}
@@ -324,7 +265,6 @@ export default function SettingsScreen() {
 
           <SettingRow label="Age Range">
             <ChipSelector
-              groupLabel="Age Range"
               options={AGE_RANGES}
               selected={settings.ageRange}
               onSelect={(v) => updateSetting("ageRange", v as AppSettings["ageRange"])}
@@ -333,20 +273,10 @@ export default function SettingsScreen() {
 
           <SettingRow label="Default Theme">
             <ChipSelector
-              groupLabel="Default Theme"
               options={THEMES.map((t) => t.id)}
               selected={settings.defaultTheme}
               onSelect={(v) => updateSetting("defaultTheme", v)}
               getLabel={(v) => THEMES.find((t) => t.id === v)?.label || v}
-            />
-          </SettingRow>
-
-          <SettingRow label="Sleep Theme">
-            <ChipSelector
-              groupLabel="Sleep Theme"
-              options={SLEEP_THEMES}
-              selected={settings.sleepTheme}
-              onSelect={(v) => updateSetting("sleepTheme", v)}
             />
           </SettingRow>
 
@@ -356,8 +286,6 @@ export default function SettingsScreen() {
               onValueChange={(v) => updateSetting("autoGenerateImages", v)}
               trackColor={{ false: "rgba(255,255,255,0.1)", true: `${Colors.accent}80` }}
               thumbColor={settings.autoGenerateImages ? Colors.accent : "rgba(255,255,255,0.5)"}
-              accessibilityLabel="Auto-generate images"
-              accessibilityRole="switch"
             />
           </SettingRow>
         </View>
@@ -371,50 +299,26 @@ export default function SettingsScreen() {
               onValueChange={(v) => updateSetting("extendMode", v)}
               trackColor={{ false: "rgba(255,255,255,0.1)", true: `${Colors.accent}80` }}
               thumbColor={settings.extendMode ? Colors.accent : "rgba(255,255,255,0.5)"}
-              accessibilityLabel="Extend Mode"
-              accessibilityRole="switch"
             />
           </SettingRow>
 
-          <SettingRow label="Auto-play next story" last>
+          <SettingRow label="Auto-play next story">
             <Switch
               value={settings.autoPlayNext}
               onValueChange={(v) => updateSetting("autoPlayNext", v)}
               trackColor={{ false: "rgba(255,255,255,0.1)", true: `${Colors.accent}80` }}
               thumbColor={settings.autoPlayNext ? Colors.accent : "rgba(255,255,255,0.5)"}
-              accessibilityLabel="Auto-play next story"
-              accessibilityRole="switch"
             />
           </SettingRow>
-        </View>
 
-        <View style={styles.card}>
-          <SectionHeader title="Accessibility" icon="accessibility-outline" />
-
-          <SettingRow label="Story Text Size">
+          <SettingRow label="Text Size" last>
             <ChipSelector
-              groupLabel="Story Text Size"
               options={TEXT_SIZES}
               selected={settings.textSize}
               onSelect={(v) => updateSetting("textSize", v as AppSettings["textSize"])}
               getLabel={(v) => v.charAt(0).toUpperCase() + v.slice(1)}
             />
           </SettingRow>
-
-          <SettingRow label="Reduced Motion" last>
-            <Switch
-              value={settings.reducedMotion}
-              onValueChange={(v) => updateSetting("reducedMotion", v)}
-              trackColor={{ false: "rgba(255,255,255,0.1)", true: `${Colors.accent}80` }}
-              thumbColor={settings.reducedMotion ? Colors.accent : "rgba(255,255,255,0.5)"}
-              accessibilityLabel="Reduced Motion"
-              accessibilityRole="switch"
-            />
-          </SettingRow>
-          <Text style={styles.syncHint}>
-            Story text size applies on top of your device&apos;s own text-size setting.
-            Reduced motion also turns on automatically when your device asks for it.
-          </Text>
         </View>
 
         <View style={styles.card}>
@@ -422,7 +326,6 @@ export default function SettingsScreen() {
 
           <SettingRow label="Sort By">
             <ChipSelector
-              groupLabel="Sort By"
               options={SORT_ORDERS.map((s) => s.id)}
               selected={settings.librarySortOrder}
               onSelect={(v) => updateSetting("librarySortOrder", v as AppSettings["librarySortOrder"])}
@@ -436,8 +339,6 @@ export default function SettingsScreen() {
               onValueChange={(v) => updateSetting("showFavoritesOnly", v)}
               trackColor={{ false: "rgba(255,255,255,0.1)", true: `${Colors.accent}80` }}
               thumbColor={settings.showFavoritesOnly ? Colors.accent : "rgba(255,255,255,0.5)"}
-              accessibilityLabel="Show favorites only"
-              accessibilityRole="switch"
             />
           </SettingRow>
 
@@ -447,8 +348,6 @@ export default function SettingsScreen() {
               onValueChange={(v) => updateSetting("autoSave", v)}
               trackColor={{ false: "rgba(255,255,255,0.1)", true: `${Colors.accent}80` }}
               thumbColor={settings.autoSave ? Colors.accent : "rgba(255,255,255,0.5)"}
-              accessibilityLabel="Auto-save stories"
-              accessibilityRole="switch"
             />
           </SettingRow>
         </View>
@@ -467,9 +366,6 @@ export default function SettingsScreen() {
               }}
               trackColor={{ false: "rgba(255,255,255,0.1)", true: `${Colors.accent}80` }}
               thumbColor={settings.cloudSyncEnabled && user ? Colors.accent : "rgba(255,255,255,0.5)"}
-              accessibilityLabel="Sync stories and progress to the cloud"
-              accessibilityRole="switch"
-              accessibilityState={{ disabled: !user }}
             />
           </SettingRow>
           {!user && (
@@ -524,8 +420,6 @@ export default function SettingsScreen() {
             styles.resetBtn,
             { opacity: pressed ? 0.7 : 1 },
           ]}
-          accessibilityRole="button"
-          accessibilityLabel="Reset all settings to their defaults"
           testID="reset-settings-btn"
         >
           <Ionicons name="refresh-circle-outline" size={18} color="rgba(255,100,100,0.7)" />

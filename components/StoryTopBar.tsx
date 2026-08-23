@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
 interface StoryTopBarProps {
   topInset: number;
@@ -14,27 +15,11 @@ interface StoryTopBarProps {
 export function StoryTopBar({ topInset, isReady, storyTitle, currentPartIndex, accent, onClose }: StoryTopBarProps) {
   return (
     <View style={[styles.topBar, { paddingTop: topInset + 8 }]}>
-      <Pressable
-        onPress={onClose}
-        hitSlop={12}
-        style={styles.iconBtn}
-        testID="story-close-btn"
-        accessibilityRole="button"
-        accessibilityLabel="Close story"
-      >
+      <Pressable onPress={onClose} hitSlop={12} style={styles.iconBtn}>
         <Ionicons name="arrow-back" size={22} color="rgba(255,255,255,0.8)" />
       </Pressable>
 
-      <View
-        style={styles.topBarCenter}
-        accessible
-        accessibilityRole="header"
-        accessibilityLabel={
-          isReady
-            ? `Chapter ${currentPartIndex + 1}${storyTitle ? `, ${storyTitle}` : ""}`
-            : "Infinity Heroes, Bedtime Chronicles"
-        }
-      >
+      <View style={styles.topBarCenter}>
         {isReady ? (
           <>
             <Text style={[styles.chapterLabel, { color: accent }]}>
@@ -52,8 +37,9 @@ export function StoryTopBar({ topInset, isReady, storyTitle, currentPartIndex, a
         )}
       </View>
 
-      {/* Balances the back button so the title stays optically centred. */}
-      <View style={styles.iconBtnSpacer} />
+      <Pressable onPress={() => Haptics.selectionAsync()} hitSlop={12} style={styles.iconBtn}>
+        <Ionicons name="share-outline" size={20} color="rgba(255,255,255,0.8)" />
+      </Pressable>
     </View>
   );
 }
@@ -77,7 +63,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  iconBtnSpacer: { width: 40, height: 40 },
   topBarCenter: { flex: 1, alignItems: "center", paddingHorizontal: 8 },
   brandingText: {
     fontFamily: "PlusJakartaSans_700Bold",

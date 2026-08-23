@@ -4,7 +4,7 @@ import { FadeIn } from "react-native-reanimated";
 import { AnimatedView } from "@/components/AnimatedView";
 import { StarField } from "@/components/StarField";
 import Colors from "@/constants/colors";
-import { useMotionPreference } from "@/lib/useMotionPreference";
+import { useSettings } from "@/lib/SettingsContext";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -15,7 +15,8 @@ interface OnboardingSlideProps {
 }
 
 export function OnboardingSlide({ image, title, body }: OnboardingSlideProps) {
-  const { reducedMotion } = useMotionPreference();
+  const { settings } = useSettings();
+  const reducedMotion = settings?.reducedMotion ?? false;
 
   if (reducedMotion) {
     return (

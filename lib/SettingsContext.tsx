@@ -23,6 +23,7 @@ export interface AppSettings {
   sleepTheme: string;
   isMuted: boolean;
   reducedMotion: boolean;
+  fontSize: "normal" | "large";
   /** Parent opt-in for cloud sync/backup of stories + gamification (M3). Off by default. */
   cloudSyncEnabled: boolean;
 }
@@ -45,6 +46,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sleepTheme: "Cloud Kingdom",
   isMuted: false,
   reducedMotion: false,
+  fontSize: "normal",
   cloudSyncEnabled: false,
 };
 
@@ -105,12 +107,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
               if (legacy.sleepTheme && !merged.sleepTheme) merged.sleepTheme = legacy.sleepTheme;
               if (legacy.isMuted !== undefined && merged.isMuted === undefined) merged.isMuted = legacy.isMuted;
               if (legacy.reducedMotion !== undefined && merged.reducedMotion === undefined) merged.reducedMotion = legacy.reducedMotion;
-              // Legacy `fontSize` ("normal" | "large") was folded into `textSize`
-              // ("small" | "medium" | "large"); it was a second, never-consumed
-              // text-size key. Map it rather than dropping an upgrading user's choice.
-              if (legacy.fontSize && !merged.textSize) {
-                merged.textSize = legacy.fontSize === "large" ? "large" : "medium";
-              }
+              if (legacy.fontSize && !merged.fontSize) merged.fontSize = legacy.fontSize;
               if (legacy.narratorVoice && !merged.narratorVoice) merged.narratorVoice = legacy.narratorVoice;
               if (legacy.storyLength && !merged.storyLength) merged.storyLength = legacy.storyLength;
             } catch (e) {

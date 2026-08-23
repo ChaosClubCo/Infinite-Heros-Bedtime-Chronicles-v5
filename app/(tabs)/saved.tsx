@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,6 @@ import { AnimatedView } from "@/components/AnimatedView";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import { useFocusEffect, router } from "expo-router";
 import { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
-import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
 import { HEROES } from "@/constants/heroes";
 
@@ -32,37 +31,26 @@ export default function SavedScreen() {
   const { topInset } = useScreenInsets();
   const [savedStories, setSavedStories] = useState<CachedStory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadFailed, setLoadFailed] = useState(false);
   const { isSyncing } = useSyncOfflineStatus();
-  // Guards against a focus change or unmount landing state from a stale load.
-  const cancelledRef = useRef(false);
-
-  const load = useCallback(async () => {
-    cancelledRef.current = false;
-    setIsLoading(true);
-    setLoadFailed(false);
-    try {
-      const [allStories, favIds] = await Promise.all([
-        getAllStories(),
-        getFavorites(),
-      ]);
-      if (cancelledRef.current) return;
-      setSavedStories(allStories.filter((s) => favIds.includes(s.id)));
-    } catch (error) {
-      // Previously this rejection went unhandled and isLoading stayed true,
-      // leaving the screen on a spinner with no recovery path.
-      console.error("Failed to load saved stories", error);
-      if (!cancelledRef.current) setLoadFailed(true);
-    } finally {
-      if (!cancelledRef.current) setIsLoading(false);
-    }
-  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      void load();
-      return () => { cancelledRef.current = true; };
-    }, [load])
+      let cancelled = false;
+      async function load() {
+        setIsLoading(true);
+        const [allStories, favIds] = await Promise.all([
+          getAllStories(),
+          getFavorites(),
+        ]);
+        if (!cancelled) {
+          const favStories = allStories.filter((s) => favIds.includes(s.id));
+          setSavedStories(favStories);
+          setIsLoading(false);
+        }
+      }
+      load();
+      return () => { cancelled = true; };
+    }, [])
   );
 
   const handleUnfavorite = (id: string, title: string) => {
@@ -156,27 +144,7 @@ export default function SavedScreen() {
         )}
       </View>
 
-      {!isLoading && loadFailed ? (
-        <View style={styles.emptyState}>
-          <View style={styles.emptyIconWrap}>
-            <Ionicons name="cloud-offline-outline" size={52} color="rgba(244,63,94,0.25)" />
-          </View>
-          <Text style={styles.emptyTitle}>Could not open your saved stories</Text>
-          <Text style={styles.emptySubtitle}>
-            They are still saved on this device. Try again in a moment.
-          </Text>
-          <Pressable
-            onPress={() => void load()}
-            style={styles.retryBtn}
-            testID="saved-retry-btn"
-            accessibilityRole="button"
-            accessibilityLabel="Try loading your saved stories again"
-          >
-            <Ionicons name="refresh" size={16} color={Colors.accent} />
-            <Text style={styles.retryText}>Try Again</Text>
-          </Pressable>
-        </View>
-      ) : !isLoading && savedStories.length === 0 ? (
+      {!isLoading && savedStories.length === 0 ? (
         <View style={styles.emptyState}>
           <View style={styles.emptyIconWrap}>
             <Ionicons name="heart-outline" size={52} color="rgba(244,63,94,0.25)" />
@@ -319,23 +287,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(244,63,94,0.1)",
     alignItems: "center",
     justifyContent: "center",
-  },
-  retryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: `${Colors.accent}40`,
-    backgroundColor: `${Colors.accent}12`,
-  },
-  retryText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
-    color: Colors.accent,
   },
   emptyState: {
     flex: 1,

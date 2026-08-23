@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Audio } from "expo-av";
 import { getApiUrl } from "@/lib/query-client";
-import { useSettings } from "@/lib/SettingsContext";
 import type { StoryMode } from "@/constants/story-theme";
 
 export interface BackgroundMusicState {
@@ -27,14 +26,7 @@ export function useBackgroundMusic(storyMode: StoryMode): BackgroundMusicState {
   const musicTrackIndexRef = useRef(Math.floor(Math.random() * MUSIC_TRACK_INDEX_RANGE));
   const bgMusicRef = useRef<Audio.Sound | null>(null);
 
-  // Background music sits under the parent's global audio settings: "Mute all
-  // audio" silences it outright, and the volume setting scales the mode's
-  // baseline rather than replacing it.
-  const { settings } = useSettings();
-  const BASE_MUSIC_VOLUME = storyMode === "sleep" ? 0.12 : 0.15;
-  const MUSIC_VOLUME = settings?.isMuted
-    ? 0
-    : BASE_MUSIC_VOLUME * ((settings?.audioVolume ?? 80) / 100);
+  const MUSIC_VOLUME = storyMode === "sleep" ? 0.12 : 0.15;
 
   const stopBgMusic = useCallback(async () => {
     if (bgMusicRef.current) {

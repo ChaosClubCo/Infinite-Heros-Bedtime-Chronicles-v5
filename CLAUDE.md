@@ -35,7 +35,7 @@ AI-powered interactive bedtime story app for children ages 3-9. Kids create cust
 - **State:** TanStack React Query v5 (server state) + React Context (app settings, profiles)
 - **Local Storage:** AsyncStorage for stories, profiles, badges, streaks, parent controls
 - **Styling:** React Native StyleSheet + react-native-reanimated v4 for animations
-- **Fonts:** Plus Jakarta Sans (primary — all five weights, used throughout), Nunito (600/700 only — `app/voice-chat.tsx` and `components/OfflineBanner.tsx`). Bangers was previously loaded but never referenced in any StyleSheet and is no longer loaded.
+- **Fonts:** Nunito (primary), Plus Jakarta Sans (UI), Bangers (display/titles)
 - **Validation:** Zod v4
 - **Backend:** Express.js v5, TypeScript, Node.js 20.19+ / 22.13+ (see `engines` in `package.json`)
 - **Database:** PostgreSQL + Drizzle ORM v0.45 (voice chat features only)
@@ -63,9 +63,9 @@ app/                    # Expo Router screens (file-based routing)
   quick-create.tsx      # Fast onboarding hero creation (modal from bottom; opened after welcome's "Get Started")
   madlibs.tsx           # Mad Libs mode wizard (slide from right)
   sleep-setup.tsx       # Sleep mode setup (slide from right)
-  settings.tsx          # App settings (slide from right) — the single settings surface. Reached from the home gear AND the profile tab; `components/SettingsModal.tsx` was removed in favour of it.
+  settings.tsx          # App settings (slide from right)
   trophies.tsx          # Badge collection view (slide from right)
-  voice-chat.tsx        # Voice chat UI (conversation list + hold-to-speak). NOTE: no in-app entry point currently links to this route — it is built but unreachable.
+  voice-chat.tsx        # Voice chat UI (conversation list + hold-to-speak; reached from profile tab)
   parental-consent.tsx  # COPPA parental-consent gate (parent gate + consent; first-launch, before onboarding)
   privacy.tsx           # In-app Privacy Policy screen (native, offline; linked from consent + settings)
   welcome.tsx           # Onboarding splash (fade animation)
@@ -77,9 +77,11 @@ components/             # Reusable React Native components
   OnboardingSlide.tsx   # Illustrated onboarding slide (welcome flow)
   SeedCard.tsx          # Story-seed card (story-seeds.tsx gallery)
   KeyboardAwareScrollViewCompat.tsx  # Cross-platform keyboard-aware scroll
+  MemoryJar.tsx         # Story memory display
   OfflineBanner.tsx     # Offline state banner (wired into app/_layout.tsx via useNetworkStatus)
   ParentControlsModal.tsx  # Parent controls (PIN-protected, with lockout after failed attempts)
   ProfileModal.tsx      # Child profile management
+  SettingsModal.tsx     # Settings overlay
   PulsingOrb.tsx        # Animated orb effect
   StarField.tsx         # Background star animation
   AnimatedView.tsx      # Reanimated wrapper around View
@@ -101,9 +103,7 @@ lib/                    # Client utilities
   storage.ts            # AsyncStorage helpers
   storage.test.ts       # Storage unit tests
   storage.comprehensive.test.ts  # Extended storage test suite
-  storage-migration.ts  # Versioned AsyncStorage migration runner (see Known Gotchas). STORAGE_VERSION 3.
-  useMotionPreference.ts # OS reduce-motion (reanimated useReducedMotion) OR the in-app setting — single source of truth for suppressing animation
-  announce.ts           # announceForAccessibility(): pairs Android's accessibilityLiveRegion with an iOS-capable announcement
+  storage-migration.ts  # Versioned AsyncStorage migration runner (see Known Gotchas)
   storage-migration.test.ts      # Storage migration tests
   launch-gate.ts        # resolveLaunchRoute(): single source of truth for the cold-start consent/onboarding decision; also runs runStorageMigrations() first
   launch-gate.test.ts   # Launch-gate unit tests
@@ -545,12 +545,13 @@ Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. Optional for full features: 
   autoGenerateImages: false,
   extendMode: false,
   autoPlayNext: false,
-  textSize: "medium",        // small | medium | large — scales story text, composed with the OS font scale
+  textSize: "medium",        // small | medium | large
   librarySortOrder: "recent", // recent | alphabetical | theme
   showFavoritesOnly: false,
   autoSave: true,
   isMuted: false,
   reducedMotion: false,
+  fontSize: "normal",        // normal | large
   sleepTheme: "Cloud Kingdom",
   cloudSyncEnabled: false     // M3 parent opt-in for cloud sync/backup (off by default)
 }
