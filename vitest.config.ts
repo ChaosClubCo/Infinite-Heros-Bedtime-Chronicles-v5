@@ -1,9 +1,19 @@
 import { defineConfig } from 'vitest/config';
+import path from 'path';
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, '.'),
+      '@shared': path.resolve(__dirname, './shared'),
+      'react-native': 'react-native-web',
+      zod: path.resolve(__dirname, 'node_modules/zod/index.cjs'),
+    },
+  },
   test: {
     globals: true,
     environment: 'node',
+    setupFiles: ['__tests__/setup.ts'],
     include: [
       'server/**/*.test.ts',
       'lib/**/*.test.ts',
@@ -28,3 +38,5 @@ export default defineConfig({
     testTimeout: 60000,
   },
 });
+
+

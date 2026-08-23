@@ -10,6 +10,10 @@ export function sanitizeString(val: unknown, maxLen: number): string {
   return val.slice(0, maxLen).trim();
 }
 
+export function sanitizePromptInput(val: unknown, maxLen = 500): string {
+  return sanitizeString(val, maxLen);
+}
+
 export function validateMadlibWords(input: unknown): Record<string, string> | undefined {
   if (input == null) return undefined;
   if (typeof input !== 'object' || Array.isArray(input)) return undefined;
@@ -27,8 +31,9 @@ export function validateMadlibWords(input: unknown): Record<string, string> | un
 }
 
 /** Zod transform that truncates a string to maxLen and trims. */
-function truncated(maxLen: number) {
-  return z.string().transform((s) => s.slice(0, maxLen).trim());
+function truncated(maxLen: number, requiredMessage?: string) {
+  return z.string(requiredMessage ? { message: requiredMessage } : undefined)
+    .transform((s) => s.slice(0, maxLen).trim());
 }
 
 /** Optional truncated string that becomes undefined when empty. */
@@ -40,7 +45,7 @@ function optTruncated(maxLen: number) {
 }
 
 export const StoryRequestSchema = z.object({
-  heroName: truncated(MAX_INPUT_STRING_LENGTH).refine((s) => s.length > 0, { message: 'Hero name is required' }),
+  heroName: truncated(MAX_INPUT_STRING_LENGTH, 'Hero name is required').refine((s) => s.length > 0, { message: 'Hero name is required' }),
   heroTitle: truncated(MAX_INPUT_STRING_LENGTH).default(''),
   heroPower: truncated(MAX_INPUT_STRING_LENGTH).default(''),
   heroDescription: truncated(MAX_INPUT_STRING_LENGTH).default(''),
@@ -62,7 +67,7 @@ export const StoryRequestSchema = z.object({
 export type StoryRequest = z.output<typeof StoryRequestSchema>;
 
 export const AvatarRequestSchema = z.object({
-  heroName: truncated(MAX_INPUT_STRING_LENGTH).refine((s) => s.length > 0, { message: 'Hero name is required' }),
+  heroName: truncated(MAX_INPUT_STRING_LENGTH, 'Hero name is required').refine((s) => s.length > 0, { message: 'Hero name is required' }),
   heroTitle: truncated(MAX_INPUT_STRING_LENGTH).default(''),
   heroPower: truncated(MAX_INPUT_STRING_LENGTH).default(''),
   heroDescription: truncated(MAX_INPUT_STRING_LENGTH).default(''),
@@ -72,14 +77,14 @@ export type AvatarRequest = z.output<typeof AvatarRequestSchema>;
 
 export const SceneRequestSchema = z.object({
   heroName: truncated(MAX_INPUT_STRING_LENGTH).default(''),
-  sceneText: truncated(2000).refine((s) => s.length > 0, { message: 'Scene text is required' }),
+  sceneText: truncated(2000, 'Scene text is required').refine((s) => s.length > 0, { message: 'Scene text is required' }),
   heroDescription: truncated(MAX_INPUT_STRING_LENGTH).default(''),
 });
 
 export type SceneRequest = z.output<typeof SceneRequestSchema>;
 
 export const TtsRequestSchema = z.object({
-  text: z.string().min(1, 'Text is required').max(MAX_TTS_TEXT_LENGTH, `Text too long. Maximum ${MAX_TTS_TEXT_LENGTH} characters.`),
+  text: z.string({ message: 'Text is required' }).min(1, 'Text is required').max(MAX_TTS_TEXT_LENGTH, `Text too long. Maximum ${MAX_TTS_TEXT_LENGTH} characters.`),
   voice: z.string().optional().default('moonbeam').transform((s) => s.slice(0, 20).toLowerCase()),
   mode: z.string().optional().transform((s) => s ? s.slice(0, 20) : undefined),
 });
@@ -87,7 +92,7 @@ export const TtsRequestSchema = z.object({
 export type TtsRequest = z.output<typeof TtsRequestSchema>;
 
 export const VideoRequestSchema = z.object({
-  sceneText: truncated(2000).refine((s) => s.length > 0, { message: 'Scene text is required' }),
+  sceneText: truncated(2000, 'Scene text is required').refine((s) => s.length > 0, { message: 'Scene text is required' }),
   heroName: truncated(MAX_INPUT_STRING_LENGTH).default(''),
   heroDescription: truncated(MAX_INPUT_STRING_LENGTH).default(''),
 });
@@ -109,6 +114,7 @@ export type SuggestSettingsRequest = z.output<typeof SuggestSettingsRequestSchem
  * Parse and validate a story request body.
  * Returns a Zod SafeParseReturnType — caller checks `.success`.
  */
-export function parseStoryRequest(body: unknown): z.SafeParseReturnType<unknown, StoryRequest> {
+export function parseStoryRequest(body: unknown) {
   return StoryRequestSchema.safeParse(body);
 }
+
