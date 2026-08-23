@@ -13,11 +13,7 @@ interface StoryChoicesProps {
 
 export function StoryChoices({ heroName, choices, accent, choiceColors, partIndex, onSelect }: StoryChoicesProps) {
   return (
-    <View
-      style={styles.choicesSection}
-      accessibilityRole="radiogroup"
-      accessibilityLabel={`What should ${heroName} do next?`}
-    >
+    <View style={styles.choicesSection}>
       <Text style={[styles.choicesLabel, { color: accent }]}>
         What should {heroName} do next?
       </Text>

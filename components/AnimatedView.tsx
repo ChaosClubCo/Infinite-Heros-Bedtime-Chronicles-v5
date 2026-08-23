@@ -1,7 +1,6 @@
 import React, { type ComponentProps } from "react";
 import { View, Platform, type ViewProps } from "react-native";
 import Animated from "react-native-reanimated";
-import { useMotionPreference } from "@/lib/useMotionPreference";
 
 type ReanimatedViewProps = ComponentProps<typeof Animated.View>;
 
@@ -14,11 +13,7 @@ interface AnimatedViewProps extends Omit<ViewProps, "style"> {
 }
 
 export function AnimatedView({ children, entering, exiting, layout, style, ...props }: AnimatedViewProps) {
-  const { reducedMotion } = useMotionPreference();
-
-  // Reduced motion takes the same path as web: a plain View, so entering /
-  // exiting / layout transitions never run. Content still renders in full.
-  if (Platform.OS === "web" || reducedMotion) {
+  if (Platform.OS === "web") {
     // Disable layout animations on Web to avoid elements getting stuck at opacity: 0
     return (
       // intentional: reanimated style values are plain view styles once

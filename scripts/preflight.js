@@ -130,6 +130,10 @@ const aiProviderKeys = [
   'AI_INTEGRATIONS_OPENAI_API_KEY',
   'AI_INTEGRATIONS_ANTHROPIC_API_KEY',
   'AI_INTEGRATIONS_OPENROUTER_API_KEY',
+  'GEMINI_API_KEY',
+  'OPENAI_API_KEY',
+  'ANTHROPIC_API_KEY',
+  'OPENROUTER_API_KEY',
 ];
 const missingAiKeys = aiProviderKeys.filter((k) => !process.env[k]);
 if (missingAiKeys.length === aiProviderKeys.length) {

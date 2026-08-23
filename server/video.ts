@@ -2,7 +2,6 @@ import OpenAI from "openai";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { logger } from "./logger";
 
 const VIDEO_CACHE_DIR = path.resolve("/tmp/video-cache");
 if (!fs.existsSync(VIDEO_CACHE_DIR)) {
@@ -25,10 +24,10 @@ export async function cleanVideoCache() {
       }
     }
     if (removed > 0) {
-      logger.info({ removed }, 'video cache cleanup completed');
+      console.log(`[VideoCache] Cleaned ${removed} expired video files`);
     }
   } catch (err) {
-    logger.error({ err }, 'video cache cleanup failed');
+    console.error("[VideoCache] Cleanup error:", err);
   }
 }
 
@@ -43,11 +42,6 @@ interface VideoJob {
   videoPath?: string;
   error?: string;
   createdAt: number;
-}
-
-const VALID_VIDEO_STATUSES = new Set<string>(['queued', 'in_progress', 'completed', 'failed']);
-function toVideoStatus(s: string | undefined | null): VideoJob['status'] {
-  return (s && VALID_VIDEO_STATUSES.has(s)) ? (s as VideoJob['status']) : 'failed';
 }
 
 const activeJobs = new Map<string, VideoJob>();
@@ -78,11 +72,10 @@ export async function createVideoJob(
   heroName: string,
   heroDescription: string,
   referenceImageBase64?: string
-): Promise<{ jobId: string } | { error: string; clientSafe?: boolean }> {
+): Promise<{ jobId: string } | { error: string }> {
   const client = getOpenAIClient();
   if (!client) {
-    // clientSafe: an intended, provider-detail-free message the route may echo.
-    return { error: "Video generation is not configured. An OpenAI API key is required.", clientSafe: true };
+    return { error: "Video generation is not configured. An OpenAI API key is required." };
   }
 
   const summary = sceneText.substring(0, 200);
@@ -100,7 +93,7 @@ export async function createVideoJob(
     const job: VideoJob = {
       id: jobId,
       openaiVideoId: video.id,
-      status: toVideoStatus(video.status),
+      status: video.status as VideoJob["status"],
       progress: 0,
       createdAt: Date.now(),
     };
@@ -109,12 +102,9 @@ export async function createVideoJob(
     pollVideoStatus(client, job);
 
     return { jobId };
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    // Log the raw provider message server-side only; do NOT mark it clientSafe —
-    // it can leak provider identity, key prefixes, or account entitlements.
-    logger.error({ err, message }, 'video creation failed');
-    return { error: "Failed to start video generation. Please try again later." };
+  } catch (err: any) {
+    console.error("[Video] Creation error:", err?.message || err);
+    return { error: err?.message || "Failed to create video" };
   }
 }
 
@@ -128,15 +118,12 @@ async function pollVideoStatus(client: OpenAI, job: VideoJob) {
 
     try {
       const video = await client.videos.retrieve(job.openaiVideoId);
-      // intentional: Sora preview SDK response has `progress` and `output_url` fields
-      // that aren't declared on the typed `Video` shape. Cast to a local extension.
-      const soraVideo = video as typeof video & { progress?: number; output_url?: string };
-      job.status = toVideoStatus(video.status);
-      job.progress = soraVideo.progress || Math.min(polls * 5, 95);
+      job.status = video.status as VideoJob["status"];
+      job.progress = (video as any).progress || Math.min(polls * 5, 95);
 
       if (video.status === "completed") {
         try {
-          const outputUrl = soraVideo.output_url;
+          const outputUrl = (video as any).output_url;
           if (!outputUrl) {
             job.status = "failed";
             job.error = "No output URL in completed video";
@@ -154,8 +141,8 @@ async function pollVideoStatus(client: OpenAI, job: VideoJob) {
           job.videoPath = filePath;
           job.status = "completed";
           job.progress = 100;
-        } catch (dlErr: unknown) {
-          logger.error({ err: dlErr }, 'video download failed');
+        } catch (dlErr: any) {
+          console.error("[Video] Download error:", dlErr?.message);
           job.status = "failed";
           job.error = "Video generated but download failed";
         }
@@ -167,8 +154,8 @@ async function pollVideoStatus(client: OpenAI, job: VideoJob) {
         job.error = "Video generation failed";
         return;
       }
-    } catch (err: unknown) {
-      logger.error({ err }, 'video poll failed');
+    } catch (err: any) {
+      console.error("[Video] Poll error:", err?.message);
       if (polls >= maxPolls) {
         job.status = "failed";
         job.error = "Video generation timed out";
@@ -183,5 +170,7 @@ export function getVideoJob(jobId: string): VideoJob | undefined {
 
 export function getVideoFilePath(jobId: string): string | null {
   const job = activeJobs.get(jobId);
-  return job?.videoPath ?? null;
+  if (!job || !job.videoPath) return null;
+  if (!fs.existsSync(job.videoPath)) return null;
+  return job.videoPath;
 }

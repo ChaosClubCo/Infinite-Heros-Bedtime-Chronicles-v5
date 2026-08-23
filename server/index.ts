@@ -1,30 +1,14 @@
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
-import * as Sentry from "@sentry/node";
 import { registerRoutes } from "./routes";
 import { isAuthEnabled } from "./auth";
 import { logger, createRequestId } from "./logger";
-import { recordRequest, getMetrics } from "./metrics";
-import { checkAlertThresholds } from "./alerting";
+import { recordRequest } from "./metrics";
 import { createLoadSheddingMiddleware } from "./load-shedding";
 import * as fs from "fs";
 import * as path from "path";
 
 const log = logger.info.bind(logger);
-
-// Server-side error tracking. No-ops gracefully when SENTRY_DSN is unset
-// (mirrors the client-side init in app/_layout.tsx).
-let sentryInitialized = false;
-function initSentry() {
-  if (sentryInitialized) return;
-  sentryInitialized = true;
-  if (!process.env.SENTRY_DSN) return;
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV || "development",
-    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
-  });
-}
 
 function validateEnvironment() {
   const providerConfigs: [string, string, string, boolean][] = [
@@ -65,31 +49,13 @@ function validateEnvironment() {
 
   if (textProviders === 0) {
     log("[Env] WARNING: No text AI providers configured — story generation will fail");
-    if (process.env.NODE_ENV === "production") {
-      const fatalMsg = "No text AI providers configured in production. Refusing to start.";
-      log(`[Env] FATAL: ${fatalMsg}`);
-      // Throw instead of process.exit() so that:
-      // - On Vercel (serverless) the rejected promise is caught by the handler
-      //   and the function returns a 500 JSON response instead of crashing.
-      // - On the standalone server the IIFE catch block calls process.exit(1).
-      throw new Error(fatalMsg);
-    }
   }
   if (imageProviders === 0) {
     log("[Env] WARNING: No image AI providers configured — avatar/scene generation will fail");
   }
 
   if (!isAuthEnabled()) {
-    log("[Env] WARNING: Supabase auth not configured (need SUPABASE_SERVICE_ROLE_KEY + Supabase URL) — authentication is DISABLED (dev mode)");
-  }
-
-  // Cloudflare KV gives the rate limiter durable, cross-invocation state on
-  // serverless. Missing entirely → silent in-memory fallback (fine for local/
-  // Replit). Partially set → likely a misconfiguration worth surfacing.
-  const cfVars = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_KV_NAMESPACE_ID", "CLOUDFLARE_API_TOKEN"];
-  const cfSet = cfVars.filter((v) => !!process.env[v]).length;
-  if (cfSet > 0 && cfSet < cfVars.length) {
-    log("[Env] WARNING: CLOUDFLARE_* KV vars are partially set — rate limiting falls back to in-memory (not durable across serverless invocations)");
+    log("[Env] WARNING: FIREBASE_SERVICE_ACCOUNT_KEY not set — authentication is DISABLED (dev mode)");
   }
 
   log(`[Env] Environment validation complete (${textProviders} text providers, ${imageProviders} image providers)`);
@@ -108,7 +74,7 @@ function setupSecurityHeaders(app: express.Application) {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; font-src 'self' https://fonts.gstatic.com https:;");
+    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; font-src 'self' https://fonts.gstatic.com https:;");
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     next();
   });
@@ -179,29 +145,17 @@ function setupCors(app: express.Application) {
   });
 }
 
-// GitHub webhook payloads can legitimately exceed the 100kb app-wide limit and
-// need their exact wire bytes (not the parsed/re-serialized form) for HMAC
-// signature verification, so that route installs its own raw-body parser
-// (server/routes/github-webhook.ts) and must skip these global parsers entirely.
-const BODY_PARSING_EXEMPT_PATHS = new Set(["/api/github/webhook"]);
-
 function setupBodyParsing(app: express.Application) {
-  const jsonParser = express.json({
-    limit: "100kb",
-    verify: (req, _res, buf) => {
-      req.rawBody = buf;
-    },
-  });
-  const urlencodedParser = express.urlencoded({ extended: false, limit: "100kb" });
+  app.use(
+    express.json({
+      limit: "100kb",
+      verify: (req, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
 
-  app.use((req, res, next) => {
-    if (BODY_PARSING_EXEMPT_PATHS.has(req.path)) return next();
-    jsonParser(req, res, next);
-  });
-  app.use((req, res, next) => {
-    if (BODY_PARSING_EXEMPT_PATHS.has(req.path)) return next();
-    urlencodedParser(req, res, next);
-  });
+  app.use(express.urlencoded({ extended: false, limit: "100kb" }));
 }
 
 function setupRequestLogging(app: express.Application) {
@@ -220,14 +174,6 @@ function setupRequestLogging(app: express.Application) {
       const duration = Date.now() - start;
       req.log!.info({ method: req.method, path: reqPath, status: res.statusCode, duration }, 'request completed');
       recordRequest(res.statusCode);
-
-      // Threshold-based alerting is cheap and synchronous, but there's no need
-      // to run it on every single request — checking every ~20th request is
-      // enough resolution and works identically on Replit's long-running
-      // process and Vercel's per-invocation one (no separate timer needed).
-      if (getMetrics().requests.total % 20 === 0) {
-        checkAlertThresholds();
-      }
     });
 
     next();
@@ -348,13 +294,6 @@ function configureExpoAndLanding(app: express.Application) {
     }
 
     if (req.path === "/") {
-      const webIndexPath = path.resolve(process.cwd(), "static-build", "index.html");
-      if (fs.existsSync(webIndexPath)) {
-        // Web build is present — fall through to the express.static("static-build")
-        // middleware below so the real app is served instead of the marketing page.
-        return next();
-      }
-
       return serveLandingPage({
         req,
         res,
@@ -366,9 +305,6 @@ function configureExpoAndLanding(app: express.Application) {
     next();
   });
 
-  // Serve extracted template assets (landing/privacy CSS+JS) so the CSP can
-  // drop 'unsafe-inline' for script-src/style-src.
-  app.use("/static", express.static(path.resolve(process.cwd(), "server", "templates")));
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
 
@@ -395,33 +331,12 @@ function setupErrorHandler(app: express.Application) {
     const message = sanitizeErrorMessage(err);
 
     logger.error({ err, status }, 'unhandled server error');
-    if (status >= 500) {
-      Sentry.captureException(err);
-    }
 
     if (res.headersSent) {
       return next(err);
     }
 
     return res.status(status).json({ error: message });
-  });
-}
-
-// Register process-level crash logging once. This runs in BOTH the serverless
-// (Vercel) and long-running paths so unhandled rejections/exceptions always get
-// a structured log instead of crashing silently. The long-running path adds its
-// own drain-and-exit handler on top (see below).
-let crashLoggingRegistered = false;
-function registerCrashLogging() {
-  if (crashLoggingRegistered) return;
-  crashLoggingRegistered = true;
-  process.on("unhandledRejection", (reason) => {
-    logger.error({ err: reason }, "unhandledRejection");
-    Sentry.captureException(reason);
-  });
-  process.on("uncaughtException", (err) => {
-    logger.error({ err }, "uncaughtException");
-    Sentry.captureException(err);
   });
 }
 
@@ -433,8 +348,6 @@ export async function createApp(): Promise<express.Application> {
   app.set('trust proxy', 1);
 
   validateEnvironment();
-  initSentry();
-  registerCrashLogging();
   setupSecurityHeaders(app);
   setupCors(app);
   setupBodyParsing(app);
@@ -453,13 +366,7 @@ export async function createApp(): Promise<express.Application> {
 // Only start the server when running directly (not imported by Vercel)
 if (!process.env.VERCEL) {
   (async () => {
-    let app: express.Application;
-    try {
-      app = await createApp();
-    } catch (err) {
-      logger.error({ err }, "[Startup] Failed to initialize app. Exiting.");
-      process.exit(1);
-    }
+    const app = await createApp();
     const { createServer } = await import("node:http");
     const server = createServer(app);
 
@@ -468,7 +375,7 @@ if (!process.env.VERCEL) {
       {
         port,
         host: "0.0.0.0",
-        reusePort: process.platform !== "win32",
+        reusePort: true,
       },
       () => {
         log(`express server serving on port ${port}`);
@@ -489,11 +396,5 @@ if (!process.env.VERCEL) {
 
     process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
     process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-
-    // Long-running server only: createApp() already registered the structured
-    // crash logging; here we additionally drain and exit on an uncaught
-    // exception so a supervisor restarts a clean process. (On serverless the
-    // platform isolates each invocation, so no drain handler is registered.)
-    process.on("uncaughtException", () => gracefulShutdown("uncaughtException"));
   })();
 }

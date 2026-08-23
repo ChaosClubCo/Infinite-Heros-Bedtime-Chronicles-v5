@@ -20,7 +20,7 @@ Style: ${artStyle}. Close-up friendly portrait, expressive eyes, child-safe cont
 
       const result = await aiRouter.generateImage("avatar", { prompt });
       req.log?.info({ provider: result.provider, model: result.model }, 'avatar generated');
-      return res.json({ image: result.imageDataUri });
+      return res.json({ image: result.imageDataUri || (result as any).image });
     } catch (error: unknown) {
       sendRouteError(req, res, error, 'avatar generation failed', 'Failed to generate avatar');
     }
@@ -43,7 +43,7 @@ Style: ${sceneStyle}. Wide landscape composition, magical atmosphere, child-safe
 
       const result = await aiRouter.generateImage("scene", { prompt });
       req.log?.info({ provider: result.provider, model: result.model }, 'scene generated');
-      return res.json({ image: result.imageDataUri });
+      return res.json({ image: result.imageDataUri || (result as any).image });
     } catch (error: unknown) {
       sendRouteError(req, res, error, 'scene generation failed', 'Failed to generate scene');
     }

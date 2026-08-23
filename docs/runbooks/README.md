@@ -15,7 +15,6 @@ Operational runbooks for Infinity Heroes: Bedtime Chronicles. Each runbook is a 
 | [provider-outage.md](./provider-outage.md) | Handling AI provider outages |
 | [database-migrations.md](./database-migrations.md) | Running Drizzle schema migrations |
 | [monitoring-alerting.md](./monitoring-alerting.md) | Responding to Sentry alerts and Cloudflare KV issues |
-| [production-domain-routing.md](./production-domain-routing.md) | Production domain returns 403 / Cloudflare Error 1014 (DNS/CNAME misconfiguration) |
 
 ## Escalation Path
 
@@ -24,4 +23,3 @@ Operational runbooks for Infinity Heroes: Bedtime Chronicles. Each runbook is a 
 3. If AI providers are down → `provider-outage.md`
 4. If deployment caused the issue → `rollback.md`
 5. If production does not match canonical `main` (the `Deployment Drift Monitor` workflow is red) → `deployment-provenance.md`
-6. If the production domain returns 403 / Cloudflare Error 1014 → `production-domain-routing.md`

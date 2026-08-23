@@ -60,11 +60,7 @@ function SceneVideoPlayer({ jobId, accent }: { jobId: string; accent: string }) 
 
   if (!videoUrl) {
     return (
-      <Animated.View
-        entering={FadeIn.duration(400)}
-        style={s.videoLoadingWrap}
-        accessibilityLiveRegion="polite"
-      >
+      <Animated.View entering={FadeIn.duration(400)} style={s.videoLoadingWrap}>
         <View style={s.videoLoadingRow}>
           <ActivityIndicator size="small" color={accent} />
           <Text style={s.videoLoadingText}>
@@ -126,54 +122,26 @@ export function StorySceneDisplay({
       <View style={s.sceneHeroWrap}>
         {sceneImage && !sceneLoading ? (
           <Animated.View entering={FadeIn.duration(600)} style={StyleSheet.absoluteFill}>
-            <Image
-              source={{ uri: sceneImage }}
-              style={s.sceneHeroImage}
-              resizeMode="cover"
-              accessible
-              accessibilityRole="image"
-              accessibilityLabel="Illustration for this part of the story"
-            />
+            <Image source={{ uri: sceneImage }} style={s.sceneHeroImage} resizeMode="cover" />
           </Animated.View>
         ) : sceneLoading ? (
-          <View
-            style={s.sceneHeroPlaceholder}
-            accessible
-            accessibilityLabel="Painting the scene"
-            accessibilityState={{ busy: true }}
-            accessibilityLiveRegion="polite"
-          >
+          <View style={s.sceneHeroPlaceholder}>
             <ActivityIndicator size="small" color={theme.accent} />
             <Text style={s.sceneLoadingText}>Painting the scene...</Text>
           </View>
         ) : sceneError ? (
-          <View style={s.sceneHeroPlaceholder} accessibilityLiveRegion="polite">
-            <Ionicons
-              name="image-outline"
-              size={32}
-              color="rgba(255,255,255,0.15)"
-              accessibilityElementsHidden
-              importantForAccessibility="no"
-            />
+          <View style={s.sceneHeroPlaceholder}>
+            <Ionicons name="image-outline" size={32} color="rgba(255,255,255,0.15)" />
             <Pressable
               onPress={onLoadScene}
               style={[s.sceneRetryBtn, { borderColor: `${theme.accent}40` }]}
-              testID="scene-retry-btn"
-              accessibilityRole="button"
-              accessibilityLabel="Illustration could not be created. Try again"
             >
               <Ionicons name="refresh" size={14} color={theme.accent} />
               <Text style={[s.sceneRetryText, { color: theme.accent }]}>Retry</Text>
             </Pressable>
           </View>
         ) : (
-          <Pressable
-            style={s.sceneHeroPlaceholder}
-            onPress={onLoadScene}
-            testID="scene-generate-btn"
-            accessibilityRole="button"
-            accessibilityLabel="Illustrate this part of the story"
-          >
+          <Pressable style={s.sceneHeroPlaceholder} onPress={onLoadScene}>
             <Ionicons name="image-outline" size={28} color={`${theme.accent}30`} />
             <Text style={[s.sceneGenerateText, { color: `${theme.accent}70` }]}>
               Tap to illustrate
@@ -196,8 +164,6 @@ export function StorySceneDisplay({
               <Pressable
                 onPress={resetError}
                 style={[s.sceneRetryBtn, { borderColor: `${theme.accent}40` }]}
-                accessibilityRole="button"
-                accessibilityLabel="Video unavailable. Try again"
               >
                 <Ionicons name="refresh" size={14} color={theme.accent} />
                 <Text style={[s.sceneRetryText, { color: theme.accent }]}>Retry</Text>

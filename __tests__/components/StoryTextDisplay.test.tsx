@@ -2,13 +2,6 @@ import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import { StoryTextDisplay } from '@/components/StoryTextDisplay';
 
-// Story text size is read from settings; keep it mutable so a test can change
-// the scale without re-importing the module under test.
-const mockSettings: { textSize: 'small' | 'medium' | 'large' } = { textSize: 'medium' };
-jest.mock('@/lib/SettingsContext', () => ({
-  useSettings: () => ({ settings: mockSettings }),
-}));
-
 const ACCENT = '#6366f1';
 
 describe('StoryTextDisplay', () => {
@@ -112,47 +105,5 @@ describe('StoryTextDisplay', () => {
       expect(screen.getByText(/shared a warm cookie/i)).toBeTruthy();
       expect(onUnsafe).not.toHaveBeenCalled();
     });
-  });
-});
-
-describe('StoryTextDisplay — story text size setting', () => {
-  // Base paragraph size is 18; the setting multiplies it by 0.875 / 1 / 1.25.
-  const BASE_FONT_SIZE = 18;
-
-  const flatten = (style: unknown): Record<string, number> =>
-    Object.assign({}, ...[].concat(style as never[]).filter(Boolean));
-
-  const renderParagraphFontSize = async (textSize: 'small' | 'medium' | 'large') => {
-    mockSettings.textSize = textSize;
-    const { getAllByTestId } = await render(
-      <StoryTextDisplay text="Once upon a time." isSleep={false} accent="#6366f1" partIndex={0} />,
-    );
-    return flatten(getAllByTestId('story-paragraph')[0].props.style).fontSize;
-  };
-
-  afterEach(() => {
-    mockSettings.textSize = 'medium';
-  });
-
-  it('renders story text at the base size on "medium"', async () => {
-    expect(await renderParagraphFontSize('medium')).toBe(BASE_FONT_SIZE);
-  });
-
-  it('renders larger story text on "large"', async () => {
-    expect(await renderParagraphFontSize('large')).toBeGreaterThan(BASE_FONT_SIZE);
-  });
-
-  it('renders smaller story text on "small"', async () => {
-    expect(await renderParagraphFontSize('small')).toBeLessThan(BASE_FONT_SIZE);
-  });
-
-  it('never disables allowFontScaling, so the device text-size setting still applies', async () => {
-    // The in-app scale must compose with the OS scale, never replace it —
-    // disabling font scaling here would break WCAG 1.4.4 (Resize Text).
-    mockSettings.textSize = 'large';
-    const { toJSON } = await render(
-      <StoryTextDisplay text="Once upon a time." isSleep={false} accent="#6366f1" partIndex={0} />,
-    );
-    expect(JSON.stringify(toJSON())).not.toContain('"allowFontScaling":false');
   });
 });

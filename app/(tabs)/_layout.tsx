@@ -8,12 +8,6 @@ import { useScreenInsets } from "@/lib/useScreenInsets";
 
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 
-// Inactive tab foreground. The previous rgba(255,255,255,0.4) composited to
-// roughly 3.8:1 against the tab bar — below the 4.5:1 WCAG AA floor, and it was
-// carrying 9px uppercase letterspaced text. At 0.6 alpha the same hue measures
-// about 7.2:1, and the label is now 11px.
-const INACTIVE_TINT = "rgba(255,255,255,0.6)";
-
 interface TabIconProps {
   name: IoniconsName;
   focused: boolean;
@@ -28,7 +22,7 @@ function TabIcon({ name, focused, label, isCreate }: TabIconProps) {
         <View style={styles.createBtn}>
           <Ionicons name="add" size={28} color="#FFF" />
         </View>
-        <Text style={[styles.tabLabel, { color: focused ? Colors.accent : INACTIVE_TINT }]}>
+        <Text style={[styles.tabLabel, { color: focused ? Colors.accent : "rgba(255,255,255,0.4)" }]}>
           {label}
         </Text>
       </View>
@@ -40,7 +34,7 @@ function TabIcon({ name, focused, label, isCreate }: TabIconProps) {
       <Ionicons
         name={focused ? name : (`${String(name)}-outline` as IoniconsName)}
         size={24}
-        color={focused ? Colors.accent : INACTIVE_TINT}
+        color={focused ? Colors.accent : "rgba(255,255,255,0.4)"}
       />
       <Text style={[styles.tabLabel, focused && { color: Colors.accent }]}>
         {label}
@@ -86,7 +80,7 @@ export default function TabsLayout() {
         },
         tabBarShowLabel: false,
         tabBarActiveTintColor: Colors.accent,
-        tabBarInactiveTintColor: INACTIVE_TINT,
+        tabBarInactiveTintColor: "rgba(255,255,255,0.4)",
       }}
     >
       <Tabs.Screen
@@ -146,9 +140,9 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 11,
-    letterSpacing: 0.6,
-    color: INACTIVE_TINT,
+    fontSize: 9,
+    letterSpacing: 0.8,
+    color: "rgba(255,255,255,0.4)",
     textTransform: "uppercase",
   },
   createBtnWrap: {

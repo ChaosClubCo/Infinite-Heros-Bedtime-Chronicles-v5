@@ -2,22 +2,6 @@ import React, { useEffect, useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { containsUnsafeContent, SAFE_PLACEHOLDER_TEXT } from "@shared/safety-terms";
-import { useSettings, type AppSettings } from "@/lib/SettingsContext";
-
-/**
- * Multipliers for the in-app "Story Text Size" setting.
- *
- * These sit *on top of* the OS font scale rather than replacing it: RN's
- * `allowFontScaling` defaults to true and is deliberately never disabled in
- * this app, so a device already set to large text gets that scaling, and this
- * multiplier lets a parent go further for story text specifically without
- * changing every app on their phone.
- */
-const TEXT_SIZE_SCALE: Record<AppSettings["textSize"], number> = {
-  small: 0.875,
-  medium: 1,
-  large: 1.25,
-};
 
 interface StoryTextDisplayProps {
   text: string;
@@ -43,19 +27,6 @@ export function StoryTextDisplay({ text, isSleep, accent, partIndex, onUnsafe }:
     .map((p) => p.trim())
     .filter((p) => p.length > 0);
 
-  const { settings } = useSettings();
-  const scale = TEXT_SIZE_SCALE[settings?.textSize ?? "medium"] ?? 1;
-
-  const base = isSleep ? styles.paragraphSleep : styles.paragraphText;
-  const scaledParagraph = {
-    fontSize: base.fontSize * scale,
-    lineHeight: base.lineHeight * scale,
-  };
-  const scaledDropCap = {
-    fontSize: styles.dropCap.fontSize * scale,
-    lineHeight: styles.dropCap.lineHeight * scale,
-  };
-
   return (
     <View style={styles.textSection}>
       {paragraphs.map((paragraph, index) => (
@@ -64,20 +35,14 @@ export function StoryTextDisplay({ text, isSleep, accent, partIndex, onUnsafe }:
           entering={FadeInDown.duration(400).delay(index * 80)}
         >
           {index === 0 ? (
-            <Text
-              testID="story-paragraph"
-              style={[styles.paragraphText, isSleep && styles.paragraphSleep, scaledParagraph]}
-            >
-              <Text style={[styles.dropCap, { color: accent }, scaledDropCap]}>
+            <Text style={[styles.paragraphText, isSleep && styles.paragraphSleep]}>
+              <Text style={[styles.dropCap, { color: accent }]}>
                 {paragraph.charAt(0)}
               </Text>
               {paragraph.slice(1)}
             </Text>
           ) : (
-            <Text
-              testID="story-paragraph"
-              style={[styles.paragraphText, isSleep && styles.paragraphSleep, scaledParagraph]}
-            >
+            <Text style={[styles.paragraphText, isSleep && styles.paragraphSleep]}>
               {paragraph}
             </Text>
           )}

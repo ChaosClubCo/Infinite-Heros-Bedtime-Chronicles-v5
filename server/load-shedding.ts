@@ -36,13 +36,7 @@ export function createLoadSheddingMiddleware(options?: Partial<LoadSheddingOptio
     }
 
     activeRequests++;
-    // Decrement on 'close' (fires for both normal completion AND client aborts)
-    // rather than 'finish' (never fires when the client disconnects mid-response,
-    // which would leak the slot and ratchet toward permanent 503 load-shedding).
-    // A guard keeps it exactly-once in case both events ever fire.
-    let released = false;
-    const release = () => { if (!released) { released = true; activeRequests--; } };
-    res.once('close', release);
+    res.on('finish', () => { activeRequests--; });
     next();
   };
 }

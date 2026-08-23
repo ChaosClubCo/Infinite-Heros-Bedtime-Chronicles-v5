@@ -9,7 +9,6 @@ import Animated, {
   withDelay,
   Easing,
 } from "react-native-reanimated";
-import { useMotionPreference } from "@/lib/useMotionPreference";
 
 interface FloatingParticleProps {
   delay: number;
@@ -23,16 +22,8 @@ export function FloatingParticle({ delay, accent }: FloatingParticleProps) {
   // values are stable across re-renders without needing ref.current in render.
   const [startX] = useState(() => Dimensions.get("window").width * Math.random());
   const [size] = useState(() => 2 + Math.random() * 3);
-  const { reducedMotion } = useMotionPreference();
 
   useEffect(() => {
-    if (reducedMotion) {
-      // These particles are nothing but drift — a frozen one is visual noise
-      // rather than decoration, so hide them outright.
-      opacity.value = 0;
-      translateY.value = 0;
-      return;
-    }
     opacity.value = withDelay(
       delay,
       withRepeat(
@@ -54,7 +45,7 @@ export function FloatingParticle({ delay, accent }: FloatingParticleProps) {
     );
   // Shared values are stable Reanimated refs; delay is mount-time config.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reducedMotion]);
+  }, []);
 
   const animStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -63,9 +54,6 @@ export function FloatingParticle({ delay, accent }: FloatingParticleProps) {
 
   return (
     <Animated.View
-      pointerEvents="none"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
       style={[
         {
           position: "absolute",

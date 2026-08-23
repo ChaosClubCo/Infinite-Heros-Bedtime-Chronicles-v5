@@ -21,15 +21,18 @@
   ],
   "exclude": [
     "node_modules",
-    "archive/artifacts",
-    "archive/attached_assets",
-    "server_dist",
-    "static-build",
+    "archive/**",
+    "artifacts/**",
+    "attached_assets/**",
+    "server_dist/**",
+    "static-build/**",
+    "src/**",
+    "scripts/**",
+    "server/replit_integrations/**/*",
     "**/*.test.ts",
     "**/*.test.tsx",
     "jest.setup.ts",
     "__tests__/**",
-    ".agents/**",
-    "scripts/**"
+    ".agents/**"
   ]
 }

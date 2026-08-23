@@ -11,7 +11,7 @@ custom superhero and get personalized, AI-generated adventures with scene illust
 ElevenLabs narration, and gamification (badges, streaks, trophies). Three story modes:
 Classic (adventure), Mad Libs (silly), and Sleep (calming).
 
-**Shape:** a single repo with an **Expo / React Native client** (Expo Router, package major 55,
+**Shape:** a single repo with an **Expo / React Native client** (Expo Router, package major 56,
 file-based routing under `app/`) and a **production-hardened Express 5 server** (`server/`). The server
 is notably mature — it ships circuit breakers, retry-with-jitter, rate limiting, load
 shedding, idempotency caching, feature flags, structured pino logging, and in-process
