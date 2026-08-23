@@ -187,12 +187,6 @@ Every tester report should capture:
 
 Security/privacy/unsafe-content reports bypass normal product triage and receive immediate review.
 
-## Known Documentation Drift To Resolve
-
-`docs/BETA_TESTING.md` still states that the app has “No account system — data is stored on-device only.” That is no longer consistent with the current canonical architecture, which contains Supabase Auth and cloud sync. The beta guide must be updated before external testers are invited so testers are not given false expectations about data behavior.
-
-The same guide says rate limiting is in-memory only. The current server supports optional Cloudflare KV persistence and falls back to in-memory behavior when KV is not configured. The documentation should describe the actual release configuration rather than an obsolete blanket limitation.
-
 ## Beta Promotion Decision
 
 Beta promotion is allowed only when:
