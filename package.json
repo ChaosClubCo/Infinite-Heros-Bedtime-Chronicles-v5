@@ -36,6 +36,7 @@
     "verify:sync": "node --import tsx scripts/verify-sync.ts",
     "verify:milestones": "node scripts/verify-milestones.mjs",
     "verify:release-proof": "node scripts/verify-release-proof.mjs",
+    "verify:beta-readiness": "node scripts/verify-beta-readiness.mjs",
     "preflight:eas": "node scripts/build-preflight-eas.mjs",
     "verify:mirror": "node scripts/verify-mirror-archival.mjs",
     "verify:expo57-readiness": "node scripts/verify-expo57-readiness.mjs"
