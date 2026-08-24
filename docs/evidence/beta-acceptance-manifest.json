@@ -11,7 +11,9 @@
     "blockingStatuses": ["FAIL", "BLOCKED", "NOT_RUN"],
     "maxOpenP0": 0,
     "maxOpenP1": 0,
-    "requireDefectReceipt": true
+    "requireDefectReceipt": true,
+    "requireTrustedProvenance": true,
+    "promotionEnabled": false
   },
   "gates": [
     {

@@ -9,6 +9,22 @@ export function sha256(content) {
   return createHash('sha256').update(content).digest('hex');
 }
 
+export function assertExpectedSha(currentHead, expectedSha) {
+  const normalizedHead = currentHead.toLowerCase();
+  if (!SHA_PATTERN.test(normalizedHead)) {
+    throw new Error('git HEAD must be a full SHA');
+  }
+  if (expectedSha == null) return normalizedHead;
+  const normalizedExpected = expectedSha.toLowerCase();
+  if (!SHA_PATTERN.test(normalizedExpected)) {
+    throw new Error('expected SHA must be a full SHA');
+  }
+  if (normalizedExpected !== normalizedHead) {
+    throw new Error(`expected SHA ${normalizedExpected} does not equal git HEAD ${normalizedHead}`);
+  }
+  return normalizedHead;
+}
+
 export async function readJson(path) {
   return JSON.parse(await readFile(path, 'utf8'));
 }
@@ -27,6 +43,11 @@ export function resolveInside(root, relativePath) {
 }
 
 export function computeDecision(manifest) {
+  const trustedPromotionUnavailable =
+    manifest.policy.promotionEnabled !== true ||
+    manifest.policy.requireTrustedProvenance !== true ||
+    manifest.provenance?.assurance !== 'TRUSTED_CONTROL_PLANE' ||
+    manifest.provenance?.promotable !== true;
   const mandatoryBlocked = manifest.gates.some(
     (gate) => gate.mandatory === true && gate.status !== 'PASS',
   );
@@ -37,7 +58,9 @@ export function computeDecision(manifest) {
     !Number.isInteger(defects?.openP1) ||
     defects.openP0 > manifest.policy.maxOpenP0 ||
     defects.openP1 > manifest.policy.maxOpenP1;
-  return mandatoryBlocked || defectReceiptMissing || defectThresholdExceeded ? 'BLOCKED' : 'PASS';
+  return trustedPromotionUnavailable || mandatoryBlocked || defectReceiptMissing || defectThresholdExceeded
+    ? 'BLOCKED'
+    : 'PASS';
 }
 
 export async function validateReceiptReference(reference, expected, evidenceDir, now, maxAgeHours) {
@@ -74,6 +97,13 @@ export async function validateManifest(manifest, options) {
   if (!SHA_PATTERN.test(manifest.candidate?.sha ?? '')) errors.push('candidate.sha must be a full SHA');
   if (manifest.candidate?.sha !== currentHead) errors.push('candidate.sha does not equal the checked-out HEAD');
   if (manifest.policyTemplate?.sha256 !== templateSha256) errors.push('policy template digest mismatch');
+  if (
+    manifest.provenance?.assurance !== 'CANDIDATE_GENERATED' ||
+    manifest.provenance?.promotable !== false ||
+    manifest.provenance?.attestation != null
+  ) {
+    errors.push('candidate manifest must be marked non-promotable and unattested');
+  }
   if (!Array.isArray(manifest.gates) || manifest.gates.length === 0) errors.push('manifest.gates is empty');
   if (JSON.stringify(manifest.policy) !== JSON.stringify(template.policy)) {
     errors.push('manifest policy disagrees with policy template');

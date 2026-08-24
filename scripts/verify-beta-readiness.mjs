@@ -3,7 +3,12 @@ import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import process from 'node:process';
-import { readJson, sha256, validateManifest } from './beta-readiness-evidence.mjs';
+import {
+  assertExpectedSha,
+  readJson,
+  sha256,
+  validateManifest,
+} from './beta-readiness-evidence.mjs';
 
 function option(name, fallback) {
   const index = process.argv.indexOf(name);
@@ -13,10 +18,11 @@ function option(name, fallback) {
 const manifestPath = resolve(option('--manifest', '.release-evidence/beta-acceptance-manifest.json'));
 const templatePath = resolve(option('--template', 'docs/evidence/beta-acceptance-manifest.json'));
 const evidenceDir = resolve(option('--evidence-dir', resolve(dirname(manifestPath), 'receipts')));
-const currentHead = option(
-  '--sha',
-  execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
-).toLowerCase();
+if (process.argv.includes('--sha')) {
+  throw new Error('--sha is unsafe and unsupported; use --expected-sha as an assertion');
+}
+const gitHead = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+const currentHead = assertExpectedSha(gitHead, option('--expected-sha'));
 
 try {
   const [manifest, templateBytes] = await Promise.all([readJson(manifestPath), readFile(templatePath)]);

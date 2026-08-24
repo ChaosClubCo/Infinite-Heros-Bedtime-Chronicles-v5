@@ -47,7 +47,7 @@ npm run generate:beta-readiness
 npm run verify:beta-readiness
 ```
 
-Gate receipts belong in `.release-evidence/receipts/BR-XX.json` and must contain `gateId`, the full `candidateSha`, `status`, `executedAt`, and a `source` object with `provider` and immutable `uri`. The generator hashes each receipt into the manifest. Verification independently requires the candidate SHA to equal the checked-out `HEAD`, rejects receipt tampering and expiry, and fails unless every mandatory gate passes with a receipt plus a SHA-bound defect receipt proves P0/P1 counts. `--allow-blocked` validates manifest structure only and must not be used as a promotion decision.
+Gate receipts belong in `.release-evidence/receipts/BR-XX.json` and must contain `gateId`, the full `candidateSha`, `status`, `executedAt`, and a `source` object with `provider` and immutable `uri`. The generator hashes each receipt into the manifest. Both generator and verifier derive the candidate from the checked-out `HEAD`; `--expected-sha` is assertion-only and a mismatch aborts. Candidate-controlled receipts are explicitly `CANDIDATE_GENERATED`, non-promotable, and structurally verifiable only. `promotionEnabled` remains false until a protected default-branch or external control plane verifies GitHub workflow identity, run/event metadata, exact head SHA, and immutable artifact digests. `--allow-blocked` validates manifest structure only and must not be used as a promotion decision.
 
 ### G2 — Static / Automated Verification
 

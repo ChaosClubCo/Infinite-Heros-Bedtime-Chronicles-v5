@@ -2,11 +2,22 @@ import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { sha256, validateManifest } from '../scripts/beta-readiness-evidence.mjs';
+import {
+  assertExpectedSha,
+  sha256,
+  validateManifest,
+} from '../scripts/beta-readiness-evidence.mjs';
 
 const candidateSha = 'a'.repeat(40);
 const templateSha256 = 'b'.repeat(64);
-const policy = { receiptMaxAgeHours: 168, maxOpenP0: 0, maxOpenP1: 0, requireDefectReceipt: false };
+const policy = {
+  receiptMaxAgeHours: 168,
+  maxOpenP0: 0,
+  maxOpenP1: 0,
+  requireDefectReceipt: false,
+  requireTrustedProvenance: true,
+  promotionEnabled: false,
+};
 const template = {
   repository: 'example/repository',
   policy,
@@ -33,15 +44,16 @@ async function fixture() {
       candidate: { sha: candidateSha },
       policyTemplate: { sha256: templateSha256 },
       policy,
+      provenance: { assurance: 'CANDIDATE_GENERATED', promotable: false, attestation: null },
       gates: [{ id: 'BR-01', name: 'Locked install', mandatory: true, status: 'PASS', receipt: { path: 'BR-01.json', sha256: sha256(bytes) } }],
       defects: { openP0: 0, openP1: 0, receipt: null },
-      decision: 'PASS',
+      decision: 'BLOCKED',
     },
   };
 }
 
 describe('beta readiness evidence', () => {
-  it('accepts a fresh receipt bound to the checked-out candidate', async () => {
+  it('accepts a fresh receipt structurally but keeps candidate evidence non-promotable', async () => {
     const { root, manifest } = await fixture();
     const result = await validateManifest(manifest, {
       currentHead: candidateSha,
@@ -50,7 +62,14 @@ describe('beta readiness evidence', () => {
       templateSha256,
       now: new Date('2026-08-24T20:01:00.000Z'),
     });
-    expect(result).toEqual({ ok: true, errors: [], computedDecision: 'PASS' });
+    expect(result).toEqual({ ok: true, errors: [], computedDecision: 'BLOCKED' });
+  });
+
+  it('treats an expected SHA only as an assertion against git HEAD', () => {
+    expect(assertExpectedSha(candidateSha, candidateSha.toUpperCase())).toBe(candidateSha);
+    expect(() => assertExpectedSha(candidateSha, 'c'.repeat(40))).toThrow(
+      `expected SHA ${'c'.repeat(40)} does not equal git HEAD ${candidateSha}`,
+    );
   });
 
   it('rejects candidate drift and receipt tampering', async () => {

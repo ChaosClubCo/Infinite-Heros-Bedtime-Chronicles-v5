@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
 import process from 'node:process';
-import { computeDecision, sha256 } from './beta-readiness-evidence.mjs';
+import { assertExpectedSha, computeDecision, sha256 } from './beta-readiness-evidence.mjs';
 
 function option(name, fallback) {
   const index = process.argv.indexOf(name);
@@ -13,10 +13,11 @@ function option(name, fallback) {
 const templatePath = resolve(option('--template', 'docs/evidence/beta-acceptance-manifest.json'));
 const evidenceDir = resolve(option('--evidence-dir', '.release-evidence/receipts'));
 const outputPath = resolve(option('--output', '.release-evidence/beta-acceptance-manifest.json'));
-const candidateSha = option(
-  '--sha',
-  execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
-).toLowerCase();
+if (process.argv.includes('--sha')) {
+  throw new Error('--sha is unsafe and unsupported; use --expected-sha as an assertion');
+}
+const gitHead = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+const candidateSha = assertExpectedSha(gitHead, option('--expected-sha'));
 const templateBytes = await readFile(templatePath);
 const template = JSON.parse(templateBytes.toString('utf8'));
 
@@ -69,6 +70,11 @@ const manifest = {
     sha256: sha256(templateBytes),
   },
   policy: template.policy,
+  provenance: {
+    assurance: 'CANDIDATE_GENERATED',
+    promotable: false,
+    attestation: null,
+  },
   gates,
   defects,
   decision: 'BLOCKED',
