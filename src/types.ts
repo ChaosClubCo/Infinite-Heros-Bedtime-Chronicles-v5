@@ -80,12 +80,21 @@ export interface CelestialBadge {
   category: "starter" | "theme" | "streak" | "explorer";
 }
 
+export interface CompletedStoryRecord {
+  id: string;
+  title: string;
+  heroName?: string;
+  category?: string;
+  completedAt?: string;
+}
+
 export interface UserStats {
   storiesCompleted: number;
   totalReadingMinutes: number;
   currentStreak: number;
   lastReadDate?: string;
   favoriteHeroId: string;
+  completedStoriesList?: CompletedStoryRecord[];
 }
 
 export interface AppSettings {

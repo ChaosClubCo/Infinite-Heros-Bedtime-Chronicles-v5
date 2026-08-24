@@ -76,3 +76,100 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(99, 102, 241, 0.6);
 }
+
+/* Ambient Audio Wave Visualizer Keyframe Animations */
+@keyframes ambientWaveDriftSlow {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes ambientWaveDriftReverse {
+  0% {
+    transform: translate3d(-50%, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes ambientWaveSwell {
+  0%, 100% {
+    transform: scaleY(0.85) translateY(0px);
+  }
+  50% {
+    transform: scaleY(1.15) translateY(-3px);
+  }
+}
+
+@keyframes ambientAudioBar {
+  0%, 100% {
+    transform: scaleY(0.2);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes ambientFloatingEmber {
+  0% {
+    transform: translateY(0) scale(0.8);
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-16px) scale(1.1);
+  }
+  100% {
+    transform: translateY(-32px) scale(0.6);
+    opacity: 0;
+  }
+}
+
+.animate-wave-drift-slow {
+  animation: ambientWaveDriftSlow 18s linear infinite;
+  will-change: transform;
+}
+
+.animate-wave-drift-medium {
+  animation: ambientWaveDriftReverse 13s linear infinite;
+  will-change: transform;
+}
+
+.animate-wave-drift-fast {
+  animation: ambientWaveDriftSlow 9s linear infinite;
+  will-change: transform;
+}
+
+.animate-wave-swell {
+  animation: ambientWaveSwell 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-audio-bar-1 {
+  animation: ambientAudioBar 1.2s ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+.animate-audio-bar-2 {
+  animation: ambientAudioBar 1.7s ease-in-out infinite 0.2s;
+  transform-origin: bottom;
+}
+
+.animate-audio-bar-3 {
+  animation: ambientAudioBar 1.4s ease-in-out infinite 0.4s;
+  transform-origin: bottom;
+}
+
+.animate-audio-bar-4 {
+  animation: ambientAudioBar 1.9s ease-in-out infinite 0.1s;
+  transform-origin: bottom;
+}
+
+.animate-audio-bar-5 {
+  animation: ambientAudioBar 1.5s ease-in-out infinite 0.35s;
+  transform-origin: bottom;
+}

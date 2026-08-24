@@ -3,6 +3,7 @@ import { Story, StoryScene, AppSettings } from '../types';
 import { getHeroById } from '../data/heroes';
 import { VoiceNarrator, ambientSoundEngine } from '../services/audioNarration';
 import { SleepDurationEstimator } from './SleepDurationEstimator';
+import { AmbientWaveVisualizer } from './AmbientWaveVisualizer';
 import confetti from 'canvas-confetti';
 import {
   VolumeX,
@@ -551,6 +552,17 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
               </button>
             )}
           </div>
+        </div>
+
+        {/* Ambient Audio Wave Visualizer reacting to current ambient soundscape */}
+        <div className="w-full mt-2">
+          <AmbientWaveVisualizer
+            ambientSound={ambientSound}
+            ambientVolume={ambientVolume}
+            isPlayingNarration={isPlayingNarration}
+            onOpenSoundControls={() => setShowSoundControls(true)}
+            variant="floor"
+          />
         </div>
       </main>
 

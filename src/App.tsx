@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Story, UserStats, AppSettings, CelestialBadge, DreamJournalEntry } from './types';
+import { AnimatePresence } from 'motion/react';
+import { Story, UserStats, AppSettings, CelestialBadge, DreamJournalEntry, CompletedStoryRecord } from './types';
 import { FEATURED_STORIES } from './data/featuredStories';
 import { INITIAL_BADGES } from './data/badges';
 import { StarrySky } from './components/StarrySky';
@@ -30,11 +31,29 @@ const DEFAULT_SETTINGS: AppSettings = {
   themeMode: 'dark',
 };
 
+const DEFAULT_COMPLETED_STORIES: CompletedStoryRecord[] = [
+  {
+    id: 'story-silver-fox',
+    title: 'The Silver Moon Fox',
+    heroName: 'Luna & Koda',
+    category: 'Bedtime Calm',
+    completedAt: 'Yesterday',
+  },
+  {
+    id: 'story-glow-whale',
+    title: 'The Whispering Star & The Glowing Whale',
+    heroName: 'Marina',
+    category: 'Ocean Wonders',
+    completedAt: '2 days ago',
+  },
+];
+
 const DEFAULT_STATS: UserStats = {
   storiesCompleted: 2,
   totalReadingMinutes: 14,
   currentStreak: 3,
   favoriteHeroId: 'hero-1',
+  completedStoriesList: DEFAULT_COMPLETED_STORIES,
 };
 
 const INITIAL_DREAMS: DreamJournalEntry[] = [
@@ -90,7 +109,14 @@ export const App: React.FC = () => {
   const [stats, setStats] = useState<UserStats>(() => {
     try {
       const stored = localStorage.getItem('infinite_heroes_stats');
-      return stored ? JSON.parse(stored) : DEFAULT_STATS;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (!parsed.completedStoriesList || !parsed.completedStoriesList.length) {
+          parsed.completedStoriesList = DEFAULT_COMPLETED_STORIES;
+        }
+        return parsed;
+      }
+      return DEFAULT_STATS;
     } catch {
       return DEFAULT_STATS;
     }
@@ -160,12 +186,39 @@ export const App: React.FC = () => {
     setSavedStories((prev) => prev.filter((s) => s.id !== storyId));
   };
 
-  const handleCompleteStory = (_storyId: string) => {
-    setStats((prev) => ({
-      ...prev,
-      storiesCompleted: prev.storiesCompleted + 1,
-      totalReadingMinutes: prev.totalReadingMinutes + 5,
-    }));
+  const handleCompleteStory = (storyId: string) => {
+    const foundStory =
+      FEATURED_STORIES.find((s) => s.id === storyId) ||
+      savedStories.find((s) => s.id === storyId) ||
+      activeStory;
+
+    const title = foundStory?.title || 'Magical Bedtime Tale';
+    const heroName = foundStory?.heroName || 'Bedtime Star';
+    const category = foundStory?.category || 'Bedtime Story';
+
+    setStats((prev) => {
+      const currentList = prev.completedStoriesList || DEFAULT_COMPLETED_STORIES;
+      const alreadyInList = currentList.some((s) => s.id === storyId || s.title === title);
+      const updatedList: CompletedStoryRecord[] = alreadyInList
+        ? currentList
+        : [
+            {
+              id: storyId,
+              title,
+              heroName,
+              category,
+              completedAt: 'Tonight',
+            },
+            ...currentList,
+          ];
+
+      return {
+        ...prev,
+        storiesCompleted: prev.storiesCompleted + (alreadyInList ? 0 : 1),
+        totalReadingMinutes: prev.totalReadingMinutes + 5,
+        completedStoriesList: updatedList,
+      };
+    });
 
     // Unlock badges dynamically
     setBadges((prev) =>
@@ -235,6 +288,7 @@ export const App: React.FC = () => {
                 onOpenSettings={() => setShowSettingsModal(true)}
                 childName={settings.childName}
                 childAvatar={settings.childAvatar}
+                completedStories={stats.completedStoriesList || DEFAULT_COMPLETED_STORIES}
               />
             )}
 
@@ -288,19 +342,22 @@ export const App: React.FC = () => {
       )}
 
       {/* Story Details Modal (Hero & Featured Details) */}
-      {detailsStory && (
-        <StoryDetailsModal
-          story={detailsStory}
-          isOpen={Boolean(detailsStory)}
-          onClose={() => setDetailsStory(null)}
-          onPlay={(s) => {
-            setDetailsStory(null);
-            setActiveStory(s);
-          }}
-          onToggleSave={handleToggleSaveStory}
-          isSaved={savedStories.some((s) => s.id === detailsStory.id)}
-        />
-      )}
+      <AnimatePresence>
+        {detailsStory && (
+          <StoryDetailsModal
+            key={`story-details-${detailsStory.id}`}
+            story={detailsStory}
+            isOpen={Boolean(detailsStory)}
+            onClose={() => setDetailsStory(null)}
+            onPlay={(s) => {
+              setDetailsStory(null);
+              setActiveStory(s);
+            }}
+            onToggleSave={handleToggleSaveStory}
+            isSaved={savedStories.some((s) => s.id === detailsStory.id)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Dream Journal Modal */}
       <DreamJournalModal
