@@ -97,9 +97,11 @@ export function runAuditGate(argv = process.argv) {
   const evidenceIdx = argv.indexOf('--evidence');
   const evidencePath = evidenceIdx > -1 ? argv[evidenceIdx + 1] : null;
 
-  const res = spawnSync('npm', ['audit', '--json'], {
+  const npmExecutable = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const res = spawnSync(npmExecutable, ['audit', '--json'], {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
+    shell: process.platform === 'win32',
   });
 
   if (!res.stdout) {
