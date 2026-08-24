@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": "1.0.0",
+  "repository": "ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5",
+  "pullRequest": 443,
+  "candidateSha": "5d14c2ebf8ca0012a1993f717780ebc44d9ecf90",
+  "baseSha": "458e9597218293aa52de1b5b73c75d2ceb9c4384",
+  "recordedAt": "2026-08-24T20:05:00Z",
+  "releaseDecision": "BLOCKED",
+  "verification": {
+    "local": {
+      "node": "22.23.2",
+      "npm": "11.13.0",
+      "cleanInstall": "PASS",
+      "preflight": "PASS",
+      "lint": "INVALID_RESULT",
+      "lintDetail": "The Expo lint wrapper selected Bun from bun.lock, Bun was unavailable, and the wrapper returned success without executing ESLint.",
+      "vitest": "PASS",
+      "vitestTestFiles": 68,
+      "vitestTests": 846,
+      "jestExpo": "PASS",
+      "typecheck": "PASS",
+      "serverBuild": "PASS",
+      "expoCompatibility": "PASS",
+      "expoWebExport": "PASS",
+      "dependencyAudit": "PASS",
+      "auditVulnerabilities": 0,
+      "repositorySecurityAgent": "PASS",
+      "secretFindings": 0
+    },
+    "github": {
+      "workflowRunIds": [
+        32771791382,
+        32771790872,
+        32771734449,
+        32771731631,
+        32771729175,
+        32771728308
+      ],
+      "conclusion": "startup_failure",
+      "jobsCreated": 0
+    }
+  },
+  "defects": [
+    {
+      "id": "RC-2026-08-24-001",
+      "severity": "P1",
+      "classification": "environment_limitation",
+      "title": "GitHub Actions cannot start jobs for the exact candidate",
+      "status": "OPEN",
+      "impact": "Exact-head hosted CI, security, CodeQL, review, and generated evidence jobs cannot execute, so the candidate cannot be promoted.",
+      "remediation": "Restore GitHub Actions execution at the organization billing or spending-control boundary, then create fresh runs for the current candidate SHA."
+    },
+    {
+      "id": "RC-2026-08-24-004",
+      "severity": "P1",
+      "classification": "implementation_defect",
+      "title": "The lint gate can report success without executing ESLint",
+      "status": "OPEN",
+      "evidence": {
+        "wrapperOutput": "'bun' is not recognized as an internal or external command",
+        "wrapperExitCode": 0,
+        "directEslintAfterScopeRepair": {
+          "errors": 1,
+          "warnings": 68
+        }
+      },
+      "impact": "The candidate's recorded lint success is invalid and actual source findings remain unresolved.",
+      "remediation": "Remove the conflicting Bun lock, invoke repository ESLint directly, exclude only generated or archived non-product trees, and resolve the remaining production lint findings before promotion."
+    }
+  ],
+  "resolvedFromPriorCandidate": [
+    {
+      "id": "RC-2026-08-24-002",
+      "status": "RESOLVED",
+      "evidence": "A clean npm ci completed under Node 22.23.2/npm 11.13.0."
+    },
+    {
+      "id": "RC-2026-08-24-003",
+      "status": "RESOLVED",
+      "evidence": "The pinned Node 22.23.2 runtime satisfies the locked dependency graph."
+    }
+  ]
+}

@@ -6,6 +6,8 @@ Infinity Heroes: Bedtime Chronicles v5 already contains much of the infrastructu
 
 The remaining work is therefore not a generic rewrite. It is a proof-and-gating exercise: verify the exact `main` revision, close documentation drift, validate production secrets and deployment provenance, run the real automated suites, execute device-level acceptance checks, and refuse beta promotion if any release-blocking condition fails.
 
+The [public-v1 release freeze](./RELEASE_FREEZE_2026-08-24.md) is active. Feature work remains frozen until an exact-SHA public release receipt passes every gate.
+
 ## Canonical Beta Scope
 
 The beta covers:
@@ -37,6 +39,15 @@ The following are not required for beta acceptance unless explicitly enabled in 
 - [ ] All verification receipts identify the same SHA
 - [ ] Build artifact identifies the same source revision
 - [ ] No verification result from a different revision is accepted
+
+The checked-in `docs/evidence/beta-acceptance-manifest.json` is policy only; it never claims that a candidate passed. Generate the candidate manifest at verification time:
+
+```bash
+npm run generate:beta-readiness
+npm run verify:beta-readiness
+```
+
+Gate receipts belong in `.release-evidence/receipts/BR-XX.json` and must contain `gateId`, the full `candidateSha`, `status`, `executedAt`, and a `source` object with `provider` and immutable `uri`. The generator hashes each receipt into the manifest. Verification independently requires the candidate SHA to equal the checked-out `HEAD`, rejects receipt tampering and expiry, and fails unless every mandatory gate passes with a receipt plus a SHA-bound defect receipt proves P0/P1 counts. `--allow-blocked` validates manifest structure only and must not be used as a promotion decision.
 
 ### G2 — Static / Automated Verification
 

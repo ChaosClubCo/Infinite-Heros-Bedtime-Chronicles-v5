@@ -253,3 +253,65 @@ jobs:
             --exclude-path mnt
             './**/*.md'
           fail: true
+
+  exact-head-manifest:
+    name: Exact Head Evidence Manifest
+    if: always()
+    needs: [exact-head-ci, exact-head-security-agent, exact-head-codeql, exact-head-links]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout exact pull-request head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.EXACT_HEAD_SHA }}
+
+      - name: Verify exact checkout
+        run: test "$(git rev-parse HEAD)" = "$EXACT_HEAD_SHA"
+
+      - name: Record workflow gate receipts
+        env:
+          CI_RESULT: ${{ needs.exact-head-ci.result }}
+          SECURITY_RESULT: ${{ needs.exact-head-security-agent.result }}
+          CODEQL_RESULT: ${{ needs.exact-head-codeql.result }}
+          LINKS_RESULT: ${{ needs.exact-head-links.result }}
+        run: |
+          mkdir -p .release-evidence/receipts
+          node <<'NODE'
+          const fs = require('node:fs');
+          const common = {
+            candidateSha: process.env.EXACT_HEAD_SHA,
+            executedAt: new Date().toISOString(),
+            source: {
+              provider: 'github-actions',
+              uri: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+              workflowRunId: process.env.GITHUB_RUN_ID,
+              workflowRunAttempt: process.env.GITHUB_RUN_ATTEMPT,
+            },
+          };
+          const results = [
+            ['BR-01', process.env.CI_RESULT],
+            ['BR-02', process.env.CI_RESULT],
+            ['BR-03', process.env.SECURITY_RESULT],
+            ['BR-04', process.env.CODEQL_RESULT],
+            ['BR-05', process.env.LINKS_RESULT],
+          ];
+          for (const [gateId, result] of results) {
+            const status = result === 'success' ? 'PASS' : 'BLOCKED';
+            fs.writeFileSync(`.release-evidence/receipts/${gateId}.json`, JSON.stringify({ ...common, gateId, status, result }, null, 2));
+          }
+          NODE
+
+      - name: Generate and structurally verify SHA-bound manifest
+        run: |
+          node scripts/generate-beta-readiness.mjs
+          node scripts/verify-beta-readiness.mjs --allow-blocked
+
+      - name: Upload SHA-bound release evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: beta-acceptance-${{ env.EXACT_HEAD_SHA }}
+          path: .release-evidence/
+          if-no-files-found: error
+          retention-days: 14
