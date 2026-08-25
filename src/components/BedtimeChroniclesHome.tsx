@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Story, CompletedStoryRecord } from '../types';
 import { FEATURED_STORIES } from '../data/featuredStories';
 import { getAvatarById } from '../data/avatars';
+import { DailyAffirmationWidget } from './DailyAffirmationWidget';
 import {
   Sparkles,
   BookOpen,
@@ -443,6 +444,12 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
           </div>
         </section>
       )}
+
+      {/* DAILY BEDTIME AFFIRMATION WIDGET */}
+      <DailyAffirmationWidget
+        childName={childName}
+        onOpenWindDown={onOpenWindDown}
+      />
 
       {/* HERO BANNER: The Silver Moon Fox (Image 1) */}
       <section className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-[#171233] via-[#100d27] to-[#1a143b] border border-indigo-900/50 shadow-2xl shadow-indigo-950/80">
