@@ -8,9 +8,10 @@ import {
   Award,
   Settings,
   Compass,
+  Wand2,
 } from 'lucide-react';
 
-export type NavTab = 'home' | 'gallery' | 'create' | 'library' | 'saved' | 'trophies' | 'settings';
+export type NavTab = 'home' | 'gallery' | 'madlibs' | 'create' | 'library' | 'saved' | 'trophies' | 'settings';
 
 interface NavbarProps {
   currentTab: NavTab;
@@ -57,10 +58,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Center Desktop Navigation Tabs */}
-        <nav className="hidden md:flex items-center gap-1 p-1 rounded-2xl bg-slate-900/90 border border-slate-800/90 shadow-inner">
+        <nav className="hidden lg:flex items-center gap-1 p-1 rounded-2xl bg-slate-900/90 border border-slate-800/90 shadow-inner">
           {[
             { id: 'home', label: 'Explore', icon: Compass },
             { id: 'gallery', label: 'Dream Themes', icon: Sparkles },
+            { id: 'madlibs', label: 'Madlib Suite', icon: Wand2 },
             { id: 'create', label: 'Create Story', icon: PlusCircle },
             { id: 'library', label: 'Library & Seeds', icon: BookOpen },
             { id: 'saved', label: `Favorites (${savedCount})`, icon: Bookmark },
@@ -119,10 +121,11 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Mobile Bottom Navigation Bar */}
-      <div className="md:hidden flex items-center justify-around border-t border-slate-800/80 bg-slate-950/95 py-2 px-2 overflow-x-auto custom-scrollbar">
+      <div className="lg:hidden flex items-center justify-around border-t border-slate-800/80 bg-slate-950/95 py-2 px-2 overflow-x-auto custom-scrollbar">
         {[
           { id: 'home', label: 'Explore', icon: Compass },
           { id: 'gallery', label: 'Themes', icon: Sparkles },
+          { id: 'madlibs', label: 'Madlibs', icon: Wand2 },
           { id: 'create', label: 'Create', icon: PlusCircle },
           { id: 'library', label: 'Library', icon: BookOpen },
           { id: 'saved', label: 'Saved', icon: Bookmark },

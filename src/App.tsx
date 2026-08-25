@@ -393,6 +393,15 @@ export const App: React.FC = () => {
               />
             )}
 
+            {currentTab === 'madlibs' && (
+              <MadlibDiariesView
+                onBack={() => setCurrentTab('home')}
+                onStoryGenerated={handleStoryGenerated}
+                childName={settings.childName}
+                childAge={settings.childAge}
+              />
+            )}
+
             {currentTab === 'create' && (
               <StoryCreator
                 initialMode={creatorInitialMode}

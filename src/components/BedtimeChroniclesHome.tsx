@@ -694,24 +694,32 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
         </div>
       </section>
 
-      {/* QUICK LAUNCH BANNER TO MADLIB DIARIES (Image 2 Entry point) */}
-      <section className="p-6 rounded-2xl bg-gradient-to-r from-purple-950/60 via-indigo-950/40 to-slate-950 border border-purple-900/40 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-300">
-            <Sparkles className="w-5 h-5" />
+      {/* QUICK LAUNCH BANNER TO MADLIB SUITE */}
+      <section className="p-6 rounded-3xl bg-gradient-to-r from-purple-950/70 via-indigo-950/50 to-[#0e0926] border border-purple-900/50 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-amber-400/20 border border-amber-400/50 flex items-center justify-center text-amber-300 shadow-md shadow-amber-400/10 shrink-0">
+            <Sparkles className="w-6 h-6 animate-pulse" />
           </div>
           <div>
-            <h4 className="text-sm font-playfair font-bold text-white">Madlib Diaries Giggle Forge</h4>
-            <p className="text-xs text-slate-400">Fill in fun cutout words or dictate with speech to weave instant custom stories</p>
+            <div className="flex items-center gap-2">
+              <h4 className="text-base font-playfair font-bold text-white">Madlib Suite</h4>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-sans font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                5 Bedtime Modes
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Fill in story blanks, speak aloud, explore themed story packs, or visit your Madlib Vault
+            </p>
           </div>
         </div>
 
         <button
           type="button"
           onClick={onOpenMadlibs}
-          className="px-4 py-2 rounded-full text-xs font-bold bg-[#a38753] hover:bg-[#b89a62] text-[#1c1308] shadow-md transition-all shrink-0"
+          className="px-5 py-2.5 rounded-full text-xs font-bold bg-[#FFD54F] hover:bg-[#ffe082] text-slate-950 shadow-lg shadow-amber-500/20 transition-all shrink-0 hover:scale-105 active:scale-95 flex items-center gap-1.5"
         >
-          Open Madlib Diaries
+          <span>Open Madlib Suite</span>
+          <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </section>
 
