@@ -97,6 +97,39 @@ export interface UserStats {
   completedStoriesList?: CompletedStoryRecord[];
 }
 
+export interface ChildProfile {
+  id: string;
+  name: string;
+  age: number;
+  avatar: string;
+  avatarImage?: string;
+  storyPreference: string;
+  gentleMode?: boolean;
+}
+
+export interface VoiceProfile {
+  id: string;
+  name: string;
+  role: string;
+  description: string;
+  isCustom?: boolean;
+  samplePhrase?: string;
+}
+
+export interface DreamTheme {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  duration: string;
+  imageUrl: string;
+  tag?: 'Popular' | 'New';
+  ambientSound: 'none' | 'rain' | 'ocean' | 'crickets' | 'wind' | 'fire' | 'train';
+  colSpan?: 1 | 2;
+  sampleAffirmation: string;
+  category: 'cosmic' | 'nature' | 'adventure' | 'fantasy';
+}
+
 export interface AppSettings {
   narratorVoice: string;
   readingSpeed: "gentle" | "medium" | "normal";
@@ -109,6 +142,30 @@ export interface AppSettings {
   childAge: number;
   childAvatar?: string;
   themeMode: "dark" | "starlight";
+  ageFilteringEnabled?: boolean;
+  madlibSillyMode?: boolean;
+  volumeNormalization?: boolean;
+  autoFadeToAmbient?: boolean;
+  activeVoiceId?: string;
+  activeChildProfileId?: string;
+  childProfiles?: ChildProfile[];
+  bookmarkedThemeIds?: string[];
+}
+
+export type DreamArtStyle =
+  | 'watercolor'
+  | 'cosmic'
+  | 'storybook'
+  | 'bioluminescent'
+  | 'cloud-kingdom';
+
+export interface DreamIllustration {
+  id: string;
+  url: string;
+  prompt: string;
+  style: DreamArtStyle;
+  styleLabel: string;
+  createdAt: string;
 }
 
 export interface DreamJournalEntry {
@@ -120,4 +177,6 @@ export interface DreamJournalEntry {
   tags: string[];
   bedtimeStoryTitle?: string;
   sleepRating: number; // 1 to 5 stars
+  illustration?: DreamIllustration;
 }
+

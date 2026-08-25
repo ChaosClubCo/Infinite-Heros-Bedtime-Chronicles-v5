@@ -105,20 +105,94 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
     ambientSoundEngine.setVolume(ambientVolume);
   }, [ambientVolume]);
 
+  const celebrationTimersRef = useRef<NodeJS.Timeout[]>([]);
+
+  // Cleanup any pending celebration timers
+  useEffect(() => {
+    return () => {
+      celebrationTimersRef.current.forEach((t) => clearTimeout(t));
+      celebrationTimersRef.current = [];
+    };
+  }, []);
+
+  const triggerCelebration = useCallback(() => {
+    // Clear any previous timers
+    celebrationTimersRef.current.forEach((t) => clearTimeout(t));
+    celebrationTimersRef.current = [];
+
+    try {
+      const heroColor = hero?.color || '#FFD54F';
+      const celebrationPalette = [
+        heroColor,
+        '#6366F1', // Indigo
+        '#A855F7', // Purple
+        '#F59E0B', // Amber gold
+        '#38BDF8', // Starlight sky cyan
+        '#EC4899', // Sparkle pink
+        '#10B981', // Emerald star
+      ];
+
+      // Stage 1: Central starlight burst
+      confetti({
+        particleCount: 80,
+        spread: 80,
+        origin: { y: 0.55 },
+        colors: celebrationPalette,
+        scalar: 1.15,
+        ticks: 220,
+        shapes: ['circle', 'square'],
+      });
+
+      // Stage 2: Left side cannon launch
+      const timer1 = setTimeout(() => {
+        confetti({
+          particleCount: 55,
+          angle: 60,
+          spread: 60,
+          origin: { x: 0.1, y: 0.7 },
+          colors: celebrationPalette,
+          scalar: 1.2,
+          ticks: 200,
+        });
+      }, 180);
+
+      // Stage 3: Right side cannon launch
+      const timer2 = setTimeout(() => {
+        confetti({
+          particleCount: 55,
+          angle: 120,
+          spread: 60,
+          origin: { x: 0.9, y: 0.7 },
+          colors: celebrationPalette,
+          scalar: 1.2,
+          ticks: 200,
+        });
+      }, 360);
+
+      // Stage 4: Gentle starlight shower from above
+      const timer3 = setTimeout(() => {
+        confetti({
+          particleCount: 45,
+          spread: 120,
+          origin: { y: 0.25 },
+          colors: ['#FFD700', '#FFF8DC', '#E0E7FF', heroColor, '#F472B6'],
+          gravity: 0.75,
+          ticks: 320,
+          scalar: 0.95,
+        });
+      }, 650);
+
+      celebrationTimersRef.current = [timer1, timer2, timer3];
+    } catch {
+      // Ignored if canvas context is restricted
+    }
+  }, [hero?.color]);
+
   const handleComplete = useCallback(() => {
     setIsCompleted(true);
     onCompleteStory(story.id);
-    try {
-      confetti({
-        particleCount: 50,
-        spread: 60,
-        origin: { y: 0.6 },
-        colors: [hero.color, '#6366F1', '#A855F7', '#FFD54F'],
-      });
-    } catch {
-      // Ignored
-    }
-  }, [hero.color, onCompleteStory, story.id]);
+    triggerCelebration();
+  }, [onCompleteStory, story.id, triggerCelebration]);
 
   const handleNextScene = useCallback(() => {
     VoiceNarrator.stop();
@@ -639,6 +713,14 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
             </div>
 
             <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={triggerCelebration}
+                className="w-full py-2.5 rounded-xl font-bold text-xs bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/40 flex items-center justify-center gap-2 transition-all active:scale-95"
+              >
+                <Sparkles className="w-4 h-4 fill-current" />
+                <span>Replay Star Celebration</span>
+              </button>
               <button
                 type="button"
                 onClick={() => {
