@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { Story, UserStats, AppSettings, CelestialBadge, DreamJournalEntry, CompletedStoryRecord, DreamTheme } from './types';
+import { Story, UserStats, AppSettings, CelestialBadge, DreamJournalEntry, CompletedStoryRecord, DreamTheme, AgeRange } from './types';
 import { FEATURED_STORIES } from './data/featuredStories';
 import { INITIAL_BADGES } from './data/badges';
 import { StarrySky } from './components/StarrySky';
@@ -274,7 +274,7 @@ export const App: React.FC = () => {
       category: `${theme.subtitle} • Bedtime Tale`,
       theme: 'wonder',
       mode: 'sleep',
-      ageRange: `${settings.childAge || 5}-${(settings.childAge || 5) + 2}`,
+      ageRange: (settings.childAge <= 4 ? '2-4' : settings.childAge <= 6 ? '4-6' : settings.childAge <= 8 ? '6-8' : '8-10') as AgeRange,
       heroId: 'hero-1',
       heroName: `${childName} & The Starlight Guide`,
       summary: theme.description,

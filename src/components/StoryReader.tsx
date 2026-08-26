@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Story, StoryScene, AppSettings } from '../types';
 import { getHeroById } from '../data/heroes';
 import { VoiceNarrator, ambientSoundEngine } from '../services/audioNarration';
@@ -28,6 +28,67 @@ import {
   X,
 } from 'lucide-react';
 
+interface ParsedSentence {
+  id: string;
+  text: string;
+  startIndex: number;
+  endIndex: number;
+  isAffirmation?: boolean;
+}
+
+function parseSceneSentences(sceneText: string, affirmationText?: string): ParsedSentence[] {
+  const result: ParsedSentence[] = [];
+  if (!sceneText) return result;
+
+  // Split by sentence terminators (. ! ?) including optional closing quotes or newlines
+  const sentenceRegex = /[^.!?\n]+(?:[.!?]+["'”’]?|\n+|$)/g;
+  let match: RegExpExecArray | null;
+  let idx = 0;
+
+  while ((match = sentenceRegex.exec(sceneText)) !== null) {
+    const raw = match[0];
+    const trimmed = raw.trim();
+    if (trimmed.length > 0) {
+      const matchStart = match.index;
+      const leadingSpace = raw.search(/\S/);
+      const start = matchStart + (leadingSpace >= 0 ? leadingSpace : 0);
+      const end = start + trimmed.length;
+
+      result.push({
+        id: `s-${idx++}`,
+        text: trimmed,
+        startIndex: start,
+        endIndex: end,
+        isAffirmation: false,
+      });
+    }
+  }
+
+  if (result.length === 0 && sceneText.trim().length > 0) {
+    result.push({
+      id: `s-0`,
+      text: sceneText.trim(),
+      startIndex: 0,
+      endIndex: sceneText.length,
+      isAffirmation: false,
+    });
+  }
+
+  if (affirmationText && affirmationText.trim().length > 0) {
+    const prefix = `${sceneText}. ... `;
+    const affStart = prefix.length;
+    result.push({
+      id: `aff-0`,
+      text: affirmationText.trim(),
+      startIndex: affStart,
+      endIndex: affStart + affirmationText.trim().length,
+      isAffirmation: true,
+    });
+  }
+
+  return result;
+}
+
 interface StoryReaderProps {
   story: Story;
   settings: AppSettings;
@@ -47,6 +108,7 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
 }) => {
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [isPlayingNarration, setIsPlayingNarration] = useState(false);
+  const [spokenCharIndex, setSpokenCharIndex] = useState<number | null>(null);
   const [ambientSound, setAmbientSound] = useState<string>(settings.ambientSound || 'none');
   const [ambientVolume, setAmbientVolume] = useState<number>(settings.ambientVolume || 0.3);
   const [ambientLoopMinutes, setAmbientLoopMinutes] = useState<number>(30);
@@ -63,6 +125,24 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
   const scenes = story.scenes || [];
   const currentScene: StoryScene | undefined = scenes[currentSceneIndex] || scenes[0];
   const progressPercent = Math.round(((currentSceneIndex + 1) / Math.max(scenes.length, 1)) * 100);
+
+  // Parse sentences for real-time visual follow-along highlighting
+  const parsedSentences = useMemo(() => {
+    return parseSceneSentences(currentScene?.text || '', currentScene?.sleepAffirmation);
+  }, [currentScene?.text, currentScene?.sleepAffirmation]);
+
+  // Determine active sentence index by current character offset
+  const activeSentenceId = useMemo(() => {
+    if (!isPlayingNarration || spokenCharIndex === null || parsedSentences.length === 0) {
+      return null;
+    }
+    for (let i = parsedSentences.length - 1; i >= 0; i--) {
+      if (spokenCharIndex >= parsedSentences[i].startIndex) {
+        return parsedSentences[i].id;
+      }
+    }
+    return parsedSentences[0].id;
+  }, [isPlayingNarration, spokenCharIndex, parsedSentences]);
 
   // Breathing animation cycle for calming sleep mode
   useEffect(() => {
@@ -197,6 +277,7 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
   const handleNextScene = useCallback(() => {
     VoiceNarrator.stop();
     setIsPlayingNarration(false);
+    setSpokenCharIndex(null);
     if (currentSceneIndex < scenes.length - 1) {
       setCurrentSceneIndex((prev) => prev + 1);
     } else {
@@ -204,22 +285,31 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
     }
   }, [currentSceneIndex, scenes.length, handleComplete]);
 
-  // Read the current scene aloud
+  // Read the current scene aloud with real-time sentence tracking
   const handleSpeakCurrentScene = useCallback(() => {
     if (!currentScene) return;
     if (isPlayingNarration) {
       VoiceNarrator.pause();
       setIsPlayingNarration(false);
+      setSpokenCharIndex(null);
     } else {
       setIsPlayingNarration(true);
+      setSpokenCharIndex(0);
       const textToRead = currentScene.sleepAffirmation
         ? `${currentScene.text}. ... ${currentScene.sleepAffirmation}`
         : currentScene.text;
 
       VoiceNarrator.speak(textToRead, {
         speedRate: readingSpeed,
+        onStart: () => {
+          setSpokenCharIndex(0);
+        },
+        onBoundary: (charIndex) => {
+          setSpokenCharIndex(charIndex);
+        },
         onEnd: () => {
           setIsPlayingNarration(false);
+          setSpokenCharIndex(null);
           if (settings.autoAdvance && currentSceneIndex < scenes.length - 1) {
             setTimeout(() => {
               handleNextScene();
@@ -228,6 +318,7 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
         },
         onError: () => {
           setIsPlayingNarration(false);
+          setSpokenCharIndex(null);
         },
       });
     }
@@ -240,14 +331,16 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
       isFirstMount.current = false;
       return;
     }
-    // Scene changed - stop previous speech
+    // Scene changed - stop previous speech and reset sentence highlight
     VoiceNarrator.stop();
     setIsPlayingNarration(false);
+    setSpokenCharIndex(null);
   }, [currentSceneIndex]);
 
   const handlePrevScene = () => {
     VoiceNarrator.stop();
     setIsPlayingNarration(false);
+    setSpokenCharIndex(null);
     if (currentSceneIndex > 0) {
       setCurrentSceneIndex((prev) => prev - 1);
     }
@@ -256,6 +349,7 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
   const handleSelectChoice = (choice: { nextSceneId: string }) => {
     VoiceNarrator.stop();
     setIsPlayingNarration(false);
+    setSpokenCharIndex(null);
     const targetIndex = scenes.findIndex((s) => s.id === choice.nextSceneId);
     if (targetIndex !== -1) {
       setCurrentSceneIndex(targetIndex);
@@ -512,15 +606,52 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
               style={{ backgroundColor: hero.color }}
             />
 
-            {/* Story Paragraph */}
-            <p className="text-lg sm:text-2xl text-slate-100 font-nunito leading-relaxed tracking-normal font-medium selection:bg-indigo-500">
-              {currentScene?.text}
-            </p>
+            {/* Story Paragraph with Follow-Along Highlighting */}
+            {isPlayingNarration && (
+              <div className="mb-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-400/15 text-amber-300 border border-amber-400/30 shadow-sm animate-pulse">
+                <Sparkles className="w-3.5 h-3.5 fill-current" />
+                <span>Follow along with the golden starlight words</span>
+              </div>
+            )}
+
+            <div className="text-lg sm:text-2xl text-slate-100 font-nunito leading-relaxed tracking-normal font-medium selection:bg-indigo-500">
+              {parsedSentences
+                .filter((s) => !s.isAffirmation)
+                .map((sentence) => {
+                  const isCurrentSpoken = isPlayingNarration && activeSentenceId === sentence.id;
+                  return (
+                    <span
+                      key={sentence.id}
+                      className={`inline transition-all duration-300 rounded-lg ${
+                        isCurrentSpoken
+                          ? 'bg-amber-400/25 text-amber-200 font-bold px-1.5 py-0.5 shadow-sm shadow-amber-400/20 border border-amber-300/40 ring-1 ring-amber-400/30'
+                          : isPlayingNarration
+                          ? 'text-slate-300 opacity-90'
+                          : 'text-slate-100'
+                      }`}
+                    >
+                      {sentence.text}{' '}
+                    </span>
+                  );
+                })}
+            </div>
 
             {/* Sleep Affirmation */}
             {currentScene?.sleepAffirmation && (
-              <div className="mt-8 pt-6 border-t border-slate-800/80 flex items-start gap-3 text-indigo-300/90">
-                <Moon className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+              <div
+                className={`mt-8 pt-6 border-t border-slate-800/80 flex items-start gap-3 transition-all duration-300 rounded-2xl ${
+                  isPlayingNarration && activeSentenceId === 'aff-0'
+                    ? 'bg-amber-400/15 p-3.5 border border-amber-400/40 text-amber-200 shadow-md shadow-amber-400/10'
+                    : 'text-indigo-300/90'
+                }`}
+              >
+                <Moon
+                  className={`w-5 h-5 shrink-0 mt-0.5 ${
+                    isPlayingNarration && activeSentenceId === 'aff-0'
+                      ? 'text-amber-300 animate-bounce'
+                      : 'text-amber-400 animate-pulse'
+                  }`}
+                />
                 <p className="text-sm sm:text-base italic font-medium font-jakarta leading-relaxed">
                   &ldquo;{currentScene.sleepAffirmation}&rdquo;
                 </p>

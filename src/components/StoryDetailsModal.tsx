@@ -226,7 +226,7 @@ export const StoryDetailsModal: React.FC<StoryDetailsModalProps> = ({
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-indigo-950/40">
-              <span className="text-6xl opacity-40">{hero.avatar}</span>
+              <span className="text-6xl opacity-40">✨</span>
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-[#090b1e] via-[#090b1e]/50 to-transparent" />

@@ -133,6 +133,8 @@ export class VoiceNarrator {
       speedRate?: number;
       volume?: number;
       voiceId?: string;
+      onStart?: () => void;
+      onBoundary?: (charIndex: number, charLength?: number) => void;
       onEnd?: () => void;
       onError?: () => void;
     } = {}
@@ -156,6 +158,14 @@ export class VoiceNarrator {
         ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
         if (selected) utterance.voice = selected;
       }
+
+      utterance.onstart = () => {
+        options.onStart?.();
+      };
+
+      utterance.onboundary = (event: SpeechSynthesisEvent) => {
+        options.onBoundary?.(event.charIndex, event.charLength);
+      };
 
       utterance.onend = () => {
         this.currentUtterance = null;
