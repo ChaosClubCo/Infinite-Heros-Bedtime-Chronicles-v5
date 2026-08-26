@@ -1,11 +1,15 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Story, StoryScene, AppSettings } from '../types';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Story, StoryScene, AppSettings, CelestialBadge } from '../types';
 import { getHeroById } from '../data/heroes';
 import { VoiceNarrator, ambientSoundEngine } from '../services/audioNarration';
 import { SleepDurationEstimator } from './SleepDurationEstimator';
+import { AmbientWaveVisualizer } from './AmbientWaveVisualizer';
+import { BadgeUnlockCelebrationModal } from './BadgeUnlockCelebrationModal';
 import confetti from 'canvas-confetti';
 import {
   VolumeX,
+  Volume2,
+  Volume1,
   Play,
   Pause,
   Bookmark,
@@ -25,15 +29,89 @@ import {
   Shield,
   ArrowLeft,
   X,
+  Award,
+  Sliders,
 } from 'lucide-react';
+
+interface ParsedSentence {
+  id: string;
+  text: string;
+  startIndex: number;
+  endIndex: number;
+  isAffirmation?: boolean;
+}
+
+function parseSceneSentences(sceneText: string, affirmationText?: string): ParsedSentence[] {
+  const result: ParsedSentence[] = [];
+  if (!sceneText) return result;
+
+  // Split by sentence terminators (. ! ?) including optional closing quotes or newlines
+  const sentenceRegex = /[^.!?\n]+(?:[.!?]+["'”’]?|\n+|$)/g;
+  let match: RegExpExecArray | null;
+  let idx = 0;
+
+  while ((match = sentenceRegex.exec(sceneText)) !== null) {
+    const raw = match[0];
+    const trimmed = raw.trim();
+    if (trimmed.length > 0) {
+      const matchStart = match.index;
+      const leadingSpace = raw.search(/\S/);
+      const start = matchStart + (leadingSpace >= 0 ? leadingSpace : 0);
+      const end = start + trimmed.length;
+
+      result.push({
+        id: `s-${idx++}`,
+        text: trimmed,
+        startIndex: start,
+        endIndex: end,
+        isAffirmation: false,
+      });
+    }
+  }
+
+  if (result.length === 0 && sceneText.trim().length > 0) {
+    result.push({
+      id: `s-0`,
+      text: sceneText.trim(),
+      startIndex: 0,
+      endIndex: sceneText.length,
+      isAffirmation: false,
+    });
+  }
+
+  if (affirmationText && affirmationText.trim().length > 0) {
+    const prefix = `${sceneText}. ... `;
+    const affStart = prefix.length;
+    result.push({
+      id: `aff-0`,
+      text: affirmationText.trim(),
+      startIndex: affStart,
+      endIndex: affStart + affirmationText.trim().length,
+      isAffirmation: true,
+    });
+  }
+
+  return result;
+}
+
+const SOUND_OPTIONS = [
+  { id: 'none', label: 'Off', name: 'Muted', icon: VolumeX },
+  { id: 'ocean', label: 'Ocean', name: 'Ocean Waves', icon: Waves },
+  { id: 'rain', label: 'Rain', name: 'Gentle Rain', icon: CloudRain },
+  { id: 'wind', label: 'Breeze', name: 'Night Breeze', icon: Wind },
+  { id: 'fire', label: 'Fire', name: 'Cozy Fire', icon: Flame },
+  { id: 'train', label: 'Train', name: 'Dream Train', icon: Train },
+];
 
 interface StoryReaderProps {
   story: Story;
   settings: AppSettings;
   onClose: () => void;
-  onCompleteStory: (storyId: string) => void;
+  onCompleteStory: (storyId: string) => CelestialBadge[] | void;
   onToggleSaveStory: (story: Story) => void;
   isSaved?: boolean;
+  badges?: CelestialBadge[];
+  onNavigateToVault?: () => void;
 }
 
 export const StoryReader: React.FC<StoryReaderProps> = ({
@@ -43,11 +121,17 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
   onCompleteStory,
   onToggleSaveStory,
   isSaved = false,
+  badges = [],
+  onNavigateToVault,
 }) => {
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [isPlayingNarration, setIsPlayingNarration] = useState(false);
+  const [spokenCharIndex, setSpokenCharIndex] = useState<number | null>(null);
   const [ambientSound, setAmbientSound] = useState<string>(settings.ambientSound || 'none');
-  const [ambientVolume, setAmbientVolume] = useState<number>(settings.ambientVolume || 0.3);
+  const [ambientVolume, setAmbientVolume] = useState<number>(
+    settings.ambientVolume !== undefined ? settings.ambientVolume : 0.3
+  );
+  const [narrationVolume] = useState<number>(0.95);
   const [ambientLoopMinutes, setAmbientLoopMinutes] = useState<number>(30);
   const [showSleepForecastModal, setShowSleepForecastModal] = useState(false);
   const [readingSpeed, setReadingSpeed] = useState<number>(
@@ -57,11 +141,49 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
   const [isCompleted, setIsCompleted] = useState(false);
   const [showSoundControls, setShowSoundControls] = useState(false);
   const [isBreathingIn, setIsBreathingIn] = useState(true);
+  const [unlockedBadgesToCelebrate, setUnlockedBadgesToCelebrate] = useState<CelestialBadge[]>([]);
+  const [showBadgeCelebrationModal, setShowBadgeCelebrationModal] = useState(false);
+  const prevAmbientVolumeRef = useRef<number>(ambientVolume > 0 ? ambientVolume : 0.3);
+
+  const activeSoundOption = useMemo(() => {
+    return SOUND_OPTIONS.find((s) => s.id === ambientSound) || SOUND_OPTIONS[0];
+  }, [ambientSound]);
+
+  const handleToggleMuteAmbient = useCallback(() => {
+    if (ambientVolume > 0) {
+      prevAmbientVolumeRef.current = ambientVolume;
+      setAmbientVolume(0);
+    } else {
+      const restored = prevAmbientVolumeRef.current > 0 ? prevAmbientVolumeRef.current : 0.3;
+      setAmbientVolume(restored);
+      if (ambientSound === 'none') {
+        setAmbientSound('ocean');
+      }
+    }
+  }, [ambientVolume, ambientSound]);
 
   const hero = getHeroById(story.heroId);
   const scenes = story.scenes || [];
   const currentScene: StoryScene | undefined = scenes[currentSceneIndex] || scenes[0];
   const progressPercent = Math.round(((currentSceneIndex + 1) / Math.max(scenes.length, 1)) * 100);
+
+  // Parse sentences for real-time visual follow-along highlighting
+  const parsedSentences = useMemo(() => {
+    return parseSceneSentences(currentScene?.text || '', currentScene?.sleepAffirmation);
+  }, [currentScene?.text, currentScene?.sleepAffirmation]);
+
+  // Determine active sentence index by current character offset
+  const activeSentenceId = useMemo(() => {
+    if (!isPlayingNarration || spokenCharIndex === null || parsedSentences.length === 0) {
+      return null;
+    }
+    for (let i = parsedSentences.length - 1; i >= 0; i--) {
+      if (spokenCharIndex >= parsedSentences[i].startIndex) {
+        return parsedSentences[i].id;
+      }
+    }
+    return parsedSentences[0].id;
+  }, [isPlayingNarration, spokenCharIndex, parsedSentences]);
 
   // Breathing animation cycle for calming sleep mode
   useEffect(() => {
@@ -104,24 +226,107 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
     ambientSoundEngine.setVolume(ambientVolume);
   }, [ambientVolume]);
 
+  const celebrationTimersRef = useRef<NodeJS.Timeout[]>([]);
+
+  // Cleanup any pending celebration timers
+  useEffect(() => {
+    return () => {
+      celebrationTimersRef.current.forEach((t) => clearTimeout(t));
+      celebrationTimersRef.current = [];
+    };
+  }, []);
+
+  const triggerCelebration = useCallback(() => {
+    // Play warm celestial chime audio
+    ambientSoundEngine.playCelebrationChime();
+
+    // Clear any previous timers
+    celebrationTimersRef.current.forEach((t) => clearTimeout(t));
+    celebrationTimersRef.current = [];
+
+    try {
+      const heroColor = hero?.color || '#FFD54F';
+      const celebrationPalette = [
+        heroColor,
+        '#6366F1', // Indigo
+        '#A855F7', // Purple
+        '#F59E0B', // Amber gold
+        '#38BDF8', // Starlight sky cyan
+        '#EC4899', // Sparkle pink
+        '#10B981', // Emerald star
+      ];
+
+      // Stage 1: Central starlight burst
+      confetti({
+        particleCount: 80,
+        spread: 80,
+        origin: { y: 0.55 },
+        colors: celebrationPalette,
+        scalar: 1.15,
+        ticks: 220,
+        shapes: ['circle', 'square'],
+      });
+
+      // Stage 2: Left side cannon launch
+      const timer1 = setTimeout(() => {
+        confetti({
+          particleCount: 55,
+          angle: 60,
+          spread: 60,
+          origin: { x: 0.1, y: 0.7 },
+          colors: celebrationPalette,
+          scalar: 1.2,
+          ticks: 200,
+        });
+      }, 180);
+
+      // Stage 3: Right side cannon launch
+      const timer2 = setTimeout(() => {
+        confetti({
+          particleCount: 55,
+          angle: 120,
+          spread: 60,
+          origin: { x: 0.9, y: 0.7 },
+          colors: celebrationPalette,
+          scalar: 1.2,
+          ticks: 200,
+        });
+      }, 360);
+
+      // Stage 4: Gentle starlight shower from above
+      const timer3 = setTimeout(() => {
+        confetti({
+          particleCount: 45,
+          spread: 120,
+          origin: { y: 0.25 },
+          colors: ['#FFD700', '#FFF8DC', '#E0E7FF', heroColor, '#F472B6'],
+          gravity: 0.75,
+          ticks: 320,
+          scalar: 0.95,
+        });
+      }, 650);
+
+      celebrationTimersRef.current = [timer1, timer2, timer3];
+    } catch {
+      // Ignored if canvas context is restricted
+    }
+  }, [hero?.color]);
+
   const handleComplete = useCallback(() => {
     setIsCompleted(true);
-    onCompleteStory(story.id);
-    try {
-      confetti({
-        particleCount: 50,
-        spread: 60,
-        origin: { y: 0.6 },
-        colors: [hero.color, '#6366F1', '#A855F7', '#FFD54F'],
-      });
-    } catch {
-      // Ignored
+    const newlyUnlocked = onCompleteStory(story.id);
+    if (newlyUnlocked && Array.isArray(newlyUnlocked) && newlyUnlocked.length > 0) {
+      setUnlockedBadgesToCelebrate(newlyUnlocked);
+      setShowBadgeCelebrationModal(true);
+    } else {
+      triggerCelebration();
     }
-  }, [hero.color, onCompleteStory, story.id]);
+  }, [onCompleteStory, story.id, triggerCelebration]);
 
   const handleNextScene = useCallback(() => {
     VoiceNarrator.stop();
     setIsPlayingNarration(false);
+    setSpokenCharIndex(null);
     if (currentSceneIndex < scenes.length - 1) {
       setCurrentSceneIndex((prev) => prev + 1);
     } else {
@@ -129,22 +334,32 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
     }
   }, [currentSceneIndex, scenes.length, handleComplete]);
 
-  // Read the current scene aloud
+  // Read the current scene aloud with real-time sentence tracking
   const handleSpeakCurrentScene = useCallback(() => {
     if (!currentScene) return;
     if (isPlayingNarration) {
       VoiceNarrator.pause();
       setIsPlayingNarration(false);
+      setSpokenCharIndex(null);
     } else {
       setIsPlayingNarration(true);
+      setSpokenCharIndex(0);
       const textToRead = currentScene.sleepAffirmation
         ? `${currentScene.text}. ... ${currentScene.sleepAffirmation}`
         : currentScene.text;
 
       VoiceNarrator.speak(textToRead, {
         speedRate: readingSpeed,
+        volume: narrationVolume,
+        onStart: () => {
+          setSpokenCharIndex(0);
+        },
+        onBoundary: (charIndex) => {
+          setSpokenCharIndex(charIndex);
+        },
         onEnd: () => {
           setIsPlayingNarration(false);
+          setSpokenCharIndex(null);
           if (settings.autoAdvance && currentSceneIndex < scenes.length - 1) {
             setTimeout(() => {
               handleNextScene();
@@ -153,10 +368,11 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
         },
         onError: () => {
           setIsPlayingNarration(false);
+          setSpokenCharIndex(null);
         },
       });
     }
-  }, [currentScene, isPlayingNarration, readingSpeed, settings.autoAdvance, currentSceneIndex, scenes.length, handleNextScene]);
+  }, [currentScene, isPlayingNarration, readingSpeed, narrationVolume, settings.autoAdvance, currentSceneIndex, scenes.length, handleNextScene]);
 
   // Auto-speak on scene change if auto narration was already active
   const isFirstMount = useRef(true);
@@ -165,14 +381,16 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
       isFirstMount.current = false;
       return;
     }
-    // Scene changed - stop previous speech
+    // Scene changed - stop previous speech and reset sentence highlight
     VoiceNarrator.stop();
     setIsPlayingNarration(false);
+    setSpokenCharIndex(null);
   }, [currentSceneIndex]);
 
   const handlePrevScene = () => {
     VoiceNarrator.stop();
     setIsPlayingNarration(false);
+    setSpokenCharIndex(null);
     if (currentSceneIndex > 0) {
       setCurrentSceneIndex((prev) => prev - 1);
     }
@@ -181,6 +399,7 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
   const handleSelectChoice = (choice: { nextSceneId: string }) => {
     VoiceNarrator.stop();
     setIsPlayingNarration(false);
+    setSpokenCharIndex(null);
     const targetIndex = scenes.findIndex((s) => s.id === choice.nextSceneId);
     if (targetIndex !== -1) {
       setCurrentSceneIndex(targetIndex);
@@ -323,65 +542,133 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
 
       {/* Ambient Sound Settings Popover */}
       {showSoundControls && (
-        <div className="relative z-20 mx-4 sm:mx-auto max-w-lg mt-3 p-4 rounded-2xl bg-slate-900/95 border border-indigo-500/30 shadow-2xl backdrop-blur-xl animate-fade-in">
+        <div className="relative z-20 mx-4 sm:mx-auto max-w-lg mt-3 p-4 sm:p-5 rounded-2xl bg-slate-900/95 border border-indigo-500/30 shadow-2xl backdrop-blur-xl animate-fade-in">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              Ambient Soundscape
+              Ambient Sleep Soundscapes
             </span>
             <button
               type="button"
               onClick={() => setShowSoundControls(false)}
-              className="text-slate-400 hover:text-white"
+              className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+              aria-label="Close sound settings"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
+          {/* Sound selection grid */}
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
-            {[
-              { id: 'none', label: 'Off', icon: VolumeX },
-              { id: 'ocean', label: 'Ocean', icon: Waves },
-              { id: 'rain', label: 'Rain', icon: CloudRain },
-              { id: 'wind', label: 'Breeze', icon: Wind },
-              { id: 'fire', label: 'Fire', icon: Flame },
-              { id: 'train', label: 'Train', icon: Train },
-            ].map((snd) => {
+            {SOUND_OPTIONS.map((snd) => {
               const Icon = snd.icon;
               const isSelected = ambientSound === snd.id;
               return (
                 <button
                   key={snd.id}
                   type="button"
-                  onClick={() => setAmbientSound(snd.id)}
+                  onClick={() => {
+                    setAmbientSound(snd.id);
+                    if (snd.id !== 'none' && ambientVolume === 0) {
+                      setAmbientVolume(0.3);
+                    }
+                  }}
                   className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border text-xs font-medium transition-all ${
                     isSelected
-                      ? 'bg-indigo-600 border-indigo-400 text-white shadow-md'
-                      : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:border-slate-600'
+                      ? 'bg-indigo-600 border-indigo-400 text-white shadow-md shadow-indigo-600/30 ring-1 ring-indigo-300'
+                      : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:border-slate-600 hover:text-white'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
-                  <span>{snd.label}</span>
+                  <span className="truncate w-full text-center">{snd.label}</span>
                 </button>
               );
             })}
           </div>
 
-          {ambientSound !== 'none' && (
-            <div className="flex items-center gap-3 text-xs">
-              <span className="text-slate-400 shrink-0">Sound Volume:</span>
-              <input
-                type="range"
-                min="0.05"
-                max="1"
-                step="0.05"
-                value={ambientVolume}
-                onChange={(e) => setAmbientVolume(parseFloat(e.target.value))}
-                className="w-full accent-indigo-400"
-              />
-              <span className="text-slate-300 font-mono w-8">{Math.round(ambientVolume * 100)}%</span>
+          {/* Dedicated Ambient Sleep Sound Volume Slider in Popover */}
+          <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/90 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleToggleMuteAmbient}
+                  className="p-1 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-slate-800 transition-colors"
+                  title={ambientVolume === 0 ? 'Unmute ambient sound' : 'Mute ambient sound'}
+                  aria-label={ambientVolume === 0 ? 'Unmute ambient sound' : 'Mute ambient sound'}
+                >
+                  {ambientVolume === 0 || ambientSound === 'none' ? (
+                    <VolumeX className="w-4 h-4 text-rose-400" />
+                  ) : ambientVolume < 0.4 ? (
+                    <Volume1 className="w-4 h-4 text-indigo-300" />
+                  ) : (
+                    <Volume2 className="w-4 h-4 text-indigo-400" />
+                  )}
+                </button>
+                <label
+                  htmlFor="popover-ambient-volume-slider"
+                  className="text-xs font-semibold text-slate-200 cursor-pointer"
+                >
+                  Ambient Sound Volume
+                </label>
+              </div>
+              <span className="text-xs font-mono font-bold text-indigo-300 bg-indigo-950/60 px-2 py-0.5 rounded-md border border-indigo-800/40">
+                {ambientSound === 'none' ? 'Muted' : `${Math.round(ambientVolume * 100)}%`}
+              </span>
             </div>
-          )}
+
+            <div className="flex items-center gap-3">
+              <input
+                id="popover-ambient-volume-slider"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={ambientSound === 'none' ? 0 : ambientVolume}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setAmbientVolume(val);
+                  if (ambientSound === 'none' && val > 0) {
+                    setAmbientSound('ocean');
+                  }
+                }}
+                aria-label="Ambient sleep sound volume"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(ambientVolume * 100)}
+                aria-valuetext={`${Math.round(ambientVolume * 100)} percent`}
+                className="w-full h-2 rounded-lg bg-slate-800 appearance-none cursor-pointer accent-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+              />
+            </div>
+
+            {/* Quick Volume Balance Presets */}
+            <div className="flex items-center justify-between pt-1 text-[11px] text-slate-400">
+              <span className="text-[10px] uppercase font-semibold text-slate-400">Bedtime Balance:</span>
+              <div className="flex items-center gap-1.5">
+                {[
+                  { label: 'Soft', value: 0.15 },
+                  { label: 'Balanced', value: 0.35 },
+                  { label: 'Immersive', value: 0.65 },
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      setAmbientVolume(preset.value);
+                      if (ambientSound === 'none') setAmbientSound('ocean');
+                    }}
+                    className={`px-2 py-0.5 rounded-md border text-[10px] font-medium transition-all ${
+                      Math.abs(ambientVolume - preset.value) < 0.05 && ambientSound !== 'none'
+                        ? 'bg-indigo-600/40 border-indigo-400 text-indigo-200'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                    }`}
+                  >
+                    {preset.label} ({Math.round(preset.value * 100)}%)
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -437,15 +724,52 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
               style={{ backgroundColor: hero.color }}
             />
 
-            {/* Story Paragraph */}
-            <p className="text-lg sm:text-2xl text-slate-100 font-nunito leading-relaxed tracking-normal font-medium selection:bg-indigo-500">
-              {currentScene?.text}
-            </p>
+            {/* Story Paragraph with Follow-Along Highlighting */}
+            {isPlayingNarration && (
+              <div className="mb-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-400/15 text-amber-300 border border-amber-400/30 shadow-sm animate-pulse">
+                <Sparkles className="w-3.5 h-3.5 fill-current" />
+                <span>Follow along with the golden starlight words</span>
+              </div>
+            )}
+
+            <div className="text-lg sm:text-2xl text-slate-100 font-nunito leading-relaxed tracking-normal font-medium selection:bg-indigo-500">
+              {parsedSentences
+                .filter((s) => !s.isAffirmation)
+                .map((sentence) => {
+                  const isCurrentSpoken = isPlayingNarration && activeSentenceId === sentence.id;
+                  return (
+                    <span
+                      key={sentence.id}
+                      className={`inline transition-all duration-300 rounded-lg ${
+                        isCurrentSpoken
+                          ? 'bg-amber-400/25 text-amber-200 font-bold px-1.5 py-0.5 shadow-sm shadow-amber-400/20 border border-amber-300/40 ring-1 ring-amber-400/30'
+                          : isPlayingNarration
+                          ? 'text-slate-300 opacity-90'
+                          : 'text-slate-100'
+                      }`}
+                    >
+                      {sentence.text}{' '}
+                    </span>
+                  );
+                })}
+            </div>
 
             {/* Sleep Affirmation */}
             {currentScene?.sleepAffirmation && (
-              <div className="mt-8 pt-6 border-t border-slate-800/80 flex items-start gap-3 text-indigo-300/90">
-                <Moon className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+              <div
+                className={`mt-8 pt-6 border-t border-slate-800/80 flex items-start gap-3 transition-all duration-300 rounded-2xl ${
+                  isPlayingNarration && activeSentenceId === 'aff-0'
+                    ? 'bg-amber-400/15 p-3.5 border border-amber-400/40 text-amber-200 shadow-md shadow-amber-400/10'
+                    : 'text-indigo-300/90'
+                }`}
+              >
+                <Moon
+                  className={`w-5 h-5 shrink-0 mt-0.5 ${
+                    isPlayingNarration && activeSentenceId === 'aff-0'
+                      ? 'text-amber-300 animate-bounce'
+                      : 'text-amber-400 animate-pulse'
+                  }`}
+                />
                 <p className="text-sm sm:text-base italic font-medium font-jakarta leading-relaxed">
                   &ldquo;{currentScene.sleepAffirmation}&rdquo;
                 </p>
@@ -478,79 +802,214 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
         </div>
 
         {/* Bottom Audio & Narration Bar */}
-        <div className="relative z-10 mt-6 p-4 rounded-2xl bg-slate-950/80 border border-slate-800/90 backdrop-blur-md flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            {/* Play/Pause Voice Narration Button */}
-            <button
-              id="narration-play-btn"
-              type="button"
-              onClick={handleSpeakCurrentScene}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md ${
-                isPlayingNarration
-                  ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/30'
-                  : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30'
-              }`}
-            >
-              {isPlayingNarration ? (
-                <>
-                  <Pause className="w-4 h-4" />
-                  <span>Pause Story</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4 fill-current" />
-                  <span>Read Aloud</span>
-                </>
+        <div className="relative z-10 mt-6 rounded-2xl bg-slate-950/85 border border-slate-800/90 backdrop-blur-md overflow-hidden shadow-2xl">
+          {/* Top Row: Narration & Navigation */}
+          <div className="p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/70">
+            <div className="flex items-center gap-2.5">
+              {/* Play/Pause Voice Narration Button */}
+              <button
+                id="narration-play-btn"
+                type="button"
+                onClick={handleSpeakCurrentScene}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md ${
+                  isPlayingNarration
+                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/30'
+                    : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30'
+                }`}
+              >
+                {isPlayingNarration ? (
+                  <>
+                    <Pause className="w-4 h-4" />
+                    <span>Pause Story</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 fill-current" />
+                    <span>Read Aloud</span>
+                  </>
+                )}
+              </button>
+
+              {/* Speed Rate Toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  setReadingSpeed((prev) => (prev === 0.75 ? 0.88 : prev === 0.88 ? 1.0 : 0.75));
+                }}
+                className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:border-slate-700 hover:text-white transition-colors"
+                title="Narration Speed"
+              >
+                {readingSpeed === 0.75 ? '0.75x Gentle' : readingSpeed === 0.88 ? '0.9x Calm' : '1.0x Normal'}
+              </button>
+
+              {/* Narration Active Pill */}
+              {isPlayingNarration && (
+                <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-400/10 border border-amber-400/30 text-amber-300 text-[11px] font-semibold animate-pulse">
+                  <Sparkles className="w-3 h-3 fill-current" />
+                  <span>Voice Active</span>
+                </div>
               )}
-            </button>
+            </div>
 
-            {/* Speed Rate Toggle */}
-            <button
-              type="button"
-              onClick={() => {
-                setReadingSpeed((prev) => (prev === 0.75 ? 0.88 : prev === 0.88 ? 1.0 : 0.75));
-              }}
-              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:border-slate-700"
-              title="Narration Speed"
-            >
-              {readingSpeed === 0.75 ? '0.75x (Gentle)' : readingSpeed === 0.88 ? '0.9x (Calm)' : '1.0x (Normal)'}
-            </button>
+            {/* Navigation Next/Prev Scene Controls */}
+            <div className="flex items-center gap-2">
+              <button
+                id="reader-prev-btn"
+                type="button"
+                onClick={handlePrevScene}
+                disabled={currentSceneIndex === 0}
+                className="p-2.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                title="Previous Scene"
+                aria-label="Previous Scene"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {currentSceneIndex < scenes.length - 1 ? (
+                <button
+                  id="reader-next-btn"
+                  type="button"
+                  onClick={handleNextScene}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition-all"
+                >
+                  <span>Next Scene</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  id="reader-finish-btn"
+                  type="button"
+                  onClick={handleComplete}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-600/20 transition-all"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Complete Story</span>
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Navigation Next/Prev Scene Controls */}
-          <div className="flex items-center gap-2">
-            <button
-              id="reader-prev-btn"
-              type="button"
-              onClick={handlePrevScene}
-              disabled={currentSceneIndex === 0}
-              className="p-2.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
+          {/* Dedicated Ambient Sleep Sounds Volume Slider & Balancing Panel */}
+          <div className="px-3.5 sm:px-4 py-3 bg-slate-900/50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Left: Soundscape Selector Pill & Mute Button */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                id="ambient-sound-toggle-menu"
+                onClick={() => setShowSoundControls(!showSoundControls)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 text-xs font-semibold text-slate-200 hover:text-white transition-all shadow-sm group"
+                title="Change ambient sound track"
+              >
+                {(() => {
+                  const Icon = activeSoundOption.icon;
+                  return <Icon className="w-3.5 h-3.5 text-indigo-400 group-hover:text-indigo-300" />;
+                })()}
+                <span>{activeSoundOption.name}</span>
+                <Sliders className="w-3 h-3 text-slate-400 group-hover:text-slate-200 ml-0.5" />
+              </button>
 
-            {currentSceneIndex < scenes.length - 1 ? (
               <button
-                id="reader-next-btn"
                 type="button"
-                onClick={handleNextScene}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition-all"
+                id="ambient-mute-btn"
+                onClick={handleToggleMuteAmbient}
+                className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/70 text-slate-300 hover:text-white transition-colors"
+                title={ambientVolume === 0 || ambientSound === 'none' ? 'Unmute Ambient Sleep Sound' : 'Mute Ambient Sleep Sound'}
+                aria-label={ambientVolume === 0 || ambientSound === 'none' ? 'Unmute Ambient Sleep Sound' : 'Mute Ambient Sleep Sound'}
               >
-                <span>Next Scene</span>
-                <ChevronRight className="w-4 h-4" />
+                {ambientVolume === 0 || ambientSound === 'none' ? (
+                  <VolumeX className="w-3.5 h-3.5 text-rose-400" />
+                ) : ambientVolume < 0.4 ? (
+                  <Volume1 className="w-3.5 h-3.5 text-indigo-300" />
+                ) : (
+                  <Volume2 className="w-3.5 h-3.5 text-indigo-400" />
+                )}
               </button>
-            ) : (
-              <button
-                id="reader-finish-btn"
-                type="button"
-                onClick={handleComplete}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-600/20 transition-all"
+            </div>
+
+            {/* Middle: Dedicated Ambient Sleep Sound Volume Slider */}
+            <div className="flex-1 flex items-center gap-2.5 min-w-[200px]">
+              <label
+                htmlFor="ambient-sleep-sound-volume-slider"
+                className="text-[11px] font-semibold text-slate-400 shrink-0 select-none cursor-pointer hidden md:inline"
               >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Complete Story</span>
-              </button>
-            )}
+                Ambient Sound:
+              </label>
+
+              <div className="relative flex-1 flex items-center">
+                <input
+                  id="ambient-sleep-sound-volume-slider"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={ambientSound === 'none' ? 0 : ambientVolume}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setAmbientVolume(val);
+                    if (ambientSound === 'none' && val > 0) {
+                      setAmbientSound('ocean');
+                    }
+                  }}
+                  aria-label="Ambient sleep sounds volume slider for balancing with narration"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(ambientVolume * 100)}
+                  aria-valuetext={`${Math.round(ambientVolume * 100)} percent`}
+                  className="w-full h-2 rounded-lg bg-slate-800 appearance-none cursor-pointer accent-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+                  style={{
+                    background: `linear-gradient(to right, #6366f1 0%, #38bdf8 ${Math.round(
+                      (ambientSound === 'none' ? 0 : ambientVolume) * 100
+                    )}%, #1e293b ${Math.round((ambientSound === 'none' ? 0 : ambientVolume) * 100)}%, #1e293b 100%)`,
+                  }}
+                />
+              </div>
+
+              <span className="text-xs font-mono font-bold text-slate-200 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800 min-w-[42px] text-center">
+                {ambientSound === 'none' ? '0%' : `${Math.round(ambientVolume * 100)}%`}
+              </span>
+            </div>
+
+            {/* Right: Quick Bedtime Balance Presets */}
+            <div className="flex items-center gap-1.5 shrink-0 justify-end">
+              <span className="text-[10px] uppercase font-semibold text-slate-400 hidden lg:inline">
+                Preset:
+              </span>
+              {[
+                { label: 'Soft', value: 0.15 },
+                { label: 'Balanced', value: 0.35 },
+                { label: 'Deep', value: 0.65 },
+              ].map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => {
+                    setAmbientVolume(preset.value);
+                    if (ambientSound === 'none') setAmbientSound('ocean');
+                  }}
+                  className={`px-2 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                    Math.abs(ambientVolume - preset.value) < 0.05 && ambientSound !== 'none'
+                      ? 'bg-indigo-600 border-indigo-400 text-white shadow-sm'
+                      : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                  }`}
+                  title={`Set ambient volume to ${Math.round(preset.value * 100)}%`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
           </div>
+        </div>
+
+        {/* Ambient Audio Wave Visualizer reacting to current ambient soundscape */}
+        <div className="w-full mt-2">
+          <AmbientWaveVisualizer
+            ambientSound={ambientSound}
+            ambientVolume={ambientVolume}
+            isPlayingNarration={isPlayingNarration}
+            onOpenSoundControls={() => setShowSoundControls(true)}
+            onVolumeChange={setAmbientVolume}
+            variant="floor"
+          />
         </div>
       </main>
 
@@ -626,7 +1085,60 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
               </div>
             </div>
 
+            {/* Unlocked Badges Banner if any unlocked */}
+            {unlockedBadgesToCelebrate.length > 0 && (
+              <div className="p-3.5 rounded-2xl bg-amber-950/40 border border-amber-500/40 mb-5 text-left flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center font-bold shadow-md shrink-0"
+                    style={{
+                      backgroundColor: `${unlockedBadgesToCelebrate[0].color}25`,
+                      color: unlockedBadgesToCelebrate[0].color,
+                      borderColor: unlockedBadgesToCelebrate[0].color,
+                      borderWidth: '1px',
+                    }}
+                  >
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-extrabold uppercase tracking-wider text-amber-300">
+                      🌟 Badge Unlocked!
+                    </div>
+                    <div className="text-xs font-bold text-white truncate max-w-[180px]">
+                      {unlockedBadgesToCelebrate[0].name}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowBadgeCelebrationModal(true)}
+                  className="px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs shadow transition-all active:scale-95 shrink-0"
+                >
+                  Celebrate!
+                </button>
+              </div>
+            )}
+
             <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (unlockedBadgesToCelebrate.length > 0) {
+                    setShowBadgeCelebrationModal(true);
+                  } else {
+                    triggerCelebration();
+                  }
+                }}
+                className="w-full py-2.5 rounded-xl font-bold text-xs bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/40 flex items-center justify-center gap-2 transition-all active:scale-95"
+              >
+                <Sparkles className="w-4 h-4 fill-current" />
+                <span>
+                  {unlockedBadgesToCelebrate.length > 0
+                    ? 'Replay Badge Unlock Celebration'
+                    : 'Replay Star Celebration'}
+                </span>
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -651,6 +1163,21 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Badge Unlock Celebration Full Modal */}
+      {showBadgeCelebrationModal && unlockedBadgesToCelebrate.length > 0 && (
+        <BadgeUnlockCelebrationModal
+          badges={unlockedBadgesToCelebrate}
+          heroColor={hero?.color}
+          storyTitle={story.title}
+          onClose={() => setShowBadgeCelebrationModal(false)}
+          onViewVault={() => {
+            setShowBadgeCelebrationModal(false);
+            onClose();
+            onNavigateToVault?.();
+          }}
+        />
       )}
     </div>
   );

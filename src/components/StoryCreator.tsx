@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Story, StoryMode, ContentTheme, AgeRange } from '../types';
-import { getHeroById } from '../data/heroes';
+import { HEROES, getHeroById } from '../data/heroes';
 import { HeroSelector } from './HeroSelector';
 import { SleepDurationEstimator } from './SleepDurationEstimator';
 import { MADLIBS_TEMPLATES } from '../data/madlibsTemplates';

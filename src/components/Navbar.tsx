@@ -8,9 +8,10 @@ import {
   Award,
   Settings,
   Compass,
+  Wand2,
 } from 'lucide-react';
 
-export type NavTab = 'home' | 'create' | 'library' | 'saved' | 'trophies';
+export type NavTab = 'home' | 'gallery' | 'madlibs' | 'create' | 'library' | 'saved' | 'trophies' | 'settings';
 
 interface NavbarProps {
   currentTab: NavTab;
@@ -57,13 +58,16 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Center Desktop Navigation Tabs */}
-        <nav className="hidden md:flex items-center gap-1 p-1 rounded-2xl bg-slate-900/90 border border-slate-800/90 shadow-inner">
+        <nav className="hidden lg:flex items-center gap-1 p-1 rounded-2xl bg-slate-900/90 border border-slate-800/90 shadow-inner">
           {[
             { id: 'home', label: 'Explore', icon: Compass },
+            { id: 'gallery', label: 'Dream Themes', icon: Sparkles },
+            { id: 'madlibs', label: 'Madlib Suite', icon: Wand2 },
             { id: 'create', label: 'Create Story', icon: PlusCircle },
             { id: 'library', label: 'Library & Seeds', icon: BookOpen },
             { id: 'saved', label: `Favorites (${savedCount})`, icon: Bookmark },
             { id: 'trophies', label: 'Trophies', icon: Award },
+            { id: 'settings', label: 'Settings', icon: Settings },
           ].map((item) => {
             const Icon = item.icon;
             const isActive = currentTab === item.id;
@@ -74,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 id={`nav-tab-${item.id}`}
                 type="button"
                 onClick={() => onSelectTab(item.id as NavTab)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
                   isActive
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -102,9 +106,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             id="open-settings-btn"
             type="button"
-            onClick={onOpenSettings}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-800 bg-slate-900/80 text-slate-300 hover:text-white hover:border-slate-700 hover:bg-slate-800 transition-colors"
-            title={`Bedtime Settings & Profile (${childName})`}
+            onClick={() => onSelectTab('settings')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border transition-colors ${
+              currentTab === 'settings'
+                ? 'bg-indigo-600 border-indigo-400 text-white shadow-md shadow-indigo-600/30'
+                : 'border-slate-800 bg-slate-900/80 text-slate-300 hover:text-white hover:border-slate-700 hover:bg-slate-800'
+            }`}
+            title={`Bedtime Settings & Safety (${childName})`}
           >
             <span className="text-base">{avatarObj.emoji}</span>
             <Settings className="w-3.5 h-3.5 text-slate-400" />
@@ -113,13 +121,16 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Mobile Bottom Navigation Bar */}
-      <div className="md:hidden flex items-center justify-around border-t border-slate-800/80 bg-slate-950/95 py-2 px-3">
+      <div className="lg:hidden flex items-center justify-around border-t border-slate-800/80 bg-slate-950/95 py-2 px-2 overflow-x-auto custom-scrollbar">
         {[
           { id: 'home', label: 'Explore', icon: Compass },
+          { id: 'gallery', label: 'Themes', icon: Sparkles },
+          { id: 'madlibs', label: 'Madlibs', icon: Wand2 },
           { id: 'create', label: 'Create', icon: PlusCircle },
           { id: 'library', label: 'Library', icon: BookOpen },
-          { id: 'saved', label: 'Favorites', icon: Bookmark },
+          { id: 'saved', label: 'Saved', icon: Bookmark },
           { id: 'trophies', label: 'Trophies', icon: Award },
+          { id: 'settings', label: 'Settings', icon: Settings },
         ].map((item) => {
           const Icon = item.icon;
           const isActive = currentTab === item.id;
@@ -129,11 +140,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               key={item.id}
               type="button"
               onClick={() => onSelectTab(item.id as NavTab)}
-              className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl text-[10px] font-bold transition-all ${
+              className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl text-[10px] font-bold transition-all shrink-0 ${
                 isActive ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-300'
               }`}
             >
-              <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
+              <Icon className={`w-4 h-4 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
               <span>{item.label}</span>
             </button>
           );

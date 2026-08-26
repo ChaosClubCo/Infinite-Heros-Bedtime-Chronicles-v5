@@ -1,6 +1,7 @@
 export type StoryMode = "classic" | "madlibs" | "sleep";
 export type ContentTheme = "courage" | "kindness" | "friendship" | "wonder" | "imagination" | "comfort";
 export type AgeRange = "2-4" | "4-6" | "6-8" | "8-10";
+export type AmbientSoundTrack = 'ocean' | 'rain' | 'forest' | 'wind' | 'lullaby' | 'whitenoise' | 'crickets' | 'fire' | 'train' | 'none';
 
 export interface Hero {
   id: string;
@@ -80,18 +81,71 @@ export interface CelestialBadge {
   category: "starter" | "theme" | "streak" | "explorer";
 }
 
+export interface CompletedStoryRecord {
+  id: string;
+  title: string;
+  heroName?: string;
+  category?: string;
+  completedAt?: string;
+}
+
+export interface StreakMilestone {
+  days: number;
+  title: string;
+  badgeName: string;
+  icon: string;
+  rewardTitle: string;
+  description: string;
+  affirmation: string;
+}
+
 export interface UserStats {
   storiesCompleted: number;
   totalReadingMinutes: number;
   currentStreak: number;
   lastReadDate?: string;
   favoriteHeroId: string;
+  completedStoriesList?: CompletedStoryRecord[];
+  streakMilestonesCelebrated?: number[];
+}
+
+export interface ChildProfile {
+  id: string;
+  name: string;
+  age: number;
+  avatar: string;
+  avatarImage?: string;
+  storyPreference: string;
+  gentleMode?: boolean;
+}
+
+export interface VoiceProfile {
+  id: string;
+  name: string;
+  role: string;
+  description: string;
+  isCustom?: boolean;
+  samplePhrase?: string;
+}
+
+export interface DreamTheme {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  duration: string;
+  imageUrl: string;
+  tag?: 'Popular' | 'New';
+  ambientSound: 'none' | 'rain' | 'ocean' | 'crickets' | 'wind' | 'fire' | 'train';
+  colSpan?: 1 | 2;
+  sampleAffirmation: string;
+  category: 'cosmic' | 'nature' | 'adventure' | 'fantasy';
 }
 
 export interface AppSettings {
   narratorVoice: string;
   readingSpeed: "gentle" | "medium" | "normal";
-  ambientSound: "none" | "rain" | "ocean" | "crickets" | "wind" | "fire" | "train";
+  ambientSound: AmbientSoundTrack;
   ambientVolume: number;
   autoAdvance: boolean;
   sleepTimerMinutes: number;
@@ -100,6 +154,30 @@ export interface AppSettings {
   childAge: number;
   childAvatar?: string;
   themeMode: "dark" | "starlight";
+  ageFilteringEnabled?: boolean;
+  madlibSillyMode?: boolean;
+  volumeNormalization?: boolean;
+  autoFadeToAmbient?: boolean;
+  activeVoiceId?: string;
+  activeChildProfileId?: string;
+  childProfiles?: ChildProfile[];
+  bookmarkedThemeIds?: string[];
+}
+
+export type DreamArtStyle =
+  | 'watercolor'
+  | 'cosmic'
+  | 'storybook'
+  | 'bioluminescent'
+  | 'cloud-kingdom';
+
+export interface DreamIllustration {
+  id: string;
+  url: string;
+  prompt: string;
+  style: DreamArtStyle;
+  styleLabel: string;
+  createdAt: string;
 }
 
 export interface DreamJournalEntry {
@@ -111,4 +189,6 @@ export interface DreamJournalEntry {
   tags: string[];
   bedtimeStoryTitle?: string;
   sleepRating: number; // 1 to 5 stars
+  illustration?: DreamIllustration;
 }
+

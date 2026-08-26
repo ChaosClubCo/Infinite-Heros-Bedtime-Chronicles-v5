@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { motion } from 'motion/react';
 import { Story } from '../types';
 import { getHeroById } from '../data/heroes';
 import { FEATURED_STORIES } from '../data/featuredStories';
@@ -49,6 +50,12 @@ export const StoryDetailsModal: React.FC<StoryDetailsModalProps> = ({
     VoiceNarrator.stop();
   }, [initialStory]);
 
+  const handleClose = useCallback(() => {
+    VoiceNarrator.stop();
+    setIsPlayingPreview(false);
+    onClose();
+  }, [onClose]);
+
   // Stop speech if modal closes or unmounts
   useEffect(() => {
     return () => {
@@ -56,6 +63,17 @@ export const StoryDetailsModal: React.FC<StoryDetailsModalProps> = ({
       setIsPlayingPreview(false);
     };
   }, [isOpen]);
+
+  // Handle escape key to dismiss modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleClose]);
 
   const currentStory = activeModalStory || initialStory;
 
@@ -157,12 +175,6 @@ export const StoryDetailsModal: React.FC<StoryDetailsModalProps> = ({
     }
   };
 
-  const handleClose = () => {
-    VoiceNarrator.stop();
-    setIsPlayingPreview(false);
-    onClose();
-  };
-
   const handlePlayStory = (storyToPlay: Story = currentStory) => {
     VoiceNarrator.stop();
     setIsPlayingPreview(false);
@@ -183,8 +195,25 @@ export const StoryDetailsModal: React.FC<StoryDetailsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-xl rounded-3xl bg-[#090b1e] border border-indigo-900/60 shadow-2xl shadow-indigo-950/80 overflow-hidden text-slate-100 max-h-[90vh] flex flex-col">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.24, ease: 'easeOut' }}
+      onClick={handleClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="story-details-title"
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 12, scale: 0.98 }}
+        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-xl rounded-3xl bg-[#090b1e] border border-indigo-900/60 shadow-2xl shadow-indigo-950/80 overflow-hidden text-slate-100 max-h-[90vh] flex flex-col"
+      >
         
         {/* Cover / Hero Art Area */}
         <div className="relative h-48 sm:h-56 w-full shrink-0 overflow-hidden bg-gradient-to-b from-indigo-900/40 via-purple-950/60 to-[#090b1e]">
@@ -197,7 +226,7 @@ export const StoryDetailsModal: React.FC<StoryDetailsModalProps> = ({
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-indigo-950/40">
-              <span className="text-6xl opacity-40">{hero.avatar}</span>
+              <span className="text-6xl opacity-40">✨</span>
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-[#090b1e] via-[#090b1e]/50 to-transparent" />
@@ -231,7 +260,7 @@ export const StoryDetailsModal: React.FC<StoryDetailsModalProps> = ({
 
           {/* Story Title */}
           <div className="absolute bottom-4 left-6 right-6">
-            <h2 className="text-2xl sm:text-3xl font-bold font-playfair text-white tracking-wide leading-tight">
+            <h2 id="story-details-title" className="text-2xl sm:text-3xl font-bold font-playfair text-white tracking-wide leading-tight">
               {currentStory.title}
             </h2>
             <div className="flex items-center gap-2 mt-1">
@@ -471,8 +500,8 @@ export const StoryDetailsModal: React.FC<StoryDetailsModalProps> = ({
             </button>
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
