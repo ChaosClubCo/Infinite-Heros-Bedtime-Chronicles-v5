@@ -41,7 +41,7 @@
     "verify:expo57-readiness": "node scripts/verify-expo57-readiness.mjs"
   },
   "engines": {
-    "node": "22.x",
+    "node": ">=20.19.0 <21 || >=22.13.0 <23",
     "npm": "11.x"
   },
   "dependencies": {

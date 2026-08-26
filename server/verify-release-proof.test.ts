@@ -99,7 +99,7 @@ describe('Exact-SHA Release Proof Engine', () => {
   it('fails when vercel.json runtime is invalid', () => {
     fsState.readFileSyncOverride = (p) => {
       if (p.endsWith('vercel.json')) {
-        return JSON.stringify({ functions: { 'api/**/*.ts': { runtime: 'nodejs18.x' } } });
+        return JSON.stringify({ functions: { 'api/server.mjs': { runtime: 'nodejs18.x' } } });
       }
       return null;
     };
