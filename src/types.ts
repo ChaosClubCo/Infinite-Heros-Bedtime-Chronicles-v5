@@ -1,6 +1,7 @@
 export type StoryMode = "classic" | "madlibs" | "sleep";
 export type ContentTheme = "courage" | "kindness" | "friendship" | "wonder" | "imagination" | "comfort";
 export type AgeRange = "2-4" | "4-6" | "6-8" | "8-10";
+export type AmbientSoundTrack = 'ocean' | 'rain' | 'forest' | 'wind' | 'lullaby' | 'whitenoise' | 'crickets' | 'fire' | 'train' | 'none';
 
 export interface Hero {
   id: string;
@@ -88,6 +89,16 @@ export interface CompletedStoryRecord {
   completedAt?: string;
 }
 
+export interface StreakMilestone {
+  days: number;
+  title: string;
+  badgeName: string;
+  icon: string;
+  rewardTitle: string;
+  description: string;
+  affirmation: string;
+}
+
 export interface UserStats {
   storiesCompleted: number;
   totalReadingMinutes: number;
@@ -95,6 +106,7 @@ export interface UserStats {
   lastReadDate?: string;
   favoriteHeroId: string;
   completedStoriesList?: CompletedStoryRecord[];
+  streakMilestonesCelebrated?: number[];
 }
 
 export interface ChildProfile {
@@ -133,7 +145,7 @@ export interface DreamTheme {
 export interface AppSettings {
   narratorVoice: string;
   readingSpeed: "gentle" | "medium" | "normal";
-  ambientSound: "none" | "rain" | "ocean" | "crickets" | "wind" | "fire" | "train";
+  ambientSound: AmbientSoundTrack;
   ambientVolume: number;
   autoAdvance: boolean;
   sleepTimerMinutes: number;

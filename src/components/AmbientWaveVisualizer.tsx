@@ -16,6 +16,7 @@ interface AmbientWaveVisualizerProps {
   ambientVolume: number;
   isPlayingNarration?: boolean;
   onOpenSoundControls?: () => void;
+  onVolumeChange?: (volume: number) => void;
   className?: string;
   variant?: 'embedded' | 'floor' | 'compact';
 }
@@ -133,6 +134,7 @@ export const AmbientWaveVisualizer: React.FC<AmbientWaveVisualizerProps> = ({
   ambientVolume,
   isPlayingNarration = false,
   onOpenSoundControls,
+  onVolumeChange,
   className = '',
   variant = 'floor',
 }) => {
