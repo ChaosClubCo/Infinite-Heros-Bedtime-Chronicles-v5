@@ -118,6 +118,94 @@ class AmbientSoundEngine {
       // Ignored
     }
   }
+
+  public playCelebrationChime() {
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+
+      const now = this.ctx.currentTime;
+      // Celestial harmonic major chord arpeggio with warm bell harmonics
+      // Notes: C5 (523.25), E5 (659.25), G5 (783.99), B5 (987.77), C6 (1046.50), E6 (1318.51)
+      const frequencies = [523.25, 659.25, 783.99, 987.77, 1046.50, 1318.51];
+      const masterGain = this.ctx.createGain();
+      masterGain.gain.setValueAtTime(0.24, now);
+      masterGain.connect(this.ctx.destination);
+
+      frequencies.forEach((freq, index) => {
+        if (!this.ctx) return;
+        const noteStart = now + index * 0.09;
+        const osc = this.ctx.createOscillator();
+        const noteGain = this.ctx.createGain();
+
+        osc.type = index === frequencies.length - 1 ? 'sine' : 'triangle';
+        osc.frequency.setValueAtTime(freq, noteStart);
+
+        // Gentle exponential decay for chime bell feel
+        noteGain.gain.setValueAtTime(0.0001, noteStart);
+        noteGain.gain.exponentialRampToValueAtTime(0.3, noteStart + 0.02);
+        noteGain.gain.exponentialRampToValueAtTime(0.0001, noteStart + 1.5);
+
+        osc.connect(noteGain);
+        noteGain.connect(masterGain);
+
+        osc.start(noteStart);
+        osc.stop(noteStart + 1.6);
+      });
+
+      // Warm underlying root tone (C4: 261.63 Hz)
+      const rootOsc = this.ctx.createOscillator();
+      const rootGain = this.ctx.createGain();
+      rootOsc.type = 'sine';
+      rootOsc.frequency.setValueAtTime(261.63, now + 0.05);
+      rootGain.gain.setValueAtTime(0.0001, now + 0.05);
+      rootGain.gain.exponentialRampToValueAtTime(0.18, now + 0.15);
+      rootGain.gain.exponentialRampToValueAtTime(0.0001, now + 2.0);
+
+      rootOsc.connect(rootGain);
+      rootGain.connect(masterGain);
+      rootOsc.start(now + 0.05);
+      rootOsc.stop(now + 2.1);
+    } catch (e) {
+      console.warn('Celebration chime synthesis bypassed:', e);
+    }
+  }
+
+  public playStarTwinkle(pitchMultiplier: number = 1.0) {
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+
+      const now = this.ctx.currentTime;
+      // High delicate starlight sparkle chime (G5, C6, E6)
+      const baseFreqs = [783.99, 1046.50, 1318.51, 1567.98];
+      const masterGain = this.ctx.createGain();
+      masterGain.gain.setValueAtTime(0.16, now);
+      masterGain.connect(this.ctx.destination);
+
+      baseFreqs.forEach((freq, idx) => {
+        if (!this.ctx) return;
+        const noteStart = now + idx * 0.06;
+        const osc = this.ctx.createOscillator();
+        const noteGain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq * pitchMultiplier, noteStart);
+
+        noteGain.gain.setValueAtTime(0.0001, noteStart);
+        noteGain.gain.exponentialRampToValueAtTime(0.22, noteStart + 0.015);
+        noteGain.gain.exponentialRampToValueAtTime(0.0001, noteStart + 0.85);
+
+        osc.connect(noteGain);
+        noteGain.connect(masterGain);
+
+        osc.start(noteStart);
+        osc.stop(noteStart + 0.9);
+      });
+    } catch (e) {
+      console.warn('Star twinkle sound bypassed:', e);
+    }
+  }
 }
 
 export const ambientSoundEngine = new AmbientSoundEngine();

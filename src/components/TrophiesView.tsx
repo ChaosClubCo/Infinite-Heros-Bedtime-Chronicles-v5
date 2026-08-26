@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CelestialBadge } from '../types';
 import { HEROES } from '../data/heroes';
+import { BadgeUnlockCelebrationModal } from './BadgeUnlockCelebrationModal';
 import {
   Award,
   Sparkles,
@@ -22,6 +23,8 @@ interface TrophiesViewProps {
 }
 
 export const TrophiesView: React.FC<TrophiesViewProps> = ({ badges, completedStoryIds }) => {
+  const [celebratingBadge, setCelebratingBadge] = useState<CelestialBadge | null>(null);
+
   const getBadgeIcon = (iconName: string) => {
     switch (iconName) {
       case 'Sparkles': return <Sparkles className="w-6 h-6" />;
@@ -49,7 +52,7 @@ export const TrophiesView: React.FC<TrophiesViewProps> = ({ badges, completedSto
           </div>
           <h3 className="text-2xl font-bold text-white tracking-tight">Starlight Badges & Trophies</h3>
           <p className="text-xs sm:text-sm text-slate-300 max-w-md mt-1">
-            Every bedtime story unlocks celestial milestones and powers up the constellations in your night sky!
+            Every bedtime story unlocks celestial milestones and powers up the constellations in your night sky! Click any unlocked trophy to replay its celebration.
           </p>
         </div>
 
@@ -68,9 +71,14 @@ export const TrophiesView: React.FC<TrophiesViewProps> = ({ badges, completedSto
           {badges.map((badge) => (
             <div
               key={badge.id}
+              onClick={() => {
+                if (badge.unlocked) {
+                  setCelebratingBadge(badge);
+                }
+              }}
               className={`relative p-5 rounded-3xl border transition-all flex flex-col justify-between ${
                 badge.unlocked
-                  ? 'bg-slate-900/80 border-indigo-500/40 shadow-xl shadow-indigo-500/10'
+                  ? 'bg-slate-900/80 border-indigo-500/40 shadow-xl shadow-indigo-500/10 cursor-pointer hover:border-amber-400/60 hover:scale-[1.02] active:scale-[0.99]'
                   : 'bg-slate-950/50 border-slate-800/80 opacity-60'
               }`}
             >
@@ -89,11 +97,11 @@ export const TrophiesView: React.FC<TrophiesViewProps> = ({ badges, completedSto
                   </div>
 
                   {badge.unlocked ? (
-                    <span className="p-1 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-500/40">
+                    <span className="p-1 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-500/40" title="Unlocked!">
                       <CheckCircle2 className="w-4 h-4" />
                     </span>
                   ) : (
-                    <span className="p-1 rounded-full bg-slate-800 text-slate-500 border border-slate-700">
+                    <span className="p-1 rounded-full bg-slate-800 text-slate-500 border border-slate-700" title="Locked">
                       <Lock className="w-4 h-4" />
                     </span>
                   )}
@@ -107,8 +115,8 @@ export const TrophiesView: React.FC<TrophiesViewProps> = ({ badges, completedSto
 
               <div className="pt-3 border-t border-slate-800/80 text-[11px] font-medium flex items-center justify-between">
                 <span className="text-slate-400">Status:</span>
-                <span className={badge.unlocked ? 'text-emerald-400 font-bold' : 'text-slate-500 font-semibold'}>
-                  {badge.unlocked ? 'Unlocked ✨' : 'In Progress'}
+                <span className={badge.unlocked ? 'text-amber-300 font-bold flex items-center gap-1' : 'text-slate-500 font-semibold'}>
+                  {badge.unlocked ? '✨ Celebrate' : 'In Progress'}
                 </span>
               </div>
             </div>
@@ -139,6 +147,15 @@ export const TrophiesView: React.FC<TrophiesViewProps> = ({ badges, completedSto
           ))}
         </div>
       </section>
+
+      {/* Badge Celebration Modal from Trophies */}
+      {celebratingBadge && (
+        <BadgeUnlockCelebrationModal
+          badges={[celebratingBadge]}
+          heroColor={celebratingBadge.color}
+          onClose={() => setCelebratingBadge(null)}
+        />
+      )}
     </div>
   );
 };

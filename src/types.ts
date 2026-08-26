@@ -89,6 +89,16 @@ export interface CompletedStoryRecord {
   completedAt?: string;
 }
 
+export interface StreakMilestone {
+  days: number;
+  title: string;
+  badgeName: string;
+  icon: string;
+  rewardTitle: string;
+  description: string;
+  affirmation: string;
+}
+
 export interface UserStats {
   storiesCompleted: number;
   totalReadingMinutes: number;
@@ -96,6 +106,7 @@ export interface UserStats {
   lastReadDate?: string;
   favoriteHeroId: string;
   completedStoriesList?: CompletedStoryRecord[];
+  streakMilestonesCelebrated?: number[];
 }
 
 export interface ChildProfile {

@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Story, CompletedStoryRecord } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Story, CompletedStoryRecord, StreakMilestone } from '../types';
 import { FEATURED_STORIES } from '../data/featuredStories';
 import { getAvatarById } from '../data/avatars';
 import { DailyAffirmationWidget } from './DailyAffirmationWidget';
+import { StoryGalaxyMap } from './StoryGalaxyMap';
+import { DailyStreakMilestoneCard } from './DailyStreakMilestoneCard';
+import { isExactMilestone, triggerSubtleConfettiShower } from '../utils/confetti';
 import {
   Sparkles,
   BookOpen,
@@ -15,8 +17,6 @@ import {
   Search,
   PenTool,
   Feather,
-  Star,
-  X,
 } from 'lucide-react';
 
 interface BedtimeChroniclesHomeProps {
@@ -26,10 +26,14 @@ interface BedtimeChroniclesHomeProps {
   onOpenDreamJournal: () => void;
   onOpenWindDown: () => void;
   onOpenLibrary: (categoryFilter?: string) => void;
+  onOpenCreator?: () => void;
   onOpenSettings: () => void;
   childName?: string;
   childAvatar?: string;
   completedStories?: CompletedStoryRecord[];
+  streakCount?: number;
+  onAdvanceStreak?: () => void;
+  onSelectMilestone?: (milestone: StreakMilestone) => void;
 }
 
 export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
@@ -39,110 +43,42 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
   onOpenDreamJournal,
   onOpenWindDown,
   onOpenLibrary,
+  onOpenCreator,
   onOpenSettings,
   childName = 'Little Explorer',
   childAvatar = 'fox',
   completedStories = [],
+  streakCount = 3,
+  onAdvanceStreak,
+  onSelectMilestone,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchModal, setShowSearchModal] = useState(false);
-  const [activeStarTooltipId, setActiveStarTooltipId] = useState<string | null>(null);
-  const [pulsingStarId, setPulsingStarId] = useState<string | null>(null);
-  const constellationRef = useRef<HTMLDivElement | null>(null);
 
   const activeAvatar = getAvatarById(childAvatar);
   const heroStory = FEATURED_STORIES[0]; // The Silver Moon Fox
 
-  // Close tooltip when clicking outside
+  // Check if current streak is at a milestone on mount and celebrate if newly loaded
   useEffect(() => {
-    const handleOutsideClick = (event: MouseEvent) => {
-      if (
-        constellationRef.current &&
-        !constellationRef.current.contains(event.target as Node)
-      ) {
-        setActiveStarTooltipId(null);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setActiveStarTooltipId(null);
-      }
-    };
-
-    document.addEventListener('mousedown', handleOutsideClick);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
-
-  const handleStarClick = (storyId: string) => {
-    if (activeStarTooltipId === storyId) {
-      setActiveStarTooltipId(null);
-    } else {
-      setActiveStarTooltipId(storyId);
-      setPulsingStarId(storyId);
-      setTimeout(() => {
-        setPulsingStarId(null);
-      }, 750);
+    const celebrationKey = `infinite_heroes_celebrated_streak_${streakCount}`;
+    if (isExactMilestone(streakCount)) {
+      try {
+        const alreadyCelebrated = localStorage.getItem(celebrationKey);
+        if (!alreadyCelebrated) {
+          const timer = setTimeout(() => {
+            triggerSubtleConfettiShower({
+              particleCount: 50,
+              playSound: true,
+              intensity: 'gentle',
+              originY: 0.3,
+            });
+            localStorage.setItem(celebrationKey, 'true');
+          }, 800);
+          return () => clearTimeout(timer);
+        }
+      } catch {}
     }
-  };
-
-  const handleOpenCompletedStory = (record: CompletedStoryRecord) => {
-    const fullStory =
-      FEATURED_STORIES.find((s) => s.id === record.id || s.title === record.title) || {
-        id: record.id,
-        title: record.title,
-        category: record.category || 'Bedtime Tale',
-        theme: 'wonder',
-        mode: 'classic',
-        ageRange: '4-6',
-        heroId: 'hero-1',
-        heroName: record.heroName || 'Luna & Koda',
-        summary: 'A peaceful starlight adventure that guided you safely to sweet dreams.',
-        coverImage:
-          'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop',
-        scenes: [
-          {
-            id: 'scene-1',
-            sceneNumber: 1,
-            text: `Once upon a starlit night, you embarked on the magical tale of "${record.title}". The gentle night sky welcomed you with soft dreams.`,
-            sleepAffirmation: 'You are safe, calm, and surrounded by celestial starlight.',
-            isFinal: true,
-          },
-        ],
-      };
-    onSelectStory(fullStory as Story);
-  };
-
-  const handleViewStoryDetails = (record: CompletedStoryRecord) => {
-    const fullStory =
-      FEATURED_STORIES.find((s) => s.id === record.id || s.title === record.title) || {
-        id: record.id,
-        title: record.title,
-        category: record.category || 'Bedtime Tale',
-        theme: 'wonder',
-        mode: 'classic',
-        ageRange: '4-6',
-        heroId: 'hero-1',
-        heroName: record.heroName || 'Luna & Koda',
-        summary: 'A peaceful starlight adventure that guided you safely to sweet dreams.',
-        coverImage:
-          'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop',
-        scenes: [
-          {
-            id: 'scene-1',
-            sceneNumber: 1,
-            text: `Once upon a starlit night, you embarked on the magical tale of "${record.title}". The gentle night sky welcomed you with soft dreams.`,
-            sleepAffirmation: 'You are safe, calm, and surrounded by celestial starlight.',
-            isFinal: true,
-          },
-        ],
-      };
-    onOpenDetails(fullStory as Story);
-  };
+  }, [streakCount]);
 
   const personalizedStories = [
     FEATURED_STORIES.find((s) => s.id === 'story-glow-whale') || FEATURED_STORIES[1],
@@ -251,199 +187,23 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
         </div>
       )}
 
-      {/* COMPLETED STORIES CONSTELLATION: Interactive Pulsing & Glowing Stars */}
-      {completedStories && completedStories.length > 0 && (
-        <section
-          ref={constellationRef}
-          aria-label="Completed Stories Constellation"
-          className="relative p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-indigo-950/70 via-purple-950/40 to-[#0e0926]/90 border border-indigo-900/60 shadow-xl backdrop-blur-md transition-all"
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3.5">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-full bg-amber-400/20 border border-amber-400/50 flex items-center justify-center text-amber-300 shadow-sm shadow-amber-400/20">
-                <Sparkles className="w-4 h-4 fill-current animate-pulse" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm sm:text-base font-playfair font-bold text-white tracking-wide">
-                    Your Bedtime Constellation
-                  </h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-sans font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                    {completedStories.length} {completedStories.length === 1 ? 'Story Star' : 'Story Stars'}
-                  </span>
-                </div>
-                <p className="text-[11px] text-indigo-200/80 font-light">
-                  Click a glowing star to reveal its bedtime memory & title
-                </p>
-              </div>
-            </div>
+      {/* STORY GALAXY MAP: Interactive Visual Cosmic Constellations & Revisit Hub */}
+      <StoryGalaxyMap
+        completedStories={completedStories}
+        onSelectStory={onSelectStory}
+        onOpenDetails={onOpenDetails}
+        onOpenLibrary={onOpenLibrary}
+        onOpenCreator={onOpenCreator}
+        childName={childName}
+      />
 
-            <div className="text-[11px] text-amber-300/80 flex items-center gap-1.5 self-start sm:self-auto font-medium">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping inline-block" />
-              <span>Tap to explore</span>
-            </div>
-          </div>
-
-          {/* Interactive Celestial Constellation Bar */}
-          <div className="relative flex items-center flex-wrap gap-4 sm:gap-7 py-3 px-4 sm:px-6 rounded-2xl bg-[#070417]/90 border border-indigo-950/80 min-h-[76px]">
-            {/* Ambient connective constellation line */}
-            <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-[1px] bg-gradient-to-r from-amber-400/20 via-indigo-400/30 to-purple-400/20 pointer-events-none hidden sm:block" />
-
-            {completedStories.map((storyRecord, index) => {
-              const isSelected = activeStarTooltipId === storyRecord.id;
-              const isPulsing = pulsingStarId === storyRecord.id;
-
-              return (
-                <div key={storyRecord.id} className="relative group/star">
-                  {/* Star Trigger Button */}
-                  <motion.button
-                    type="button"
-                    id={`completed-star-${storyRecord.id}`}
-                    onClick={() => handleStarClick(storyRecord.id)}
-                    whileHover={{ scale: 1.18 }}
-                    whileTap={{ scale: 0.92 }}
-                    animate={
-                      isPulsing
-                        ? {
-                            scale: [1, 1.45, 1.18],
-                            rotate: [0, -14, 14, 0],
-                            filter: [
-                              'drop-shadow(0 0 6px #fbbf24)',
-                              'drop-shadow(0 0 22px #f59e0b) drop-shadow(0 0 35px #fde047)',
-                              'drop-shadow(0 0 12px #fbbf24)',
-                            ],
-                          }
-                        : isSelected
-                        ? {
-                            scale: 1.2,
-                            filter: 'drop-shadow(0 0 14px #fbbf24) drop-shadow(0 0 26px #f59e0b)',
-                          }
-                        : {
-                            scale: [1, 1.06, 1],
-                            filter: 'drop-shadow(0 0 5px rgba(251, 191, 36, 0.6))',
-                          }
-                    }
-                    transition={
-                      isPulsing
-                        ? { duration: 0.75, ease: [0.16, 1, 0.3, 1] }
-                        : { duration: 2.8, repeat: Infinity, ease: 'easeInOut', delay: index * 0.35 }
-                    }
-                    className={`relative p-2.5 sm:p-3 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-slate-950 ${
-                      isSelected
-                        ? 'bg-gradient-to-br from-amber-400/30 via-yellow-500/20 to-indigo-950 border border-amber-300 shadow-lg shadow-amber-400/30'
-                        : 'bg-gradient-to-br from-amber-400/20 via-yellow-500/10 to-indigo-950/80 border border-amber-400/50 hover:border-amber-300 hover:bg-amber-400/25'
-                    }`}
-                    aria-expanded={isSelected}
-                    aria-controls={`star-tooltip-${storyRecord.id}`}
-                    aria-label={`Completed story star: ${storyRecord.title}. Tap to view memory.`}
-                  >
-                    {/* Radiating Expanding Pulse Wave on Click */}
-                    <AnimatePresence>
-                      {isPulsing && (
-                        <motion.span
-                          initial={{ scale: 0.8, opacity: 0.95 }}
-                          animate={{ scale: 2.6, opacity: 0 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.75, ease: 'easeOut' }}
-                          className="absolute inset-0 rounded-full border-2 border-amber-300 pointer-events-none"
-                        />
-                      )}
-                    </AnimatePresence>
-
-                    {/* Golden Celestial Star Icon */}
-                    <Star
-                      className={`w-5 h-5 sm:w-6 sm:h-6 text-amber-300 fill-amber-400 transition-transform ${
-                        isSelected ? 'scale-110' : 'group-hover/star:scale-110'
-                      }`}
-                    />
-
-                    {/* Mini Star Order Badge */}
-                    <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-slate-950 border border-amber-400/70 text-[9px] font-bold text-amber-300 flex items-center justify-center shadow-xs">
-                      {index + 1}
-                    </span>
-                  </motion.button>
-
-                  {/* Celestial Popover Tooltip for the Story Title */}
-                  <AnimatePresence>
-                    {isSelected && (
-                      <motion.div
-                        id={`star-tooltip-${storyRecord.id}`}
-                        role="tooltip"
-                        initial={{ opacity: 0, y: 10, scale: 0.94 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 8, scale: 0.94 }}
-                        transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-                        className="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-3.5 w-64 sm:w-72 p-3.5 rounded-2xl bg-[#0d0926]/95 border border-amber-400/60 shadow-2xl shadow-amber-950/60 text-left backdrop-blur-xl"
-                      >
-                        {/* Tooltip Pointer Arrow */}
-                        <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-[#0d0926] border-t border-l border-amber-400/60" />
-
-                        <div className="relative z-10 space-y-2.5">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-1.5 text-amber-300 text-[10px] font-bold uppercase tracking-wider">
-                              <Sparkles className="w-3 h-3 fill-current" />
-                              <span>Story Memory Star #{index + 1}</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveStarTooltipId(null);
-                              }}
-                              className="p-1 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition-colors"
-                              title="Close star tooltip"
-                              aria-label="Close star tooltip"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-
-                          <div>
-                            <h4 className="text-sm font-playfair font-bold text-white tracking-wide leading-snug">
-                              {storyRecord.title}
-                            </h4>
-                            <p className="text-[11px] text-indigo-200/90 mt-0.5">
-                              {storyRecord.heroName ? `Guided by ${storyRecord.heroName}` : 'Bedtime Tale'} •{' '}
-                              <span className="text-amber-300 font-medium">
-                                {storyRecord.completedAt || 'Completed'}
-                              </span>
-                            </p>
-                          </div>
-
-                          <div className="pt-2 border-t border-indigo-950/80 flex items-center justify-between gap-2">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenCompletedStory(storyRecord);
-                              }}
-                              className="flex-1 py-1.5 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
-                            >
-                              <Play className="w-3 h-3 fill-current" />
-                              <span>Read Again</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewStoryDetails(storyRecord);
-                              }}
-                              className="py-1.5 px-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors"
-                            >
-                              Details
-                            </button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      {/* DAILY BEDTIME READING STREAK & CONSISTENCY MILESTONE CARD */}
+      <DailyStreakMilestoneCard
+        currentStreak={streakCount}
+        childName={childName}
+        onAdvanceStreak={onAdvanceStreak}
+        onSelectMilestone={onSelectMilestone}
+      />
 
       {/* DAILY BEDTIME AFFIRMATION WIDGET */}
       <DailyAffirmationWidget

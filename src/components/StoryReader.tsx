@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Story, StoryScene, AppSettings } from '../types';
+import { Story, StoryScene, AppSettings, CelestialBadge } from '../types';
 import { getHeroById } from '../data/heroes';
 import { VoiceNarrator, ambientSoundEngine } from '../services/audioNarration';
 import { SleepDurationEstimator } from './SleepDurationEstimator';
 import { AmbientWaveVisualizer } from './AmbientWaveVisualizer';
+import { BadgeUnlockCelebrationModal } from './BadgeUnlockCelebrationModal';
 import confetti from 'canvas-confetti';
 import {
   VolumeX,
@@ -26,6 +27,7 @@ import {
   Shield,
   ArrowLeft,
   X,
+  Award,
 } from 'lucide-react';
 
 interface ParsedSentence {
@@ -93,9 +95,11 @@ interface StoryReaderProps {
   story: Story;
   settings: AppSettings;
   onClose: () => void;
-  onCompleteStory: (storyId: string) => void;
+  onCompleteStory: (storyId: string) => CelestialBadge[] | void;
   onToggleSaveStory: (story: Story) => void;
   isSaved?: boolean;
+  badges?: CelestialBadge[];
+  onNavigateToVault?: () => void;
 }
 
 export const StoryReader: React.FC<StoryReaderProps> = ({
@@ -105,6 +109,8 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
   onCompleteStory,
   onToggleSaveStory,
   isSaved = false,
+  badges = [],
+  onNavigateToVault,
 }) => {
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [isPlayingNarration, setIsPlayingNarration] = useState(false);
@@ -120,6 +126,8 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
   const [isCompleted, setIsCompleted] = useState(false);
   const [showSoundControls, setShowSoundControls] = useState(false);
   const [isBreathingIn, setIsBreathingIn] = useState(true);
+  const [unlockedBadgesToCelebrate, setUnlockedBadgesToCelebrate] = useState<CelestialBadge[]>([]);
+  const [showBadgeCelebrationModal, setShowBadgeCelebrationModal] = useState(false);
 
   const hero = getHeroById(story.heroId);
   const scenes = story.scenes || [];
@@ -196,6 +204,9 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
   }, []);
 
   const triggerCelebration = useCallback(() => {
+    // Play warm celestial chime audio
+    ambientSoundEngine.playCelebrationChime();
+
     // Clear any previous timers
     celebrationTimersRef.current.forEach((t) => clearTimeout(t));
     celebrationTimersRef.current = [];
@@ -270,8 +281,13 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
 
   const handleComplete = useCallback(() => {
     setIsCompleted(true);
-    onCompleteStory(story.id);
-    triggerCelebration();
+    const newlyUnlocked = onCompleteStory(story.id);
+    if (newlyUnlocked && Array.isArray(newlyUnlocked) && newlyUnlocked.length > 0) {
+      setUnlockedBadgesToCelebrate(newlyUnlocked);
+      setShowBadgeCelebrationModal(true);
+    } else {
+      triggerCelebration();
+    }
   }, [onCompleteStory, story.id, triggerCelebration]);
 
   const handleNextScene = useCallback(() => {
@@ -843,14 +859,59 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
               </div>
             </div>
 
+            {/* Unlocked Badges Banner if any unlocked */}
+            {unlockedBadgesToCelebrate.length > 0 && (
+              <div className="p-3.5 rounded-2xl bg-amber-950/40 border border-amber-500/40 mb-5 text-left flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center font-bold shadow-md shrink-0"
+                    style={{
+                      backgroundColor: `${unlockedBadgesToCelebrate[0].color}25`,
+                      color: unlockedBadgesToCelebrate[0].color,
+                      borderColor: unlockedBadgesToCelebrate[0].color,
+                      borderWidth: '1px',
+                    }}
+                  >
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-extrabold uppercase tracking-wider text-amber-300">
+                      🌟 Badge Unlocked!
+                    </div>
+                    <div className="text-xs font-bold text-white truncate max-w-[180px]">
+                      {unlockedBadgesToCelebrate[0].name}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowBadgeCelebrationModal(true)}
+                  className="px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs shadow transition-all active:scale-95 shrink-0"
+                >
+                  Celebrate!
+                </button>
+              </div>
+            )}
+
             <div className="flex flex-col gap-2">
               <button
                 type="button"
-                onClick={triggerCelebration}
+                onClick={() => {
+                  if (unlockedBadgesToCelebrate.length > 0) {
+                    setShowBadgeCelebrationModal(true);
+                  } else {
+                    triggerCelebration();
+                  }
+                }}
                 className="w-full py-2.5 rounded-xl font-bold text-xs bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/40 flex items-center justify-center gap-2 transition-all active:scale-95"
               >
                 <Sparkles className="w-4 h-4 fill-current" />
-                <span>Replay Star Celebration</span>
+                <span>
+                  {unlockedBadgesToCelebrate.length > 0
+                    ? 'Replay Badge Unlock Celebration'
+                    : 'Replay Star Celebration'}
+                </span>
               </button>
               <button
                 type="button"
@@ -876,6 +937,21 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Badge Unlock Celebration Full Modal */}
+      {showBadgeCelebrationModal && unlockedBadgesToCelebrate.length > 0 && (
+        <BadgeUnlockCelebrationModal
+          badges={unlockedBadgesToCelebrate}
+          heroColor={hero?.color}
+          storyTitle={story.title}
+          onClose={() => setShowBadgeCelebrationModal(false)}
+          onViewVault={() => {
+            setShowBadgeCelebrationModal(false);
+            onClose();
+            onNavigateToVault?.();
+          }}
+        />
       )}
     </div>
   );

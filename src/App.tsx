@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { Story, UserStats, AppSettings, CelestialBadge, DreamJournalEntry, CompletedStoryRecord, DreamTheme, AgeRange } from './types';
 import { FEATURED_STORIES } from './data/featuredStories';
-import { INITIAL_BADGES } from './data/badges';
+import { INITIAL_BADGES, evaluateBadgeUnlocks } from './data/badges';
 import { StarrySky } from './components/StarrySky';
 import { Navbar, NavTab } from './components/Navbar';
 import { BedtimeChroniclesHome } from './components/BedtimeChroniclesHome';
@@ -217,19 +217,26 @@ export const App: React.FC = () => {
     setSavedStories((prev) => prev.filter((s) => s.id !== storyId));
   };
 
-  const handleCompleteStory = (storyId: string) => {
+  const handleCompleteStory = (storyId: string): CelestialBadge[] => {
     const foundStory =
       FEATURED_STORIES.find((s) => s.id === storyId) ||
       savedStories.find((s) => s.id === storyId) ||
       activeStory;
 
-    const title = foundStory?.title || 'Magical Bedtime Tale';
-    const heroName = foundStory?.heroName || 'Bedtime Star';
-    const category = foundStory?.category || 'Bedtime Story';
+    if (!foundStory) return [];
 
+    const title = foundStory.title || 'Magical Bedtime Tale';
+    const heroName = foundStory.heroName || 'Bedtime Star';
+    const category = foundStory.category || 'Bedtime Story';
+    const today = new Date().toISOString().split('T')[0];
+
+    let nextStats = stats;
     setStats((prev) => {
       const currentList = prev.completedStoriesList || DEFAULT_COMPLETED_STORIES;
       const alreadyInList = currentList.some((s) => s.id === storyId || s.title === title);
+      const isNewDay = prev.lastReadDate !== today;
+      const updatedStreak = prev.currentStreak + (isNewDay ? 1 : 0);
+
       const updatedList: CompletedStoryRecord[] = alreadyInList
         ? currentList
         : [
@@ -243,22 +250,35 @@ export const App: React.FC = () => {
             ...currentList,
           ];
 
-      return {
+      nextStats = {
         ...prev,
         storiesCompleted: prev.storiesCompleted + (alreadyInList ? 0 : 1),
         totalReadingMinutes: prev.totalReadingMinutes + 5,
+        currentStreak: updatedStreak,
+        lastReadDate: today,
         completedStoriesList: updatedList,
       };
+      return nextStats;
     });
 
-    // Unlock badges dynamically
-    setBadges((prev) =>
-      prev.map((b) => {
-        if (b.id === 'badge-first-star') return { ...b, unlocked: true };
-        if (b.id === 'badge-streak-3') return { ...b, unlocked: true };
-        return b;
-      })
-    );
+    const { updatedBadges, newlyUnlockedBadges } = evaluateBadgeUnlocks(foundStory, badges, nextStats);
+    if (newlyUnlockedBadges.length > 0) {
+      setBadges(updatedBadges);
+      return newlyUnlockedBadges;
+    }
+
+    return [];
+  };
+
+  const handleAdvanceStreak = () => {
+    setStats((prev) => {
+      const today = new Date().toISOString().split('T')[0];
+      return {
+        ...prev,
+        currentStreak: prev.currentStreak + 1,
+        lastReadDate: today,
+      };
+    });
   };
 
   const handleStoryGenerated = (story: Story) => {
@@ -376,10 +396,13 @@ export const App: React.FC = () => {
                 onOpenLibrary={(categoryFilter) => {
                   setCurrentTab('library');
                 }}
+                onOpenCreator={() => setCurrentTab('create')}
                 onOpenSettings={() => setCurrentTab('settings')}
                 childName={settings.childName}
                 childAvatar={settings.childAvatar}
                 completedStories={stats.completedStoriesList || DEFAULT_COMPLETED_STORIES}
+                streakCount={stats.currentStreak}
+                onAdvanceStreak={handleAdvanceStreak}
               />
             )}
 
@@ -456,6 +479,8 @@ export const App: React.FC = () => {
           onCompleteStory={handleCompleteStory}
           onToggleSaveStory={handleToggleSaveStory}
           isSaved={savedStories.some((s) => s.id === activeStory.id)}
+          badges={badges}
+          onNavigateToVault={() => setCurrentTab('trophies')}
         />
       )}
 
