@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppSettings, ChildProfile } from '../types';
 import { INITIAL_CHILD_PROFILES, VOICE_PROFILES } from '../data/dreamThemes';
 import { CHILD_AVATARS, getAvatarById } from '../data/avatars';
+import { BedtimeTipsOverlay } from './BedtimeTipsOverlay';
+import { getCurrentDateContext, getGuideForAge } from '../data/bedtimeTipsData';
 import {
   ShieldCheck,
   Users,
@@ -21,6 +23,9 @@ import {
   X,
   Clock,
   ChevronRight,
+  Moon,
+  Lightbulb,
+  Calendar,
 } from 'lucide-react';
 
 interface SafetyPersonalizationViewProps {
@@ -47,6 +52,7 @@ export const SafetyPersonalizationView: React.FC<SafetyPersonalizationViewProps>
   const [activeVoiceId, setActiveVoiceId] = useState<string>(
     settings.activeVoiceId || 'voice-moms-voice'
   );
+  const [showBedtimeTipsModal, setShowBedtimeTipsModal] = useState(false);
   const [showManageVoiceModal, setShowManageVoiceModal] = useState(false);
   const [showAddProfileModal, setShowAddProfileModal] = useState(false);
   const [editingProfile, setEditingProfile] = useState<ChildProfile | null>(null);
@@ -54,6 +60,16 @@ export const SafetyPersonalizationView: React.FC<SafetyPersonalizationViewProps>
   const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState<'privacy' | 'terms' | 'guide' | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Active child context derivation
+  const activeProfile = useMemo(
+    () => profiles.find((p) => p.id === activeProfileId) || profiles[0],
+    [profiles, activeProfileId]
+  );
+  const activeChildAge = activeProfile?.age || settings.childAge || 5;
+  const activeChildName = activeProfile?.name || settings.childName || 'Your Child';
+  const dateContext = useMemo(() => getCurrentDateContext(), []);
+  const ageGuide = useMemo(() => getGuideForAge(activeChildAge), [activeChildAge]);
 
   // Settings values with fallbacks
   const [ageFiltering, setAgeFiltering] = useState<boolean>(
@@ -71,6 +87,19 @@ export const SafetyPersonalizationView: React.FC<SafetyPersonalizationViewProps>
   const [autoFadeToAmbient, setAutoFadeToAmbient] = useState<boolean>(
     settings.autoFadeToAmbient !== undefined ? settings.autoFadeToAmbient : true
   );
+
+  const handleApplyRecommendedSettings = (recommended: {
+    sleepTimerMinutes: number;
+    ageFilteringEnabled: boolean;
+  }) => {
+    setSleepTimerMinutes(recommended.sleepTimerMinutes);
+    setAgeFiltering(recommended.ageFilteringEnabled);
+    persistSettings({
+      sleepTimerMinutes: recommended.sleepTimerMinutes,
+      ageFilteringEnabled: recommended.ageFilteringEnabled,
+    });
+    showToast(`Applied ${recommended.sleepTimerMinutes}m timer & safety filters for age ${activeChildAge}`);
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -168,6 +197,53 @@ export const SafetyPersonalizationView: React.FC<SafetyPersonalizationViewProps>
         </p>
       </header>
 
+      {/* Bedtime Tips & Live Sleep Guidance Feature Card */}
+      <section
+        id="bedtime-tips-summary-card"
+        className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-indigo-950/90 via-slate-900/90 to-purple-950/80 border border-amber-400/40 shadow-xl shadow-indigo-950/40 backdrop-blur-xl relative overflow-hidden"
+      >
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+          <div className="space-y-2.5 max-w-2xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 text-xs font-bold">
+                <Moon className="w-3.5 h-3.5 fill-current" />
+                <span>Pediatric Sleep Science</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950/70 text-slate-300 border border-slate-800 text-xs font-medium">
+                <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{dateContext.formattedDate}</span>
+              </span>
+              <span className="text-xs text-indigo-300 font-medium">
+                {dateContext.seasonIcon} {dateContext.seasonName}
+              </span>
+            </div>
+
+            <div>
+              <h2 className="text-lg sm:text-xl font-playfair font-bold text-white flex items-center gap-2">
+                <span>Bedtime Tips for {activeChildName}</span>
+                <span className="text-xs px-2 py-0.5 rounded-md bg-indigo-900/80 text-indigo-200 border border-indigo-700/50 font-sans font-semibold">
+                  Age {activeChildAge} ({ageGuide.label.split(' ')[0]})
+                </span>
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 font-light mt-1 leading-relaxed">
+                {dateContext.dayContextTip} Target sleep: <strong className="text-amber-300 font-semibold">{ageGuide.sleepHours}</strong> with a <strong className="text-indigo-300 font-semibold">{ageGuide.windDownMinutes}m</strong> wind-down routine.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            id="open-bedtime-tips-btn"
+            onClick={() => setShowBedtimeTipsModal(true)}
+            className="w-full lg:w-auto px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 transition-all shrink-0 group"
+          >
+            <Lightbulb className="w-4 h-4 text-slate-950 fill-current group-hover:scale-110 transition-transform" />
+            <span>View Age {activeChildAge} Bedtime Tips</span>
+            <ChevronRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
+      </section>
+
       {/* 2-Column Responsive Layout (As in provided HTML Screen 1) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
         {/* Left Column: Profiles & Voice Synthesis (7 Columns) */}
@@ -225,17 +301,32 @@ export const SafetyPersonalizationView: React.FC<SafetyPersonalizationViewProps>
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingProfile(profile);
-                      }}
-                      className="p-2 rounded-xl text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors"
-                      title={`Edit ${profile.name}'s profile`}
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectProfile(profile);
+                          setShowBedtimeTipsModal(true);
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/30 hover:border-indigo-400 text-indigo-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                        title={`View Age ${profile.age} Bedtime Tips`}
+                      >
+                        <Moon className="w-3.5 h-3.5 text-amber-400 fill-current" />
+                        <span className="hidden sm:inline">Tips</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingProfile(profile);
+                        }}
+                        className="p-2 rounded-xl text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors"
+                        title={`Edit ${profile.name}'s profile`}
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -560,7 +651,15 @@ export const SafetyPersonalizationView: React.FC<SafetyPersonalizationViewProps>
       {/* Screen 1 Footer Links */}
       <footer className="mt-16 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
         <div>&copy; 2026 Starlight Tales &bull; Infinite Heroes Bedtime Chronicles</div>
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+          <button
+            type="button"
+            onClick={() => setShowBedtimeTipsModal(true)}
+            className="text-amber-400 font-semibold hover:text-amber-300 transition-colors flex items-center gap-1.5"
+          >
+            <Moon className="w-3.5 h-3.5 fill-current" />
+            <span>Bedtime Tips &amp; Sleep Science</span>
+          </button>
           <button
             type="button"
             onClick={() => setShowPolicyModal('guide')}
@@ -826,6 +925,21 @@ export const SafetyPersonalizationView: React.FC<SafetyPersonalizationViewProps>
               </button>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Bedtime Tips Informational Overlay */}
+      <AnimatePresence>
+        {showBedtimeTipsModal && (
+          <BedtimeTipsOverlay
+            childName={activeChildName}
+            childAge={activeChildAge}
+            activeProfile={activeProfile}
+            allProfiles={profiles}
+            onSelectProfile={(p) => handleSelectProfile(p)}
+            onApplyRecommendedSettings={handleApplyRecommendedSettings}
+            onClose={() => setShowBedtimeTipsModal(false)}
+          />
         )}
       </AnimatePresence>
     </div>

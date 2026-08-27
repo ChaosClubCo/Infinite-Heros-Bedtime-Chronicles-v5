@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Story, CompletedStoryRecord, StreakMilestone } from '../types';
+import { Story, CompletedStoryRecord, StreakMilestone, AmbientSoundTrack } from '../types';
 import { FEATURED_STORIES } from '../data/featuredStories';
 import { getAvatarById } from '../data/avatars';
 import { DailyAffirmationWidget } from './DailyAffirmationWidget';
@@ -17,6 +17,10 @@ import {
   Search,
   PenTool,
   Feather,
+  Music,
+  Video,
+  Mic,
+  Image,
 } from 'lucide-react';
 
 interface BedtimeChroniclesHomeProps {
@@ -28,12 +32,18 @@ interface BedtimeChroniclesHomeProps {
   onOpenLibrary: (categoryFilter?: string) => void;
   onOpenCreator?: () => void;
   onOpenSettings: () => void;
+  onOpenMusicStudio?: () => void;
+  onOpenImageStudio?: () => void;
+  onOpenVideoStudio?: () => void;
+  onOpenTranscriber?: () => void;
   childName?: string;
   childAvatar?: string;
   completedStories?: CompletedStoryRecord[];
   streakCount?: number;
   onAdvanceStreak?: () => void;
   onSelectMilestone?: (milestone: StreakMilestone) => void;
+  ambientSound?: AmbientSoundTrack;
+  ambientVolume?: number;
 }
 
 export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
@@ -45,12 +55,18 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
   onOpenLibrary,
   onOpenCreator,
   onOpenSettings,
+  onOpenMusicStudio,
+  onOpenImageStudio,
+  onOpenVideoStudio,
+  onOpenTranscriber,
   childName = 'Little Explorer',
   childAvatar = 'fox',
   completedStories = [],
   streakCount = 3,
   onAdvanceStreak,
   onSelectMilestone,
+  ambientSound = 'wind',
+  ambientVolume = 0.35,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -208,8 +224,106 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
       {/* DAILY BEDTIME AFFIRMATION WIDGET */}
       <DailyAffirmationWidget
         childName={childName}
+        ambientSound={ambientSound}
+        ambientVolume={ambientVolume}
         onOpenWindDown={onOpenWindDown}
       />
+
+      {/* BEDTIME AI CREATIVE STUDIOS: Lyria Music, Flash Image, Veo Video & Transcriber */}
+      <section className="p-4 sm:p-5 rounded-3xl bg-slate-900/60 border border-indigo-900/40 shadow-xl backdrop-blur-md space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-xl bg-indigo-600/20 text-amber-300">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                Bedtime AI Creative Studios
+                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-700/40">
+                  Google GenAI
+                </span>
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Compose original lullabies, create storybook illustrations, render videos, or transcribe dreams
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+          {/* Lyria Music Studio */}
+          <button
+            type="button"
+            onClick={onOpenMusicStudio}
+            className="p-3.5 rounded-2xl bg-gradient-to-br from-purple-950/40 via-slate-900/80 to-slate-900 border border-purple-900/40 hover:border-purple-500/60 text-left transition-all group hover:scale-[1.02] shadow-sm"
+          >
+            <div className="w-8 h-8 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300 mb-2 group-hover:bg-purple-600 group-hover:text-white transition">
+              <Music className="w-4 h-4" />
+            </div>
+            <h4 className="text-xs font-bold text-purple-200 group-hover:text-white">Lyria Music Studio</h4>
+            <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-2">
+              Generate soothing lullabies & ambient tracks with Lyria 3
+            </p>
+            <span className="inline-block mt-2 text-[9px] font-mono text-purple-400 bg-purple-950/80 px-1.5 py-0.5 rounded">
+              lyria-3-clip / pro
+            </span>
+          </button>
+
+          {/* Flash Image Studio */}
+          <button
+            type="button"
+            onClick={onOpenImageStudio}
+            className="p-3.5 rounded-2xl bg-gradient-to-br from-teal-950/40 via-slate-900/80 to-slate-900 border border-teal-900/40 hover:border-teal-500/60 text-left transition-all group hover:scale-[1.02] shadow-sm"
+          >
+            <div className="w-8 h-8 rounded-xl bg-teal-600/20 border border-teal-500/30 flex items-center justify-center text-teal-300 mb-2 group-hover:bg-teal-600 group-hover:text-white transition">
+              <Image className="w-4 h-4" />
+            </div>
+            <h4 className="text-xs font-bold text-teal-200 group-hover:text-white">Flash Image Studio</h4>
+            <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-2">
+              Create and edit bedtime story illustrations with text prompts
+            </p>
+            <span className="inline-block mt-2 text-[9px] font-mono text-teal-400 bg-teal-950/80 px-1.5 py-0.5 rounded">
+              gemini-3.1-flash-image
+            </span>
+          </button>
+
+          {/* Veo 3 Video Studio */}
+          <button
+            type="button"
+            onClick={onOpenVideoStudio}
+            className="p-3.5 rounded-2xl bg-gradient-to-br from-blue-950/40 via-slate-900/80 to-slate-900 border border-blue-900/40 hover:border-blue-500/60 text-left transition-all group hover:scale-[1.02] shadow-sm"
+          >
+            <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-300 mb-2 group-hover:bg-blue-600 group-hover:text-white transition">
+              <Video className="w-4 h-4" />
+            </div>
+            <h4 className="text-xs font-bold text-blue-200 group-hover:text-white">Veo 3 Video Studio</h4>
+            <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-2">
+              Generate bedtime videos or animate photos into calming scenes
+            </p>
+            <span className="inline-block mt-2 text-[9px] font-mono text-blue-400 bg-blue-950/80 px-1.5 py-0.5 rounded">
+              veo-3.1-fast (16:9 / 9:16)
+            </span>
+          </button>
+
+          {/* Voice Transcriber */}
+          <button
+            type="button"
+            onClick={onOpenTranscriber}
+            className="p-3.5 rounded-2xl bg-gradient-to-br from-indigo-950/40 via-slate-900/80 to-slate-900 border border-indigo-900/40 hover:border-indigo-500/60 text-left transition-all group hover:scale-[1.02] shadow-sm"
+          >
+            <div className="w-8 h-8 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 mb-2 group-hover:bg-indigo-600 group-hover:text-white transition">
+              <Mic className="w-4 h-4" />
+            </div>
+            <h4 className="text-xs font-bold text-indigo-200 group-hover:text-white">Voice Transcriber</h4>
+            <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-2">
+              Speak bedtime thoughts & record dreams directly into text
+            </p>
+            <span className="inline-block mt-2 text-[9px] font-mono text-indigo-400 bg-indigo-950/80 px-1.5 py-0.5 rounded">
+              gemini-3.5-transcribe
+            </span>
+          </button>
+        </div>
+      </section>
 
       {/* HERO BANNER: The Silver Moon Fox (Image 1) */}
       <section className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-[#171233] via-[#100d27] to-[#1a143b] border border-indigo-900/50 shadow-2xl shadow-indigo-950/80">
