@@ -11,15 +11,24 @@ config.resolver.blockList = [
 // - Vite resolves `@` to ./src via vite.config.ts.
 // - Expo Router lives at the repository root and historically imports
 //   root-level modules such as @/constants and @/components.
+// - Shared client/server contracts historically use @shared/*.
 //
-// Expo CLI otherwise consumes tsconfig.json, where `@/*` is intentionally
-// mapped to src/* for the Vite app. Resolve the Expo alias explicitly here
-// so Metro does not reinterpret root-level Expo imports as src/* imports.
+// Keep Vite's alias semantics untouched and make the Expo/Metro aliases
+// explicit at this boundary.
 const defaultResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName.startsWith("@/")) {
     const rootModule = path.resolve(__dirname, moduleName.slice(2));
     return context.resolveRequest(context, rootModule, platform);
+  }
+
+  if (moduleName.startsWith("@shared/")) {
+    const sharedModule = path.resolve(
+      __dirname,
+      "shared",
+      moduleName.slice("@shared/".length),
+    );
+    return context.resolveRequest(context, sharedModule, platform);
   }
 
   if (defaultResolveRequest) {
