@@ -35,81 +35,60 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          report="$RUNNER_TEMP/archive-audit.txt"
-          : > "$report"
+          echo "HEAD=$(git rev-parse HEAD)"
+          echo "Tracked files=$(git ls-files | wc -l | tr -d ' ')"
 
-          echo "HEAD=$(git rev-parse HEAD)" | tee -a "$report"
-          echo "Tracked files=$(git ls-files | wc -l | tr -d ' ')" | tee -a "$report"
-
-          echo "" | tee -a "$report"
-          echo "== Tracked symlinks ==" | tee -a "$report"
+          echo "== Tracked symlinks =="
           mapfile -t links < <(git ls-files -s | awk '$1 == "120000" {print $4}')
           if ((${#links[@]} == 0)); then
-            echo "none" | tee -a "$report"
+            echo "none"
           else
-            printf '%s\n' "${links[@]}" | tee -a "$report"
+            printf '%s\n' "${links[@]}"
             for link in "${links[@]}"; do
               target="$(git show "HEAD:$link")"
               case "$target" in
                 /*|../*|*/../*|*'/..')
-                  echo "ERROR: symlink escapes repository: $link -> $target" | tee -a "$report"
+                  echo "ERROR: symlink escapes repository: $link -> $target"
                   exit 1
                   ;;
               esac
-              if [[ ! -e "$link" ]]; then
-                echo "ERROR: broken tracked symlink: $link -> $target" | tee -a "$report"
-                exit 1
-              fi
+              [[ -e "$link" ]] || { echo "ERROR: broken tracked symlink: $link -> $target"; exit 1; }
             done
           fi
 
-          echo "" | tee -a "$report"
-          echo "== Tracked nested archives ==" | tee -a "$report"
+          echo "== Tracked nested archives =="
           mapfile -t archives < <(git ls-files | grep -Ei '\.(zip|tar|tar\.gz|tgz|gz|bz2|xz|7z|rar)$' || true)
-          if ((${#archives[@]} == 0)); then
-            echo "none" | tee -a "$report"
-          else
-            printf '%s\n' "${archives[@]}" | tee -a "$report"
-          fi
+          ((${#archives[@]} == 0)) && echo "none" || printf '%s\n' "${archives[@]}"
 
-          echo "" | tee -a "$report"
-          echo "== Oversized tracked files (>50 MiB) ==" | tee -a "$report"
+          echo "== Oversized tracked files (>50 MiB) =="
           mapfile -t large < <(git ls-tree -r -l HEAD | awk '$4 > 52428800 {print $4 " bytes\t" $5}')
           if ((${#large[@]} == 0)); then
-            echo "none" | tee -a "$report"
+            echo "none"
           else
-            printf '%s\n' "${large[@]}" | tee -a "$report"
-            echo "ERROR: tracked file exceeds 50 MiB source-gate threshold" | tee -a "$report"
+            printf '%s\n' "${large[@]}"
             exit 1
           fi
 
-          echo "" | tee -a "$report"
-          echo "== Package manager roots ==" | tee -a "$report"
+          echo "== Package manager roots =="
           managers=0
-          [[ -f package-lock.json ]] && { echo "npm: package-lock.json" | tee -a "$report"; managers=$((managers+1)); }
-          [[ -f pnpm-lock.yaml ]] && { echo "pnpm: pnpm-lock.yaml" | tee -a "$report"; managers=$((managers+1)); }
-          [[ -f yarn.lock ]] && { echo "yarn: yarn.lock" | tee -a "$report"; managers=$((managers+1)); }
-          [[ -f bun.lock || -f bun.lockb ]] && { echo "bun: bun.lock/bun.lockb" | tee -a "$report"; managers=$((managers+1)); }
-          if ((managers != 1)); then
-            echo "ERROR: expected exactly one package manager lockfile; found $managers" | tee -a "$report"
-            exit 1
-          fi
+          [[ -f package-lock.json ]] && { echo "npm: package-lock.json"; managers=$((managers+1)); }
+          [[ -f pnpm-lock.yaml ]] && { echo "pnpm: pnpm-lock.yaml"; managers=$((managers+1)); }
+          [[ -f yarn.lock ]] && { echo "yarn: yarn.lock"; managers=$((managers+1)); }
+          [[ -f bun.lock || -f bun.lockb ]] && { echo "bun: bun.lock/bun.lockb"; managers=$((managers+1)); }
+          ((managers == 1)) || { echo "ERROR: expected exactly one package manager lockfile; found $managers"; exit 1; }
 
-          echo "" | tee -a "$report"
-          echo "== Tracked generated/migration paths ==" | tee -a "$report"
+          echo "== Tracked generated/migration paths =="
           generated_regex='(^|/)(node_modules|dist|build|web-build|static-build|server_dist|coverage|\.expo|\.next|\.cache|tmp)(/|$)'
           mapfile -t generated < <(git ls-files | grep -E "$generated_regex" || true)
           if ((${#generated[@]} == 0)); then
-            echo "none" | tee -a "$report"
+            echo "none"
           else
-            printf '%s\n' "${generated[@]}" | tee -a "$report"
-            echo "ERROR: generated output is tracked in Git" | tee -a "$report"
+            printf '%s\n' "${generated[@]}"
             exit 1
           fi
 
-          echo "" | tee -a "$report"
-          echo "== Legacy Replit markers (informational) ==" | tee -a "$report"
-          git ls-files | grep -E '(^|/)(\.replit|replit\.nix|server/replit_integrations)(/|$)' | tee -a "$report" || echo "none" | tee -a "$report"
+          echo "== Legacy Replit markers (informational) =="
+          git ls-files | grep -E '(^|/)(\.replit|replit\.nix|server/replit_integrations)(/|$)' || echo "none"
 
       - name: Prove Git archive integrity
         shell: bash
@@ -129,6 +108,13 @@ jobs:
       - name: Vite production build
         run: npm run build
 
+      - name: Simulate Cloud Run-neutral build hook
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm pkg set 'scripts.gcp-build=npm run expo:build:ci && npm run server:build'
+          test "$(npm pkg get scripts.gcp-build)" = '"npm run expo:build:ci && npm run server:build"'
+
       - name: Cloud Run buildpack hook
         env:
           CI: 'true'
@@ -141,6 +127,7 @@ jobs:
           set -euo pipefail
           test -f server_dist/index.js
           test -d static-build
+          test -f static-build/index.html
           echo "server_dist/index.js: present"
-          echo "static-build/: present"
+          echo "static-build/index.html: present"
           du -sh server_dist static-build
