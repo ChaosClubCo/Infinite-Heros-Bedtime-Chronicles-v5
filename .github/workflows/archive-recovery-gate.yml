@@ -1,0 +1,144 @@
+name: Archive Recovery Gate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-and-build-gate:
+    name: Source Archive + GCP Build Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Pin repository npm major
+        run: npm install --global npm@11
+
+      - name: Audit tracked source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/archive-audit.txt"
+          : > "$report"
+
+          echo "HEAD=$(git rev-parse HEAD)" | tee -a "$report"
+          echo "Tracked files=$(git ls-files | wc -l | tr -d ' ')" | tee -a "$report"
+
+          echo "" | tee -a "$report"
+          echo "== Tracked symlinks ==" | tee -a "$report"
+          mapfile -t links < <(git ls-files -s | awk '$1 == "120000" {print $4}')
+          if ((${#links[@]} == 0)); then
+            echo "none" | tee -a "$report"
+          else
+            printf '%s\n' "${links[@]}" | tee -a "$report"
+            for link in "${links[@]}"; do
+              target="$(git show "HEAD:$link")"
+              case "$target" in
+                /*|../*|*/../*|*'/..')
+                  echo "ERROR: symlink escapes repository: $link -> $target" | tee -a "$report"
+                  exit 1
+                  ;;
+              esac
+              if [[ ! -e "$link" ]]; then
+                echo "ERROR: broken tracked symlink: $link -> $target" | tee -a "$report"
+                exit 1
+              fi
+            done
+          fi
+
+          echo "" | tee -a "$report"
+          echo "== Tracked nested archives ==" | tee -a "$report"
+          mapfile -t archives < <(git ls-files | grep -Ei '\.(zip|tar|tar\.gz|tgz|gz|bz2|xz|7z|rar)$' || true)
+          if ((${#archives[@]} == 0)); then
+            echo "none" | tee -a "$report"
+          else
+            printf '%s\n' "${archives[@]}" | tee -a "$report"
+          fi
+
+          echo "" | tee -a "$report"
+          echo "== Oversized tracked files (>50 MiB) ==" | tee -a "$report"
+          mapfile -t large < <(git ls-tree -r -l HEAD | awk '$4 > 52428800 {print $4 " bytes\t" $5}')
+          if ((${#large[@]} == 0)); then
+            echo "none" | tee -a "$report"
+          else
+            printf '%s\n' "${large[@]}" | tee -a "$report"
+            echo "ERROR: tracked file exceeds 50 MiB source-gate threshold" | tee -a "$report"
+            exit 1
+          fi
+
+          echo "" | tee -a "$report"
+          echo "== Package manager roots ==" | tee -a "$report"
+          managers=0
+          [[ -f package-lock.json ]] && { echo "npm: package-lock.json" | tee -a "$report"; managers=$((managers+1)); }
+          [[ -f pnpm-lock.yaml ]] && { echo "pnpm: pnpm-lock.yaml" | tee -a "$report"; managers=$((managers+1)); }
+          [[ -f yarn.lock ]] && { echo "yarn: yarn.lock" | tee -a "$report"; managers=$((managers+1)); }
+          [[ -f bun.lock || -f bun.lockb ]] && { echo "bun: bun.lock/bun.lockb" | tee -a "$report"; managers=$((managers+1)); }
+          if ((managers != 1)); then
+            echo "ERROR: expected exactly one package manager lockfile; found $managers" | tee -a "$report"
+            exit 1
+          fi
+
+          echo "" | tee -a "$report"
+          echo "== Tracked generated/migration paths ==" | tee -a "$report"
+          generated_regex='(^|/)(node_modules|dist|build|web-build|static-build|server_dist|coverage|\.expo|\.next|\.cache|tmp)(/|$)'
+          mapfile -t generated < <(git ls-files | grep -E "$generated_regex" || true)
+          if ((${#generated[@]} == 0)); then
+            echo "none" | tee -a "$report"
+          else
+            printf '%s\n' "${generated[@]}" | tee -a "$report"
+            echo "ERROR: generated output is tracked in Git" | tee -a "$report"
+            exit 1
+          fi
+
+          echo "" | tee -a "$report"
+          echo "== Legacy Replit markers (informational) ==" | tee -a "$report"
+          git ls-files | grep -E '(^|/)(\.replit|replit\.nix|server/replit_integrations)(/|$)' | tee -a "$report" || echo "none" | tee -a "$report"
+
+      - name: Prove Git archive integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git archive --format=tar.gz --output="$RUNNER_TEMP/source.tar.gz" HEAD
+          gzip -t "$RUNNER_TEMP/source.tar.gz"
+          tar -tzf "$RUNNER_TEMP/source.tar.gz" >/dev/null
+          git archive --format=zip --output="$RUNNER_TEMP/source.zip" HEAD
+          unzip -t "$RUNNER_TEMP/source.zip" >/dev/null
+          ls -lh "$RUNNER_TEMP/source.tar.gz" "$RUNNER_TEMP/source.zip"
+          sha256sum "$RUNNER_TEMP/source.tar.gz" "$RUNNER_TEMP/source.zip"
+
+      - name: Clean locked install
+        run: npm ci
+
+      - name: Vite production build
+        run: npm run build
+
+      - name: Cloud Run buildpack hook
+        env:
+          CI: 'true'
+          EXPO_NO_TELEMETRY: '1'
+        run: npm run gcp-build
+
+      - name: Verify expected GCP outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f server_dist/index.js
+          test -d static-build
+          echo "server_dist/index.js: present"
+          echo "static-build/: present"
+          du -sh server_dist static-build
