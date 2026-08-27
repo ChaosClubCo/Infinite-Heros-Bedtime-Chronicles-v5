@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: archive-recovery-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   source-and-build-gate:
     name: Source Archive + GCP Build Gate
@@ -108,12 +112,16 @@ jobs:
       - name: Vite production build
         run: npm run build
 
-      - name: Simulate Cloud Run-neutral build hook
+      - name: Verify Cloud Run build hook contract
         shell: bash
         run: |
           set -euo pipefail
-          npm pkg set 'scripts.gcp-build=npm run expo:build:ci && npm run server:build'
-          test "$(npm pkg get scripts.gcp-build)" = '"npm run expo:build:ci && npm run server:build"'
+          expected='"npm run expo:build:ci && npm run server:build"'
+          actual="$(npm pkg get scripts.gcp-build)"
+          test "$actual" = "$expected" || {
+            echo "ERROR: unexpected gcp-build hook: $actual"
+            exit 1
+          }
 
       - name: Cloud Run buildpack hook
         env:
