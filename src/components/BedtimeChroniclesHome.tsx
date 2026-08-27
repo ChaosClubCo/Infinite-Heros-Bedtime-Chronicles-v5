@@ -36,6 +36,7 @@ interface BedtimeChroniclesHomeProps {
   onOpenImageStudio?: () => void;
   onOpenVideoStudio?: () => void;
   onOpenTranscriber?: () => void;
+  onOpenNightlight?: () => void;
   childName?: string;
   childAvatar?: string;
   completedStories?: CompletedStoryRecord[];
@@ -59,6 +60,7 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
   onOpenImageStudio,
   onOpenVideoStudio,
   onOpenTranscriber,
+  onOpenNightlight,
   childName = 'Little Explorer',
   childAvatar = 'fox',
   completedStories = [],
@@ -250,7 +252,26 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
+          {/* Sound-Reactive Nightlight Studio */}
+          <button
+            type="button"
+            id="home-nightlight-studio-btn"
+            onClick={onOpenNightlight}
+            className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-950/40 via-slate-900/80 to-slate-900 border border-amber-900/40 hover:border-amber-500/60 text-left transition-all group hover:scale-[1.02] shadow-sm"
+          >
+            <div className="w-8 h-8 rounded-xl bg-amber-600/20 border border-amber-500/30 flex items-center justify-center text-amber-300 mb-2 group-hover:bg-amber-600 group-hover:text-white transition">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <h4 className="text-xs font-bold text-amber-200 group-hover:text-white">Bedside Nightlight</h4>
+            <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-2">
+              Sound-reactive breathing luminary with ambient microphone detection
+            </p>
+            <span className="inline-block mt-2 text-[9px] font-mono text-amber-400 bg-amber-950/80 px-1.5 py-0.5 rounded">
+              Web Audio Analyser
+            </span>
+          </button>
+
           {/* Lyria Music Studio */}
           <button
             type="button"
@@ -301,7 +322,7 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
               Generate bedtime videos or animate photos into calming scenes
             </p>
             <span className="inline-block mt-2 text-[9px] font-mono text-blue-400 bg-blue-950/80 px-1.5 py-0.5 rounded">
-              veo-3.1-fast (16:9 / 9:16)
+              veo-3.1-fast
             </span>
           </button>
 
@@ -517,13 +538,27 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
               <p className="text-xs text-slate-300 leading-relaxed font-light">
                 Schedule your device to dim and start a soft nature soundscape 30 minutes before sleep.
               </p>
-              <button
-                type="button"
-                onClick={onOpenWindDown}
-                className="mt-2 px-5 py-2.5 rounded-full text-xs font-semibold bg-[#261c47] hover:bg-[#342761] border border-indigo-800/60 text-slate-200 hover:text-white transition-all shadow-md"
-              >
-                Setup Now
-              </button>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <button
+                  type="button"
+                  id="home-wind-down-setup-btn"
+                  onClick={onOpenWindDown}
+                  className="px-4 py-2 rounded-full text-xs font-semibold bg-[#261c47] hover:bg-[#342761] border border-indigo-800/60 text-slate-200 hover:text-white transition-all shadow-md"
+                >
+                  Setup Routine
+                </button>
+                {onOpenNightlight && (
+                  <button
+                    type="button"
+                    id="home-quick-nightlight-btn"
+                    onClick={onOpenNightlight}
+                    className="px-4 py-2 rounded-full text-xs font-semibold bg-amber-950/60 hover:bg-amber-900/80 border border-amber-500/40 text-amber-200 hover:text-white transition-all shadow-md flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                    <span>Nightlight Mode</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Stylized Phone Preview (Matching Image 1 Wind Down Device Graphic) */}

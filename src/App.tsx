@@ -22,6 +22,7 @@ import { LyriaMusicStudioModal } from './components/LyriaMusicStudioModal';
 import { FlashImageStudioModal } from './components/FlashImageStudioModal';
 import { VeoVideoStudioModal } from './components/VeoVideoStudioModal';
 import { AudioTranscriberModal } from './components/AudioTranscriberModal';
+import { SoundReactiveNightlightModal } from './components/SoundReactiveNightlightModal';
 
 const DEFAULT_SETTINGS: AppSettings = {
   narratorVoice: 'moonbeam',
@@ -110,6 +111,7 @@ export const App: React.FC = () => {
   const [showImageStudioModal, setShowImageStudioModal] = useState(false);
   const [showVideoStudioModal, setShowVideoStudioModal] = useState(false);
   const [showTranscriberModal, setShowTranscriberModal] = useState(false);
+  const [showNightlightModal, setShowNightlightModal] = useState(false);
 
   // Persistence in localStorage
   const [savedStories, setSavedStories] = useState<Story[]>(() => {
@@ -375,6 +377,7 @@ export const App: React.FC = () => {
           setCurrentTab(tab);
         }}
         onOpenSettings={() => setCurrentTab('settings')}
+        onOpenNightlight={() => setShowNightlightModal(true)}
         savedCount={savedStories.length}
         streakCount={stats.currentStreak}
         childName={settings.childName}
@@ -401,6 +404,7 @@ export const App: React.FC = () => {
                 onOpenMadlibs={() => setShowMadlibsDirect(true)}
                 onOpenDreamJournal={() => setShowDreamJournalModal(true)}
                 onOpenWindDown={() => setShowWindDownModal(true)}
+                onOpenNightlight={() => setShowNightlightModal(true)}
                 onOpenLibrary={(categoryFilter) => {
                   setCurrentTab('library');
                 }}
@@ -533,6 +537,14 @@ export const App: React.FC = () => {
         onClose={() => setShowWindDownModal(false)}
         settings={settings}
         onSaveSettings={setSettings}
+        onOpenNightlight={() => setShowNightlightModal(true)}
+      />
+
+      {/* Sound-Reactive Nightlight Modal */}
+      <SoundReactiveNightlightModal
+        isOpen={showNightlightModal}
+        onClose={() => setShowNightlightModal(false)}
+        childName={settings.childName}
       />
 
       {/* Bedtime Routine Settings Modal */}
