@@ -1,6 +1,8 @@
 name: Archive Recovery Gate
 
 on:
+  push:
+    branches: [deploy/archive-recovery-20260827]
   pull_request:
     branches: [main]
   workflow_dispatch:
