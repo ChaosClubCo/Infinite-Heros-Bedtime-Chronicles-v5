@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": "1.0.0",
+  "repository": "ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5",
+  "pullRequest": 443,
+  "candidateSha": "4f8273fd8fcf99ad4536b54818e4fbb12e287987",
+  "baseSha": "458e9597218293aa52de1b5b73c75d2ceb9c4384",
+  "recordedAt": "2026-08-24T19:44:00Z",
+  "releaseDecision": "BLOCKED",
+  "defects": [
+    {
+      "id": "RC-2026-08-24-001",
+      "severity": "P1",
+      "classification": "environment_limitation",
+      "title": "GitHub Actions cannot start jobs for the exact candidate",
+      "status": "OPEN",
+      "evidence": {
+        "actionsEnabled": true,
+        "allowedActions": "all",
+        "runIds": [32769608727, 32769607077, 32769606019, 32769604197],
+        "runConclusion": "startup_failure",
+        "jobsCreated": 0,
+        "usageMonth": "2026-08",
+        "actionsLinuxGrossMinutes": 15775,
+        "actionsLinuxNetBillableMinutes": 10792
+      },
+      "impact": "Exact-head CI, security, CodeQL, and review gates cannot execute, so the candidate cannot be promoted.",
+      "remediation": "Restore GitHub Actions execution at the organization billing or spending-control boundary, then create fresh runs for the current candidate SHA."
+    },
+    {
+      "id": "RC-2026-08-24-002",
+      "severity": "P1",
+      "classification": "implementation_defect",
+      "title": "package-lock.json is not synchronized with package.json",
+      "status": "OPEN",
+      "evidence": {
+        "command": "npm ci",
+        "node": "22.13.0",
+        "npm": "11.13.0",
+        "exitCode": 1,
+        "firstError": "npm ci can only install packages when package.json and package-lock.json are in sync"
+      },
+      "impact": "Locked dependency installation fails before tests, audit, typecheck, or builds run.",
+      "remediation": "Regenerate package-lock.json only with the repository Node 22 and npm 11 toolchain, then prove npm ci succeeds."
+    },
+    {
+      "id": "RC-2026-08-24-003",
+      "severity": "P1",
+      "classification": "implementation_defect",
+      "title": "Initial Node pin is below a locked production dependency engine minimum",
+      "status": "OPEN",
+      "evidence": {
+        "node": "22.13.0",
+        "dependency": "http-proxy-middleware@4.2.0",
+        "requiredNode": "^22.15.0 || ^24.0.0 || >=26.0.0",
+        "observed": "npm EBADENGINE"
+      },
+      "impact": "The candidate's declared runtime does not satisfy its locked dependency graph.",
+      "remediation": "Pin a supported Node 22 LTS patch and rerun the locked install and full verification suite."
+    }
+  ]
+}

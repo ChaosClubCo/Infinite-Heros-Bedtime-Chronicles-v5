@@ -3,7 +3,8 @@ import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { isAuthEnabled } from "./auth";
 import { logger, createRequestId } from "./logger";
-import { recordRequest } from "./metrics";
+import { recordRequest, getMetrics } from "./metrics";
+import { checkAlertThresholds } from "./alerting";
 import { createLoadSheddingMiddleware } from "./load-shedding";
 import * as fs from "fs";
 import * as path from "path";
@@ -174,6 +175,10 @@ function setupRequestLogging(app: express.Application) {
       const duration = Date.now() - start;
       req.log!.info({ method: req.method, path: reqPath, status: res.statusCode, duration }, 'request completed');
       recordRequest(res.statusCode);
+
+      if (getMetrics().requests.total % 20 === 0) {
+        checkAlertThresholds();
+      }
     });
 
     next();
@@ -364,7 +369,7 @@ export async function createApp(): Promise<express.Application> {
 }
 
 // Only start the server when running directly (not imported by Vercel)
-if (!process.env.VERCEL) {
+if (!process.env.VERCEL && process.env.NODE_ENV !== "test") {
   (async () => {
     const app = await createApp();
     const { createServer } = await import("node:http");
