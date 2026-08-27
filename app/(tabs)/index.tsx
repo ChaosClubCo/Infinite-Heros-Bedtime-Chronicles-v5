@@ -4,7 +4,6 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  Platform,
   ScrollView,
   TextInput,
   Image,
@@ -14,7 +13,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import { AnimatedView } from "@/components/AnimatedView";
@@ -24,9 +22,12 @@ import { StarField } from "@/components/StarField";
 import { useProfile } from "@/lib/ProfileContext";
 import { getAllStories } from "@/lib/storage";
 import { useSyncOfflineStatus } from "@/lib/SyncOfflineContext";
+import { useScreenInsets } from "@/lib/useScreenInsets";
 import { buildStoryReplayParams } from "@/lib/replay-params";
 import { CachedStory } from "@/constants/types";
 import { HEROES } from "@/constants/heroes";
+import { FEATURED_STORIES } from "@/constants/featured-stories";
+import { MODE_META, resolveStoryMode } from "@/constants/story-theme";
 
 const CATEGORIES = [
   {
@@ -66,52 +67,11 @@ const CATEGORIES = [
   },
 ];
 
-const FEATURED_STORIES = [
-  {
-    id: "1",
-    title: "The Starry Whales",
-    duration: "12 min",
-    category: "Cosmic",
-    badge: "Featured",
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuC7yhyLj6n8bFSX8_d1U62Y2R02hWfFHIZdY5YPhSb3Y3VVVMuKgMoqGGfREzX6KVUaKVa-CFbzEIiI8LRNK-89koByLPx6qvtNbznH8X9Lql6r9uHIDaS306SXdsPex3pWn0YNJjmWF2jnTSg8Bc2YiKfekZrijs6EfelrhUWiiEoJBG9I1nQkxGicIetp_4b_GJ2F5F_4WtXgsvxYUy43i7UBN85rJsM2rXrFN3f64c1IzqC7CsZ",
-  },
-  {
-    id: "2",
-    title: "The Candy Cloud Kingdom",
-    duration: "8 min",
-    category: "Dreamy",
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCsy6pS96BchFV2Rd9FYbAgmUtK8y3g7_bdGiEZgz1ldkMXcKQ10d_OqXfgXFJnPGwEX18QTU9yj_qAZurNUaqVxOjM-q5L7YO7qfiPGB2C8PntKlXsDy2fBqOFzFvR9FkItYsaL62q2F7SsXNhDfvJfA_3vDGd0XOz6yqJ-g_-5JnjkvFBsVUBwOQbDScpoQVCNwUdA4gHyJI646dv7ipngkbi9KJ3SqgckbOo6ajxo2v1nGw8FH7NNiUjPj3xoCym_DCc1Tx5DaA",
-  },
-  {
-    id: "3",
-    title: "The Moon Guardian",
-    duration: "15 min",
-    category: "Fantasy",
-    badge: "Popular",
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAKIeynr-pNPnxzh6yPj8bsFB8g1-td1o4GmLNz5jmpIg_t7gDbOxIbtILsQs4Dx-XBlWmcnkNehMZSnWWew6N1Dx4Y9_cLNY0PZAI0_12iS05d-Gb_j8j5IegKvVFrJs2tJl838VkEvGOxh1g91RhvPMLR_P86wQV6ytV-2CBV--S6HxIXXGGupUbHyWlc0k9K1McwymOGo0nMcSty8qBgqufJy7Z5QMuY89oQZTAiXXaoifXAWzSD-_zNGIYkk7RZLqYd2qqC7sI",
-  },
-  {
-    id: "4",
-    title: "The Firefly Symphony",
-    duration: "10 min",
-    category: "Magical",
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDhqNuQqkzTwGAhJw53iBqASKJM5WmTUyAsitylylLBDCiyiQySuD4c8uEy4IIX-M_slVeWQDKu81udgQBk3xczFzHl9VX-INVoRf4cv2CqCUaGgGiE__OkqcQjDJUi1X8I0VaC9Eah58JI7u2dX4VSYsqol-sdue-70Ewk8zopVPKYIBICUMELN7J_ft8R0pndpPkXAqAG2ZW53p4Fu8mUW3ywyRMq8UTU62BEoET9xphRhr4HW7uI-NoFHbr_J",
-  },
-];
-
-const MODE_LABELS: Record<string, { label: string; color: string }> = {
-  classic: { label: "Classic", color: "#6366f1" },
-  sleep: { label: "Sleep", color: "#A855F7" },
-  madlibs: { label: "Mad Libs", color: "#F97316" },
-};
-
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
 
 export default function HomeScreen() {
-  const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const { topInset, bottomInset } = useScreenInsets();
   const [searchText, setSearchText] = useState("");
   const { activeProfile } = useProfile();
   const { isSyncing } = useSyncOfflineStatus();
@@ -279,7 +239,7 @@ export default function HomeScreen() {
             >
               {recentStories.map((story) => {
                 const hero = HEROES.find((h) => h.id === story.heroId);
-                const modeInfo = MODE_LABELS[story.mode] || MODE_LABELS.classic;
+                const modeInfo = MODE_META[resolveStoryMode(story.mode)];
                 return (
                   <Pressable
                     key={story.id}

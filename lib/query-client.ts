@@ -41,6 +41,12 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+async function buildAuthHeaders(): Promise<Record<string, string>> {
+  if (!_getAuthToken) return {};
+  const token = await _getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function apiRequest(
   method: string,
   route: string,
@@ -49,16 +55,9 @@ export async function apiRequest(
   const baseUrl = getApiUrl();
   const url = new URL(route, baseUrl);
 
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = await buildAuthHeaders();
   if (data) {
     headers['Content-Type'] = 'application/json';
-  }
-
-  if (_getAuthToken) {
-    const token = await _getAuthToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
   }
 
   const res = await fetch(url.toString(), {
@@ -82,16 +81,8 @@ export const getQueryFn: <T>(options: {
     const segments = (queryKey as unknown[]).map(k => encodeURIComponent(String(k)));
     const url = new URL(segments.join("/"), baseUrl);
 
-    const fetchHeaders: Record<string, string> = {};
-    if (_getAuthToken) {
-      const token = await _getAuthToken();
-      if (token) {
-        fetchHeaders['Authorization'] = `Bearer ${token}`;
-      }
-    }
-
     const res = await fetch(url.toString(), {
-      headers: fetchHeaders,
+      headers: await buildAuthHeaders(),
       credentials: "include",
     });
 

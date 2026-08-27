@@ -16,6 +16,7 @@ Operations guides for Infinity Heroes: Bedtime Chronicles — deployment, infras
 | [MIRROR-ARCHIVAL-RUNBOOK.md](./MIRROR-ARCHIVAL-RUNBOOK.md) | Legacy mirror archival and decommissioning runbook |
 | [WEBHOOK-SURFACE-AUDIT.md](./WEBHOOK-SURFACE-AUDIT.md) | Comprehensive inbound and outbound webhook surface audit |
 | [DEPENDENCY-AUDIT-REMEDIATION.md](./DEPENDENCY-AUDIT-REMEDIATION.md) | Dependency vulnerability posture & transitive audit analysis |
+| [SPRINT-UPDATE-2026-08-22.md](./SPRINT-UPDATE-2026-08-22.md) | Bedtime Chronicles experience, audio preview & personalization sprint update |
 
 ## See Also
 

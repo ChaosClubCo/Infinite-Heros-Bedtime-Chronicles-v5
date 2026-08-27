@@ -1,145 +1,109 @@
+<!-- Last verified: 2026-08-14 -->
 # Security Policy
 
-<!-- Last verified: 2026-05-05 -->
+## Supported versions
 
-## Supported Versions
+This repository is maintained on a single active branch.
 
-This is a single-branch project. Security fixes are applied to the `main` branch only. There are no versioned release branches.
+| Version / branch | Supported |
+|------------------|-----------|
+| `main` | ✅ Yes |
+| historical commits / stale branches | ❌ No |
 
-| Version / Branch | Supported |
-|-----------------|-----------|
-| `main` (latest) | ✅ Yes |
-| Any older commit | ❌ No — update to `main` |
+## Reporting a vulnerability
 
-## Reporting a Vulnerability
+Do **not** open a public issue for a security report.
 
-**Do not open a public GitHub issue for security vulnerabilities.**
+Preferred paths:
 
-To report a vulnerability, contact the repository owner directly:
+1. Open a GitHub **private security advisory** for this repository.
+2. If private advisory access is unavailable, contact the repository maintainers through the repository owner contact path and include `SECURITY:` in the subject or message.
 
-1. **GitHub:** Open a [private security advisory](https://github.com/Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5/security/advisories/new) on this repository. This keeps the report confidential until a fix is released.
-2. **Email:** Contact `@Krosebrook` via GitHub profile contact information.
+Include:
+- affected endpoint, workflow, script, or file
+- reproduction steps or proof of concept
+- expected impact and severity estimate
+- whether child-facing content, auth, or secrets are involved
 
-Please include:
-- A description of the vulnerability and its impact
-- Steps to reproduce
-- Affected file(s) or endpoint(s)
-- Any suggested fix (optional)
-
-## Security Response SLA
+## Security response SLA
 
 | Stage | Target |
-|-------|--------|
-| Acknowledgment | Within 72 hours of report |
-| Severity assessment | Within 5 business days |
-| Fix for critical/high | Within 14 days |
-| Fix for medium | Within 30 days |
-| Fix for low | Next regular release |
+|------|--------|
+| Initial acknowledgment | within 72 hours |
+| Triage / severity assessment | within 5 business days |
+| Critical / high remediation plan | within 14 days |
+| Medium remediation plan | within 30 days |
+| Low severity fix | next scheduled release or maintenance window |
 
 ## Scope
 
-**In scope:**
-- Server API endpoints (`/api/*`)
-- AI prompt injection that bypasses child safety rules
-- Authentication bypass (Supabase JWT validation)
-- Rate limiting bypass
-- Input validation bypasses that could cause server errors or data exposure
-- Dependency vulnerabilities with direct exploitation path
+### In scope
 
-**Out of scope:**
-- Theoretical vulnerabilities without a practical exploitation path
-- Issues that require physical access to the device
-- Vulnerabilities in external services (ElevenLabs, OpenAI, Anthropic, Gemini) — report those directly to the provider
-- Self-XSS or social-engineering attacks
+- `/api/*` application routes and middleware
+- auth and authorization enforcement
+- prompt-injection or moderation bypasses that could surface unsafe child-facing content
+- secrets exposure, webhook verification failures, or CI/CD release gate bypasses
+- dependency vulnerabilities with a realistic exploitation path in production
+- cloud-sync isolation and Supabase RLS failures
 
-## Dependency Management
+### Out of scope
 
-- Dependencies are audited with `npm audit` (scripts: `npm run audit`, `npm run audit:fix`)
-- Dependabot is configured (`.github/dependabot.yml`) to open PRs for dependency updates weekly
-- Target: zero critical and zero high vulnerabilities in direct and indirect dependencies
-- Remaining vulnerabilities blocked on upstream packages are documented in `docs/CHANGELOG.md`
-- Run `npm audit` before every production deployment
+- issues in third-party providers themselves (report those to the provider)
+- social engineering or self-XSS with no privilege escalation or data exposure
+- theoretical-only issues with no practical reproduction path
+- local developer machine compromise unrelated to this repository
 
-## Secrets Management
+## Security architecture summary
 
-- All API keys and secrets are stored as **environment variables** — never in source code
-- Replit Secrets (`Settings → Secrets`) for Replit deployments
-- EAS Secrets (`eas secret:create`) for mobile builds
-- The `SUPABASE_SERVICE_ROLE_KEY` is a server-only secret; never read it into an `EXPO_PUBLIC_*` var or ship it in the client bundle
-- `EXPO_PUBLIC_*` variables are bundled into the client APK — **never** put secrets with this prefix
-- `.env` is in `.gitignore`; `.env.example` contains only blank placeholder values
+- **Secrets:** server-side environment variables only; `EXPO_PUBLIC_*` variables are never secret.
+- **Auth:** Supabase bearer tokens are verified server-side in `server/auth.ts`.
+- **Fail-closed production behavior:** auth-gated routes return `503` in production if required Supabase server configuration is missing.
+- **Child safety:** every story prompt includes `CHILD_SAFETY_RULES`, and generated story output is moderated before it reaches the client.
+- **Rate limiting:** per-UID or per-IP sliding-window limiter, with optional Cloudflare KV persistence.
+- **Media safety:** TTS filenames are validated against `/^[a-f0-9]+\.mp3$/`; video IDs are validated before lookup.
 
----
+## Known security considerations
 
-## Security Controls
+| Area | Consideration |
+|------|---------------|
+| Child-directed content | Generated stories must remain appropriate for ages 3–9; unsafe outputs fall back to a known-safe story |
+| Voice chat | Feature is conditional and must satisfy explicit compliance gates before it registers in production |
+| Cloud sync | Sync stores non-PII progress data only; profile stubs do not include name or age |
+| Deployment provenance | Release workflows enforce controlled deployment and verification paths |
+| Client data | Local device storage contains stories, settings, and badges; parent PIN data is hashed and salted |
 
-**Last Updated:** 2026-05-05
+## Dependency management
 
-### Implemented
+- `npm audit --omit=dev` is available through `npm run audit`.
+- Dependabot configuration lives in `.github/dependabot.yml`.
+- Verification scripts and CI workflows act as release gates for dependency, provenance, and build checks.
+- High or critical findings should be fixed or explicitly triaged before release approval.
+- Do **not** use `npm audit fix --force` without human review when it would introduce breaking dependency jumps.
 
-| Control | Status | Details |
-|---------|--------|---------|
-| Server-side API proxy | Active | All AI provider keys stay on the server; client never sees them |
-| Security headers | Active | X-Content-Type-Options, X-Frame-Options, Referrer-Policy, X-XSS-Protection, Permissions-Policy, X-Permitted-Cross-Domain-Policies |
-| CORS restrictions | Active | Dynamic origin matching — only Replit domains + localhost allowed |
-| HTTP body size limits | Active | 100KB for general requests, 10MB for audio payloads |
-| Input sanitization | Active | All user inputs truncated to max length via `sanitizeString()` |
-| Input validation | Active | Whitelisted modes, durations, speeds; validated voice keys; parseInt guards on route params |
-| Conversation ID validation | Active | `parseIdParam()` rejects NaN, zero, negative, and non-integer IDs with 400 |
-| Message content validation | Active | Type check, empty check, max 10,000 character limit |
-| Audio payload validation | Active | Type check, base64 size estimation, max 10MB limit |
-| Voice parameter validation | Active | Allowlist: alloy, echo, fable, onyx, nova, shimmer |
-| Conversation title sanitization | Active | Trimmed and capped at 200 characters |
-| Conversation pagination | Active | `limit`/`offset` query params with bounds (max 200 per page) |
-| Safe JSON parsing | Active | AI response `JSON.parse` wrapped in try-catch to prevent crashes |
-| Typed error handling | Active | `catch (error: any)` replaced with `error instanceof Error` checks |
-| Rate limiting | Active | Per-UID (Supabase) or per-IP, 10 req/min (configurable via env vars) |
-| Rate limit cleanup | Active | Expired entries pruned every 5 minutes |
-| TTS file validation | Active | Filename regex (`/^[a-f0-9]+\.mp3$/`) + path traversal prevention |
-| Video ID validation | Active | Regex validation (`/^[a-f0-9]+$/`) |
-| Error sanitization | Active | Internal errors not leaked to clients via `sanitizeErrorMessage()` |
-| Graceful shutdown | Active | SIGTERM/SIGINT handlers with 10s timeout |
-| Child safety prompts | Active | `CHILD_SAFETY_RULES` system prompt in `server/prompts.ts` enforces age-appropriate content |
-| Database cascade deletes | Active | Deleting a conversation cascades to all messages |
-| Supabase Authentication | Active | Supabase Auth (email/password) with Bearer JWT tokens, verified server-side via `supabase.auth.getUser(token)`; optional — anonymous IP-based identity is used in dev when unconfigured |
-| Production auth guard | Active | Blocks all POST requests in NODE_ENV=production without Supabase configured (`SUPABASE_SERVICE_ROLE_KEY` + Supabase URL) (503) |
-| Parent PIN hashing | Active | SHA-256 hash + random salt via expo-crypto; 5-attempt lockout |
-| Voice chat child safety | Active | VOICE_CHAT_SAFETY_PROMPT prepended to all AI conversations |
-| Voice chat auth | Active | requireAuth middleware on all /api/conversations/* endpoints |
-| Chat history cap | Active | Max 20 messages sent to AI provider |
-| Load shedding | Active | Active-request ceiling middleware drops excess requests with 503 |
-| Idempotency cache | Active | 5-min TTL dedup keyed on request hash; prevents duplicate expensive AI calls |
+## Secrets management policy
 
-### Not Implemented (Acceptable Risk)
+- Keep secrets in deployment platform secret stores, not in source control.
+- `.env.example` contains placeholders and examples only.
+- `SUPABASE_SERVICE_ROLE_KEY`, AI provider keys, Sentry DSNs, Cloudflare credentials, and webhook secrets must never appear in committed code.
+- `EXPO_PUBLIC_*` values are bundled into the client app; treat them as public configuration.
+- Rotate secrets after any suspected exposure and document operational changes in `docs/operations/SECRETS-ROTATION.md`.
 
-| Item | Risk Level | Rationale |
-|------|-----------|-----------|
-| Client-side encryption | Low | Cached data is non-sensitive (story text, audio); no PII stored |
-| Explicit prompt injection defense | Low | AI safety filters + child-safety system prompt constrain output |
-| CSP headers | Medium | API-only server; CSP is not applicable to most endpoints |
-| Per-user rate limiting on all routes | Low | UID-based rate limiting already active when Supabase auth is configured |
-| Redis-backed rate limiting | Low | In-memory limiting is acceptable for single-instance deployment |
+## Security controls in the codebase
 
-## OWASP Top 10 Assessment
+| Control | Location | Purpose |
+|--------|----------|---------|
+| Input sanitization | `server/validation.ts` | truncates and normalizes user-controlled strings |
+| Auth gate | `server/auth.ts`, `server/routes.ts` | verifies bearer tokens and protects sensitive routes |
+| Rate limiting | `server/rate-limit.ts` | throttles abusive or accidental burst traffic |
+| Idempotency | `server/idempotency.ts` | deduplicates expensive POST requests |
+| Load shedding | `server/load-shedding.ts` | rejects excess concurrent work |
+| Output moderation | `server/safety/` | blocks unsafe child-facing story text |
+| TTS path validation | `server/routes/tts.ts` | prevents path traversal and arbitrary file reads |
+| Webhook signature verification | `server/routes/github-webhook.ts` | validates GitHub webhook authenticity |
 
-| # | Vulnerability | Status |
-|---|--------------|--------|
-| A01 | Broken Access Control | Mitigated — Supabase Auth on all POST endpoints; conversation ID validation; production auth guard |
-| A02 | Cryptographic Failures | Mitigated — parent PIN hashed with SHA-256 + salt; API keys server-only |
-| A03 | Injection | Mitigated — input sanitization via `sanitizeString()`; parameterized DB queries (Drizzle ORM); prompt injection risk acknowledged |
-| A04 | Insecure Design | Mitigated — `CHILD_SAFETY_RULES` + `VOICE_CHAT_SAFETY_PROMPT`; dual-layer rate limiting |
-| A05 | Security Misconfiguration | Mitigated — security headers; CORS restricted; body limits enforced; production auth guard |
-| A06 | Vulnerable Components | Monitor — run `npm audit` before each deployment; Dependabot PRs reviewed weekly |
-| A07 | Auth Failures | Mitigated — Supabase Auth with Bearer tokens; brute-force lockout on parent PIN |
-| A08 | Data Integrity Failures | Low risk — server validates AI responses before returning to client |
-| A09 | Logging Failures | Mitigated — pino structured logging; rate limit violation logging; auth failure logging |
-| A10 | SSRF | Low risk — server only makes outbound calls to known AI provider URLs |
+## Security review expectations for contributors
 
-## Rate Limiting Details
-
-- **Algorithm:** Sliding window (in-memory Map)
-- **Window:** 60 seconds (configurable: `RATE_LIMIT_WINDOW_MS`)
-- **Max requests:** 10 per window (configurable: `RATE_LIMIT_MAX`)
-- **Key:** Supabase user UID (`req.user.uid`) when auth is configured; falls back to client IP (`req.ip || req.socket.remoteAddress`)
-- **Response on limit:** `429 Too Many Requests`
-- **Cleanup:** Expired entries pruned every 5 minutes
+- Update [docs/ARCHITECTURE.md](./ARCHITECTURE.md) and this file when security boundaries change.
+- Add tests for route-level validation, auth, or safety logic when behavior changes.
+- Run secret scanning before commit and never paste live credentials into docs, fixtures, or screenshots.
+- Escalate auth, database schema, and child-safety changes for human review.

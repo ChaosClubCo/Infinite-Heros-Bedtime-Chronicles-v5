@@ -1,6 +1,6 @@
 # Development Roadmap
 
-**Last Updated:** 2026-08-14 (release-salvage stabilization & sprint backlog completion)
+**Last Updated:** 2026-08-22 (Bedtime Chronicles Experience & Personalization Sprint)
 
 Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Time Criticality + Risk Reduction) / Job Size`
 
@@ -92,6 +92,10 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 | Implement Mirror Archival verification engine, test suite & runbook (`scripts/verify-mirror-archival.mjs` & `server/verify-mirror-archival.test.ts`) | Operations/Security | 2026-08-14 |
 | Security Audit Gate Engine & Automated Test Suite (`scripts/audit-gate.mjs` & `server/audit-gate.test.ts`) | Security/Tooling | 2026-08-14 |
 | Expo SDK 55 → 57 Upgrade Architecture Spec & Readiness Engine (`docs/operations/EXPO-57-UPGRADE-SPEC.md`, `scripts/verify-expo57-readiness.mjs`, `server/verify-expo57-readiness.test.ts`) | Architecture/Tooling | 2026-08-14 |
+| Interactive Story Narration Audio Preview Engine (`StoryDetailsModal.tsx` & `audioNarration.ts`) | Feature/Audio | 2026-08-22 |
+| Dedicated Preview Narration Volume Control & Dynamic Audio Scaling (`StoryDetailsModal.tsx`) | Feature/Audio | 2026-08-22 |
+| 'More Like This' Bedtime Recommendation System (`StoryDetailsModal.tsx` & `storySeeds.ts`) | Feature/Discovery | 2026-08-22 |
+| Personalized Child Dream Avatar System (`data/avatars.ts`, `SleepSetupModal.tsx`, `BedtimeChroniclesHome.tsx`) | Feature/Personalization | 2026-08-22 |
 
 ## Backlog (Prioritized)
 

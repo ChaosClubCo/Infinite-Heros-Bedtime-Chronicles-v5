@@ -16,7 +16,15 @@ module.exports = defineConfig([
     // skill assets that import the uninstalled `remotion` package). It is not
     // part of the app build; mirror the `.agents/**` exclude in tsconfig.json
     // so ESLint and tsc stay consistent and CI never walks these files.
-    ignores: ["dist/*", ".agents/**"],
+    ignores: [
+      "dist/**",
+      "server_dist/**",
+      "static-build/**",
+      "archive/**",
+      "coverage/**",
+      ".agents/**",
+      ".release-evidence/**",
+    ],
   },
   {
     // TypeScript validates all imports at compile time, making these rules

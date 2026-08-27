@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createVideoJob, getVideoJob, getVideoFilePath, isVideoAvailable } from "../video";
-import { sanitizePromptInput, sanitizeString, VideoRequestSchema } from "../validation";
+import { sanitizeString, VideoRequestSchema } from "../validation";
 import { isFeatureEnabled } from "../feature-flags";
 import { rateLimited, sendRouteError } from "./helpers";
 
@@ -24,17 +24,12 @@ export function registerVideoRoutes(app: Express): void {
       return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
     }
 
-    const sceneText = sanitizePromptInput(parsed.data.sceneText, 2000);
-    const heroName = sanitizePromptInput(parsed.data.heroName, 500);
-    const heroDescription = sanitizePromptInput(parsed.data.heroDescription, 500);
+    const { sceneText, heroName, heroDescription } = parsed.data;
 
     try {
       const result = await createVideoJob(sceneText, heroName, heroDescription);
       if ("error" in result) {
-        // Only echo messages explicitly marked clientSafe (e.g. "not configured").
-        // Anything else may carry raw provider detail — return a generic message.
-        const message = result.clientSafe ? result.error : 'Failed to start video generation. Please try again later.';
-        return res.status(503).json({ error: message });
+        return res.status(503).json({ error: result.error });
       }
 
       res.json({ jobId: result.jobId });
@@ -77,18 +72,7 @@ export function registerVideoRoutes(app: Express): void {
     res.setHeader("Cache-Control", "public, max-age=86400");
     res.sendFile(filePath, (err) => {
       if (err && !res.headersSent) {
-        // The path can go stale between the lookup above and this send (cache
-        // cleanup runs on an hourly interval), so treat a missing file as a
-        // normal 404 rather than a server error.
-        const status = (err as NodeJS.ErrnoException).code === "ENOENT" ? 404 : 500;
-        // Both the Content-Type ("video/mp4") and Cache-Control (24h) headers
-        // were set above for the success path; override them so the JSON error
-        // body is neither mislabeled as video nor cached for a day by CDNs.
-        res
-          .status(status)
-          .set("Content-Type", "application/json")
-          .set("Cache-Control", "no-store")
-          .json({ error: status === 404 ? "Video not found" : "Failed to serve video" });
+        res.status(500).json({ error: "Failed to serve video" });
       }
     });
   });

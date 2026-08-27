@@ -674,7 +674,7 @@ export async function saveParentControls(controls: ParentControls): Promise<void
  */
 export async function saveSecureParentControls(controls: ParentControls): Promise<void> {
   const { setSecureItem } = await import('./secureStorage');
-  await setSecureItem('parent_controls', JSON.stringify(controls));
+  await setSecureItem('parent_controls', controls);
   await AsyncStorage.setItem(PARENT_CONTROLS_KEY, JSON.stringify(controls));
 }
 
@@ -685,9 +685,9 @@ export async function saveSecureParentControls(controls: ParentControls): Promis
 export async function getSecureParentControls(): Promise<ParentControls> {
   try {
     const { getSecureItem } = await import('./secureStorage');
-    const secureData = await getSecureItem('parent_controls');
+    const secureData = await getSecureItem<ParentControls>('parent_controls');
     if (secureData) {
-      return JSON.parse(secureData);
+      return secureData;
     }
   } catch {
     // Fall back to standard storage on uninitialized secure envelope

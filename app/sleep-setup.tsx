@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -11,22 +11,23 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AnimatedView } from "@/components/AnimatedView";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import * as Haptics from "expo-haptics";
 import { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
-import { HEROES } from "@/constants/heroes";
+import type { IoniconsName } from "@/constants/heroes";
 import { StarField } from "@/components/StarField";
+import { useRequireHero } from "@/lib/useRequireHero";
+import { useScreenInsets } from "@/lib/useScreenInsets";
 
-const SOUNDSCAPES = [
-  { id: "rain", label: "Rain", icon: "rainy" as const, color: "#A855F7" },
-  { id: "ocean", label: "Ocean", icon: "water" as const, color: "#A855F7" },
-  { id: "crickets", label: "Crickets", icon: "bug" as const, color: "#A855F7" },
-  { id: "wind", label: "Wind", icon: "leaf" as const, color: "#A855F7" },
-  { id: "fire", label: "Fire", icon: "flame" as const, color: "#A855F7" },
-  { id: "forest", label: "Forest", icon: "tree" as const, color: "#A855F7" },
+const SOUNDSCAPES: { id: string; label: string; icon: IoniconsName }[] = [
+  { id: "rain", label: "Rain", icon: "rainy" },
+  { id: "ocean", label: "Ocean", icon: "water" },
+  { id: "crickets", label: "Crickets", icon: "bug" },
+  { id: "wind", label: "Wind", icon: "leaf" },
+  { id: "fire", label: "Fire", icon: "flame" },
+  { id: "forest", label: "Forest", icon: "flower" },
 ];
 
 const SLEEP_TIMERS = [
@@ -49,25 +50,12 @@ export default function SleepSetupScreen() {
     voice: string;
     speed: string;
   }>();
-  const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const { topInset, bottomInset } = useScreenInsets();
 
   const [soundscape, setSoundscape] = useState("rain");
   const [sleepTimer, setSleepTimer] = useState("15");
 
-  const hero = HEROES.find((h) => h.id === heroId);
-
-  // A missing/unknown heroId (stale deep link) leaves nothing to configure.
-  // Navigate in an effect — never during render — and guard against an
-  // empty back stack when this screen is the app's entry point.
-  useEffect(() => {
-    if (!hero) {
-      if (router.canGoBack()) router.back();
-      else router.replace("/(tabs)");
-    }
-  }, [hero]);
-
+  const hero = useRequireHero(heroId);
   if (!hero) return null;
 
   const handleStart = () => {
@@ -129,8 +117,7 @@ export default function SleepSetupScreen() {
                   testID={`sound-${s.id}`}
                 >
                   <Ionicons
-                    // intentional: icon names come from inline data, not the typed Ionicons union
-                    name={s.icon as React.ComponentProps<typeof Ionicons>["name"]}
+                    name={s.icon}
                     size={28}
                     color={isActive ? PURPLE : "rgba(255,255,255,0.4)"}
                   />

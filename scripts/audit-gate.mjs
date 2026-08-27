@@ -14,12 +14,10 @@
  */
 import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 export const ALLOWLIST = {
   'GHSA-w3rx-r6r6-pgpr': {
     package: 'image-size',
@@ -97,9 +95,11 @@ export function runAuditGate(argv = process.argv) {
   const evidenceIdx = argv.indexOf('--evidence');
   const evidencePath = evidenceIdx > -1 ? argv[evidenceIdx + 1] : null;
 
-  const res = spawnSync('npm', ['audit', '--json'], {
+  const npmExecutable = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const res = spawnSync(npmExecutable, ['audit', '--json'], {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
+    shell: process.platform === 'win32',
   });
 
   if (!res.stdout) {

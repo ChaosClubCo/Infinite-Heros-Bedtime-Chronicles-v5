@@ -1,6 +1,17 @@
+<!-- Last verified: 2026-08-22 -->
 # Changelog
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
+
+## [Unreleased] — 2026-08-22 — Bedtime Chronicles Experience & Personalization Sprint
+
+### Added
+- **Story Details Modal Entrance Animation & Interaction Polish** — Added a fluid, physics-calibrated entrance animation using `motion/react` (subtle backdrop opacity transition, gentle dialog scale `0.98 -> 1`, and slide-up translation `y: 18 -> 0` with cubic bezier `[0.16, 1, 0.3, 1]`) along with keyboard escape dismissal and backdrop click-to-close behavior to enhance navigation feel.
+- **Interactive Story Audio Preview Engine** — Added a browser `SpeechSynthesis`-powered "Listen to Preview" feature in `StoryDetailsModal.tsx` allowing children and parents to hear a calming, bedtime-paced audio sample of the story title, hero introduction, and synopsis before starting a full story session.
+- **Dedicated Preview Narration Volume Control & Dynamic Audio Scaling** — Built an independent volume slider (0%–100%) and quick-mute toggle in `StoryDetailsModal.tsx` (`audioNarration.ts`) specifically for story speech previews, distinct from ambient background audio settings, with dynamic volume status icons (`Volume2`, `Volume1`, `VolumeX`) and live audio re-scaling.
+- **'More Like This' Bedtime Recommendation System** — Implemented a multi-factor similarity recommendation algorithm in `StoryDetailsModal.tsx` calculating and rendering 3 related bedtime stories based on matching themes, categories, pacing modes, age ranges, and hero affinities, with instant in-modal previewing and direct story playback.
+- **Personalized Child Dream Avatar System** — Created an 8-character bedtime archetype registry in `src/data/avatars.ts` (**Moon Fox**, **Star Voyager**, **Night Owl**, **Sleepy Bear**, **Dream Unicorn**, **Cosmic Whale**, **Moon Bunny**, **Spark Dragon**), interactive selection grid with descriptors in `SleepSetupModal.tsx`, persistent profile storage (`AppSettings.childAvatar`), and personalized UI indicators across the top navigation bar, home header profile pill, and bedtime greeting banner.
+- **Sprint Update Documentation** — Created `docs/operations/SPRINT-UPDATE-2026-08-22.md` documenting technical architectures, scoring equations, audio lifecycle rules, and verification proofs.
 
 ## [Unreleased] — 2026-08-14 — Release Gate Provenance & Deployment Security Hardening
 
