@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AIRouter } from "../../server/ai/router";
 import { createMockProvider, createFailingProvider, createJsonProvider } from "../setup";
-import type { AIProvider, StreamingTextChunk } from "../../server/ai/types";
+import type { StreamingTextChunk } from "../../server/ai/types";
 
 describe("AIRouter", () => {
   let router: AIRouter;

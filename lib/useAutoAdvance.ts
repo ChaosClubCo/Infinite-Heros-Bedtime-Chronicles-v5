@@ -19,6 +19,11 @@ export interface AutoAdvanceState {
 /** Sleep-mode auto-advance: moves to the next part after an estimated reading time. */
 export function useAutoAdvance({ storyState, storyMode, storyData, currentPartIndex, onAdvance }: AutoAdvanceOptions): AutoAdvanceState {
   const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onAdvanceRef = useRef(onAdvance);
+
+  useEffect(() => {
+    onAdvanceRef.current = onAdvance;
+  }, [onAdvance]);
 
   const cancelAutoAdvance = useCallback(() => {
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
@@ -31,14 +36,14 @@ export function useAutoAdvance({ storyState, storyMode, storyData, currentPartIn
         const wordCount = currentPart.text.split(/\s+/).length;
         const readingTimeMs = Math.max(wordCount * MS_PER_WORD, MIN_READING_TIME_MS);
         autoAdvanceRef.current = setTimeout(() => {
-          onAdvance();
+          onAdvanceRef.current();
         }, readingTimeMs);
         return () => {
           if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
         };
       }
     }
-  }, [currentPartIndex, storyState, storyMode]);
+  }, [currentPartIndex, storyState, storyMode, storyData]);
 
   useEffect(() => {
     return () => {

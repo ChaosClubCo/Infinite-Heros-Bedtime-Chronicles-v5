@@ -7,8 +7,8 @@ import type { ErrorFallbackProps } from '@/components/ErrorFallback';
 // Stub out ErrorFallback so we don't pull in Modal or safe-area context
 jest.mock('@/components/ErrorFallback', () => ({
   ErrorFallback: ({ error }: ErrorFallbackProps) =>
-    require('react').createElement(
-      require('react-native').Text,
+    React.createElement(
+      Text,
       null,
       `Oops! ${error.message}`
     ),

@@ -8,7 +8,6 @@ import {
   SECURE_STORAGE_PREFIX,
   SECURE_ENVELOPE_VERSION,
 } from './secureStorage';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 let mockStorage: Record<string, string> = {};
 

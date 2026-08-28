@@ -18,6 +18,11 @@ export interface SleepTimerState {
 export function useSleepTimer({ sleepTimerParam, storyState, storyMode, onExpire }: SleepTimerOptions): SleepTimerState {
   const [timerRemaining, setTimerRemaining] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onExpireRef = useRef(onExpire);
+
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
 
   const clearSleepTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -34,7 +39,7 @@ export function useSleepTimer({ sleepTimerParam, storyState, storyMode, onExpire
       setTimerRemaining(remaining);
       if (remaining <= 0) {
         if (timerRef.current) clearInterval(timerRef.current);
-        onExpire();
+        onExpireRef.current();
         setTimerRemaining(null);
       }
     }, 1000);
@@ -43,8 +48,9 @@ export function useSleepTimer({ sleepTimerParam, storyState, storyMode, onExpire
   useEffect(() => {
     if (storyState === "ready" && storyMode === "sleep" && sleepTimerParam && sleepTimerParam !== "none") {
       startSleepTimer();
+      return clearSleepTimer;
     }
-  }, [storyState]);
+  }, [storyState, storyMode, sleepTimerParam, startSleepTimer, clearSleepTimer]);
 
   useEffect(() => {
     return () => {
