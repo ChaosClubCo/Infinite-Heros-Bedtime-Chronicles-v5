@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-08-14 -->
+<!-- Last verified: 2026-08-28 -->
 # Infinity Heroes: Bedtime Chronicles
 
 ![Node 22.x](https://img.shields.io/badge/node-22.x-339933)
@@ -107,6 +107,11 @@ The full list lives in [`.env.example`](./.env.example). These are the most impo
 | `CLOUDFLARE_R2_BUCKET` | Optional | Durable TTS cache bucket | `infinity-heroes-tts` |
 | `OPENAI_API_KEY` | Optional | Direct Sora/video integration key | `sk-proj-example` |
 | `GITHUB_WEBHOOK_SECRET` | Optional | HMAC secret for `/api/github/webhook` | `ghs_example_secret` |
+| `COPILOT_MCP_SUPABASE_PROJECT_REF` | Optional, agents only | Non-production Supabase project ref used by the read-only repository agent MCP | `abcdefghijklmnopqrst` |
+| `COPILOT_MCP_SUPABASE_ACCESS_TOKEN` | Optional, agents only | Server-only development token for project-scoped Supabase MCP access; never expose via `EXPO_PUBLIC_*` | `sbp_example` |
+| `COPILOT_MCP_SENTRY_ACCESS_TOKEN` | Optional, agents only | Minimal read-only token for Sentry diagnostics used by the release-conformance agent | `sntrys_example` |
+
+The `COPILOT_MCP_*` variables are repository-agent configuration, not application runtime requirements. Keep them out of client bundles and production child-data workflows unless a separately approved procedure explicitly requires that access.
 
 Never commit real secrets. `EXPO_PUBLIC_*` values are bundled into the client app and must never contain server-only credentials.
 
