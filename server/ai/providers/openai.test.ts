@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+import { openaiProvider, pingOpenAI } from './openai';
+
 const { chatCreateMock, imagesGenerateMock, ctorArgs } = vi.hoisted(() => ({
   chatCreateMock: vi.fn(),
   imagesGenerateMock: vi.fn(),
@@ -15,8 +17,6 @@ vi.mock('openai', () => ({
     }
   },
 }));
-
-import { openaiProvider, pingOpenAI } from './openai';
 
 function mockCompletion(overrides: Record<string, unknown> = {}) {
   return {

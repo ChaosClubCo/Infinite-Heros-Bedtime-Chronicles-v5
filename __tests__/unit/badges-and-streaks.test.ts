@@ -1,6 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { resetStorage, mockAsyncStorage } from "../setup";
 
+import {
+  getBadges,
+  awardBadge,
+  getAllBadges,
+  getStreak,
+  updateStreak,
+  checkAndAwardBadges,
+} from "../../lib/storage";
+
+import type { EarnedBadge, CachedStory, StoryFull } from "../../constants/types";
+
 // Mock AsyncStorage before importing the module under test
 vi.mock("@react-native-async-storage/async-storage", () => ({
   default: mockAsyncStorage,
@@ -19,17 +30,6 @@ vi.mock("@/constants/heroes", () => ({
     { id: "hero-8", name: "Shade" },
   ],
 }));
-
-import {
-  getBadges,
-  awardBadge,
-  getAllBadges,
-  getStreak,
-  updateStreak,
-  checkAndAwardBadges,
-} from "../../lib/storage";
-
-import type { EarnedBadge, CachedStory, StoryFull } from "../../constants/types";
 
 const PROFILE_ID = "profile-1";
 
