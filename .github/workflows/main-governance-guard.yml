@@ -54,6 +54,26 @@ jobs:
           printf 'main=%s\nhead=%s\nstate=%s\n' "$main_sha" "$HEAD_SHA" "$state"
           test "$state" = "success"
 
+  prune-capability-dry-run:
+    if: github.event_name == 'pull_request'
+    name: Branch Prune Capability
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Prove branch deletion permission without mutating refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push --dry-run origin --delete "${GITHUB_HEAD_REF}"
+
   invalidate-open-prs:
     if: github.event_name == 'push'
     name: Invalidate Open PR Base Freshness
@@ -111,3 +131,49 @@ jobs:
             echo "::error::main HEAD has no associated merged PR. Direct pushes are prohibited by repository policy."
             exit 1
           fi
+
+  prune-contained-branches:
+    if: github.event_name == 'push'
+    needs: main-push-provenance
+    name: Prune Contained Branches
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main with full history
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Fetch branch refs
+        run: git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+
+      - name: Delete only fully-contained transient branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          deleted=0
+          retained=0
+
+          mapfile -t refs < <(
+            git for-each-ref --format='%(refname:short)' \
+              refs/remotes/origin/fix/ \
+              refs/remotes/origin/repair/ \
+              refs/remotes/origin/chore/
+          )
+
+          for ref in "${refs[@]}"; do
+            branch="${ref#origin/}"
+            if git merge-base --is-ancestor "$ref" origin/main; then
+              echo "Deleting fully-contained branch: $branch"
+              git push origin --delete "$branch"
+              deleted=$((deleted + 1))
+            else
+              echo "Retaining branch with unique commits: $branch"
+              retained=$((retained + 1))
+            fi
+          done
+
+          printf 'deleted=%s\nretained=%s\n' "$deleted" "$retained"
