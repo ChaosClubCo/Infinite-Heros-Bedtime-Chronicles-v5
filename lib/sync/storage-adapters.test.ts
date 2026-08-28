@@ -9,11 +9,10 @@ import {
   getAllStreaks, mergeSyncedStreaks,
   getSyncSetRecords, applySyncedSet,
   getProfiles, mergeSyncedProfileStubs,
- getEntityTombstones, stampEntityTombstone, clearEntityMeta } from '@/lib/storage';
+} from '@/lib/storage';
 import type { CachedStory, EarnedBadge, StreakData, ChildProfile } from '@/constants/types';
 import type { SyncRecord } from '@shared/sync-types';
 import type { SyncedStory } from './mappers';
-
 
 vi.mock('@/lib/storage', () => ({
   getAllStories: vi.fn(),
@@ -30,6 +29,8 @@ vi.mock('@/lib/storage', () => ({
   stampEntityTombstone: vi.fn(),
   clearEntityMeta: vi.fn(),
 }));
+
+import { getEntityTombstones, stampEntityTombstone, clearEntityMeta } from '@/lib/storage';
 
 const baseStory: CachedStory = {
   id: 's1', timestamp: 1000,

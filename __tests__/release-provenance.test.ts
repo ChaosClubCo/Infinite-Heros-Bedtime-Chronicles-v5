@@ -5,7 +5,7 @@ import {
   CANONICAL_REPO_OWNER,
   CANONICAL_REPO_NAME,
   CANONICAL_PRODUCTION_REF,
-
+  // eslint-disable-next-line import/no-relative-packages -- authoritative rule module lives with deploy scripts
 } from '../scripts/verify-release-provenance.mjs';
 
 const FULL_SHA = 'abcdef0123456789abcdef0123456789abcdef01';

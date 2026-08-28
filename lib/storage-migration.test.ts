@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { runStorageMigrations, STORAGE_VERSION } from './storage-migration';
-
 // In-memory AsyncStorage mock
 const store = new Map<string, string>();
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -17,6 +15,8 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
     }),
   },
 }));
+
+import { runStorageMigrations, STORAGE_VERSION } from './storage-migration';
 
 describe('runStorageMigrations', () => {
   beforeEach(() => {

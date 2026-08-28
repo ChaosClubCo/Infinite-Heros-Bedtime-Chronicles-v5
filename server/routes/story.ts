@@ -55,7 +55,7 @@ export function registerStoryRoutes(app: Express): void {
         throw new Error("Invalid story structure");
       }
 
-      story.parts = (story.parts as { text?: string; choices?: string[] }[]).map((part, i) => ({
+      story.parts = (story.parts as Array<{ text?: string; choices?: string[] }>).map((part, i) => ({
         text: part.text || "",
         choices: mode === "sleep" ? undefined : (part.choices || undefined),
         partIndex: i,

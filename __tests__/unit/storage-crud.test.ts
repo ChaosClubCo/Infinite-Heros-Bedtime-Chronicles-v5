@@ -1,6 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { resetStorage, mockAsyncStorage } from "../setup";
 
+vi.mock("@react-native-async-storage/async-storage", () => ({
+  default: mockAsyncStorage,
+}));
+
+vi.mock("@/constants/heroes", () => ({
+  HEROES: [
+    { id: "hero-1", name: "Nova" },
+    { id: "hero-2", name: "Coral" },
+  ],
+}));
+
 import {
   getFavorites,
   toggleFavorite,
@@ -25,17 +36,6 @@ import {
 } from "../../lib/storage";
 import { DEFAULT_PREFERENCES, DEFAULT_PARENT_CONTROLS } from "../../constants/types";
 import type { StoryFull, ChildProfile } from "../../constants/types";
-
-vi.mock("@react-native-async-storage/async-storage", () => ({
-  default: mockAsyncStorage,
-}));
-
-vi.mock("@/constants/heroes", () => ({
-  HEROES: [
-    { id: "hero-1", name: "Nova" },
-    { id: "hero-2", name: "Coral" },
-  ],
-}));
 
 function makeStoryFull(): StoryFull {
   return {

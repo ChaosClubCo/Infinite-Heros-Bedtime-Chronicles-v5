@@ -2,41 +2,31 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import type { AIProvider, TextGenerationRequest, TextGenerationResponse, ImageGenerationRequest, ImageGenerationResponse, StreamingTextChunk } from "../types";
 import { CHECK_TIMEOUT_MS } from "../../health-checks";
 
-/**
- * Cheap reachability probe for health checks: lists available models rather
- * than generating content, so it costs nothing and still validates the API
- * key. Gemini is checked ahead of Anthropic for the health endpoint's live
- * probe since it's this repo's documented minimum-required provider — many
- * deployments configure only Gemini, so probing Anthropic alone would leave
- * aiProvidersLive stuck at null forever on those deployments.
- */
+const GEMINI_MODELS_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+
+function getApiKey(): string | undefined {
+  return process.env.GEMINI_API_KEY?.trim() || undefined;
+}
+
 export async function pingGemini(): Promise<boolean> {
-  const apiKey = process.env.AI_INTEGRATIONS_GEMINI_API_KEY;
+  const apiKey = getApiKey();
   if (!apiKey) return false;
-  const baseUrl = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL || "https://generativelanguage.googleapis.com";
-  const res = await fetch(`${baseUrl}/v1beta/models`, {
-    headers: {
-      "x-goog-api-key": apiKey,
-    },
-    signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
-  });
-  return res.ok;
+  try {
+    const res = await fetch(GEMINI_MODELS_URL, {
+      headers: { "x-goog-api-key": apiKey },
+      signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 let client: GoogleGenAI | null = null;
-
 function getClient(): GoogleGenAI {
-  if (!client) {
-    const baseUrl = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL;
-    client = new GoogleGenAI({
-      apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-      httpOptions: baseUrl
-        ? {
-            baseUrl,
-          }
-        : undefined,
-    });
-  }
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("Gemini not configured");
+  if (!client) client = new GoogleGenAI({ apiKey });
   return client;
 }
 
@@ -47,39 +37,29 @@ export const geminiProvider: AIProvider = {
   capabilities: { text: true, image: true, streaming: true },
 
   isAvailable(): boolean {
-    return !!process.env.AI_INTEGRATIONS_GEMINI_API_KEY;
+    return !!getApiKey();
   },
 
   async generateText(req: TextGenerationRequest): Promise<TextGenerationResponse> {
-    const ai = getClient();
     const config: Record<string, unknown> = {
       systemInstruction: req.systemPrompt,
       temperature: req.temperature ?? 0.9,
       maxOutputTokens: req.maxTokens ?? 8192,
     };
-
-    if (req.jsonMode) {
-      config.responseMimeType = "application/json";
-    }
-
+    if (req.jsonMode) config.responseMimeType = "application/json";
     if (req.responseSchema) {
       config.responseMimeType = "application/json";
       config.responseSchema = req.responseSchema;
     }
+    if (req.thinkingBudget !== undefined) config.thinkingConfig = { thinkingBudget: req.thinkingBudget };
 
-    if (req.thinkingBudget !== undefined) {
-      config.thinkingConfig = { thinkingBudget: req.thinkingBudget };
-    }
-
-    const response = await ai.models.generateContent({
+    const response = await getClient().models.generateContent({
       model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: req.userPrompt }] }],
       config,
     });
-
-    const text = response.text || "";
     return {
-      text,
+      text: response.text || "",
       provider: "gemini",
       model: "gemini-2.5-flash",
       usage: {
@@ -90,53 +70,35 @@ export const geminiProvider: AIProvider = {
   },
 
   async *generateTextStream(req: TextGenerationRequest): AsyncGenerator<StreamingTextChunk> {
-    const ai = getClient();
     const config: Record<string, unknown> = {
       systemInstruction: req.systemPrompt,
       temperature: req.temperature ?? 0.9,
       maxOutputTokens: req.maxTokens ?? 8192,
     };
+    if (req.thinkingBudget !== undefined) config.thinkingConfig = { thinkingBudget: req.thinkingBudget };
 
-    if (req.thinkingBudget !== undefined) {
-      config.thinkingConfig = { thinkingBudget: req.thinkingBudget };
-    }
-
-    const response = await ai.models.generateContentStream({
+    const response = await getClient().models.generateContentStream({
       model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: req.userPrompt }] }],
       config,
     });
-
     for await (const chunk of response) {
       const text = chunk.text || "";
-      if (text) {
-        yield { text, done: false };
-      }
+      if (text) yield { text, done: false };
     }
     yield { text: "", done: true };
   },
 
   async generateImage(req: ImageGenerationRequest): Promise<ImageGenerationResponse> {
-    const ai = getClient();
-
-    const response = await ai.models.generateContent({
+    const response = await getClient().models.generateContent({
       model: "gemini-2.5-flash-image",
       contents: [{ role: "user", parts: [{ text: req.prompt }] }],
-      config: {
-        responseModalities: [Modality.TEXT, Modality.IMAGE],
-      },
+      config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
     });
-
-    const candidate = response.candidates?.[0];
-    const imagePart = candidate?.content?.parts?.find((part) => part.inlineData);
-
-    if (!imagePart?.inlineData?.data) {
-      throw new Error("Gemini returned no image data");
-    }
-
-    const mimeType = imagePart.inlineData.mimeType || "image/png";
+    const imagePart = response.candidates?.[0]?.content?.parts?.find((part) => part.inlineData);
+    if (!imagePart?.inlineData?.data) throw new Error("Gemini returned no image data");
     return {
-      imageDataUri: `data:${mimeType};base64,${imagePart.inlineData.data}`,
+      imageDataUri: `data:${imagePart.inlineData.mimeType || "image/png"};base64,${imagePart.inlineData.data}`,
       provider: "gemini",
       model: "gemini-2.5-flash-image",
     };

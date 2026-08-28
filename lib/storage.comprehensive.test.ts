@@ -1,19 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import {
-  getFavorites, toggleFavorite,
-  getReadStories, markStoryRead,
-  getAllStories, saveStory, deleteStory, saveStoryScene, updateFeedback,
-  savePreferences, getPreferences,
-  getProfiles, saveProfile, deleteProfile,
-  getActiveProfileId, setActiveProfileId,
-  saveStoryWithProfile, getStoriesForProfile,
-  getBadges, getAllBadges, awardBadge,
-  getStreak, updateStreak,
-  checkAndAwardBadges,
-  getParentControls, saveParentControls,
-} from './storage';
-
 // ══════════════════════════════════════════════════════════════════
 // Client Storage (AsyncStorage) Comprehensive Tests
 // Mock AsyncStorage since we're in a Node test environment
@@ -85,6 +71,20 @@ vi.mock('@/constants/heroes', () => ({
     { id: 'nimbus' }, { id: 'bloom' }, { id: 'whistle' }, { id: 'shade' },
   ],
 }));
+
+import {
+  getFavorites, toggleFavorite,
+  getReadStories, markStoryRead,
+  getAllStories, saveStory, deleteStory, saveStoryScene, updateFeedback,
+  savePreferences, getPreferences,
+  getProfiles, saveProfile, deleteProfile,
+  getActiveProfileId, setActiveProfileId,
+  saveStoryWithProfile, getStoriesForProfile,
+  getBadges, getAllBadges, awardBadge,
+  getStreak, updateStreak,
+  checkAndAwardBadges,
+  getParentControls, saveParentControls,
+} from './storage';
 
 beforeEach(() => {
   Object.keys(mockStore).forEach(k => delete mockStore[k]);

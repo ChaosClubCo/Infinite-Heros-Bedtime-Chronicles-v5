@@ -1,14 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  CONSENT_DISCLOSURES,
-  CONSENT_VERIFICATION_METHOD,
-  CONSENT_VERSION,
-  getConsentGiven,
-  getParentConsentRecord,
-  recordParentConsent,
-} from './consent-record';
-
 let mockStorage: Record<string, string> = {};
 const expectedHash = 'a'.repeat(64);
 
@@ -26,6 +17,15 @@ vi.mock('expo-crypto', () => ({
   CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
   digestStringAsync: vi.fn(() => Promise.resolve(expectedHash)),
 }));
+
+import {
+  CONSENT_DISCLOSURES,
+  CONSENT_VERIFICATION_METHOD,
+  CONSENT_VERSION,
+  getConsentGiven,
+  getParentConsentRecord,
+  recordParentConsent,
+} from './consent-record';
 
 const key = '@infinity_heroes_parent_consent';
 
