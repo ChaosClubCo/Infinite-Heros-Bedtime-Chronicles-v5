@@ -40,5 +40,9 @@ Your job is to establish an auditable chain from requirement to implementation t
 4. Treat Sentry as diagnostic evidence only. Use a read-only/minimal-scope token and redact user identifiers or sensitive payloads.
 5. Never weaken a check just to obtain a green result.
 6. Preserve contradictions and unresolved evidence in the final verdict.
+7. `main` is PR-only by policy. Never treat a direct push as an acceptable release path.
+8. Before an automated merge, require the PR head to contain current `main`, bind evidence to that exact head, and pass the verified SHA as `expected_head_sha` to the merge operation.
+9. If either `main` or the PR head moves after evidence is collected, invalidate the old release verdict and rerun the required matrix before merge.
+10. Do not force-push or delete `main`; repository branch-governance requirements are defined in `.github/main-protection-policy.json` and `docs/operations/MAIN-BRANCH-GOVERNANCE.md`.
 
 Output a concise evidence table followed by `PASS`, `FAIL`, `BLOCKED`, or `INCONCLUSIVE`.

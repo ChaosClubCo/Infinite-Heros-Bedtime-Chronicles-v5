@@ -1,0 +1,179 @@
+name: Main Governance Guard
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  base-freshness:
+    if: github.event_name == 'pull_request'
+    name: Base Freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Fetch current main
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+
+      - name: Verify and publish base freshness
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          main_sha="$(git rev-parse refs/remotes/origin/main)"
+          state="failure"
+          description="PR head does not contain current main ${main_sha:0:12}"
+
+          if git merge-base --is-ancestor "$main_sha" "$HEAD_SHA"; then
+            state="success"
+            description="PR head contains current main ${main_sha:0:12}"
+          fi
+
+          gh api --method POST \
+            "/repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
+            -f state="$state" \
+            -f context="Base Freshness" \
+            -f description="$description" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          printf 'main=%s\nhead=%s\nstate=%s\n' "$main_sha" "$HEAD_SHA" "$state"
+          test "$state" = "success"
+
+  prune-capability-dry-run:
+    if: github.event_name == 'pull_request'
+    name: Branch Prune Capability
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Prove branch deletion permission without mutating refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push --dry-run origin --delete "${GITHUB_HEAD_REF}"
+
+  invalidate-open-prs:
+    if: github.event_name == 'push'
+    name: Invalidate Open PR Base Freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Mark open PR heads stale after main advances
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t rows < <(
+            gh api --paginate \
+              "/repos/${GITHUB_REPOSITORY}/pulls?state=open&base=main&per_page=100" \
+              --jq '.[] | "\(.number) \(.head.sha)"'
+          )
+
+          for row in "${rows[@]}"; do
+            pr_number="${row%% *}"
+            head_sha="${row##* }"
+            if ! gh api --method POST \
+              "/repos/${GITHUB_REPOSITORY}/statuses/${head_sha}" \
+              -f state="pending" \
+              -f context="Base Freshness" \
+              -f description="main advanced; sync PR #${pr_number} and rerun checks" \
+              -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"; then
+              echo "::warning::Could not invalidate Base Freshness for PR #${pr_number} (${head_sha})."
+            fi
+          done
+
+          printf 'invalidated_open_prs=%s\n' "${#rows[@]}"
+
+  main-push-provenance:
+    if: github.event_name == 'push'
+    name: Main Push Provenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Require merged PR provenance for main HEAD
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          merged_pr_count="$(
+            gh api \
+              -H 'Accept: application/vnd.github+json' \
+              "/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls?per_page=100" \
+              --jq '[.[] | select(.merged_at != null and .base.ref == "main")] | length'
+          )"
+
+          printf 'main_sha=%s\nassociated_merged_prs=%s\n' "$GITHUB_SHA" "$merged_pr_count"
+          if [ "$merged_pr_count" -lt 1 ]; then
+            echo "::error::main HEAD has no associated merged PR. Direct pushes are prohibited by repository policy."
+            exit 1
+          fi
+
+  prune-contained-branches:
+    if: github.event_name == 'push'
+    needs: main-push-provenance
+    name: Prune Contained Branches
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main with full history
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Fetch branch refs
+        run: git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+
+      - name: Delete only fully-contained transient branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          deleted=0
+          retained=0
+
+          mapfile -t refs < <(
+            git for-each-ref --format='%(refname:short)' \
+              refs/remotes/origin/fix/ \
+              refs/remotes/origin/repair/ \
+              refs/remotes/origin/chore/
+          )
+
+          for ref in "${refs[@]}"; do
+            branch="${ref#origin/}"
+            if git merge-base --is-ancestor "$ref" origin/main; then
+              echo "Deleting fully-contained branch: $branch"
+              git push origin --delete "$branch"
+              deleted=$((deleted + 1))
+            else
+              echo "Retaining branch with unique commits: $branch"
+              retained=$((retained + 1))
+            fi
+          done
+
+          printf 'deleted=%s\nretained=%s\n' "$deleted" "$retained"
