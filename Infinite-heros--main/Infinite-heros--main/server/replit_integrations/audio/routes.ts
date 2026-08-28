@@ -1,0 +1,180 @@
+import express, { type Express, type Request, type Response } from "express";
+import { chatStorage } from "../chat/storage";
+import { openai, speechToText, ensureCompatibleFormat } from "./client";
+
+// Body parser with 50MB limit for audio payloads
+const audioBodyParser = express.json({ limit: "50mb" });
+
+const MAX_TITLE_LENGTH = 200;
+const MAX_AUDIO_SIZE_BYTES = 25 * 1024 * 1024; // 25MB
+const VALID_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"] as const;
+
+function parseIdParam(raw: string | string[]): number | null {
+  const str = Array.isArray(raw) ? raw[0] : raw;
+  if (!str) return null;
+  const id = parseInt(str, 10);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+export function registerAudioRoutes(app: Express): void {
+  // Get all conversations (with optional pagination) — scoped to the requesting user
+  app.get("/api/conversations", async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.uid ?? "anonymous";
+      const limit = Math.min(Math.max(parseInt(String(req.query.limit), 10) || 50, 1), 200);
+      const offset = Math.max(parseInt(String(req.query.offset), 10) || 0, 0);
+      const conversations = await chatStorage.getAllConversations(userId);
+      const paginated = conversations.slice(offset, offset + limit);
+      res.json({ data: paginated, total: conversations.length, limit, offset });
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      res.status(500).json({ error: "Failed to fetch conversations" });
+    }
+  });
+
+  // Get single conversation with messages — returns 404 if not owned by requester
+  app.get("/api/conversations/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseIdParam(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+      const userId = req.user?.uid ?? "anonymous";
+      const conversation = await chatStorage.getConversation(id, userId);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+      const messages = await chatStorage.getMessagesByConversation(id);
+      res.json({ ...conversation, messages });
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
+      res.status(500).json({ error: "Failed to fetch conversation" });
+    }
+  });
+
+  // Create new conversation
+  app.post("/api/conversations", async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.uid ?? "anonymous";
+      const { title } = req.body;
+      const sanitizedTitle = typeof title === "string"
+        ? title.trim().slice(0, MAX_TITLE_LENGTH) || "New Chat"
+        : "New Chat";
+      const conversation = await chatStorage.createConversation(sanitizedTitle, userId);
+      res.status(201).json(conversation);
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      res.status(500).json({ error: "Failed to create conversation" });
+    }
+  });
+
+  // Delete conversation — silently ignores if not owned by requester
+  app.delete("/api/conversations/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseIdParam(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+      const userId = req.user?.uid ?? "anonymous";
+      await chatStorage.deleteConversation(id, userId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      res.status(500).json({ error: "Failed to delete conversation" });
+    }
+  });
+
+  // Send voice message and get streaming audio response
+  // Auto-detects audio format and converts WebM/MP4/OGG to WAV
+  // Uses gpt-4o-mini-transcribe for STT, gpt-audio for voice response
+  app.post("/api/conversations/:id/messages", audioBodyParser, async (req: Request, res: Response) => {
+    try {
+      const conversationId = parseIdParam(req.params.id);
+      if (conversationId === null) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+      const userId = req.user?.uid ?? "anonymous";
+      const conversation = await chatStorage.getConversation(conversationId, userId);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+      const { audio, voice = "alloy" } = req.body;
+
+      if (!audio || typeof audio !== "string") {
+        return res.status(400).json({ error: "Audio data (base64 string) is required" });
+      }
+
+      // Validate voice parameter against allowed values
+      const validatedVoice = VALID_VOICES.includes(voice) ? voice : "alloy";
+
+      // Validate audio size before decoding
+      const estimatedSize = Math.ceil(audio.length * 0.75);
+      if (estimatedSize > MAX_AUDIO_SIZE_BYTES) {
+        return res.status(400).json({ error: "Audio data too large. Maximum 25MB." });
+      }
+
+      // 1. Auto-detect format and convert to OpenAI-compatible format
+      const rawBuffer = Buffer.from(audio, "base64");
+      const { buffer: audioBuffer, format: inputFormat } = await ensureCompatibleFormat(rawBuffer);
+
+      // 2. Transcribe user audio
+      const userTranscript = await speechToText(audioBuffer, inputFormat);
+
+      // 3. Save user message
+      await chatStorage.createMessage(conversationId, "user", userTranscript);
+
+      // 4. Get conversation history
+      const existingMessages = await chatStorage.getMessagesByConversation(conversationId);
+      const chatHistory = existingMessages.map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
+
+      // 5. Set up SSE
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      res.write(`data: ${JSON.stringify({ type: "user_transcript", data: userTranscript })}\n\n`);
+
+      // 6. Stream audio response from gpt-audio
+      const stream = await openai.chat.completions.create({
+        model: "gpt-audio",
+        modalities: ["text", "audio"],
+        audio: { voice: validatedVoice, format: "pcm16" },
+        messages: chatHistory,
+        stream: true,
+      });
+
+      let assistantTranscript = "";
+
+      for await (const chunk of stream) {
+        const delta = chunk.choices?.[0]?.delta as any;
+        if (!delta) continue;
+
+        if (delta?.audio?.transcript) {
+          assistantTranscript += delta.audio.transcript;
+          res.write(`data: ${JSON.stringify({ type: "transcript", data: delta.audio.transcript })}\n\n`);
+        }
+
+        if (delta?.audio?.data) {
+          res.write(`data: ${JSON.stringify({ type: "audio", data: delta.audio.data })}\n\n`);
+        }
+      }
+
+      // 7. Save assistant message
+      await chatStorage.createMessage(conversationId, "assistant", assistantTranscript);
+
+      res.write(`data: ${JSON.stringify({ type: "done", transcript: assistantTranscript })}\n\n`);
+      res.end();
+    } catch (error) {
+      console.error("Error processing voice message:", error);
+      if (res.headersSent) {
+        res.write(`data: ${JSON.stringify({ type: "error", error: "Failed to process voice message" })}\n\n`);
+        res.end();
+      } else {
+        res.status(500).json({ error: "Failed to process voice message" });
+      }
+    }
+  });
+}

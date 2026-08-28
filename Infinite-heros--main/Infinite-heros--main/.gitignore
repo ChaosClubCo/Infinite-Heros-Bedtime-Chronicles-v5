@@ -1,0 +1,68 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# Claude Code agent worktrees (ephemeral, never commit)
+.claude/worktrees/
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+ios/
+android/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+.vercel
+
+# build artifacts
+static-build/
+server_dist/
+tmp/
+
+.env
+
+# Android EAS — NEVER commit signing keys or service account credentials
+google-services-key.json
+*.keystore
+coverage/
+
+# Local extracted copies / archives
+/Infinite-Heros-Bedtime-Chronicles-v5/
+/Infinite-Heros-Bedtime-Chronicles-v5-main/
+
+# Local outputs / session logs
+/outputs/
+
+# Firebase debug
+firebase-debug.log
+firebase-debug.*.log
+
+# Local npm cache
+.npm-cache/

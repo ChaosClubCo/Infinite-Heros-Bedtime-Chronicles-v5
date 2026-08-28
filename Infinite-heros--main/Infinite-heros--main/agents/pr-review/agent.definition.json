@@ -1,0 +1,28 @@
+{
+  "name": "pr-review-agent",
+  "type": "PR_REVIEW_AGENT",
+  "purpose": "Summarize pull request changes and flag high-risk touchpoints for reviewer focus.",
+  "triggers": [
+    "pull_request",
+    "workflow_dispatch"
+  ],
+  "inputs": [
+    "git diff between base and head",
+    "PR metadata"
+  ],
+  "outputs": [
+    "agents/pr-review/pr-review-report.json",
+    "agents/pr-review/pr-review.md",
+    "PR comment summary"
+  ],
+  "riskLevel": "medium",
+  "dependencies": [
+    "git",
+    "node"
+  ],
+  "successCriteria": [
+    "Every PR receives a deterministic summary",
+    "High-risk file touchpoints are explicitly listed",
+    "Reviewers get complexity signals (files changed, lines changed)"
+  ]
+}

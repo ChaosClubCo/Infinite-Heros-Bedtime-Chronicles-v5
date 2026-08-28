@@ -1,0 +1,36 @@
+{
+  "auditLevel": "critical",
+  "maxFileSizeBytes": 1048576,
+  "ignoreDirectories": [
+    ".git",
+    "node_modules",
+    "server_dist",
+    "dist",
+    "coverage",
+    "artifacts",
+    "attached_assets"
+  ],
+  "ignoreGlobs": [
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/*.md"
+  ],
+  "secretPatterns": [
+    {
+      "id": "openai-key",
+      "regex": "sk-[A-Za-z0-9]{20,}"
+    },
+    {
+      "id": "github-token",
+      "regex": "gh[pousr]_[A-Za-z0-9]{20,}"
+    },
+    {
+      "id": "aws-access-key",
+      "regex": "AKIA[0-9A-Z]{16}"
+    },
+    {
+      "id": "api-key-assignment",
+      "regex": "(api[_-]?key|token|secret)\\s*[:=]\\s*['\"][A-Za-z0-9_\\-]{16,}['\"]"
+    }
+  ]
+}
