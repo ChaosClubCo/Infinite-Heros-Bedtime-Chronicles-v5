@@ -13,7 +13,6 @@ import {
   Wand2,
 } from 'lucide-react';
 import { DreamJournalCard } from './DreamJournalCard';
-import { VoiceInputButton } from './VoiceInputButton';
 import {
   DREAM_ART_STYLES,
   generateDreamIllustration,
@@ -334,16 +333,9 @@ export const DreamJournalModal: React.FC<DreamJournalModalProps> = ({
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-semibold text-slate-300">
-                        What happened in your dream?
-                      </label>
-                      <VoiceInputButton
-                        onTranscript={(transcript) => {
-                          setContent((prev) => (prev ? `${prev} ${transcript}` : transcript));
-                        }}
-                      />
-                    </div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      What happened in your dream?
+                    </label>
                     <textarea
                       required
                       rows={4}

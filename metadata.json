@@ -1,9 +1,7 @@
 {
   "name": "Infinite Heroes Bedtime Chronicles",
   "description": "Child-safe bedtime story app with interactive story generation, bedtime heroes, voice narration, calming sleep journeys with projected sleep duration estimation, and celestial rewards",
-  "requestFramePermissions": [
-    "microphone"
-  ],
+  "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
