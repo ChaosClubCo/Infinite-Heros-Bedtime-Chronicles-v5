@@ -39,6 +39,12 @@ jobs:
       - name: Apply deterministic ESLint autofixes
         run: npm run lint:fix || true
 
+      - name: Normalize autofix whitespace
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i 's/[[:space:]]\+$//' __tests__/release-provenance.test.ts api/server.mjs server/validation.ts
+
       - name: Reject malformed patch output
         run: git diff --check
 
