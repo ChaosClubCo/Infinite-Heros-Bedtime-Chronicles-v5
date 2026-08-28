@@ -4,14 +4,11 @@
 // Exits 1 on any failure so CI and local devs get a clear signal before deployment.
 
 import { readFileSync, readdirSync, existsSync } from 'fs';
-import { execSync } from 'child_process';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
-const require = createRequire(import.meta.url);
 
 let failures = 0;
 

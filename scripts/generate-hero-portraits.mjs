@@ -3,11 +3,11 @@ import path from 'path';
 import { Buffer } from 'node:buffer';
 import { fileURLToPath } from 'url';
 
+import { createRequire } from 'module';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
-
-import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 require.extensions['.png'] = (module) => {
   module.exports = 1; // Return a dummy number/mock for React Native's ImageSourcePropType (which is normally a resource ID/number)

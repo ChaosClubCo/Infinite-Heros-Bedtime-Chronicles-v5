@@ -1,4 +1,3 @@
-import { HEROES } from '@/constants/heroes';
 import type { EarnedBadge, CachedStory } from '@/constants/types';
 
 export type BadgeId =

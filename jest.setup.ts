@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Jest mock factories intentionally use runtime require() to avoid hoisting native modules. */
 // Silence expected console.error calls from React error boundary tests and RN warnings
 const originalConsoleError = console.error;
 beforeEach(() => {

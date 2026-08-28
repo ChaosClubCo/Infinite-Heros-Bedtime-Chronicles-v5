@@ -1,17 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { resetStorage, mockAsyncStorage } from "../setup";
 
-vi.mock("@react-native-async-storage/async-storage", () => ({
-  default: mockAsyncStorage,
-}));
-
-vi.mock("@/constants/heroes", () => ({
-  HEROES: [
-    { id: "hero-1", name: "Nova" },
-    { id: "hero-2", name: "Coral" },
-  ],
-}));
-
 import {
   getFavorites,
   toggleFavorite,
@@ -36,6 +25,17 @@ import {
 } from "../../lib/storage";
 import { DEFAULT_PREFERENCES, DEFAULT_PARENT_CONTROLS } from "../../constants/types";
 import type { StoryFull, ChildProfile } from "../../constants/types";
+
+vi.mock("@react-native-async-storage/async-storage", () => ({
+  default: mockAsyncStorage,
+}));
+
+vi.mock("@/constants/heroes", () => ({
+  HEROES: [
+    { id: "hero-1", name: "Nova" },
+    { id: "hero-2", name: "Coral" },
+  ],
+}));
 
 function makeStoryFull(): StoryFull {
   return {
@@ -144,7 +144,7 @@ describe("Stories", () => {
   });
 
   it("saves avatar when provided", async () => {
-    const id = await saveStory(makeStoryFull(), "hero-1", "classic", "data:image/png;base64,abc");
+    await saveStory(makeStoryFull(), "hero-1", "classic", "data:image/png;base64,abc");
     const stories = await getAllStories();
     expect(stories[0].avatar).toBe("data:image/png;base64,abc");
   });
@@ -261,7 +261,7 @@ describe("Profile-scoped stories", () => {
   beforeEach(() => resetStorage());
 
   it("saves story with profileId", async () => {
-    const id = await saveStoryWithProfile(makeStoryFull(), "hero-1", "classic", "p-1");
+    await saveStoryWithProfile(makeStoryFull(), "hero-1", "classic", "p-1");
     const stories = await getAllStories();
     expect(stories[0].profileId).toBe("p-1");
   });

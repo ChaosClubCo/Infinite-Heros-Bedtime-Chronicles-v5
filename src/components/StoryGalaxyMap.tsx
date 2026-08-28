@@ -45,6 +45,13 @@ interface ConstellationSector {
   audioDurationMinutes?: number;
 }
 
+interface MappedConstellationSector extends ConstellationSector {
+  isCompleted: boolean;
+  isNextTarget: boolean;
+  completedRecord?: CompletedStoryRecord;
+  orderNumber: number;
+}
+
 // Preset galaxy sectors mapping the celestial path across the bedtime sky
 const GALAXY_SECTORS: ConstellationSector[] = [
   {
@@ -193,7 +200,7 @@ export const StoryGalaxyMap: React.FC<StoryGalaxyMapProps> = ({
   onOpenCreator,
   childName = 'Little Explorer',
 }) => {
-  const [selectedSector, setSelectedSector] = useState<ConstellationSector | null>(null);
+  const [selectedSector, setSelectedSector] = useState<MappedConstellationSector | null>(null);
   const [activeStoryRecord, setActiveStoryRecord] = useState<CompletedStoryRecord | null>(null);
   const [viewMode, setViewMode] = useState<'trail' | 'atlas'>('trail');
   const [filterMode, setFilterMode] = useState<'all' | 'completed' | 'unlocked'>('all');
@@ -201,7 +208,7 @@ export const StoryGalaxyMap: React.FC<StoryGalaxyMapProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Map completed stories to sectors
-  const mappedSectors = useMemo(() => {
+  const mappedSectors = useMemo<MappedConstellationSector[]>(() => {
     return GALAXY_SECTORS.map((sector, index) => {
       // Check if this sector's story is completed
       const matchedRecord = completedStories.find(
@@ -237,7 +244,7 @@ export const StoryGalaxyMap: React.FC<StoryGalaxyMapProps> = ({
     }
   }, [completedStories.length, mappedSectors, selectedSector]);
 
-  const handleSectorClick = (sector: typeof mappedSectors[0]) => {
+  const handleSectorClick = (sector: MappedConstellationSector) => {
     // Play starlight chime sound
     ambientSoundEngine.playStarTwinkle(sector.isCompleted ? 1.0 : 0.85);
 

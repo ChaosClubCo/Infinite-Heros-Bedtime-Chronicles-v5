@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { DEFAULT_PARENT_CONTROLS, CONTENT_THEMES } from "../../constants/types";
-import type { ParentControls } from "../../constants/types";
 
 /**
  * Tests for parent controls business logic.

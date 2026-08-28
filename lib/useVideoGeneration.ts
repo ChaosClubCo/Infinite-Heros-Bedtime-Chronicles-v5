@@ -61,7 +61,7 @@ export function useVideoGeneration({ hero, storyData, storyState, currentPartInd
         triggerVideoGeneration(storyData.parts[currentPartIndex].text);
       }
     }
-  }, [currentPartIndex, storyState]);
+  }, [currentPartIndex, storyState, storyData, videoEnabled, triggerVideoGeneration]);
 
   return { videoEnabled, videoJobId };
 }

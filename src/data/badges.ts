@@ -136,7 +136,7 @@ export function evaluateBadgeUnlocks(
   }
 
   // 6. Giggle Alchemist (Mad Libs mode)
-  if (story.mode === 'madlibs' || story.isMadlibs) {
+  if (story.mode === 'madlibs') {
     unlockBadge('badge-madlibs-master');
   }
 
