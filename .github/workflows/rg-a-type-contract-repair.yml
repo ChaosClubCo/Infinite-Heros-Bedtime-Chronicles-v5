@@ -33,52 +33,22 @@ jobs:
           set -euo pipefail
           python <<'PY'
           from pathlib import Path
-
           galaxy_path = Path('src/components/StoryGalaxyMap.tsx')
           galaxy = galaxy_path.read_text()
-
-          interface_anchor = """interface ConstellationSector {
-  id: string;
-  storyId?: string;
-  constellationName: string;
-  heroName: string;
-  heroColor: string;
-  iconName: string;
-  theme: string;
-  defaultTitle: string;
-  summary: string;
-  affirmation: string;
-  x: number;
-  y: number;
-  sectorName: string;
-  coverImage?: string;
-  audioDurationMinutes?: number;
-}
-"""
-          derived_interface = interface_anchor + """
-interface MappedConstellationSector extends ConstellationSector {
-  isCompleted: boolean;
-  isNextTarget: boolean;
-  completedRecord?: CompletedStoryRecord;
-  orderNumber: number;
-}
-"""
-
+          interface_anchor = "interface ConstellationSector {\n  id: string;\n  storyId?: string;\n  constellationName: string;\n  heroName: string;\n  heroColor: string;\n  iconName: string;\n  theme: string;\n  defaultTitle: string;\n  summary: string;\n  affirmation: string;\n  x: number;\n  y: number;\n  sectorName: string;\n  coverImage?: string;\n  audioDurationMinutes?: number;\n}\n"
+          derived_interface = interface_anchor + "\ninterface MappedConstellationSector extends ConstellationSector {\n  isCompleted: boolean;\n  isNextTarget: boolean;\n  completedRecord?: CompletedStoryRecord;\n  orderNumber: number;\n}\n"
           replacements = [
               (interface_anchor, derived_interface),
               ("useState<ConstellationSector | null>(null)", "useState<MappedConstellationSector | null>(null)"),
               ("const mappedSectors = useMemo(() => {", "const mappedSectors = useMemo<MappedConstellationSector[]>(() => {"),
               ("const handleSectorClick = (sector: typeof mappedSectors[0]) => {", "const handleSectorClick = (sector: MappedConstellationSector) => {"),
           ]
-
           for old, new in replacements:
               count = galaxy.count(old)
               if count != 1:
                   raise SystemExit(f'Expected exactly one StoryGalaxyMap match, found {count}: {old[:80]!r}')
               galaxy = galaxy.replace(old, new, 1)
-
           galaxy_path.write_text(galaxy)
-
           badges_path = Path('src/data/badges.ts')
           badges = badges_path.read_text()
           old = "if (story.mode === 'madlibs' || story.isMadlibs) {"
@@ -88,7 +58,6 @@ interface MappedConstellationSector extends ConstellationSector {
               raise SystemExit(f'Expected exactly one badges match, found {count}')
           badges_path.write_text(badges.replace(old, new, 1))
           PY
-
           git diff --check
           git diff -- src/components/StoryGalaxyMap.tsx src/data/badges.ts
 
