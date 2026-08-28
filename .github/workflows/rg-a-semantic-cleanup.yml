@@ -1,0 +1,218 @@
+name: RG-A Semantic Cleanup
+
+on:
+  push:
+    branches:
+      - repair/rg-a-rg-b-baseline
+    paths:
+      - .github/workflows/rg-a-semantic-cleanup.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rg-a-semantic-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@v7
+        with:
+          ref: repair/rg-a-rg-b-baseline
+          fetch-depth: 0
+
+      - name: Apply exact semantic lint repairs
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str, expected: int = 1) -> None:
+              p = Path(path)
+              text = p.read_text()
+              actual = text.count(old)
+              if actual != expected:
+                  raise SystemExit(f"{path}: expected {expected} matches, found {actual}: {old!r}")
+              p.write_text(text.replace(old, new, expected))
+
+          replace(
+              "__tests__/components/ErrorBoundary.test.tsx",
+              "    require('react').createElement(\n      require('react-native').Text,",
+              "    React.createElement(\n      Text,",
+          )
+          replace(
+              "__tests__/setup.ts",
+              "TextGenerationResponse, ImageGenerationResponse }",
+              "TextGenerationResponse }",
+          )
+          replace(
+              "__tests__/unit/ai-router.test.ts",
+              "import type { AIProvider, StreamingTextChunk } from \"../../server/ai/types\";",
+              "import type { StreamingTextChunk } from \"../../server/ai/types\";",
+          )
+          replace(
+              "__tests__/unit/elevenlabs.test.ts",
+              "import { describe, it, expect, vi, beforeEach, afterEach } from \"vitest\";",
+              "import { describe, it, expect, vi, afterEach } from \"vitest\";",
+          )
+          replace(
+              "__tests__/unit/elevenlabs.test.ts",
+              "import type { VoiceCategory } from \"../../server/elevenlabs\";\n",
+              "",
+          )
+          replace(
+              "__tests__/unit/elevenlabs.test.ts",
+              "    for (const [key, voice] of Object.entries(VOICE_MAP)) {",
+              "    for (const voice of Object.values(VOICE_MAP)) {",
+          )
+          replace(
+              "__tests__/unit/elevenlabs.test.ts",
+              "    const original = VOICE_MAP.captain.settings.style; // 0.30\n",
+              "",
+          )
+          replace(
+              "__tests__/unit/parent-controls.test.ts",
+              "import type { ParentControls } from \"../../constants/types\";\n",
+              "",
+          )
+          replace(
+              "__tests__/unit/storage-crud.test.ts",
+              "    const id = await saveStory(makeStoryFull(), \"hero-1\", \"classic\", \"data:image/png;base64,abc\");\n    const stories = await getAllStories();",
+              "    await saveStory(makeStoryFull(), \"hero-1\", \"classic\", \"data:image/png;base64,abc\");\n    const stories = await getAllStories();",
+          )
+          replace(
+              "__tests__/unit/storage-crud.test.ts",
+              "    const id = await saveStoryWithProfile(makeStoryFull(), \"hero-1\", \"classic\", \"p-1\");\n    const stories = await getAllStories();",
+              "    await saveStoryWithProfile(makeStoryFull(), \"hero-1\", \"classic\", \"p-1\");\n    const stories = await getAllStories();",
+          )
+          replace(
+              "__tests__/unit/video.test.ts",
+              "import { describe, it, expect, vi, beforeEach } from \"vitest\";",
+              "import { describe, it, expect, beforeEach } from \"vitest\";",
+          )
+
+          p = Path("jest.setup.ts")
+          text = p.read_text()
+          marker = "/* eslint-disable @typescript-eslint/no-require-imports -- Jest mock factories intentionally use runtime require() to avoid hoisting native modules. */\n"
+          if not text.startswith(marker):
+              p.write_text(marker + text)
+
+          replace("lib/badges.ts", "import { HEROES } from '@/constants/heroes';\n", "")
+          replace("lib/secureStorage.test.ts", "import AsyncStorage from '@react-native-async-storage/async-storage';\n", "")
+
+          replace(
+              "lib/storage.comprehensive.test.ts",
+              "  it('saves with avatar', async () => {\n    const id = await saveStory(mockStory as any, 'nova', 'classic', 'data:image/png;base64,abc');",
+              "  it('saves with avatar', async () => {\n    await saveStory(mockStory as any, 'nova', 'classic', 'data:image/png;base64,abc');",
+          )
+          replace(
+              "lib/storage.comprehensive.test.ts",
+              "  it('saves without avatar', async () => {\n    const id = await saveStory(mockStory as any, 'nova', 'classic');",
+              "  it('saves without avatar', async () => {\n    await saveStory(mockStory as any, 'nova', 'classic');",
+          )
+          replace(
+              "lib/storage.comprehensive.test.ts",
+              "  it('sorts stories by timestamp descending', async () => {\n    const id1 = await saveStory(mockStory as any, 'nova', 'classic');\n    // Small delay to ensure different timestamps\n    const id2 = await saveStory({ ...mockStory, title: 'Story 2' } as any, 'luna', 'sleep');",
+              "  it('sorts stories by timestamp descending', async () => {\n    await saveStory(mockStory as any, 'nova', 'classic');\n    // Small delay to ensure different timestamps\n    await saveStory({ ...mockStory, title: 'Story 2' } as any, 'luna', 'sleep');",
+          )
+          replace(
+              "lib/storage.comprehensive.test.ts",
+              "  it('saves story with profile ID', async () => {\n    const id = await saveStoryWithProfile(story as any, 'nova', 'classic', 'profile1');",
+              "  it('saves story with profile ID', async () => {\n    await saveStoryWithProfile(story as any, 'nova', 'classic', 'profile1');",
+          )
+          replace(
+              "lib/storage.comprehensive.test.ts",
+              "  it('does not increment on same day', async () => {\n    const first = await updateStreak('p1');\n    const second = await updateStreak('p1');",
+              "  it('does not increment on same day', async () => {\n    await updateStreak('p1');\n    const second = await updateStreak('p1');",
+          )
+          replace("lib/storage.ts", "  BADGE_DEFINITIONS,\n", "")
+
+          replace(
+              "lib/useAutoAdvance.ts",
+              "  const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);",
+              "  const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);\n  const onAdvanceRef = useRef(onAdvance);\n\n  useEffect(() => {\n    onAdvanceRef.current = onAdvance;\n  }, [onAdvance]);",
+          )
+          replace("lib/useAutoAdvance.ts", "          onAdvance();", "          onAdvanceRef.current();")
+          replace(
+              "lib/useAutoAdvance.ts",
+              "  }, [currentPartIndex, storyState, storyMode]);",
+              "  }, [currentPartIndex, storyState, storyMode, storyData]);",
+          )
+
+          replace(
+              "lib/useSceneGeneration.ts",
+              "  }, [currentPartIndex, storyState]);",
+              "  }, [currentPartIndex, storyState, storyData, loadSceneImage]);",
+          )
+          replace(
+              "lib/useSceneGeneration.ts",
+              "  }, [sceneError, currentPartIndex]);",
+              "  }, [sceneError, currentPartIndex, storyData, loadSceneImage]);",
+          )
+
+          replace(
+              "lib/useSleepTimer.ts",
+              "  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);",
+              "  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);\n  const onExpireRef = useRef(onExpire);\n\n  useEffect(() => {\n    onExpireRef.current = onExpire;\n  }, [onExpire]);",
+          )
+          replace("lib/useSleepTimer.ts", "        onExpire();", "        onExpireRef.current();")
+          replace(
+              "lib/useSleepTimer.ts",
+              "  useEffect(() => {\n    if (storyState === \"ready\" && storyMode === \"sleep\" && sleepTimerParam && sleepTimerParam !== \"none\") {\n      startSleepTimer();\n    }\n  }, [storyState]);",
+              "  useEffect(() => {\n    if (storyState === \"ready\" && storyMode === \"sleep\" && sleepTimerParam && sleepTimerParam !== \"none\") {\n      startSleepTimer();\n      return clearSleepTimer;\n    }\n  }, [storyState, storyMode, sleepTimerParam, startSleepTimer, clearSleepTimer]);",
+          )
+
+          replace(
+              "lib/useVideoGeneration.ts",
+              "  }, [currentPartIndex, storyState]);",
+              "  }, [currentPartIndex, storyState, storyData, videoEnabled, triggerVideoGeneration]);",
+          )
+
+          replace("scripts/preflight.js", "import { execSync } from 'child_process';\n", "")
+          replace("scripts/preflight.js", "import { createRequire } from 'module';\n", "")
+          replace("scripts/preflight.js", "const require = createRequire(import.meta.url);\n", "")
+
+          replace(
+              "server/ai/index.ts",
+              "export function getProviderStatuses(): ProviderStatus[] {\n  const router = getAIRouter();\n  return allProviders.map((p) => ({",
+              "export function getProviderStatuses(): ProviderStatus[] {\n  getAIRouter();\n  return allProviders.map((p) => ({",
+          )
+          replace(
+              "server/routes/suggest.ts",
+              "    const { heroName, heroPower, heroDescription, hour, childAge, childName } = parsed.data;",
+              "    const { heroName, heroPower, hour, childAge, childName } = parsed.data;",
+          )
+          replace("src/main.tsx", "import App from './App';", "import RootApp from './App';")
+          replace("src/main.tsx", "    <App />", "    <RootApp />")
+          PY
+
+      - name: Reject malformed patch output
+        run: git diff --check
+
+      - name: Commit semantic cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(rg-a): clear semantic ESLint baseline"
+          git push origin HEAD:repair/rg-a-rg-b-baseline
+
+      - name: Setup repository Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install repository npm version
+        run: npm install --global npm@11
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Require zero-warning lint
+        run: npm run lint -- --max-warnings=0
