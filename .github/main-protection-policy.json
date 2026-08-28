@@ -39,7 +39,7 @@
   },
   "live_enforcement": {
     "state": "READY_FOR_ADMIN_IMPORT",
-    "verified_main_sha": "a6e2d1ba70b98fce99069ecf0ae8d7a09a00fcf9",
+    "verified_main_sha": "cac496965f1c0f8260e6ec5850f0cd9eaf3d5eb5",
     "github_reports_main_protected": false,
     "observed_active_ruleset": {
       "id": 14824491,
@@ -49,6 +49,6 @@
       "reason": "The observed ruleset has no included ref target and contains only deletion, non-fast-forward, and Copilot code-review rules. It does not encode the required pull-request, approval, status-check, or strict-update policy."
     },
     "import_recipe": ".github/rulesets/main-server-protection.json",
-    "blocking_reason": "Repository rulesets are now available and readable, but the connected GitHub integration exposes no Administration:write ruleset or branch-protection mutation. The import recipe must be applied through a GitHub administrator surface before adversarial prevention testing can safely proceed."
+    "blocking_reason": "Repository rulesets are available and readable, but the connected GitHub integration exposes no Administration:write ruleset or branch-protection mutation. The import recipe must be applied through a GitHub administrator surface before adversarial prevention testing can safely proceed."
   }
 }
