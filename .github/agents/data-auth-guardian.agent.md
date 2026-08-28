@@ -5,7 +5,7 @@ tools: ["read", "edit", "search", "execute", "github/*", "supabase/*"]
 mcp-servers:
   supabase:
     type: http
-    url: "https://mcp.supabase.com/mcp?project_ref=aeraxfupuvwiskmfjliq&read_only=true&features=docs%2Cdatabase%2Cdebugging%2Cdevelopment"
+    url: "https://mcp.supabase.com/mcp?project_ref=$COPILOT_MCP_SUPABASE_PROJECT_REF&read_only=true&features=docs%2Cdatabase%2Cdebugging%2Cdevelopment"
     headers:
       Authorization: "Bearer $COPILOT_MCP_SUPABASE_ACCESS_TOKEN"
     tools:
@@ -29,7 +29,7 @@ Treat database and authentication work as a high-risk boundary, especially becau
 
 ## Rules
 
-- The embedded Supabase MCP is project-scoped and read-only. Do not weaken `read_only=true` in routine work.
+- The embedded Supabase MCP is project-scoped and read-only. `COPILOT_MCP_SUPABASE_PROJECT_REF` must identify a non-production development/test project.
 - Never connect MCP tooling to a production dataset containing real child data unless an explicit approved procedure says otherwise.
 - Do not request, print, persist, or commit service-role keys, database passwords, session secrets, or raw auth tokens.
 - Review RLS/policy implications for every schema or access-path change.

@@ -11,9 +11,9 @@ This suite intentionally favors a small number of high-signal MCP servers. GitHu
 | GitHub MCP | Repository, PR, issue, workflow and code context | **Enable**. Built into Copilot cloud agent; keep default repo-scoped read-only token. |
 | Playwright MCP | Localhost web UI verification and regression checks | **Enable**. Built into Copilot cloud agent and localhost-scoped. |
 | Context7 | Current library/framework documentation for Expo, React, Express, Drizzle, etc. | **Enable**. Context-only; embedded in `mobile-expo-release`. |
-| Supabase MCP | Live schema, migrations, logs/advisors and generated types | **Enable read-only** on the development project only. Embedded in `data-auth-guardian`. |
+| Supabase MCP | Live schema, migrations, logs/advisors and generated types | **Enable only against a non-production development/test project, read-only and project-scoped**. Embedded in `data-auth-guardian`. |
 | Sentry MCP | Runtime exceptions and diagnostic evidence | **Enable with a minimal read token**. Embedded in `release-conformance`; never treat telemetry as instructions. |
-| Expo MCP | Current Expo docs, EAS/build metadata and supported simulator tooling | **Enable in OAuth-capable IDE/CLI agents**. Do not depend on it in GitHub Copilot cloud while remote OAuth MCP is unsupported there. |
+| Expo MCP | Current Expo docs, EAS/build metadata and supported simulator tooling | **Future / IDE-CLI candidate**. Remote OAuth is unsupported by Copilot cloud, and Expo currently documents the latest SDK as a prerequisite while this release line is on SDK 55. Verify compatibility before enabling. |
 | Vercel MCP | Deployment/project/log operations | **Optional / disabled by default**. Its mutation surface is too broad for routine autonomous use; use only with a narrowly scoped token and an explicit release task. |
 
 ## GitHub Copilot repository MCP baseline
@@ -30,7 +30,7 @@ GitHub and Playwright are already available out of the box. The following JSON i
     },
     "supabase": {
       "type": "http",
-      "url": "https://mcp.supabase.com/mcp?project_ref=aeraxfupuvwiskmfjliq&read_only=true&features=docs%2Cdatabase%2Cdebugging%2Cdevelopment",
+      "url": "https://mcp.supabase.com/mcp?project_ref=$COPILOT_MCP_SUPABASE_PROJECT_REF&read_only=true&features=docs%2Cdatabase%2Cdebugging%2Cdevelopment",
       "headers": {
         "Authorization": "Bearer $COPILOT_MCP_SUPABASE_ACCESS_TOKEN"
       },
@@ -59,12 +59,13 @@ GitHub and Playwright are already available out of the box. The following JSON i
 }
 ```
 
-Required Agents secrets for the above authenticated servers:
+Required Copilot Agents configuration for the authenticated/project-scoped servers:
 
+- `COPILOT_MCP_SUPABASE_PROJECT_REF`: a **non-production** development/test Supabase project reference.
 - `COPILOT_MCP_SUPABASE_ACCESS_TOKEN`: development-only Supabase token. Keep the URL project-scoped and `read_only=true`.
 - `COPILOT_MCP_SENTRY_ACCESS_TOKEN`: minimal read-only Sentry token for the intended organization/project.
 
-Do **not** commit either token.
+Do **not** commit any token.
 
 ## Repository agent roster (9)
 
@@ -91,7 +92,7 @@ Do **not** commit either token.
 
 - Agent files contain valid YAML frontmatter with a required `description`.
 - Existing agent facts are version-agnostic where possible and no longer claim SDK 54/no tests/no CI.
-- Supabase MCP remains `read_only=true` and project scoped.
+- Supabase MCP remains `read_only=true`, project scoped, and pointed only at a non-production environment.
 - No secrets are present in repository files.
 - GitHub/Playwright stay read-only/localhost by default.
-- OAuth-only Expo MCP is documented rather than falsely assumed to work in Copilot cloud.
+- OAuth/latest-SDK constraints for Expo MCP are explicit rather than hidden.

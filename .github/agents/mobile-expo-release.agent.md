@@ -26,4 +26,4 @@ Specialize in the active Expo SDK, React Native runtime, Expo Router, EAS config
 
 ## MCP note
 
-GitHub Copilot cloud currently cannot use remote MCP servers that require OAuth. The official Expo MCP server at `https://mcp.expo.dev/mcp` is therefore recommended for supported IDE/CLI agents, but is not embedded here as a cloud-agent dependency. Use it only in environments where Expo OAuth is supported and authenticated.
+The official Expo MCP server at `https://mcp.expo.dev/mcp` uses OAuth, while GitHub Copilot cloud does not currently support remote OAuth MCP. Expo's current MCP documentation also lists the latest Expo SDK as a prerequisite; this repository is presently on SDK 55. Treat Expo MCP as a future/IDE-CLI integration until compatibility with this frozen release line is explicitly verified. Context7 remains available here for current documentation without granting EAS mutation access.
