@@ -11,7 +11,7 @@ export function registerSuggestRoutes(app: Express): void {
       return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
     }
 
-    const { heroName, heroPower, heroDescription, hour, childAge, childName } = parsed.data;
+    const { heroName, heroPower, hour, childAge, childName } = parsed.data;
 
     try {
       const timeOfDay = hour >= 19 || hour < 6 ? "nighttime/bedtime" : hour >= 17 ? "evening" : hour >= 12 ? "afternoon" : "morning";

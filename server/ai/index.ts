@@ -34,7 +34,7 @@ export function getAIRouter(): AIRouter {
 }
 
 export function getProviderStatuses(): ProviderStatus[] {
-  const router = getAIRouter();
+  getAIRouter();
   return allProviders.map((p) => ({
     name: p.name,
     displayName: p.displayName,

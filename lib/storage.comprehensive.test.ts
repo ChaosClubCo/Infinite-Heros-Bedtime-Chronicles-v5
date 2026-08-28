@@ -198,13 +198,13 @@ describe('story management', () => {
   });
 
   it('saves with avatar', async () => {
-    const id = await saveStory(mockStory as any, 'nova', 'classic', 'data:image/png;base64,abc');
+    await saveStory(mockStory as any, 'nova', 'classic', 'data:image/png;base64,abc');
     const stories = await getAllStories();
     expect(stories[0].avatar).toBe('data:image/png;base64,abc');
   });
 
   it('saves without avatar', async () => {
-    const id = await saveStory(mockStory as any, 'nova', 'classic');
+    await saveStory(mockStory as any, 'nova', 'classic');
     const stories = await getAllStories();
     expect(stories[0].avatar).toBeUndefined();
   });
@@ -222,9 +222,9 @@ describe('story management', () => {
   });
 
   it('sorts stories by timestamp descending', async () => {
-    const id1 = await saveStory(mockStory as any, 'nova', 'classic');
+    await saveStory(mockStory as any, 'nova', 'classic');
     // Small delay to ensure different timestamps
-    const id2 = await saveStory({ ...mockStory, title: 'Story 2' } as any, 'luna', 'sleep');
+    await saveStory({ ...mockStory, title: 'Story 2' } as any, 'luna', 'sleep');
     const stories = await getAllStories();
     expect(stories[0].timestamp).toBeGreaterThanOrEqual(stories[1].timestamp);
   });
@@ -338,7 +338,7 @@ describe('profile-scoped stories', () => {
   const story = { title: 'Test', parts: [], vocabWord: {}, joke: '', lesson: '', tomorrowHook: '', rewardBadge: {} };
 
   it('saves story with profile ID', async () => {
-    const id = await saveStoryWithProfile(story as any, 'nova', 'classic', 'profile1');
+    await saveStoryWithProfile(story as any, 'nova', 'classic', 'profile1');
     const stories = await getAllStories();
     expect(stories[0].profileId).toBe('profile1');
   });
@@ -422,7 +422,7 @@ describe('reading streaks', () => {
   });
 
   it('does not increment on same day', async () => {
-    const first = await updateStreak('p1');
+    await updateStreak('p1');
     const second = await updateStreak('p1');
     expect(second.currentStreak).toBe(1);
   });

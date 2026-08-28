@@ -144,7 +144,7 @@ describe("Stories", () => {
   });
 
   it("saves avatar when provided", async () => {
-    const id = await saveStory(makeStoryFull(), "hero-1", "classic", "data:image/png;base64,abc");
+    await saveStory(makeStoryFull(), "hero-1", "classic", "data:image/png;base64,abc");
     const stories = await getAllStories();
     expect(stories[0].avatar).toBe("data:image/png;base64,abc");
   });
@@ -261,7 +261,7 @@ describe("Profile-scoped stories", () => {
   beforeEach(() => resetStorage());
 
   it("saves story with profileId", async () => {
-    const id = await saveStoryWithProfile(makeStoryFull(), "hero-1", "classic", "p-1");
+    await saveStoryWithProfile(makeStoryFull(), "hero-1", "classic", "p-1");
     const stories = await getAllStories();
     expect(stories[0].profileId).toBe("p-1");
   });

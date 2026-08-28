@@ -80,7 +80,7 @@ export function useSceneGeneration({ hero, storyData, storyState, currentPartInd
         loadSceneImage(partText, currentPartIndex);
       }
     }
-  }, [currentPartIndex, storyState]);
+  }, [currentPartIndex, storyState, storyData, loadSceneImage]);
 
   useEffect(() => {
     if (sceneError && storyData && storyData.parts[currentPartIndex] && sceneRetryCountRef.current < 2) {
@@ -91,7 +91,7 @@ export function useSceneGeneration({ hero, storyData, storyState, currentPartInd
       }, retryDelay);
       return () => clearTimeout(timeout);
     }
-  }, [sceneError, currentPartIndex]);
+  }, [sceneError, currentPartIndex, storyData, loadSceneImage]);
 
   return { sceneImage, sceneLoading, sceneError, loadSceneImage, clearSceneImage, sceneCacheRef };
 }
