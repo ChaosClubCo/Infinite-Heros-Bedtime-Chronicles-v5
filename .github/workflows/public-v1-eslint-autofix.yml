@@ -3,7 +3,7 @@ name: Public-v1 ESLint Autofix
 on:
   push:
     branches:
-      - release/public-v1-expo-freeze-20260827
+      - release/public-v1-gate-repair-20260827
     paths:
       - .github/workflows/public-v1-eslint-autofix.yml
 
@@ -11,17 +11,17 @@ permissions:
   contents: write
 
 concurrency:
-  group: public-v1-eslint-autofix
+  group: public-v1-eslint-autofix-gate-repair
   cancel-in-progress: false
 
 jobs:
   eslint-autofix:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout release branch
+      - name: Checkout gate-repair branch
         uses: actions/checkout@v7
         with:
-          ref: release/public-v1-expo-freeze-20260827
+          ref: release/public-v1-gate-repair-20260827
           fetch-depth: 0
 
       - name: Setup repository Node.js
@@ -39,11 +39,14 @@ jobs:
       - name: Apply deterministic ESLint fixes
         run: npm run lint:fix
 
-      - name: Strip autofix-introduced trailing whitespace
+      - name: Strip trailing whitespace only from ESLint-modified files
         shell: bash
         run: |
           set -euo pipefail
-          sed -i 's/[[:space:]]\+$//' __tests__/release-provenance.test.ts api/server.mjs
+          while IFS= read -r file; do
+            [ -f "$file" ] || continue
+            sed -i 's/[[:space:]]\+$//' "$file"
+          done < <(git diff --name-only)
 
       - name: Reject malformed patch output
         run: git diff --check
@@ -51,7 +54,7 @@ jobs:
       - name: Verify manifests and lockfile were not modified
         run: git diff --exit-code -- package.json package-lock.json
 
-      - name: Commit autofixes when changed
+      - name: Commit deterministic autofixes
         shell: bash
         run: |
           set -euo pipefail
@@ -62,10 +65,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "fix(release): apply deterministic ESLint autofixes after source recovery"
-          git push origin HEAD:release/public-v1-expo-freeze-20260827
+          git commit -m "fix(release): apply deterministic ESLint autofixes"
+          git push origin HEAD:release/public-v1-gate-repair-20260827
 
-      - name: Report remaining zero-warning gate
+      - name: Report semantic warnings still requiring review
         run: npm run lint -- --max-warnings=0
-
-# Trigger revision: 3

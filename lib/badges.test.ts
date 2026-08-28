@@ -49,7 +49,7 @@ describe("evaluateBadges & getBadgeProgress", () => {
       currentStreak: 0,
       longestStreak: 0,
     };
-    
+
     // Negative case
     let progress = getBadgeProgress("first-adventure", emptyState);
     expect(progress).toEqual({ current: 0, target: 1 });

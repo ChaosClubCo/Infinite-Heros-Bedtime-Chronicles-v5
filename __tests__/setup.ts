@@ -3,7 +3,7 @@
  */
 
 import { vi } from "vitest";
-import type { AIProvider, ProviderName, TextGenerationRequest, TextGenerationResponse } from "../server/ai/types";
+import type { AIProvider, ProviderName, TextGenerationRequest, TextGenerationResponse, ImageGenerationResponse } from "../server/ai/types";
 
 if (typeof require !== 'undefined' && require.extensions) {
   require.extensions['.png'] = () => 'mock-png-asset';
