@@ -4,6 +4,8 @@ import request from "supertest";
 import type { Express } from "express";
 import type { Server } from "node:http";
 
+import { registerRoutes } from "../../server/routes";
+
 // Mock the AI module before importing routes
 vi.mock("../../server/ai", () => {
   const storyPayload = {
@@ -93,8 +95,6 @@ vi.mock("../../server/auth", () => ({
   }),
   isAuthEnabled: vi.fn(() => true),
 }));
-
-import { registerRoutes } from "../../server/routes";
 
 let app: Express;
 let server: Server;

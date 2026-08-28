@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 
+import { evaluateBadges, getBadgeProgress, BadgeState } from "./badges";
+import type { CachedStory } from "@/constants/types";
+
 // Mock heroes
 vi.mock("@/constants/heroes", () => ({
   HEROES: [
@@ -13,9 +16,6 @@ vi.mock("@/constants/heroes", () => ({
     { id: "hero-8", name: "Shade" },
   ],
 }));
-
-import { evaluateBadges, getBadgeProgress, BadgeState } from "./badges";
-import type { CachedStory } from "@/constants/types";
 
 const PROFILE_ID = "profile-1";
 
@@ -49,7 +49,7 @@ describe("evaluateBadges & getBadgeProgress", () => {
       currentStreak: 0,
       longestStreak: 0,
     };
-    
+
     // Negative case
     let progress = getBadgeProgress("first-adventure", emptyState);
     expect(progress).toEqual({ current: 0, target: 1 });

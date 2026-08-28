@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { openaiProvider, pingOpenAI } from "./openai";
+
 const { chatCreateMock, imagesGenerateMock, ctorArgs } = vi.hoisted(() => ({
   chatCreateMock: vi.fn(), imagesGenerateMock: vi.fn(), ctorArgs: [] as unknown[],
 }));
@@ -10,8 +12,6 @@ vi.mock("openai", () => ({
     constructor(opts: unknown) { ctorArgs.push(opts); }
   },
 }));
-
-import { openaiProvider, pingOpenAI } from "./openai";
 const REQ = { systemPrompt: "sys", userPrompt: "user" };
 
 describe("openaiProvider direct configuration", () => {
