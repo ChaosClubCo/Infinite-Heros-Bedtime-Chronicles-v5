@@ -21,7 +21,6 @@ interface NavbarProps {
   streakCount: number;
   childName?: string;
   childAvatar?: string;
-  onOpenNightlight?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -32,7 +31,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   streakCount,
   childName = 'Little Explorer',
   childAvatar = 'fox',
-  onOpenNightlight,
 }) => {
   const avatarObj = getAvatarById(childAvatar);
 
@@ -94,21 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Right Side: Streak & Settings */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Nightlight Mode Quick Launcher */}
-          {onOpenNightlight && (
-            <button
-              id="nav-nightlight-btn"
-              type="button"
-              onClick={onOpenNightlight}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-950/70 border border-indigo-500/40 text-indigo-200 text-xs font-bold hover:bg-indigo-900/80 hover:text-white shadow-sm transition-all"
-              title="Launch Sound-Reactive Nightlight"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-              <span className="hidden sm:inline">Nightlight</span>
-            </button>
-          )}
-
+        <div className="flex items-center gap-3">
           {/* Bedtime Reading Streak Badge */}
           <div
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-950/60 border border-amber-500/30 text-amber-300 text-xs font-bold shadow-sm"

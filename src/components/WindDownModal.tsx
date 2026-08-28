@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppSettings, AmbientSoundTrack } from '../types';
-import { Moon, X, SunDim, Sparkles } from 'lucide-react';
+import { Moon, X, SunDim } from 'lucide-react';
 
 export const AMBIENT_SOUND_TRACKS: { id: AmbientSoundTrack; name: string; description: string }[] = [
   { id: 'ocean', name: 'Ocean Waves', description: 'Gentle rhythmic shore waves' },
@@ -17,7 +17,6 @@ interface WindDownModalProps {
   onClose: () => void;
   settings: AppSettings;
   onSaveSettings: (settings: AppSettings) => void;
-  onOpenNightlight?: () => void;
 }
 
 export const WindDownModal: React.FC<WindDownModalProps> = ({
@@ -25,7 +24,6 @@ export const WindDownModal: React.FC<WindDownModalProps> = ({
   onClose,
   settings,
   onSaveSettings,
-  onOpenNightlight,
 }) => {
   const [selectedSound, setSelectedSound] = useState<AmbientSoundTrack>(settings.ambientSound);
   const [volume, setVolume] = useState<number>(settings.ambientVolume);
@@ -151,39 +149,21 @@ export const WindDownModal: React.FC<WindDownModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between gap-3 pt-3 border-t border-indigo-950">
-          <div>
-            {onOpenNightlight && (
-              <button
-                type="button"
-                id="wind-down-launch-nightlight-btn"
-                onClick={() => {
-                  onClose();
-                  onOpenNightlight();
-                }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-amber-300 bg-amber-950/50 border border-amber-500/30 hover:bg-amber-900/60 transition-all"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Launch Nightlight</span>
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white font-semibold"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              className="px-6 py-2.5 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-md transition-all"
-            >
-              Activate Wind Down
-            </button>
-          </div>
+        <div className="flex items-center justify-end gap-3 pt-3 border-t border-indigo-950">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white font-semibold"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="px-6 py-2.5 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-md transition-all"
+          >
+            Activate Wind Down
+          </button>
         </div>
       </div>
     </div>

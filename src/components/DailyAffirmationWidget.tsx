@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Sparkles,
@@ -9,10 +9,6 @@ import {
   Wind,
   Moon,
   Sparkle,
-  Waves,
-  CloudRain,
-  Music2,
-  Calendar,
 } from 'lucide-react';
 import {
   BedtimeAffirmation,
@@ -20,22 +16,16 @@ import {
   getDailyAffirmationForDate,
   formatAffirmationPhrase,
 } from '../data/bedtimeAffirmations';
-import { ambientSoundEngine } from '../services/audioNarration';
-import { AmbientSoundTrack } from '../types';
 
 interface DailyAffirmationWidgetProps {
   childName?: string;
   className?: string;
-  ambientSound?: AmbientSoundTrack;
-  ambientVolume?: number;
   onOpenWindDown?: () => void;
 }
 
 export const DailyAffirmationWidget: React.FC<DailyAffirmationWidgetProps> = ({
   childName = 'Little Explorer',
   className = '',
-  ambientSound = 'wind',
-  ambientVolume = 0.35,
   onOpenWindDown,
 }) => {
   const [currentAffirmation, setCurrentAffirmation] = useState<BedtimeAffirmation>(() =>
@@ -44,7 +34,6 @@ export const DailyAffirmationWidget: React.FC<DailyAffirmationWidgetProps> = ({
   const [isCustomSpun, setIsCustomSpun] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
-  const [isPlayingAmbient, setIsPlayingAmbient] = useState(false);
   const [showBreathingGuide, setShowBreathingGuide] = useState(false);
   const [breathingPhase, setBreathingPhase] = useState<'inhale' | 'hold' | 'exhale'>('inhale');
   const [breathingCountdown, setBreathingCountdown] = useState(4);
@@ -85,48 +74,14 @@ export const DailyAffirmationWidget: React.FC<DailyAffirmationWidgetProps> = ({
     return () => clearInterval(interval);
   }, [showBreathingGuide]);
 
-  // Clean up speech synthesis & ambient audio on unmount
+  // Clean up speech synthesis on unmount
   useEffect(() => {
     return () => {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
-      if (isPlayingAmbient) {
-        ambientSoundEngine.stopAmbient();
-      }
     };
-  }, [isPlayingAmbient]);
-
-  // Map ambient sound to icon and label
-  const soundscapeInfo = useMemo(() => {
-    switch (ambientSound) {
-      case 'ocean':
-        return { name: 'Ocean Waves', icon: Waves, color: 'text-sky-300', bgGlow: 'from-sky-500/10' };
-      case 'rain':
-        return { name: 'Gentle Rain', icon: CloudRain, color: 'text-blue-300', bgGlow: 'from-blue-500/10' };
-      case 'forest':
-        return { name: 'Night Forest', icon: Wind, color: 'text-emerald-300', bgGlow: 'from-emerald-500/10' };
-      case 'wind':
-        return { name: 'Starry Wind', icon: Wind, color: 'text-purple-300', bgGlow: 'from-purple-500/10' };
-      case 'lullaby':
-        return { name: 'Lullaby Chimes', icon: Music2, color: 'text-pink-300', bgGlow: 'from-pink-500/10' };
-      case 'whitenoise':
-        return { name: 'Cosmic Drift', icon: Moon, color: 'text-indigo-300', bgGlow: 'from-indigo-500/10' };
-      default:
-        return { name: 'Starry Wind', icon: Wind, color: 'text-purple-300', bgGlow: 'from-purple-500/10' };
-    }
-  }, [ambientSound]);
-
-  const handleToggleAmbient = () => {
-    if (isPlayingAmbient) {
-      ambientSoundEngine.stopAmbient();
-      setIsPlayingAmbient(false);
-    } else {
-      const trackToPlay = ambientSound === 'none' ? 'wind' : ambientSound;
-      ambientSoundEngine.playAmbient(trackToPlay, ambientVolume);
-      setIsPlayingAmbient(true);
-    }
-  };
+  }, []);
 
   const handleToggleFavorite = () => {
     try {
@@ -147,6 +102,7 @@ export const DailyAffirmationWidget: React.FC<DailyAffirmationWidgetProps> = ({
   };
 
   const handleSpinAnother = () => {
+    // Pick another affirmation different from current
     const remaining = DAILY_AFFIRMATIONS.filter((a) => a.id !== currentAffirmation.id);
     const randomIndex = Math.floor(Math.random() * remaining.length);
     setCurrentAffirmation(remaining[randomIndex]);
@@ -180,18 +136,14 @@ export const DailyAffirmationWidget: React.FC<DailyAffirmationWidgetProps> = ({
     window.speechSynthesis.cancel();
     const formattedText = formatAffirmationPhrase(currentAffirmation.phrase, childName);
     const utterance = new SpeechSynthesisUtterance(formattedText);
-    utterance.rate = 0.82; // Slow, soothing bedtime pace
+    utterance.rate = 0.85; // Slow, soothing bedtime pace
     utterance.pitch = 1.05; // Friendly warm pitch
 
+    // Prefer a gentle English voice if available
     const voices = window.speechSynthesis.getVoices();
     const gentleVoice = voices.find(
       (v) =>
-        (v.lang.startsWith('en') &&
-          (v.name.includes('Natural') ||
-            v.name.includes('Samantha') ||
-            v.name.includes('Google') ||
-            v.name.includes('Karen') ||
-            v.name.includes('Serena'))) ||
+        (v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Google') || v.name.includes('Karen'))) ||
         v.lang === 'en-US'
     );
     if (gentleVoice) {
@@ -205,23 +157,21 @@ export const DailyAffirmationWidget: React.FC<DailyAffirmationWidgetProps> = ({
     window.speechSynthesis.speak(utterance);
   };
 
-  const now = new Date();
-  const dayOfWeek = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(now);
-  const monthDay = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(now);
+  const dayOfWeek = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
+  const monthDay = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date());
 
   const themeTagDetails: Record<
     BedtimeAffirmation['theme'],
-    { label: string; bg: string; text: string; border: string; glow: string }
+    { label: string; bg: string; text: string; border: string }
   > = {
-    peace: { label: 'Inner Calm', bg: 'bg-indigo-950/80', text: 'text-indigo-300', border: 'border-indigo-500/40', glow: 'from-indigo-500/20' },
-    love: { label: 'Safe & Cherished', bg: 'bg-rose-950/80', text: 'text-rose-300', border: 'border-rose-500/40', glow: 'from-rose-500/20' },
-    wonder: { label: 'Starlight Wonder', bg: 'bg-amber-950/80', text: 'text-amber-300', border: 'border-amber-500/40', glow: 'from-amber-500/20' },
-    courage: { label: 'Gentle Bravery', bg: 'bg-cyan-950/80', text: 'text-cyan-300', border: 'border-cyan-500/40', glow: 'from-cyan-500/20' },
-    kindness: { label: 'Warm Heart', bg: 'bg-emerald-950/80', text: 'text-emerald-300', border: 'border-emerald-500/40', glow: 'from-emerald-500/20' },
+    peace: { label: 'Inner Calm', bg: 'bg-indigo-950/80', text: 'text-indigo-300', border: 'border-indigo-500/40' },
+    love: { label: 'Safe & Cherished', bg: 'bg-rose-950/80', text: 'text-rose-300', border: 'border-rose-500/40' },
+    wonder: { label: 'Starlight Wonder', bg: 'bg-amber-950/80', text: 'text-amber-300', border: 'border-amber-500/40' },
+    courage: { label: 'Gentle Bravery', bg: 'bg-cyan-950/80', text: 'text-cyan-300', border: 'border-cyan-500/40' },
+    kindness: { label: 'Warm Heart', bg: 'bg-emerald-950/80', text: 'text-emerald-300', border: 'border-emerald-500/40' },
   };
 
   const currentTag = themeTagDetails[currentAffirmation.theme] || themeTagDetails.peace;
-  const SoundIcon = soundscapeInfo.icon;
 
   return (
     <section
@@ -229,62 +179,37 @@ export const DailyAffirmationWidget: React.FC<DailyAffirmationWidgetProps> = ({
       aria-label="Daily Bedtime Affirmation"
       className={`relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#120d2a] via-[#0d0922] to-[#180f33] border border-indigo-900/60 shadow-xl backdrop-blur-xl ${className}`}
     >
-      {/* Dynamic Cosmic Ambient Aura synced to Theme & Soundscape */}
-      <div className={`absolute top-0 right-0 w-80 h-80 rounded-full bg-gradient-to-bl ${currentTag.glow} to-transparent blur-3xl pointer-events-none -mr-16 -mt-16`} />
-      <div className={`absolute bottom-0 left-0 w-72 h-72 rounded-full bg-gradient-to-tr ${soundscapeInfo.bgGlow} to-transparent blur-3xl pointer-events-none -ml-12 -mb-12`} />
+      {/* Whimsical Cosmic Ambient Aura */}
+      <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-amber-400/10 blur-3xl pointer-events-none -mr-16 -mt-16" />
+      <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full bg-purple-600/10 blur-3xl pointer-events-none -ml-12 -mb-12" />
 
       {/* Decorative Star Dust Grid */}
       <div className="absolute inset-0 bg-[radial-gradient(#a5b4fc_1px,transparent_1px)] [background-size:24px_24px] opacity-10 pointer-events-none" />
 
       <div className="relative z-10 p-5 sm:p-7 space-y-4">
         {/* Top Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-950/80">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-amber-400/20 border border-amber-400/50 flex items-center justify-center text-amber-300 shadow-sm shadow-amber-400/20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-indigo-950/80">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-400/20 border border-amber-400/50 flex items-center justify-center text-amber-300 shadow-sm shadow-amber-400/20">
               <Sparkles className="w-4 h-4 fill-current animate-pulse" />
             </div>
             <div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
                 <h3 className="text-sm sm:text-base font-playfair font-bold text-white tracking-wide">
                   Daily Bedtime Affirmation
                 </h3>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-sans font-bold ${currentTag.bg} ${currentTag.text} border ${currentTag.border}`}>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-sans font-bold ${currentTag.bg} ${currentTag.text} border ${currentTag.border}`}>
                   {currentTag.label}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-[11px] text-slate-400 font-light mt-0.5">
-                <span className="flex items-center gap-1 text-slate-300">
-                  <Calendar className="w-3 h-3 text-amber-400/80" />
-                  {isCustomSpun ? 'Constellation Wheel Selection' : `${dayOfWeek}, ${monthDay}`}
-                </span>
-                <span className="text-slate-600">&bull;</span>
-                <span className="flex items-center gap-1 text-indigo-300 font-medium">
-                  <SoundIcon className="w-3 h-3" />
-                  <span>{soundscapeInfo.name}</span>
-                </span>
-              </div>
+              <p className="text-[11px] text-slate-400 font-light">
+                {isCustomSpun ? 'Spun from the constellation wheel' : `${dayOfWeek} • ${monthDay} Starlight`}
+              </p>
             </div>
           </div>
 
-          {/* Action Tools: Soundscape Play, Narration, Star Breath, Favorite, Spin */}
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            {/* Ambient Soundscape Audio Play/Pause Button */}
-            <button
-              type="button"
-              id="affirmation-ambient-audio-btn"
-              onClick={handleToggleAmbient}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                isPlayingAmbient
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-1 ring-indigo-400 animate-pulse'
-                  : 'bg-indigo-950/70 hover:bg-indigo-900 border border-indigo-800/60 text-slate-300 hover:text-white'
-              }`}
-              title={isPlayingAmbient ? `Pause ${soundscapeInfo.name} soundscape` : `Play gentle ${soundscapeInfo.name} ambient soundscape`}
-              aria-label={isPlayingAmbient ? 'Pause ambient soundscape' : 'Play gentle ambient soundscape'}
-            >
-              <SoundIcon className={`w-3.5 h-3.5 ${isPlayingAmbient ? 'text-amber-300' : 'text-indigo-400'}`} />
-              <span className="hidden sm:inline">{isPlayingAmbient ? 'Sound Playing' : 'Play Atmosphere'}</span>
-            </button>
-
+          {/* Action Tools: Audio, Favorite, Spin Another */}
+          <div className="flex items-center gap-1.5 self-start sm:self-auto">
             {/* Listen Aloud Button */}
             <button
               type="button"
@@ -311,6 +236,22 @@ export const DailyAffirmationWidget: React.FC<DailyAffirmationWidgetProps> = ({
               )}
             </button>
 
+            {/* Favorite Button */}
+            <button
+              type="button"
+              id="affirmation-favorite-btn"
+              onClick={handleToggleFavorite}
+              className={`p-1.5 rounded-xl border transition-all ${
+                isFavorited
+                  ? 'bg-rose-500/20 border-rose-400 text-rose-300 shadow-sm shadow-rose-500/20'
+                  : 'bg-indigo-950/60 hover:bg-indigo-900 border-indigo-900/80 text-slate-400 hover:text-white'
+              }`}
+              title={isFavorited ? 'Saved in bedtime memories' : 'Save to favorite affirmations'}
+              aria-label={isFavorited ? 'Saved in bedtime memories' : 'Save to favorite affirmations'}
+            >
+              <Heart className={`w-4 h-4 ${isFavorited ? 'fill-current text-rose-400' : ''}`} />
+            </button>
+
             {/* Star Breath Toggle */}
             <button
               type="button"
@@ -326,22 +267,6 @@ export const DailyAffirmationWidget: React.FC<DailyAffirmationWidgetProps> = ({
             >
               <Wind className="w-3.5 h-3.5 text-emerald-400" />
               <span className="hidden sm:inline">Star Breath</span>
-            </button>
-
-            {/* Favorite Button */}
-            <button
-              type="button"
-              id="affirmation-favorite-btn"
-              onClick={handleToggleFavorite}
-              className={`p-1.5 rounded-xl border transition-all ${
-                isFavorited
-                  ? 'bg-rose-500/20 border-rose-400 text-rose-300 shadow-sm shadow-rose-500/20'
-                  : 'bg-indigo-950/60 hover:bg-indigo-900 border-indigo-900/80 text-slate-400 hover:text-white'
-              }`}
-              title={isFavorited ? 'Saved in bedtime memories' : 'Save to favorite affirmations'}
-              aria-label={isFavorited ? 'Saved in bedtime memories' : 'Save to favorite affirmations'}
-            >
-              <Heart className={`w-4 h-4 ${isFavorited ? 'fill-current text-rose-400' : ''}`} />
             </button>
 
             {/* Spin / Next Thought */}
@@ -366,25 +291,20 @@ export const DailyAffirmationWidget: React.FC<DailyAffirmationWidgetProps> = ({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
             transition={{ duration: 0.35, ease: 'easeOut' }}
-            className="py-3 px-4 sm:px-6 rounded-2xl bg-gradient-to-r from-indigo-950/50 via-purple-950/30 to-slate-950/40 border border-indigo-900/40 relative overflow-hidden"
+            className="py-2.5 px-3 sm:px-5 rounded-2xl bg-gradient-to-r from-indigo-950/50 via-purple-950/30 to-slate-950/40 border border-indigo-900/40"
           >
-            {/* Ambient Wave Bar Visualizer Indicator */}
-            {isPlayingAmbient && (
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent animate-pulse" />
-            )}
-
             <div className="flex items-start gap-3 sm:gap-4">
               <span className="text-3xl sm:text-4xl font-serif text-amber-400/40 select-none leading-none pt-1">
                 &ldquo;
               </span>
-              <div className="flex-1 space-y-2.5">
+              <div className="flex-1 space-y-2">
                 <p className="text-lg sm:text-2xl font-playfair font-medium text-slate-100 leading-relaxed tracking-wide">
                   {formatAffirmationPhrase(currentAffirmation.phrase, childName)}
                 </p>
 
                 {currentAffirmation.breathGuidance && (
                   <div className="flex items-center gap-2 text-xs text-indigo-200/90 font-light italic">
-                    <Sparkle className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                    <Sparkle className="w-3 h-3 text-amber-300 shrink-0" />
                     <span>{currentAffirmation.breathGuidance}</span>
                   </div>
                 )}
@@ -460,7 +380,7 @@ export const DailyAffirmationWidget: React.FC<DailyAffirmationWidgetProps> = ({
         </AnimatePresence>
 
         {/* Footer Sub-actions & Routine Connection */}
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 pt-1">
+        <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
           <div className="flex items-center gap-2">
             {isCustomSpun && (
               <button
@@ -468,28 +388,26 @@ export const DailyAffirmationWidget: React.FC<DailyAffirmationWidgetProps> = ({
                 onClick={handleResetToDaily}
                 className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold underline underline-offset-2 flex items-center gap-1"
               >
-                <span>Back to Today&apos;s Date Affirmation</span>
+                <span>Back to Today&apos;s Star Thought</span>
               </button>
             )}
             {!isCustomSpun && (
               <span className="text-[11px] text-slate-400">
-                Rotates each calendar day with a peaceful intention
+                Rotates each evening at sunset with a new calming thought
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-3">
-            {onOpenWindDown && (
-              <button
-                type="button"
-                onClick={onOpenWindDown}
-                className="text-[11px] text-indigo-300 hover:text-white font-medium flex items-center gap-1.5 hover:underline"
-              >
-                <Moon className="w-3.5 h-3.5 text-amber-400" />
-                <span>Adjust Ambient &amp; Timer</span>
-              </button>
-            )}
-          </div>
+          {onOpenWindDown && (
+            <button
+              type="button"
+              onClick={onOpenWindDown}
+              className="text-[11px] text-indigo-300 hover:text-white font-medium flex items-center gap-1"
+            >
+              <Moon className="w-3 h-3 text-amber-400" />
+              <span>Evening Routine</span>
+            </button>
+          )}
         </div>
       </div>
     </section>

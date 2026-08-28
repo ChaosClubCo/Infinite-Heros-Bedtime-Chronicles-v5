@@ -5,7 +5,6 @@ import { HeroSelector } from './HeroSelector';
 import { SleepDurationEstimator } from './SleepDurationEstimator';
 import { MADLIBS_TEMPLATES } from '../data/madlibsTemplates';
 import { generateCustomBedtimeStory } from '../services/aiStoryGenerator';
-import { VoiceInputButton } from './VoiceInputButton';
 import {
   Sparkles,
   Compass,
@@ -290,16 +289,9 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({
 
           {/* Optional Prompt */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-slate-300">
-                Special bedtime idea or object (optional):
-              </label>
-              <VoiceInputButton
-                onTranscript={(transcript) => {
-                  setCustomPrompt((prev) => (prev ? `${prev} ${transcript}` : transcript));
-                }}
-              />
-            </div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              Special bedtime idea or object (optional):
+            </label>
             <input
               type="text"
               value={customPrompt}
