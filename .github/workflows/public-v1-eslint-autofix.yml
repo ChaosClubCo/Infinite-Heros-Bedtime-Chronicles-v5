@@ -39,6 +39,12 @@ jobs:
       - name: Apply deterministic ESLint fixes
         run: npm run lint:fix
 
+      - name: Strip autofix-introduced trailing whitespace
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i 's/[[:space:]]\+$//' __tests__/release-provenance.test.ts api/server.mjs
+
       - name: Reject malformed patch output
         run: git diff --check
 
@@ -62,4 +68,4 @@ jobs:
       - name: Report remaining zero-warning gate
         run: npm run lint -- --max-warnings=0
 
-# Trigger revision: 1
+# Trigger revision: 2
