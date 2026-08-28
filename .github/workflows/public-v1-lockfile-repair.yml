@@ -1,0 +1,68 @@
+name: Public-v1 Lockfile Repair
+
+on:
+  push:
+    branches:
+      - release/public-v1-expo-freeze-20260827
+    paths:
+      - package.json
+      - package-lock.json
+      - .nvmrc
+      - .github/workflows/public-v1-lockfile-repair.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: public-v1-lockfile-repair
+  cancel-in-progress: false
+
+jobs:
+  repair-lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v7
+        with:
+          ref: release/public-v1-expo-freeze-20260827
+          fetch-depth: 0
+
+      - name: Setup repository Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install repository npm version
+        run: npm install --global npm@11
+
+      - name: Verify toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version
+          npm --version
+          test "$(node --version | sed 's/^v//' | cut -d. -f1)" = "22"
+          test "$(npm --version | cut -d. -f1)" = "11"
+
+      - name: Regenerate deterministic lockfile
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Verify manifest was not modified
+        run: git diff --exit-code -- package.json
+
+      - name: Verify strict clean install
+        run: npm ci
+
+      - name: Commit synchronized lockfile when changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json already synchronized"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "fix(release): synchronize public-v1 npm lockfile"
+          git push origin HEAD:release/public-v1-expo-freeze-20260827
