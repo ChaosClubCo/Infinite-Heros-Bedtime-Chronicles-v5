@@ -12,8 +12,7 @@ mcp-servers:
       - list_tables
       - list_extensions
       - list_migrations
-      - execute_sql
-      - query_logs
+      - get_logs
       - get_advisors
       - get_project_url
       - generate_typescript_types

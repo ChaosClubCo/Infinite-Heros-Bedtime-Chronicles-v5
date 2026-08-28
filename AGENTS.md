@@ -20,12 +20,15 @@ All three files share the same underlying rules. Agent-specific files are format
 ### GitHub Repository Custom Agents
 
 Repository-scoped GitHub custom agents are defined in `.github/agents/` for task-oriented workflows:
-- `api-backend.md`
-- `safety-reviewer.md`
-- `story-engineer.md`
-- `ui-designer.md`
-- `test-writer.md`
-- `devops.md`
+- `api-backend.agent.md`
+- `safety-reviewer.agent.md`
+- `story-engineer.agent.md`
+- `ui-designer.agent.md`
+- `test-writer.agent.md`
+- `devops.agent.md`
+- `mobile-expo-release.agent.md`
+- `data-auth-guardian.agent.md`
+- `release-conformance.agent.md`
 
 See [`docs/GITHUB-CUSTOM-AGENTS.md`](./docs/GITHUB-CUSTOM-AGENTS.md) for scope, routing, and best-practice usage guidance.
 

@@ -6,10 +6,14 @@ mcp-servers:
   sentry:
     type: local
     command: npx
-    args: ["-y", "@sentry/mcp-server@latest", "--host=https://sentry.io"]
+    args: ["-y", "@sentry/mcp-server@0.3.0", "--host=https://sentry.io"]
     env:
       SENTRY_ACCESS_TOKEN: "$COPILOT_MCP_SENTRY_ACCESS_TOKEN"
-    tools: ["*"]
+    tools:
+      - list_issues
+      - list_events
+      - list_replays
+      - get_sentry_event_for_url
 metadata:
   domain: conformance
   risk: critical
