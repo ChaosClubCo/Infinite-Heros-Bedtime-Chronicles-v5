@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+import {
+  xaiProvider,
+  mistralProvider,
+  cohereProvider,
+  metaLlamaProvider,
+  pingOpenRouter,
+  OPENROUTER_PRIVACY_ROUTING,
+} from './openrouter';
+
 const { chatCreateMock, ctorArgs } = vi.hoisted(() => ({
   chatCreateMock: vi.fn(),
   ctorArgs: [] as unknown[],
@@ -13,15 +22,6 @@ vi.mock('openai', () => ({
     }
   },
 }));
-
-import {
-  xaiProvider,
-  mistralProvider,
-  cohereProvider,
-  metaLlamaProvider,
-  pingOpenRouter,
-  OPENROUTER_PRIVACY_ROUTING,
-} from './openrouter';
 
 const PROVIDERS = [
   { provider: xaiProvider, name: 'xai', displayName: 'xAI Grok', model: 'x-ai/grok-3-mini' },

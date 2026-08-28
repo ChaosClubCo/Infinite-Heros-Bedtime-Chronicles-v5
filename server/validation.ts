@@ -14,7 +14,7 @@ export function sanitizePromptInput(val: unknown, maxLen = 500): string {
   if (typeof val !== 'string') return '';
   let s = val.slice(0, maxLen);
   s = s.replace(/%[0-1][0-9a-fA-F]/gi, ' ');
-  // eslint-disable-next-line no-control-regex
+
   s = s.replace(/[\x00-\x1F\x7F]+/g, ' ');
   s = s.replace(/`+/g, "'").replace(/"{3,}/g, '"').replace(/~{3,}/g, '');
   s = s.replace(/\b(system|assistant|user)\s*:/gi, '$1');

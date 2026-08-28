@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 
 // We test the pure logic of video.ts without triggering its module-level
 // side effects (setInterval, fs.mkdirSync) by replicating key logic here.

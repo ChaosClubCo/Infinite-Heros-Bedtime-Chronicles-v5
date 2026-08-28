@@ -9,7 +9,6 @@ import {
   StreakData,
   ParentControls,
   DEFAULT_PARENT_CONTROLS,
-  BADGE_DEFINITIONS,
 } from '@/constants/types';
 import { HEROES } from '@/constants/heroes';
 import { evaluateBadges } from './badges';
