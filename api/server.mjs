@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     // Reset only on init failure so the next request retries initialization
     appPromise = null;
     // SECURITY: avoid leaking internal error details to clients
-    // eslint-disable-next-line no-console
+
     console.error('Failed to initialize application', error);
     if (!res.headersSent) {
       res.statusCode = 500;

@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import {
+  getQueuedInteractions,
+  queueInteraction,
+  clearQueuedInteractions,
+  syncOfflineInteractions,
+} from './sync-queue';
+
 const store = new Map<string, string>();
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
@@ -17,13 +24,6 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 
 const { apiRequest } = vi.hoisted(() => ({ apiRequest: vi.fn() }));
 vi.mock('@/lib/query-client', () => ({ apiRequest }));
-
-import {
-  getQueuedInteractions,
-  queueInteraction,
-  clearQueuedInteractions,
-  syncOfflineInteractions,
-} from './sync-queue';
 
 describe('sync-queue', () => {
   beforeEach(() => {

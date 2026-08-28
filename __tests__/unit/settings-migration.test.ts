@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 
+import { DEFAULT_SETTINGS } from "../../lib/SettingsContext";
+import type { AppSettings } from "../../lib/SettingsContext";
+
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
     getItem: vi.fn(() => Promise.resolve(null)),
@@ -8,9 +11,6 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
     clear: vi.fn(() => Promise.resolve()),
   },
 }));
-
-import { DEFAULT_SETTINGS } from "../../lib/SettingsContext";
-import type { AppSettings } from "../../lib/SettingsContext";
 
 /**
  * Tests for the settings reducer and migration logic.
