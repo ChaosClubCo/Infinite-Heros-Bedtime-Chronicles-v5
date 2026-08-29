@@ -1,17 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
-  "framework": null,
-  "installCommand": "npx npm@11 ci --include=dev",
   "buildCommand": "bash scripts/vercel-build.sh",
-  "outputDirectory": ".",
   "functions": {
     "api/server.mjs": {
-      "maxDuration": 300,
-      "includeFiles": "{server_dist/**,static-build/**,assets/**,server/templates/**,app.json}"
+      "includeFiles": "{server_dist/**,static-build/**,assets/**,server/templates/**,app.json}",
+      "maxDuration": 300
     }
   },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api/server" }
-  ]
+    {
+      "source": "/(.*)",
+      "destination": "/api/server"
+    }
+  ],
+  "git": {
+    "deploymentEnabled": false
+  }
 }
