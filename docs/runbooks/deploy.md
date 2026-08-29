@@ -4,11 +4,12 @@
 
 This runbook covers the active release surfaces for Infinity Heroes: Bedtime Chronicles.
 
-- Web/API hosting authority: Cloudflare.
+- Web/API target: Cloudflare Workers + Workers Static Assets.
 - Mobile delivery: Expo / EAS.
-- Vercel deployment: retired. Do not trigger Vercel deploy hooks, CLI production deploys, or native Git deployments.
+- Vercel deployment: retired for new revisions and fail-closed at the Git integration.
+- Cloudflare production certification: **BLOCKED** until the exact service, routes, deployment/version, runtime SHA, and rollback version are independently verified.
 
-For the Cloudflare runtime migration contract and release gates, see [the Cloudflare Runtime Migration Design](../superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md).
+For the runtime migration contract and release gates, see [the Cloudflare Runtime Migration Design](../superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md).
 
 ---
 
@@ -21,42 +22,46 @@ For the Cloudflare runtime migration contract and release gates, see [the Cloudf
 
 ---
 
-## Canonical Deployment Workflow
+## Web/API deployment
 
-### 1. Web/API: Cloudflare
+### Cloudflare admission
 
-Cloudflare is the canonical web/API hosting authority. The repository must not deploy to Vercel.
+Do not promote a Cloudflare deployment until all of the following are captured for the same candidate:
 
-1. Build and verify the exact candidate using the repository release gates.
-2. Deploy only through the approved Cloudflare deployment surface for the candidate.
-3. Verify `/api/health` and release provenance against the exact candidate SHA.
-4. Verify the canonical production domains and privacy route.
-5. Preserve the Cloudflare deployment/version identifier and candidate SHA in release evidence.
-6. Proceed to [Post-Deploy Verification](#post-deploy-verification).
+1. Cloudflare account identity.
+2. Worker/Pages service or project identity.
+3. Production route for `bedtime-chronicles.com`.
+4. Production route for `www.bedtime-chronicles.com`.
+5. Exact deployment/version ID.
+6. Runtime source SHA equal to the candidate SHA.
+7. Runtime canonical repository and `main` ref.
+8. One previously verified rollback version and SHA.
 
-The detailed Cloudflare runtime contract, including Workers Static Assets, exact-SHA provenance, compatibility gates, and rollback requirements, is maintained in the [Cloudflare Runtime Migration Design](../superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md).
+The canonical branch currently does not contain the Worker entry and Wrangler configuration described by the August 28 design. Treat the hosting migration as unverified until that implementation and provider-side evidence are reconciled.
 
 ### Vercel retirement guard
 
-`vercel.json` is retained only as a fail-closed deployment tombstone with `git.deploymentEnabled=false`. The former `.github/workflows/vercel-deploy.yml` deploy-hook workflow is retired and must not be restored as an active deployment path.
+`vercel.json` is retained only as a fail-closed tombstone with `git.deploymentEnabled=false` while the Vercel project remains linked. The former deploy-hook workflow and Vercel runtime/build adapters are retired.
 
-Any future Vercel deployment observed for this repository is deployment drift and must be investigated before release promotion continues.
+Any new Vercel deployment for this repository is deployment drift and blocks release promotion.
+
+Do not detach the two production domains or delete the Vercel project until Cloudflare admission and rollback evidence exist.
 
 ---
 
-### 2. Mobile Client: EAS Build
+## Mobile client: EAS Build
 
 Native mobile binaries are built via EAS:
 
-- **Preview (internal APK testing):** `bash scripts/build-android.sh preview`
-- **Production (Google Play AAB):** `bash scripts/build-android.sh production`
-- See [docs/operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md) and [docs/operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md](../operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md) for signing credentials and submission steps.
+- **Preview:** `bash scripts/build-android.sh preview`
+- **Production:** `bash scripts/build-android.sh production`
+- See [docs/operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md) and [docs/operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md](../operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md) for signing and submission procedures.
 
 ---
 
-## Local Production-Mode Smoke
+## Local production-mode smoke
 
-These commands validate the application locally. They are not a production deployment mechanism.
+These commands validate the Node application locally. They are not a Cloudflare deployment proof.
 
 ```bash
 npm ci
@@ -64,13 +69,13 @@ npm run server:build
 npm run server:prod
 ```
 
-Do not substitute local Node success for Cloudflare Worker/workerd, deployed provenance, or rollback evidence when those gates apply.
+Do not substitute local success for Worker/workerd compatibility, deployed provenance, custom-domain routing, or rollback evidence.
 
 ---
 
-## Post-Deploy Verification
+## Post-deploy verification
 
-Run health checks against the canonical Cloudflare-backed production domain:
+Against a provider deployment already admitted by the Cloudflare gate:
 
 ```bash
 BASE_URL=https://bedtime-chronicles.com
@@ -78,22 +83,18 @@ BASE_URL=https://bedtime-chronicles.com
 curl --fail --silent --show-error "$BASE_URL/api/health"
 curl --fail --silent --show-error "$BASE_URL/api/ai-providers"
 curl --fail --silent --show-error "$BASE_URL/api/voices"
+curl --fail --silent --show-error "$BASE_URL/privacy"
 ```
 
-A healthy deploy must show, at minimum:
+The release-proof contract requires exact runtime identity. An `ok` health response without the candidate SHA is not enough.
 
-- `/api/health` reports an OK state.
-- Runtime release identity matches the exact candidate SHA when provenance is required by the release contract.
-- `/api/ai-providers` exposes expected provider availability without leaking secrets.
-- Canonical production domains resolve to the intended Cloudflare delivery path.
-
-If any required check fails, follow the [rollback runbook](./rollback.md). A source-only rollback guess is not sufficient for Cloudflare certification; use an identified previously verified deployment/version as required by the migration design.
+If any required check fails, follow the [rollback runbook](./rollback.md). Roll back using an identified provider version, not a source-only guess.
 
 ---
 
-## See Also
+## See also
 
-- [Cloudflare Runtime Migration Design](../superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md) - canonical web/API migration and release contract
-- [rollback.md](./rollback.md) - roll back a bad deployment
-- [incident-response.md](./incident-response.md) - respond to a production incident
-- [docs/operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md) - broader deployment reference; reconcile any remaining legacy Vercel guidance before treating it as canonical
+- [Cloudflare Runtime Migration Design](../superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md)
+- [Deployment Manual](../operations/DEPLOYMENT.md)
+- [rollback.md](./rollback.md)
+- [incident-response.md](./incident-response.md)
