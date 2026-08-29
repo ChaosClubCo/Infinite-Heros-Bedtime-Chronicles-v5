@@ -1,5 +1,18 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "bash scripts/vercel-build.sh",
+  "functions": {
+    "api/server.mjs": {
+      "includeFiles": "{server_dist/**,static-build/**,assets/**,server/templates/**,app.json}",
+      "maxDuration": 300
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/server"
+    }
+  ],
   "git": {
     "deploymentEnabled": false
   }
