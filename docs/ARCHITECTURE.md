@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-08-14 -->
+<!-- Last verified: 2026-08-29 -->
 # Architecture
 
 See also: [ADR index](./adr/README.md) and [security policy](./SECURITY.md).
@@ -8,14 +8,14 @@ See also: [ADR index](./adr/README.md) and [security policy](./SECURITY.md).
 ```mermaid
 flowchart LR
     Client[Expo app\napp/ + components/ + lib/]
-    API[Express API\nserver/]
+    API[Express application\nserver/]
     AIRouter[AI router\nAnthropic -> Gemini -> OpenAI -> OpenRouter]
     TTS[ElevenLabs]
     Video[OpenAI Sora]
     Supabase[Supabase\nAuth + Postgres + RLS]
-    Cloudflare[Cloudflare\nKV + R2]
+    CFData[Cloudflare\nKV + R2]
+    CFHosting[Cloudflare Workers + Static Assets\ntarget; migration not yet certified]
     Sentry[Sentry]
-    Vercel[Vercel serverless]
     EAS[EAS Build]
 
     Client -->|HTTPS/JSON + SSE| API
@@ -23,16 +23,18 @@ flowchart LR
     API --> TTS
     API --> Video
     API --> Supabase
-    API -. optional .-> Cloudflare
+    API -. optional data services .-> CFData
     API -. telemetry .-> Sentry
     Client -. telemetry .-> Sentry
-    API --> Vercel
+    CFHosting -. planned runtime adapter .-> API
     Client --> EAS
 ```
 
 ## Repository type
 
 Single full-stack application: Expo client + Express backend in one repository.
+
+The August 28 migration design selects Cloudflare Workers + Workers Static Assets as the web/API target. That runtime adapter is **not implemented or certified on the currently verified canonical branch**: `worker/index.ts` and Wrangler configuration are absent, so the diagram above labels Cloudflare hosting as a target rather than pretending a design document is executable infrastructure.
 
 ## Component breakdown
 
@@ -115,11 +117,12 @@ Single full-stack application: Expo client + Express backend in one repository.
 
 ## Infrastructure topology
 
-| Layer | Provider / runtime | Role |
-|------|---------------------|------|
-| Web/API hosting | Vercel serverless (`api/server.mjs`) | canonical hosted backend and static web entrypoint |
+| Layer | Provider / runtime | Role / status |
+|------|---------------------|---------------|
+| Web/API hosting target | Cloudflare Workers + Workers Static Assets | selected by migration design; implementation/provenance not yet certified from canonical source |
+| Transitional hosting guard | Vercel project remains linked with Git deployment disabled | last-known hosting object retained only until Cloudflare origin + rollback are proven; not an approved new-deploy target |
 | Native builds | Expo Application Services | Android/iOS build pipeline |
-| Local/dev cloud workspace | Replit | dev environment and historical deployment path |
+| Local/dev cloud workspace | Replit | development environment and Node-runtime smoke surface |
 | Database and auth | Supabase | bearer-token auth, Postgres, RLS-backed sync |
 | AI providers | Anthropic, Gemini, OpenAI, OpenRouter | story, suggestion, image, and optional video generation |
 | TTS | ElevenLabs | narration audio |
@@ -136,7 +139,8 @@ Single full-stack application: Expo client + Express backend in one repository.
 | Keep local state in AsyncStorage first | offline-first child experience | [ADR-0004](./adr/0004-asyncstorage-as-client-data-store.md) |
 | Keep backend as Express in-repo | thin API boundary with shared TypeScript types | [ADR-0005](./adr/0005-express-backend-api-server.md) |
 | Use Supabase for auth and sync storage | managed auth + Postgres + RLS | [ADR-0006](./adr/0006-supabase-auth-migration.md) |
-| Prefer controlled Vercel deployment path | provenance and release gating | [ADR-0007](./adr/0007-hook-only-vercel-deployment.md) |
+| Historical Vercel hook-only deployment decision | superseded as an active runtime policy; retained as history | [ADR-0007](./adr/0007-hook-only-vercel-deployment.md) |
+| Migrate web/API hosting to Cloudflare Workers | remove Vercel runtime coupling while retaining Express semantics and exact-SHA gates | [Cloudflare Runtime Migration Design](./superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md) |
 
 ## Failure modes and recovery
 
@@ -149,12 +153,13 @@ Single full-stack application: Expo client + Express backend in one repository.
 | Cloudflare KV/R2 outage | persistent limiter/cache layer unavailable | server falls back to in-memory rate-limit/idempotency and `/tmp` TTS caching |
 | Server overload | latency spikes / queue pressure | load-shedding rejects excess requests with `503` |
 | Unsafe model output | child-visible content risk | moderation gate regenerates once, then serves safe fallback |
+| Hosting provenance unavailable | production source identity cannot be proven | block promotion; do not infer deployment identity from DNS or source state |
 
 ## Scaling model
 
-### Current model
+### Current application model
 
-- Request handling is stateless enough for serverless/server restart behavior.
+- Request handling is designed to tolerate stateless runtime restarts.
 - AI latency is the primary response-time bottleneck.
 - `/tmp` and in-memory maps are ephemeral unless Cloudflare persistence is configured.
 
@@ -169,6 +174,7 @@ Single full-stack application: Expo client + Express backend in one repository.
 - Horizontal API scale works best when KV/R2 persistence is configured.
 - Additional shared cache layers would reduce repeated TTS/image work.
 - The client already absorbs many reads because stories and progression remain on-device.
+- The Worker migration must prove compatibility under workerd before production promotion.
 
 ## Security boundaries
 
@@ -181,6 +187,7 @@ Single full-stack application: Expo client + Express backend in one repository.
 | Auth boundary | verified Supabase bearer tokens on protected routes |
 | Data privacy | cloud sync excludes child-profile PII; profile stubs are minimal IDs only |
 | Secrets management | environment variables only; `.env.example` contains placeholders only |
+| Hosting identity | provider-reported deployment metadata must reconcile to exact candidate SHA/repo/ref before certification |
 
 ## Operational references
 
