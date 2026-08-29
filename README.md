@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-08-28 -->
+<!-- Last verified: 2026-08-29 -->
 # Infinity Heroes: Bedtime Chronicles
 
 ![Node 22.x](https://img.shields.io/badge/node-22.x-339933)
@@ -24,14 +24,15 @@ Express API (server/)
   -> AI router (Anthropic -> Gemini -> OpenAI -> OpenRouter)
   -> ElevenLabs TTS
   -> Supabase Auth + Postgres
-  -> Cloudflare KV / R2 (optional)
+  -> Cloudflare KV / R2 (optional infrastructure integrations)
 ```
 
 ### Major boundaries
 
 - **Client:** Expo Router screens, React Context state, AsyncStorage persistence, React Query request layer.
 - **API server:** Input validation, auth gates, rate limiting, compliance checks, AI orchestration, TTS/video/image endpoints.
-- **External services:** Anthropic, Gemini, OpenAI, OpenRouter, ElevenLabs, Supabase, Cloudflare, Sentry, Vercel, EAS Build.
+- **External services:** Anthropic, Gemini, OpenAI, OpenRouter, ElevenLabs, Supabase, Cloudflare KV/R2, Sentry, EAS Build.
+- **Web/API hosting target:** Cloudflare Workers + Workers Static Assets per the August 28 migration design. Production Cloudflare provenance remains blocked until the Worker implementation and provider deployment/version evidence are reconciled.
 
 For the full system design, see [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 
@@ -39,25 +40,25 @@ For the full system design, see [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 
 | Layer | Technology | Version / Notes |
 |------|------------|-----------------|
-| Client | Expo + React Native + React | `expo ~55.0.28`, `react-native 0.83.10`, `react 19.2.0` |
-| Routing | Expo Router | `~55.0.17` |
+| Client | Expo + React Native + React | `expo ~55.0.30`, `react-native 0.83.10`, `react 19.2.0` |
+| Routing | Expo Router | `~55.0.18` |
 | Backend | Express | `^5.0.1` |
 | Language | TypeScript | `~5.9.2`, strict mode |
 | Validation | Zod | `^4.4.3` |
 | Database | PostgreSQL + Drizzle ORM | Supabase-hosted; voice chat + cloud sync |
 | Client persistence | AsyncStorage | offline-first local storage |
 | Server state | TanStack React Query | `^5.101.4` |
-| TTS | ElevenLabs | `eleven_multilingual_v2` |
+| TTS | ElevenLabs | provider-backed narration |
 | Observability | pino + Sentry | optional DSNs |
-| Build / deploy | esbuild, GitHub Actions, Vercel, EAS Build | serverless web/API + native mobile builds |
+| Build / release | esbuild, GitHub Actions, Cloudflare target, EAS Build | web/API migration + native mobile builds |
 
 ## Prerequisites
 
-- Node.js `>=20.19 <21` or `>=22.13 <23`
+- Node.js `>=20.19 <21` or `>=22.15 <23`
 - npm `11.x`
 - At least one AI provider key; Gemini is the simplest starting point
 - Optional: ElevenLabs key for narration, Supabase project for auth/cloud sync, PostgreSQL for voice chat
-- Optional accounts: Vercel (web/API hosting), Expo/EAS (mobile builds), Sentry (error tracking)
+- Optional accounts: Cloudflare for target web/API hosting and KV/R2, Expo/EAS for mobile builds, Sentry for error tracking
 
 ## Quickstart
 
@@ -143,18 +144,19 @@ npm run preflight
 - **Vitest:** server, shared, and pure `lib/` units (`npm test`)
 - **Jest Expo:** React Native component coverage (`npm run test:components`)
 - **Coverage target:** `>=80%` branch coverage for the Vitest coverage set (`vitest.config.ts`)
-- **Current documented snapshot:** 1,453 passing tests (1,401 Vitest + 52 Jest) last measured on 2026-07-27; re-run the suites before updating that count
+- Re-run the complete suites before publishing any test-count snapshot; point-in-time counts become stale quickly.
 
 See [docs/best-practices/TESTING.md](./docs/best-practices/TESTING.md).
 
 ## Deployment
 
-- **Web/API:** Vercel serverless via [`vercel.json`](./vercel.json) and the workflows in [`.github/workflows/`](./.github/workflows/)
-- **Native mobile:** Expo Application Services (EAS) using [`eas.json`](./eas.json)
-- **CI/CD:** GitHub Actions handles lint, typecheck, tests, web build, release proof, link checking, and deployment workflows
+- **Web/API target:** Cloudflare Workers + Workers Static Assets. The target is not yet certified from `main`; see the migration gate in [DEPLOY.md](./DEPLOY.md).
+- **Vercel:** retired for new revisions. Git deployment is disabled by a temporary tombstone while the linked project/domains remain pending safe retirement.
+- **Native mobile:** Expo Application Services using [`eas.json`](./eas.json).
+- **CI/CD:** GitHub Actions handles lint, typecheck, tests, web build, exact-head evidence, release proof, link checking, and deployment-drift measurement.
 
 Deployment references:
-- [DEPLOY.md](./DEPLOY.md) — production deployment policy
+- [DEPLOY.md](./DEPLOY.md) — production deployment policy and Cloudflare admission gate
 - [docs/operations/DEPLOYMENT.md](./docs/operations/DEPLOYMENT.md) — detailed deployment manual
 - [docs/runbooks/deploy.md](./docs/runbooks/deploy.md) — operational deploy runbook
 - [docs/runbooks/rollback.md](./docs/runbooks/rollback.md) — rollback steps
@@ -168,7 +170,6 @@ constants/              Shared constants, hero catalog, color/timing tokens, app
 lib/                    Client utilities, contexts, storage helpers, sync engine, hooks
 server/                 Express server, AI router, middleware, route modules, compliance gates
 shared/                 Types and database schema shared across client/server
-api/                    Vercel serverless entrypoint
 scripts/                Build, verification, and release-support scripts
 docs/                   Architecture, API, security, operations, ADRs, runbooks, agent docs
 supabase/               Supabase migrations and related assets

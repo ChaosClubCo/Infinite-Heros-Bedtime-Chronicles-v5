@@ -85,14 +85,8 @@ function setupCors(app: express.Application) {
   app.use((req, res, next) => {
     const origins = new Set<string>();
 
-    // Custom domain
     origins.add("https://bedtime-chronicles.com");
     origins.add("https://www.bedtime-chronicles.com");
-
-    // Vercel preview deployments
-    if (process.env.VERCEL_URL) {
-      origins.add(`https://${process.env.VERCEL_URL}`);
-    }
 
     if (process.env.REPLIT_DEV_DOMAIN) {
       origins.add(`https://${process.env.REPLIT_DEV_DOMAIN}`);
@@ -118,17 +112,7 @@ function setupCors(app: express.Application) {
       }
     })();
 
-    // Allow Vercel preview URLs — restricted to our project prefix
-    const isVercelPreview = (() => {
-      if (!origin) return false;
-      try {
-        return /^infinite-hero[a-z0-9-]*\.vercel\.app$/.test(new URL(origin).hostname);
-      } catch {
-        return false;
-      }
-    })();
-
-    if (origin && (origins.has(origin) || isLocalhost || isVercelPreview)) {
+    if (origin && (origins.has(origin) || isLocalhost)) {
       res.header("Access-Control-Allow-Origin", origin);
       res.header(
         "Access-Control-Allow-Methods",
@@ -276,7 +260,6 @@ function configureExpoAndLanding(app: express.Application) {
   try {
     landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
   } catch {
-    // Fallback minimal landing page if the template file is not bundled
     log("[Landing] Template file not found; using minimal fallback page");
     landingPageTemplate = FALLBACK_LANDING_HTML;
   }
@@ -318,7 +301,6 @@ function configureExpoAndLanding(app: express.Application) {
 
 function sanitizeErrorMessage(err: unknown): string {
   if (err instanceof Error) {
-    // Strip stack traces and internal details
     return err.message.replace(/\n.*/gs, '').slice(0, 200);
   }
   return 'Internal Server Error';
@@ -348,8 +330,9 @@ function setupErrorHandler(app: express.Application) {
 export async function createApp(): Promise<express.Application> {
   const app = express();
 
-  // Trust the single platform proxy (Vercel/Replit) so req.ip reflects the real
-  // client for rate-limiting instead of the proxy address.
+  // Long-running Node deployments may have one trusted proxy hop. A Cloudflare
+  // Worker adapter must normalize client identity at its own boundary instead of
+  // trusting arbitrary public forwarding headers.
   app.set('trust proxy', 1);
 
   validateEnvironment();
@@ -368,8 +351,8 @@ export async function createApp(): Promise<express.Application> {
   return app;
 }
 
-// Only start the server when running directly (not imported by Vercel)
-if (!process.env.VERCEL && process.env.NODE_ENV !== "test") {
+// Start the long-running Node adapter when this module is executed outside tests.
+if (process.env.NODE_ENV !== "test") {
   (async () => {
     const app = await createApp();
     const { createServer } = await import("node:http");
