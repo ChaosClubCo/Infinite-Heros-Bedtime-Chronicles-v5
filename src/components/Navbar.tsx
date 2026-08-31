@@ -9,6 +9,7 @@ import {
   Settings,
   Compass,
   Wand2,
+  WifiOff,
 } from 'lucide-react';
 
 export type NavTab = 'home' | 'gallery' | 'madlibs' | 'create' | 'library' | 'saved' | 'trophies' | 'settings';
@@ -21,6 +22,7 @@ interface NavbarProps {
   streakCount: number;
   childName?: string;
   childAvatar?: string;
+  isOnline?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -31,8 +33,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   streakCount,
   childName = 'Little Explorer',
   childAvatar = 'fox',
+  isOnline = true,
 }) => {
   const avatarObj = getAvatarById(childAvatar);
+
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
@@ -92,15 +96,29 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Right Side: Streak & Settings */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Offline Mode Indicator Badge */}
+          {!isOnline && (
+            <div
+              id="navbar-offline-badge"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-950/70 border border-amber-500/50 text-amber-300 text-xs font-bold shadow-sm animate-pulse"
+              title="Offline Mode Active — Cached Stories & Library Ready"
+            >
+              <WifiOff className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Offline Mode</span>
+            </div>
+          )}
+
           {/* Bedtime Reading Streak Badge */}
           <div
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-950/60 border border-amber-500/30 text-amber-300 text-xs font-bold shadow-sm"
             title="Current bedtime reading streak"
           >
             <span className="text-sm">🔥</span>
-            <span>{streakCount} Night Streak</span>
+            <span className="hidden xs:inline">{streakCount} Night Streak</span>
+            <span className="xs:hidden">{streakCount}</span>
           </div>
+
 
           {/* Bedtime Routine & Child Profile */}
           <button

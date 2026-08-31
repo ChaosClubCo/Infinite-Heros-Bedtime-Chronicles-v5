@@ -1,8 +1,8 @@
-<!-- Last verified: 2026-08-14 -->
+<!-- Last verified: 2026-08-30 -->
 <!-- Update this file when significant changes occur. -->
 # MEMORY.md — Persistent AI Agent Context
 
-**Last updated:** 2026-08-14
+**Last updated:** 2026-08-30
 
 ## Project identity
 
@@ -39,6 +39,8 @@
 
 | Date | Change |
 |------|--------|
+| 2026-08-30 | Added Good Morning Sunrise overlay with harmonic dawn synthesizer, top-of-screen segmented scene progress bar, persistent bottom playback controls, 10s narration rewind, and independent ambient audio volume slider |
+| 2026-08-22 | Added interactive story audio previews, dedicated preview volume controls, 'More Like This' story recommendations, and personalized Child Dream Avatar system |
 | 2026-08-14 | Documentation audit and refresh for README, architecture, security, agent instructions, conventions, glossary, and compatibility wrappers |
 | 2026-08-14 | Added release-proof, mirror-verification, and EAS preflight verification tooling; expanded operations docs |
 | 2026-08-14 | Added privacy route variants, release-proof ledger docs, and webhook surface audit |

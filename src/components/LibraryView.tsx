@@ -12,20 +12,25 @@ import {
   Moon,
   Compass,
   Bookmark,
+  CheckCircle2,
+  WifiOff,
 } from 'lucide-react';
 
 interface LibraryViewProps {
   onSelectStory: (story: Story) => void;
   onSaveStory: (story: Story) => void;
   savedStoryIds: string[];
+  isOnline?: boolean;
 }
 
 export const LibraryView: React.FC<LibraryViewProps> = ({
   onSelectStory,
   onSaveStory,
   savedStoryIds,
+  isOnline = true,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+
   const [selectedTheme, setSelectedTheme] = useState<string>('all');
   const [selectedAge, setSelectedAge] = useState<string>('all');
   const [selectedMode, setSelectedMode] = useState<string>('all');
@@ -77,8 +82,35 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-8">
+      {/* Offline Alert Banner in Library */}
+      {!isOnline && (
+        <div className="p-4 rounded-3xl bg-indigo-950/60 border border-indigo-500/40 text-indigo-200 shadow-xl flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-900/70 border border-indigo-400/40 flex items-center justify-center text-amber-300 shrink-0">
+              <WifiOff className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+                Offline Library Active
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950 border border-emerald-500/50 text-emerald-300">
+                  Cached for Bedtime
+                </span>
+              </h4>
+              <p className="text-xs text-indigo-300/80 mt-0.5">
+                All featured master stories and local story seeds are cached and ready to play offline with audio narration.
+              </p>
+            </div>
+          </div>
+          <span className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-emerald-300 px-3 py-1.5 rounded-xl bg-emerald-950/60 border border-emerald-600/40 shrink-0">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Service Worker Cached</span>
+          </span>
+        </div>
+      )}
+
       {/* Search & Filter Header */}
       <div className="p-4 sm:p-6 rounded-3xl bg-slate-900/80 border border-slate-800/90 shadow-xl backdrop-blur-xl space-y-4">
+
         <div className="flex flex-col sm:flex-row items-center gap-3">
           {/* Search Bar */}
           <div className="relative flex-1 w-full">
@@ -222,7 +254,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
                     <div className="flex items-center justify-between pt-4 border-t border-indigo-950/80">
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-[11px] text-slate-400 capitalize">{story.category}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] text-slate-400 capitalize">{story.category}</span>
+                          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-950/70 text-emerald-300 border border-emerald-600/30">
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            Offline
+                          </span>
+                        </div>
                         {story.mode === 'sleep' && (
                           <span className="flex items-center gap-1 text-[10px] text-purple-300 font-medium">
                             <Moon className="w-3 h-3 text-purple-400" />
@@ -230,6 +268,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                           </span>
                         )}
                       </div>
+
 
                       <div className="flex items-center gap-2">
                         <button

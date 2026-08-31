@@ -142,6 +142,17 @@ export interface DreamTheme {
   category: 'cosmic' | 'nature' | 'adventure' | 'fantasy';
 }
 
+export type VisualizerColorTheme =
+  | 'soundscape'
+  | 'starlight'
+  | 'celestial'
+  | 'ocean'
+  | 'emerald'
+  | 'rose'
+  | 'aurora'
+  | 'sunset'
+  | 'mint';
+
 export interface AppSettings {
   narratorVoice: string;
   readingSpeed: "gentle" | "medium" | "normal";
@@ -162,6 +173,7 @@ export interface AppSettings {
   activeChildProfileId?: string;
   childProfiles?: ChildProfile[];
   bookmarkedThemeIds?: string[];
+  visualizerColorTheme?: VisualizerColorTheme;
 }
 
 export type DreamArtStyle =

@@ -1,7 +1,19 @@
-<!-- Last verified: 2026-08-22 -->
+<!-- Last verified: 2026-08-30 -->
 # Changelog
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
+
+## [Unreleased] — 2026-08-30 — Morning Awakening & Story Playback Immersion Sprint
+
+### Added
+- **Good Morning Sunrise Animation Overlay (`GoodMorningOverlay.tsx`)** — Built a panoramic morning awakening transition canvas using `motion/react` with twilight indigo melting into glowing dawn ambers, ascending sun disc with rotating corona flares, radiating beams, flying songbirds, emerald hills, and morning dew particles.
+- **Harmonic Dawn Audio Synthesizer** — Built a Web Audio API chime generator (`playMorningSunriseChime`) playing an ascending Lydian harp harmonic sequence with delicate morning bird chirps, sound toggle, and "Replay Sun" button.
+- **Morning Streak & Dream Memory Integration** — Embedded bedtime streak summary (active nights, starlight hero rank, milestone countdown), morning rest affirmations, and Last Night's Dream Memory card pulling from the child's Dream Journal with sleep rating stars, mood badges, excerpt quote, AI artwork preview, and quick log button.
+- **Subtle Top-of-Screen Scene Progress Bar (`StoryReader.tsx`)** — Added a sticky, segmented scene progress bar at the top of the reader with dynamic cosmic visual states (completed indigo/purple, active glowing amber pulse, upcoming muted slate), scene counter (`Scene X / Y (Z%)`), ARIA progressbar accessibility attributes, and jump-to-scene interactivity.
+- **Persistent Bottom Playback Control Panel (`StoryReader.tsx`)** — Added a docked bedtime playback control panel with play/pause narration toggle, active narration pulse glow, previous/next scene stepping, and scene title display.
+- **10-Second Narration Rewind Engine** — Implemented a `-10s Rewind` button in `StoryReader.tsx` with speech rate character math, sentence boundary snapping, audio re-alignment, and transient visual toast feedback.
+- **Independent Ambient Audio Volume Slider (`StoryReader.tsx`)** — Added a dedicated background soundscape volume slider (0%–100%) in the bottom playback control bar with quick-mute toggle, dynamic volume icons (`VolumeX`, `Volume1`, `Volume2`), and live percentage display decoupled from voice narration volume.
+- **Sprint Update Operations Documentation** — Created `docs/operations/SPRINT-UPDATE-2026-08-30.md` detailing technical specifications, Web Audio synthesize architecture, progress state synchronization, and playback control lifecycles.
 
 ## [Unreleased] — 2026-08-22 — Bedtime Chronicles Experience & Personalization Sprint
 
