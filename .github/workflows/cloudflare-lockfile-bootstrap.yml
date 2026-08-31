@@ -16,6 +16,9 @@ concurrency:
   group: cloudflare-lockfile-bootstrap-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  NPM_VERSION: 11.13.0
+
 jobs:
   generate-lockfile:
     name: Generate deterministic package-lock
@@ -32,8 +35,8 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
-      - name: Install repository npm major
-        run: npm install --global npm@11
+      - name: Install diagnostic npm version
+        run: npm install --global "npm@${NPM_VERSION}"
 
       - name: Record toolchain
         run: |
@@ -46,13 +49,14 @@ jobs:
       - name: Verify package.json was not mutated
         run: git diff --exit-code -- package.json
 
-      - name: Validate deterministic install graph
-        run: npm ci --ignore-scripts --dry-run --no-audit --no-fund
-
-      - name: Upload generated lockfile
+      - name: Upload generated lockfile for diagnosis
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: cloudflare-edge-package-lock
+          name: cloudflare-edge-package-lock-npm-${{ env.NPM_VERSION }}
           path: package-lock.json
           if-no-files-found: error
           retention-days: 7
+
+      - name: Validate deterministic install graph
+        run: npm ci --ignore-scripts --dry-run --no-audit --no-fund
