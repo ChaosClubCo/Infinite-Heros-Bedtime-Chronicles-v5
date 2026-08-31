@@ -1,0 +1,58 @@
+name: Cloudflare Lockfile Bootstrap
+
+on:
+  push:
+    branches:
+      - migration/cloudflare-edge-v1
+    paths:
+      - package.json
+      - .github/workflows/cloudflare-lockfile-bootstrap.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-lockfile-bootstrap-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate-lockfile:
+    name: Generate deterministic package-lock
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Install repository npm major
+        run: npm install --global npm@11
+
+      - name: Record toolchain
+        run: |
+          node --version
+          npm --version
+
+      - name: Generate package-lock.json
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Verify package.json was not mutated
+        run: git diff --exit-code -- package.json
+
+      - name: Validate deterministic install graph
+        run: npm ci --ignore-scripts --dry-run --no-audit --no-fund
+
+      - name: Upload generated lockfile
+        uses: actions/upload-artifact@v7
+        with:
+          name: cloudflare-edge-package-lock
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 7
