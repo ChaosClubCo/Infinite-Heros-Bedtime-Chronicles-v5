@@ -293,12 +293,12 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-2">
             <button
               type="button"
               id="listen-now-hero-btn"
               onClick={() => onSelectStory(heroStory)}
-              className="flex items-center gap-2 px-6 sm:px-8 py-3 rounded-full font-bold text-xs sm:text-sm bg-[#f2cb6c] hover:bg-[#ebd07f] text-[#1e1403] shadow-xl shadow-amber-400/20 transition-all hover:scale-105 active:scale-95"
+              className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 rounded-full font-bold text-xs sm:text-sm bg-[#f2cb6c] hover:bg-[#ebd07f] text-[#1e1403] shadow-xl shadow-amber-400/20 transition-all hover:scale-105 active:scale-95 min-h-[44px]"
             >
               <Play className="w-4 h-4 fill-current" />
               <span>Listen Now</span>
@@ -307,7 +307,7 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
             <button
               type="button"
               onClick={() => onOpenDetails(heroStory)}
-              className="px-5 sm:px-6 py-3 rounded-full font-semibold text-xs sm:text-sm bg-[#1b1535]/80 hover:bg-[#271f4b] text-slate-200 hover:text-white border border-slate-700/70 transition-all"
+              className="px-5 sm:px-6 py-3 rounded-full font-semibold text-xs sm:text-sm bg-[#1b1535]/80 hover:bg-[#271f4b] text-slate-200 hover:text-white border border-slate-700/70 transition-all min-h-[44px] flex items-center justify-center"
             >
               Details
             </button>

@@ -390,7 +390,7 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({
           </div>
 
           {/* Mad Lib Template Picker */}
-          <div className="flex gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {MADLIBS_TEMPLATES.map((tmpl, idx) => (
               <button
                 key={tmpl.id}
@@ -399,14 +399,14 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({
                   setSelectedMadLibIndex(idx);
                   setMadlibAnswers({});
                 }}
-                className={`flex-1 p-3 rounded-2xl border text-left transition-all ${
+                className={`p-3.5 rounded-2xl border text-left transition-all ${
                   selectedMadLibIndex === idx
                     ? 'bg-amber-950/60 border-amber-400 shadow-md shadow-amber-500/20 text-white'
                     : 'bg-slate-800/60 border-slate-700 text-slate-300 hover:border-slate-600'
                 }`}
               >
                 <div className="text-xs font-bold">{tmpl.title}</div>
-                <div className="text-[11px] text-slate-400">Fill in {tmpl.fields.length} funny words</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">Fill in {tmpl.fields.length} funny words</div>
               </button>
             ))}
           </div>

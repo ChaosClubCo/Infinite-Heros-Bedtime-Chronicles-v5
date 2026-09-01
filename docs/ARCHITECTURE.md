@@ -142,6 +142,26 @@ The August 28 migration design selects Cloudflare Workers + Workers Static Asset
 | Historical Vercel hook-only deployment decision | superseded as an active runtime policy; retained as history | [ADR-0007](./adr/0007-hook-only-vercel-deployment.md) |
 | Migrate web/API hosting to Cloudflare Workers | remove Vercel runtime coupling while retaining Express semantics and exact-SHA gates | [Cloudflare Runtime Migration Design](./superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md) |
 
+## UI Layout & Responsive Design System
+
+The application interface utilizes a multi-breakpoint responsive architecture built on Tailwind CSS utility classes and `motion` layout primitives:
+
+- **Mobile Viewport (< 640px)**:
+  - Sticky glassmorphic bottom navigation dock (`#mobile-bottom-nav`) with 44px+ touch targets and active state indicators.
+  - Main container padding (`pb-24`) preventing bottom bar overlap with page actions.
+  - Horizontal swipeable tracks for category pills, themes, and milestone badges (`overflow-x-auto scrollbar-thin`).
+  - Single-column story cards with responsive typography and fluid image containers.
+  - Collapsible sleep timer popovers and full-screen modals with `max-h-[90vh]` scrollable viewports.
+- **Tablet Viewport (640px - 1024px)**:
+  - 2-column bento grids for featured bedtime stories, saved tales, and theme galleries.
+  - Expanded hero banners with side-by-side action buttons and quick-play controls.
+  - Interactive constellation maps with smooth directional scroll controls.
+- **Desktop & Widescreen Viewport (> 1024px)**:
+  - Sticky top header navigation with integrated streak meter, offline cache indicators, and active child switcher.
+  - 3 to 4-column responsive grids with high-contrast twilight background gradients.
+  - Side-by-side parental dashboard controls, profile switchers, and voice synthesis testing panels.
+  - Floating dual-channel audio docks for simultaneous narration and ambient sound balancing.
+
 ## Failure modes and recovery
 
 | Failure mode | What breaks | Recovery path |

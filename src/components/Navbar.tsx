@@ -138,15 +138,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <div className="lg:hidden flex items-center justify-around border-t border-slate-800/80 bg-slate-950/95 py-2 px-2 overflow-x-auto custom-scrollbar">
+      {/* Mobile Fixed Bottom Navigation Bar */}
+      <nav
+        id="mobile-bottom-nav"
+        aria-label="Mobile Navigation"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-slate-800/90 bg-slate-950/95 backdrop-blur-xl py-1.5 px-2 shadow-2xl shadow-black safe-area-inset-bottom overflow-x-auto custom-scrollbar"
+      >
         {[
           { id: 'home', label: 'Explore', icon: Compass },
           { id: 'gallery', label: 'Themes', icon: Sparkles },
           { id: 'madlibs', label: 'Madlibs', icon: Wand2 },
           { id: 'create', label: 'Create', icon: PlusCircle },
           { id: 'library', label: 'Library', icon: BookOpen },
-          { id: 'saved', label: 'Saved', icon: Bookmark },
+          { id: 'saved', label: `Saved${savedCount > 0 ? ` (${savedCount})` : ''}`, icon: Bookmark },
           { id: 'trophies', label: 'Trophies', icon: Award },
           { id: 'settings', label: 'Settings', icon: Settings },
         ].map((item) => {
@@ -156,18 +160,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           return (
             <button
               key={item.id}
+              id={`mobile-nav-tab-${item.id}`}
               type="button"
               onClick={() => onSelectTab(item.id as NavTab)}
-              className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl text-[10px] font-bold transition-all shrink-0 ${
-                isActive ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-300'
+              className={`flex flex-col items-center justify-center min-h-[44px] min-w-[48px] py-1 px-2 rounded-xl text-[10px] font-bold transition-all shrink-0 active:scale-95 ${
+                isActive
+                  ? 'text-indigo-300 bg-indigo-950/70 border border-indigo-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Icon className={`w-4 h-4 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
-              <span>{item.label}</span>
+              <Icon className={`w-4 h-4 mb-0.5 ${isActive ? 'stroke-[2.5] text-amber-300' : 'stroke-2'}`} />
+              <span className="whitespace-nowrap leading-none">{item.label}</span>
             </button>
           );
         })}
-      </div>
+      </nav>
     </header>
   );
 };

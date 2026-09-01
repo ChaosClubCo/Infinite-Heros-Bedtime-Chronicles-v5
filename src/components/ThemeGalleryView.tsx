@@ -149,7 +149,7 @@ export const ThemeGalleryView: React.FC<ThemeGalleryViewProps> = ({
 
       {/* Filter Tabs Bar with Sliding Pill */}
       <div className="flex items-center justify-between flex-wrap gap-3 pb-2 border-b border-slate-800/80">
-        <div className="flex items-center gap-1.5 overflow-x-auto py-1 custom-scrollbar">
+        <div className="flex items-center gap-1.5 overflow-x-auto max-w-full py-1 custom-scrollbar">
           {[
             { id: 'all', label: 'All Themes' },
             { id: 'cosmic', label: '🌌 Cosmic' },
