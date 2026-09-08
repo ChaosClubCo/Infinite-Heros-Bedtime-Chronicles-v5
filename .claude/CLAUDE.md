@@ -1,8 +1,10 @@
 # 📸 Project Snapshot — Infinity Heroes: Bedtime Chronicles v5
 
-> Dual-format snapshot (human summary + AI YAML). Generated 2026-06-01 via `/goal`.
-> The repo root also has a longer hand-authored `../CLAUDE.md` — this file is the
-> scannable index/complement. Where they disagree, trust `package.json` + source.
+> Dual-format snapshot (human summary + AI YAML). Generated 2026-06-01 via `/goal`;
+> partially reconciled 2026-09-08 against actual repo state (see "Live gotchas" below —
+> several are new findings, not yet fully resolved). The repo root also has a longer
+> hand-authored `../CLAUDE.md` — this file is the scannable index/complement. Where they
+> disagree, trust `package.json` + source, then whichever file has the more recent date.
 
 ## Human Summary
 
@@ -11,8 +13,12 @@ custom superhero and get personalized, AI-generated adventures with scene illust
 ElevenLabs narration, and gamification (badges, streaks, trophies). Three story modes:
 Classic (adventure), Mad Libs (silly), and Sleep (calming).
 
-**Shape:** a single repo with an **Expo / React Native client** (Expo Router, package major 56,
-file-based routing under `app/`) and a **production-hardened Express 5 server** (`server/`). The server
+**Shape:** the repo actually contains **two frontend stacks** with an undocumented relationship: an
+**Expo / React Native client** (Expo Router, package major 55 — not 56, corrected 2026-09-08 —
+file-based routing under `app/`), and a separate **Vite + React web app** under `src/` (own
+`App.tsx`, `components/`, `data/`, `services/`; served by root `index.html` and `npm run dev`/`build`).
+No document states whether `src/` replaces Expo's web export or is a distinct surface. Both sit on
+top of a **production-hardened Express 5 server** (`server/`). The server
 is notably mature — it ships circuit breakers, retry-with-jitter, rate limiting, load
 shedding, idempotency caching, feature flags, structured pino logging, and in-process
 metrics, each with its own test. AI generation goes through a **multi-provider router**
@@ -21,21 +27,30 @@ Meta-Llama → xAI → Mistral → Cohere). Postgres + Drizzle ORM backs the voi
 only; most kid-facing state is local (AsyncStorage). `shared/schema.ts` (Drizzle + Zod) is
 shared across client and server.
 
-**Three deploy targets, same codebase:**
+**Deploy targets — Vercel is disabled, Cloudflare is not yet live (updated 2026-09-08):**
 - **Replit** — primary dev/runtime (`.replit`, `replit.md`; `expo:dev` wires `REPLIT_DEV_DOMAIN`).
-- **Vercel** — `api/server.mjs` is the single serverless entry that wraps the Express app
-  (`vercel.json` runs `server:build` + `npx expo export --platform web` and bundles
-  `static-build/**`). **Production deploys must go through the Vercel CLI**
-  (`vercel login` → `vercel --prod`) — see `../DEPLOY.md`.
-- **EAS Build → Android Play Store** (`eas.json`, `.github/workflows/eas-build.yml`).
+- **Vercel — DISABLED, not a live target.** `api/server.mjs` (the old serverless entry) has been
+  removed from the repo. `vercel.json` is now a fail-closed tombstone (`git.deploymentEnabled: false`),
+  kept only because the Vercel project remains linked. Do not treat the old "deploy via Vercel CLI"
+  instructions as current — see `../DEPLOY.md`.
+- **Cloudflare Workers + Static Assets — the intended replacement, NOT yet implemented.** Per
+  `docs/superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md`, this is the canonical
+  target going forward, but the repo has no `worker/` directory or Wrangler config yet — production
+  deploy is currently **blocked/in-between**, live on neither platform. Read `../DEPLOY.md`'s
+  "Current production state" section before assuming anything is deployed.
+- **EAS Build → Android Play Store** (`eas.json`, `.github/workflows/eas-build.yml`) — unaffected by
+  the above; still the live mobile deploy path.
 
 ### ⚠️ Live gotchas (operational knowledge — verify before relying on)
-- **ESLint 10 gotcha MITIGATED (verify before touching lint config).** `package.json` pins
-  `eslint@10.6.0` with `eslint-config-expo@~55.0.1` and a flat `eslint.config.js`. The
-  `context.getFilename is not a function` crash from eslint-plugin-react is worked around by
-  the explicit `react: { version: '19.0' }` setting in `eslint.config.js` — do NOT bump
-  eslint-config-expo to ~57 to "fix" it (that reverts the SDK-55 alignment PR #354 restored).
-  `npm run lint` is a working CI gate.
+- **ESLint 10 gotcha — STATUS UNCLEAR, re-verify before touching lint config (updated 2026-09-08).**
+  `package.json` now pins `eslint@10.9.1` (was 10.6.0) and, per Dependabot commit
+  `build(deps): bump eslint-config-expo from 55.0.1 to 57.0.2 (#464)` (2026-09-01), landed on `main`,
+  `eslint-config-expo` **has been bumped to 57.0.2** — the exact bump this note used to say never to
+  make, because it previously triggered an `eslint-plugin-react` `context.getFilename is not a
+  function` crash (worked around via the `react: { version: '19.0' }` setting in `eslint.config.js`).
+  Either the crash was independently fixed upstream and the bump is now safe, or it's an unreviewed
+  regression waiting to break `npm run lint`. **Run `npm run lint` and confirm clean before relying on
+  this file's old guidance or assuming the new pin is fine — neither has been re-verified.**
 - **`package-lock.json` drifts.** `npm ci` has failed twice now (PR #169, then again) when a
   dep range was bumped without regenerating the lock. PR #172 re-synced it; consider a CI
   guard (`npm install --package-lock-only` + `git diff --exit-code package-lock.json`).
@@ -44,7 +59,12 @@ shared across client and server.
   Permanent fix = upgrade the FlashFusion team to Vercel Pro.
 - **`.npmrc` sets `legacy-peer-deps=true`** to smooth over peer-range conflicts across the
   Expo/RN toolchain; leave it in place unless you've confirmed the tree resolves cleanly without it.
-- Actual versions (authoritative source is `package.json`): **Expo ~55.0.28 / React Native 0.83.10 / expo-router ~55.0.17 / react 19.2.0 / typescript ~5.9.2 / Node ≥20.19**. PR #354 re-aligned the tree to SDK 55 (2026-07-15) — earlier prose citing RN 0.86 / Router 56 / TS 6 was pre-downgrade and has been corrected.
+- Actual versions (authoritative source is `package.json`, re-verified 2026-09-08): **Expo ~55.0.30 /
+  React Native 0.87.1 / expo-router ~55.0.18 / react & react-dom 19.2.8 / typescript ~5.9.2 /
+  Node ≥20.19.0 <21 or ≥22.15.0 <23 / npm 11.x**. These drift routinely via Dependabot — re-check
+  `package.json` rather than trusting any version cited in prose, including this line. An Expo SDK
+  55→57 upgrade is spec'd (`docs/operations/EXPO-57-UPGRADE-SPEC.md`) but **not executed** — SDK is
+  still 55.
 - **Auth is Supabase, not Firebase** — `server/auth.ts` verifies Supabase JWTs
   (`SUPABASE_SERVICE_ROLE_KEY` + Supabase URL); client uses `EXPO_PUBLIC_SUPABASE_URL` +
   `EXPO_PUBLIC_SUPABASE_ANON_KEY` (`lib/AuthContext.tsx`). Older docs mentioning
@@ -72,6 +92,19 @@ shared across client and server.
 - **Cloud sync (M3) SyncManager** triggers on open/foreground/reconnect **and sign-in**
   (`user?.id` in deps), then `refreshProfiles()`. Still OFF by default (`cloudSyncEnabled`)
   and not yet device-verified. See the root `../CLAUDE.md` "Cloud sync (M3)" gotcha.
+- **Cloudflare runtime migration is a design doc, not code (2026-08-28 design, still true 2026-09-08).**
+  Vercel is disabled (`vercel.json` tombstoned, `api/server.mjs` removed); Cloudflare Workers is the
+  named replacement but has no `worker/` entry or Wrangler config in the repo. See `../DEPLOY.md`
+  "Current production state" and the root `../CLAUDE.md` "Known Gotchas." Production deploy is
+  currently blocked/in-between — don't assume either platform is live.
+- **A second frontend stack exists under `src/`** (Vite + React, own `App.tsx`/`components/`/`data/`,
+  served by root `index.html`, driven by `npm run dev`/`build`/`preview`) alongside the Expo client
+  under `app/`. `docs/ARCHITECTURE.md` (canonical) doesn't mention it. Relationship to the Expo client
+  is undocumented — flagged, not resolved, 2026-09-08.
+- **`archive/android-kotlin-rewrite/` does not exist** despite being referenced by "Merge Provenance"
+  in the root `../CLAUDE.md` as where the archived native Android/Kotlin rewrite lives. Live,
+  git-tracked Kotlin/Jetpack Compose source instead sits at `app/src/main/java/...`, inside the Expo
+  Router `app/` tree. Contradiction found 2026-09-08, unresolved — needs a maintainer decision.
 
 ## AI Context
 
@@ -80,11 +113,14 @@ project:
   name: infinite-heros-bedtime-chronicles-v5   # npm: @krosebrook/... (private, GH Packages)
   purpose: AI interactive bedtime-story app for kids 3-9 — Expo RN client + hardened Express API
   owner: Kyle Rosebrook <kylerosebrook@gmail.com>
-  lane: personal                # GH owner Krosebrook; deployed via FlashFusion Vercel team
+  lane: personal                # GH owner/org now ChaosClubCo per package.json (was Krosebrook — see
+    links.repo note below); Vercel deploy via the FlashFusion team is DISABLED as of 2026-08-27, not current
   status: active (canonical v5); separate from the dormant local "infinity-heroes" repo
 stack:
   language: TypeScript (strict; tsconfig)
-  client: Expo ~55 / React Native 0.83.10 (New Arch) / Expo Router ~55 / react-native-web
+  client: Expo ~55.0.30 / React Native 0.87.1 (New Arch) / Expo Router ~55.0.18 / react-native-web
+  web: separate Vite + React app under src/ (own App.tsx/components/data/services); relationship to
+    the Expo client above is undocumented — see "Live gotchas"
   state: TanStack React Query v5 + React Context; AsyncStorage for local persistence
   server: Express 5 (server/index.ts) — esbuild bundle → server_dist; tsx for dev
   db: PostgreSQL + Drizzle ORM (drizzle-kit push); voice-chat features only
@@ -94,32 +130,52 @@ stack:
 structure:
   client: app/            # Expo Router screens: welcome, story, quick-create, madlibs, sleep-setup, trophies, settings, (tabs)
   server: server/         # auth, circuit-breaker, rate-limit, idempotency, load-shedding, metrics, logger, retry, feature-flags, ai/
-  serverless: api/server.mjs   # Vercel entry wrapping Express
+  serverless: NONE currently live — api/server.mjs (old Vercel entry) was removed; the Cloudflare Worker
+    replacement (worker/index.ts) does not exist yet either (see deploy: below)
   shared: shared/schema.ts (Drizzle+Zod), shared/models/chat.ts
-  other: [components/, lib/, constants/, assets/, scripts/, agents/, .agents/, docs/]
+  other: [components/, lib/, constants/, assets/, scripts/, agents/, .agents/, docs/, src/ (separate
+    Vite web app, see web: above)]
 commands:
   dev_client: npm run expo:dev        # Replit-flavored expo start
   dev_server: npm run server:dev      # tsx server/index.ts
+  # ⚠️ `npm run dev` is NOT "dev_client + dev_server" — it's `vite --host 0.0.0.0 --port 3000`,
+  #    the separate src/ web app. Run dev_client and dev_server above in separate terminals instead.
   build_server: npm run server:build  # esbuild → server_dist
+  build_web: npm run build            # vite build (src/ → static bundle) — separate from expo:static:build
   prod_server: npm run server:prod
-  lint: npm run lint                  # npx expo lint (eslint 10.6 + flat config — working)
+  lint: npm run lint                  # eslint . (eslint 10.9.1; eslint-config-expo bumped to 57.0.2 on 2026-09-01 — re-verify, see "Live gotchas")
   typecheck: npm run typecheck        # tsc --noEmit
   test: npm run test                  # vitest run (server/lib units; also :watch, :coverage)
   test_components: npm run test:components  # jest (jest-expo) — RN components + Expo-native hooks
   db: npm run db:push                 # drizzle-kit
   preflight: npm run preflight
+  verify_release_scripts: npm run verify:sync | verify:milestones | verify:release-proof |
+    generate:beta-readiness | verify:beta-readiness | preflight:eas | verify:mirror |
+    verify:expo57-readiness   # added since mid-2026-07; see root CLAUDE.md Common Commands for details
 deploy:
-  replit: primary (.replit, replit.md)
-  vercel: CLI only (`vercel login && vercel --prod`); see DEPLOY.md — Hobby commit-author gate
-  mobile: EAS Build → Android Play Store (eas.json)
-ci: .github/workflows/   # ci, agent-pr-review, agent-security, markdown-link-check (Lychee), vercel-deploy, eas-build, publish, auto-merge, stale, branch-cleanup
+  replit: primary dev/runtime (.replit, replit.md)
+  vercel: DISABLED — vercel.json is a fail-closed tombstone, api/server.mjs removed; see DEPLOY.md
+  cloudflare: intended replacement (Workers + Static Assets), NOT yet implemented — no worker/ dir or
+    Wrangler config exists; see docs/superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md
+    and DEPLOY.md "Current production state". Production is currently blocked/in-between as of 2026-09-08.
+  mobile: EAS Build → Android Play Store (eas.json) — unaffected, still live
+ci: .github/workflows/   # 15 workflows as of 2026-09-08: ci, agent-pr-review, agent-security,
+  # markdown-link-check (Lychee), eas-build, publish, stale, branch-cleanup, deployment-drift,
+  # archive-recovery-gate, exact-head-pr-proof, main-governance-guard, prod-story-e2e-once,
+  # public-v1-eslint-autofix, release-proof. vercel-deploy and auto-merge are GONE — don't reference them.
 constraints:
   - "Children's app (ages 3-9): age-appropriate content; story-reviewer agent enforces"
   - "Keep .npmrc legacy-peer-deps=true (typescript 6 vs Expo peer dep)"
   - "Regenerate package-lock.json when bumping dep ranges — npm ci is strict"
-  - "Conventional Commits; branch from main; main is currently UNPROTECTED (no required checks)"
+  - "Conventional Commits; branch from main; main-branch protection status is UNVERIFIED as of
+     2026-09-08 — commit history shows governance-hardening work since this was last confirmed
+     (main-governance-guard.yml workflow, PRs #453 'harden main merge discipline' and #457
+     'prepare live main ruleset activation'). Do not assume main is still unprotected; check current
+     branch protection rules before relying on this line either way."
 links:
-  repo: https://github.com/Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5
+  repo: https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5  # corrected 2026-09-08 —
+    matches package.json's "repository" field; this file previously said Krosebrook/... (may be a
+    fork/rename; not independently re-investigated beyond the package.json field)
   deploy_runbook: ./DEPLOY.md
   guidance: ../CLAUDE.md      # longer hand-authored doc (slightly stale on SDK/node versions)
   docs: [README.md, ARCHITECTURE via docs/, CONTRIBUTING.md, CONVENTIONS.md, GLOSSARY.md, replit.md]
