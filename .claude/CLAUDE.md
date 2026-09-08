@@ -17,8 +17,13 @@ Classic (adventure), Mad Libs (silly), and Sleep (calming).
 **Expo / React Native client** (Expo Router, package major 55 — not 56, corrected 2026-09-08 —
 file-based routing under `app/`), and a separate **Vite + React web app** under `src/` (own
 `App.tsx`, `components/`, `data/`, `services/`; served by root `index.html` and `npm run dev`/`build`).
-No document states whether `src/` replaces Expo's web export or is a distinct surface. Both sit on
-top of a **production-hardened Express 5 server** (`server/`). The server
+No document states whether `src/` replaces Expo's web export or is a distinct surface.
+**CORRECTED 2026-09-08 (Codex review caught this): the `src/` Vite app does NOT sit on the Express
+server** — its story flow calls a local, synchronous `generateCustomBedtimeStory()` in
+`src/services/aiStoryGenerator.ts` rather than an API route, and nothing under `src/` fetches a
+repository API endpoint. Don't assume the server's auth, rate limiting, AI routing, or story-safety
+enforcement cover the `src/` web surface — only the Expo client (`app/`) is confirmed to go through
+`server/`. The Expo client sits on a **production-hardened Express 5 server** (`server/`). The server
 is notably mature — it ships circuit breakers, retry-with-jitter, rate limiting, load
 shedding, idempotency caching, feature flags, structured pino logging, and in-process
 metrics, each with its own test. AI generation goes through a **multi-provider router**
@@ -35,11 +40,18 @@ shared across client and server.
   instructions as current — see `../DEPLOY.md`.
 - **Cloudflare Workers + Static Assets — the intended replacement, NOT yet implemented.** Per
   `docs/superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md`, this is the canonical
-  target going forward, but the repo has no `worker/` directory or Wrangler config yet — production
-  deploy is currently **blocked/in-between**, live on neither platform. Read `../DEPLOY.md`'s
-  "Current production state" section before assuming anything is deployed.
-- **EAS Build → Android Play Store** (`eas.json`, `.github/workflows/eas-build.yml`) — unaffected by
-  the above; still the live mobile deploy path.
+  target going forward, but the repo has no `worker/` directory or Wrangler config yet.
+  **CORRECTED 2026-09-08 (a Codex review caught the earlier version here conflating "blocked" with
+  "not live"):** only *new* deploys are blocked on both platforms — the existing Vercel deployment
+  is still what's actually live and serving `bedtime-chronicles.com`/`www.bedtime-chronicles.com`;
+  `../DEPLOY.md` explicitly forbids detaching those domains until the Cloudflare gate passes. Read
+  `../DEPLOY.md`'s "Current production state" and "Vercel retirement guard" before assuming either
+  that nothing is deployed or that Cloudflare/Vercel can be freely touched.
+- **EAS Build → Android Play Store** (`eas.json`, `.github/workflows/eas-build.yml`) — configured but
+  **currently can't complete in CI**: `eas-build.yml` runs `npm ci` with npm caching like every other
+  workflow, and the missing `package-lock.json` (see "Live gotchas" below) breaks that step before EAS
+  is invoked. Correct as of 2026-09-08 (Codex review caught the earlier "still live" claim being too
+  strong).
 
 ### ⚠️ Live gotchas (operational knowledge — verify before relying on)
 - **ESLint 10 gotcha still applies — CORRECTED 2026-09-08 (this file briefly said otherwise; a PR
@@ -93,10 +105,11 @@ shared across client and server.
   (`user?.id` in deps), then `refreshProfiles()`. Still OFF by default (`cloudSyncEnabled`)
   and not yet device-verified. See the root `../CLAUDE.md` "Cloud sync (M3)" gotcha.
 - **Cloudflare runtime migration is a design doc, not code (2026-08-28 design, still true 2026-09-08).**
-  Vercel is disabled (`vercel.json` tombstoned, `api/server.mjs` removed); Cloudflare Workers is the
-  named replacement but has no `worker/` entry or Wrangler config in the repo. See `../DEPLOY.md`
-  "Current production state" and the root `../CLAUDE.md` "Known Gotchas." Production deploy is
-  currently blocked/in-between — don't assume either platform is live.
+  New Vercel deploys are disabled (`vercel.json` tombstoned, `api/server.mjs` removed); Cloudflare
+  Workers is the named replacement but has no `worker/` entry or Wrangler config in the repo. See
+  `../DEPLOY.md` "Current production state" and the root `../CLAUDE.md` "Known Gotchas." **Only new
+  deploys are blocked** — the existing Vercel deployment is still live in production; don't say
+  "neither platform is live."
 - **A second frontend stack exists under `src/`** (Vite + React, own `App.tsx`/`components/`/`data/`,
   served by root `index.html`, driven by `npm run dev`/`build`/`preview`) alongside the Expo client
   under `app/`. `docs/ARCHITECTURE.md` (canonical) doesn't mention it. Relationship to the Expo client
@@ -113,8 +126,7 @@ project:
   name: infinite-heros-bedtime-chronicles-v5   # npm: @krosebrook/... (private, GH Packages)
   purpose: AI interactive bedtime-story app for kids 3-9 — Expo RN client + hardened Express API
   owner: Kyle Rosebrook <kylerosebrook@gmail.com>
-  lane: personal                # GH owner/org now ChaosClubCo per package.json (was Krosebrook — see
-    links.repo note below); Vercel deploy via the FlashFusion team is DISABLED as of 2026-08-27, not current
+  lane: personal  # GH owner/org now ChaosClubCo per package.json (was Krosebrook, see links.repo below); Vercel deploy via the FlashFusion team is DISABLED as of 2026-08-27, not current
   status: active (canonical v5); separate from the dormant local "infinity-heroes" repo
 stack:
   language: TypeScript (strict; tsconfig)
@@ -130,11 +142,9 @@ stack:
 structure:
   client: app/            # Expo Router screens: welcome, story, quick-create, madlibs, sleep-setup, trophies, settings, (tabs)
   server: server/         # auth, circuit-breaker, rate-limit, idempotency, load-shedding, metrics, logger, retry, feature-flags, ai/
-  serverless: NONE currently live — api/server.mjs (old Vercel entry) was removed; the Cloudflare Worker
-    replacement (worker/index.ts) does not exist yet either (see deploy: below)
+  serverless: "none currently live"  # api/server.mjs (old Vercel entry) was removed; the Cloudflare Worker replacement (worker/index.ts) does not exist yet either — see deploy below
   shared: shared/schema.ts (Drizzle+Zod), shared/models/chat.ts
-  other: [components/, lib/, constants/, assets/, scripts/, agents/, .agents/, docs/, src/ (separate
-    Vite web app, see web: above)]
+  other: [components/, lib/, constants/, assets/, scripts/, agents/, .agents/, docs/, src/]  # src/ is the separate Vite web app — see web above
 commands:
   dev_client: npm run expo:dev        # Replit-flavored expo start
   dev_server: npm run server:dev      # tsx server/index.ts
@@ -154,11 +164,9 @@ commands:
     verify:expo57-readiness   # added since mid-2026-07; see root CLAUDE.md Common Commands for details
 deploy:
   replit: primary dev/runtime (.replit, replit.md)
-  vercel: DISABLED — vercel.json is a fail-closed tombstone, api/server.mjs removed; see DEPLOY.md
-  cloudflare: intended replacement (Workers + Static Assets), NOT yet implemented — no worker/ dir or
-    Wrangler config exists; see docs/superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md
-    and DEPLOY.md "Current production state". Production is currently blocked/in-between as of 2026-09-08.
-  mobile: EAS Build → Android Play Store (eas.json) — unaffected, still live
+  vercel: "new deploys DISABLED (tombstoned vercel.json, api/server.mjs removed) but the EXISTING deployment is still what serves production — see DEPLOY.md, don't detach domains"
+  cloudflare: "intended replacement (Workers + Static Assets), NOT yet implemented, no worker/ dir or Wrangler config — see docs/superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md and DEPLOY.md Current production state"
+  mobile: "EAS Build to Android Play Store (eas.json) is configured but currently cannot complete in CI — eas-build.yml's npm ci step fails on the missing package-lock.json, same as other workflows"
 ci: .github/workflows/   # 15 workflows as of 2026-09-08: ci, agent-pr-review, agent-security,
   # markdown-link-check (Lychee), eas-build, publish, stale, branch-cleanup, deployment-drift,
   # archive-recovery-gate, exact-head-pr-proof, main-governance-guard, prod-story-e2e-once,
@@ -173,9 +181,7 @@ constraints:
      'prepare live main ruleset activation'). Do not assume main is still unprotected; check current
      branch protection rules before relying on this line either way."
 links:
-  repo: https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5  # corrected 2026-09-08 —
-    matches package.json's "repository" field; this file previously said Krosebrook/... (may be a
-    fork/rename; not independently re-investigated beyond the package.json field)
+  repo: https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5  # corrected 2026-09-08 to match package.json's repository field; this file previously said Krosebrook/... (may be a fork/rename, not independently re-investigated beyond the package.json field)
   deploy_runbook: ./DEPLOY.md
   guidance: ../CLAUDE.md      # longer hand-authored doc (slightly stale on SDK/node versions)
   docs: [README.md, ARCHITECTURE via docs/, CONTRIBUTING.md, CONVENTIONS.md, GLOSSARY.md, replit.md]
