@@ -42,15 +42,15 @@ shared across client and server.
   the above; still the live mobile deploy path.
 
 ### ⚠️ Live gotchas (operational knowledge — verify before relying on)
-- **ESLint 10 gotcha — STATUS UNCLEAR, re-verify before touching lint config (updated 2026-09-08).**
-  `package.json` now pins `eslint@10.9.1` (was 10.6.0) and, per Dependabot commit
-  `build(deps): bump eslint-config-expo from 55.0.1 to 57.0.2 (#464)` (2026-09-01), landed on `main`,
-  `eslint-config-expo` **has been bumped to 57.0.2** — the exact bump this note used to say never to
-  make, because it previously triggered an `eslint-plugin-react` `context.getFilename is not a
-  function` crash (worked around via the `react: { version: '19.0' }` setting in `eslint.config.js`).
-  Either the crash was independently fixed upstream and the bump is now safe, or it's an unreviewed
-  regression waiting to break `npm run lint`. **Run `npm run lint` and confirm clean before relying on
-  this file's old guidance or assuming the new pin is fine — neither has been re-verified.**
+- **ESLint 10 gotcha still applies — CORRECTED 2026-09-08 (this file briefly said otherwise; a PR
+  review bot caught the error).** `package.json` pins `eslint@10.9.1` (bumped from 10.8.1) but
+  `eslint-config-expo` is **still `~55.0.1`, unchanged** — do NOT bump it to ~57 (see the original
+  crash reason below). Commit `612da83` on `main`, titled
+  `build(deps): bump eslint-config-expo from 55.0.1 to 57.0.2 (#464)`, is an **empty commit**
+  (`git show 612da83 --stat` touches zero files) — its title/description describe a bump that never
+  actually landed. Bumping eslint-config-expo to ~57 previously triggered an `eslint-plugin-react`
+  `context.getFilename is not a function` crash (worked around via the `react: { version: '19.0' }`
+  setting in `eslint.config.js`) — that risk is still live and unaddressed, since the pin never moved.
 - **`package-lock.json` drifts.** `npm ci` has failed twice now (PR #169, then again) when a
   dep range was bumped without regenerating the lock. PR #172 re-synced it; consider a CI
   guard (`npm install --package-lock-only` + `git diff --exit-code package-lock.json`).
@@ -143,7 +143,7 @@ commands:
   build_server: npm run server:build  # esbuild → server_dist
   build_web: npm run build            # vite build (src/ → static bundle) — separate from expo:static:build
   prod_server: npm run server:prod
-  lint: npm run lint                  # eslint . (eslint 10.9.1; eslint-config-expo bumped to 57.0.2 on 2026-09-01 — re-verify, see "Live gotchas")
+  lint: npm run lint                  # eslint . (eslint 10.9.1; eslint-config-expo still ~55.0.1, NOT bumped — see "Live gotchas")
   typecheck: npm run typecheck        # tsc --noEmit
   test: npm run test                  # vitest run (server/lib units; also :watch, :coverage)
   test_components: npm run test:components  # jest (jest-expo) — RN components + Expo-native hooks
