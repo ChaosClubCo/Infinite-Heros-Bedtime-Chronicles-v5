@@ -4,14 +4,14 @@ export const FEATURED_STORIES: Story[] = [
   {
     id: "story-silver-moon-fox",
     title: "The Silver Moon Fox",
-    category: "Story of the Night",
+    category: "Bedtime Calm",
     theme: "wonder",
     mode: "sleep",
     ageRange: "4-6",
     heroId: "hero-1",
     heroName: "Koda",
     summary: "Follow Koda on a whispering journey through the starlit forest to find the missing sparkle of the North Star.",
-    badge: "Story of the Night",
+    badge: "Bedtime Calm",
     audioDurationMinutes: 12,
     coverImage: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1200&auto=format&fit=crop",
     scenes: [
@@ -94,14 +94,14 @@ export const FEATURED_STORIES: Story[] = [
   {
     id: "story-glow-whale",
     title: "The Glow Whale's Song",
-    category: "Nature Story",
+    category: "Ocean Wonders",
     theme: "wonder",
     mode: "sleep",
     ageRange: "4-6",
     heroId: "hero-1",
     heroName: "Nova",
     summary: "Follow the majestic glowing whale through the celestial ocean as it sings the ancient melody of peaceful sleep.",
-    badge: "Nature Story",
+    badge: "Ocean Wonders",
     audioDurationMinutes: 8,
     coverImage: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?q=80&w=800&auto=format&fit=crop",
     scenes: [
@@ -148,14 +148,14 @@ export const FEATURED_STORIES: Story[] = [
   {
     id: "story-hollow-tree",
     title: "The Hollow Tree Inn",
-    category: "Classic Fable",
+    category: "Forest & Nature",
     theme: "friendship",
     mode: "classic",
     ageRange: "4-6",
     heroId: "hero-2",
     heroName: "Rowan",
     summary: "Inside the grand glowing ancient oak lies the warmest haven where weary woodland travelers rest among fairy lights.",
-    badge: "Classic Fable",
+    badge: "Forest & Nature",
     audioDurationMinutes: 15,
     coverImage: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?q=80&w=800&auto=format&fit=crop",
     scenes: [
@@ -202,14 +202,14 @@ export const FEATURED_STORIES: Story[] = [
   {
     id: "story-library-stars",
     title: "Library of Stars",
-    category: "Short Tale",
+    category: "Cosmic Adventures",
     theme: "wonder",
     mode: "classic",
     ageRange: "6-8",
     heroId: "hero-3",
     heroName: "Aria",
     summary: "A celestial owl guides you through corridors of glowing star scrolls and constellations resting in nighttime silence.",
-    badge: "Short Tale",
+    badge: "Cosmic Adventures",
     audioDurationMinutes: 10,
     coverImage: "https://images.unsplash.com/photo-1507499739999-097706ad8914?q=80&w=800&auto=format&fit=crop",
     scenes: [
@@ -256,14 +256,14 @@ export const FEATURED_STORIES: Story[] = [
   {
     id: "story-zen-garden",
     title: "Midnight Zen Garden",
-    category: "Guided Meditation",
+    category: "Bedtime Calm",
     theme: "comfort",
     mode: "sleep",
     ageRange: "4-6",
     heroId: "hero-6",
     heroName: "Zenith",
     summary: "Drift into tranquil stillness with gently raked gravel sand, drifting cherry blossom petals, and moonlight.",
-    badge: "Guided Meditation",
+    badge: "Bedtime Calm",
     audioDurationMinutes: 20,
     coverImage: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=800&auto=format&fit=crop",
     scenes: [
@@ -304,6 +304,168 @@ export const FEATURED_STORIES: Story[] = [
         isFinal: true,
         text: "The stone lantern glows with a warm, steady candlelight. The night is still, cool, and perfectly balanced. Breathe in calm... breathe out peace. You are completely centered and ready for restful sleep.",
         sleepAffirmation: "Mind still, body light, peaceful dreams all through the night."
+      }
+    ]
+  },
+  {
+    id: "story-coral-lagoon",
+    title: "The Coral Lagoon Lullaby",
+    category: "Ocean Wonders",
+    theme: "wonder",
+    mode: "sleep",
+    ageRange: "2-4",
+    heroId: "hero-1",
+    heroName: "Nova",
+    summary: "Float with sleepy sea turtles and glowing pearl shells through a warm, calm turquoise lagoon.",
+    badge: "Ocean Wonders",
+    audioDurationMinutes: 6,
+    coverImage: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?q=80&w=800&auto=format&fit=crop",
+    scenes: [
+      {
+        id: "scene-cl-1",
+        sceneNumber: 1,
+        totalScenes: 3,
+        text: "Beneath the moonlit waves, the warm lagoon water gently rocks back and forth. A little sea turtle paddles slowly, tucking its sleepy head inside its cozy shell.",
+        sleepAffirmation: "Floating soft and calm, like gentle waves on the sand.",
+        choices: [
+          {
+            id: "ccl1",
+            text: "Rest near the glowing pearl reef",
+            action: "rest_reef",
+            nextSceneId: "scene-cl-2"
+          }
+        ]
+      },
+      {
+        id: "scene-cl-2",
+        sceneNumber: 2,
+        totalScenes: 3,
+        text: "Soft pink anemones sway in the tide like dreaming flowers. The water is cozy, warm, and crystal clear. Every little fish has found its resting alcove for the night.",
+        sleepAffirmation: "Let your breath roll in and out like gentle ocean waves.",
+        choices: [
+          {
+            id: "ccl2",
+            text: "Close your eyes in the warm velvet current",
+            action: "warm_current",
+            nextSceneId: "scene-cl-3"
+          }
+        ]
+      },
+      {
+        id: "scene-cl-3",
+        sceneNumber: 3,
+        totalScenes: 3,
+        isFinal: true,
+        text: "The moonbeams reach down to the seafloor, lighting up a blanket of golden sand. All is peaceful beneath the waves. Goodnight, little ocean explorer.",
+        sleepAffirmation: "Deep, quiet, peaceful sleep all night long."
+      }
+    ]
+  },
+  {
+    id: "story-bear-lantern",
+    title: "The Little Bear's Pocket Lantern",
+    category: "Heartwarming Fables",
+    theme: "kindness",
+    mode: "classic",
+    ageRange: "4-6",
+    heroId: "hero-5",
+    heroName: "Pip",
+    summary: "Barnaby the little bear shares glowing firefly sparks with his woodland neighbors on a frosty evening.",
+    badge: "Heartwarming Fables",
+    audioDurationMinutes: 7,
+    coverImage: "https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?q=80&w=800&auto=format&fit=crop",
+    scenes: [
+      {
+        id: "scene-bl-1",
+        sceneNumber: 1,
+        totalScenes: 3,
+        text: "Barnaby the little brown bear held his tin pocket lantern carefully between his paws. Inside, three friendly fireflies buzzed with warm honey-yellow light, lighting his way along the pinecone path.",
+        sleepAffirmation: "Kindness is a warm spark that lights up every room.",
+        choices: [
+          {
+            id: "cbl1",
+            text: "Share a spark with the shivering baby hedgehog",
+            action: "share_spark",
+            nextSceneId: "scene-bl-2"
+          }
+        ]
+      },
+      {
+        id: "scene-bl-2",
+        sceneNumber: 2,
+        totalScenes: 3,
+        text: "Barnaby tipped his lantern and let a warm golden spark land on the hedgehog's cozy leaf nest. 'Thank you, Barnaby,' the hedgehog yawned happily, curling into a round ball of warmth.",
+        sleepAffirmation: "Sharing warmth makes your own heart glow brightest.",
+        choices: [
+          {
+            id: "cbl2",
+            text: "Trot home to the snug cave bed",
+            action: "trot_home",
+            nextSceneId: "scene-bl-3"
+          }
+        ]
+      },
+      {
+        id: "scene-bl-3",
+        sceneNumber: 3,
+        totalScenes: 3,
+        isFinal: true,
+        text: "Back in his cozy den, Mama Bear tucked Barnaby into a blanket lined with soft clover. The lantern dimmed to a quiet whisper. 'You shared your light today, little bear,' she whispered. 'Sleep sweet and warm.'",
+        sleepAffirmation: "You are snug, you are loved, and you are safe."
+      }
+    ]
+  },
+  {
+    id: "story-cloud-hopper",
+    title: "The Moonbeam Cloud Hopper",
+    category: "Cosmic Adventures",
+    theme: "wonder",
+    mode: "classic",
+    ageRange: "4-6",
+    heroId: "hero-1",
+    heroName: "Nova",
+    summary: "Hop across fluffy lavender cumulus clouds on a journey to the silvery Moon Palace.",
+    badge: "Cosmic Adventures",
+    audioDurationMinutes: 5,
+    coverImage: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop",
+    scenes: [
+      {
+        id: "scene-ch-1",
+        sceneNumber: 1,
+        totalScenes: 3,
+        text: "High above the sleepy rooftops, the clouds turned from peach to pastel purple. Each cloud was softer than a feather pillow, bouncing gently underfoot.",
+        sleepAffirmation: "Feel yourself floating high above all daily cares.",
+        choices: [
+          {
+            id: "cch1",
+            text: "Leap onto the glowing rainbow cloud bridge",
+            action: "leap_bridge",
+            nextSceneId: "scene-ch-2"
+          }
+        ]
+      },
+      {
+        id: "scene-ch-2",
+        sceneNumber: 2,
+        totalScenes: 3,
+        text: "The cloud bridge shimmered with lavender and gold. Floating star-bubbles drifted past, popping with tiny musical notes of peaceful lullabies.",
+        sleepAffirmation: "Every breath lifts you into calm, quiet comfort.",
+        choices: [
+          {
+            id: "cch2",
+            text: "Snuggle into the giant moon-cloud cradle",
+            action: "moon_cradle",
+            nextSceneId: "scene-ch-3"
+          }
+        ]
+      },
+      {
+        id: "scene-ch-3",
+        sceneNumber: 3,
+        totalScenes: 3,
+        isFinal: true,
+        text: "The giant moon-cloud wrapped softly around you like a warm embrace. The silver stars winked goodnight from above. Tomorrow will be wonderful; sleep deeply tonight.",
+        sleepAffirmation: "Soft clouds, gentle dreams, peaceful night."
       }
     ]
   }

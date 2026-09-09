@@ -44,6 +44,7 @@ export interface Story {
   ageRange: AgeRange;
   heroId: string;
   heroName: string;
+  companionName?: string;
   summary: string;
   coverImage?: string;
   badge?: string;
@@ -59,6 +60,8 @@ export interface StorySeed {
   id: string;
   title: string;
   blurb: string;
+  category?: string;
+  audioDurationMinutes?: number;
   theme: ContentTheme;
   ageRange: AgeRange;
   mode: StoryMode;
@@ -66,6 +69,7 @@ export interface StorySeed {
   setting?: string;
   tone?: string;
   sidekick?: string;
+  companionName?: string;
   problem?: string;
   emoji: string;
 }
