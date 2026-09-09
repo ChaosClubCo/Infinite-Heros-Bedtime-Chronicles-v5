@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppSettings, AmbientSoundTrack, VisualizerColorTheme } from '../types';
-import { Moon, X, SunDim, Volume2, Volume1, VolumeX, Play, Square, Sliders, Waves, Sparkles, Palette, Check } from 'lucide-react';
+import { Moon, X, SunDim, Volume2, Volume1, VolumeX, Play, Square, Sliders, Waves, Sparkles, Palette, Check, Wind } from 'lucide-react';
 import { ambientSoundEngine } from '../services/audioNarration';
 import { WindDownAudioVisualizer } from './WindDownAudioVisualizer';
 import { VISUALIZER_COLOR_THEMES, getVisualizerThemeById } from '../data/visualizerThemes';
@@ -31,6 +31,7 @@ interface WindDownModalProps {
   onClose: () => void;
   settings: AppSettings;
   onSaveSettings: (settings: AppSettings) => void;
+  onOpenGuidedBreathing?: () => void;
 }
 
 export const WindDownModal: React.FC<WindDownModalProps> = ({
@@ -38,6 +39,7 @@ export const WindDownModal: React.FC<WindDownModalProps> = ({
   onClose,
   settings,
   onSaveSettings,
+  onOpenGuidedBreathing,
 }) => {
   const [selectedSound, setSelectedSound] = useState<AmbientSoundTrack>(settings.ambientSound || 'ocean');
   const [volume, setVolume] = useState<number>(settings.ambientVolume ?? 0.35);
@@ -499,23 +501,40 @@ export const WindDownModal: React.FC<WindDownModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-indigo-950/80">
-          <button
-            id="winddown-cancel-btn"
-            type="button"
-            onClick={handleClose}
-            className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white font-semibold transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            id="winddown-save-btn"
-            type="button"
-            onClick={handleSave}
-            className="px-6 py-2.5 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-md transition-all active:scale-95"
-          >
-            Activate Wind Down
-          </button>
+        <div className="flex items-center justify-between gap-3 pt-3 border-t border-indigo-950/80">
+          {onOpenGuidedBreathing ? (
+            <button
+              id="winddown-guided-breathing-btn"
+              type="button"
+              onClick={() => {
+                handleClose();
+                onOpenGuidedBreathing();
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-cyan-300 hover:text-white bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-800/40 transition-colors"
+            >
+              <Wind className="w-3.5 h-3.5" />
+              <span>Guided Breathing Orb</span>
+            </button>
+          ) : <div />}
+
+          <div className="flex items-center gap-3">
+            <button
+              id="winddown-cancel-btn"
+              type="button"
+              onClick={handleClose}
+              className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white font-semibold transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              id="winddown-save-btn"
+              type="button"
+              onClick={handleSave}
+              className="px-6 py-2.5 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-md transition-all active:scale-95"
+            >
+              Activate Wind Down
+            </button>
+          </div>
         </div>
       </div>
     </div>

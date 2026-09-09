@@ -10,6 +10,7 @@ import {
   Compass,
   Wand2,
   WifiOff,
+  Wind,
 } from 'lucide-react';
 
 export type NavTab = 'home' | 'gallery' | 'madlibs' | 'create' | 'library' | 'saved' | 'trophies' | 'settings';
@@ -18,6 +19,7 @@ interface NavbarProps {
   currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   onOpenSettings: () => void;
+  onOpenGuidedBreathing?: () => void;
   savedCount: number;
   streakCount: number;
   childName?: string;
@@ -29,6 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentTab,
   onSelectTab,
   onOpenSettings,
+  onOpenGuidedBreathing,
   savedCount,
   streakCount,
   childName = 'Little Explorer',
@@ -118,6 +121,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="hidden xs:inline">{streakCount} Night Streak</span>
             <span className="xs:hidden">{streakCount}</span>
           </div>
+
+          {/* Guided Breathing Quick Action */}
+          {onOpenGuidedBreathing && (
+            <button
+              id="navbar-guided-breathing-btn"
+              type="button"
+              onClick={onOpenGuidedBreathing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/40 text-indigo-200 hover:text-white text-xs font-bold transition-all shadow-sm group"
+              title="Guided Bedtime Breathing • Calm Orb for Sleep"
+            >
+              <Wind className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+              <span className="hidden sm:inline">Breathe</span>
+            </button>
+          )}
 
 
           {/* Bedtime Routine & Child Profile */}
