@@ -30,6 +30,7 @@ ADRs are immutable after acceptance. If a decision is reversed or superseded, a 
 | [0005](./0005-express-backend-api-server.md) | Use Express.js as the API backend | accepted | 2026-03-11 |
 | [0006](./0006-supabase-auth-migration.md) | Migrate authentication from Firebase to Supabase | accepted | 2026-07-06 |
 | [0007](./0007-hook-only-vercel-deployment.md) | Hook-only Vercel production deployment | proposed | 2026-08-13 |
+| [0008](./0008-cloudflare-edge-target-architecture.md) | Cloudflare edge target architecture | proposed | 2026-08-31 |
 
 ## Status Definitions
 

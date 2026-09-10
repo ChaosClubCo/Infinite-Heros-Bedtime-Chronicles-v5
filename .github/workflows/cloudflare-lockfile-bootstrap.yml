@@ -1,0 +1,91 @@
+name: Cloudflare Lockfile Bootstrap
+
+on:
+  push:
+    branches:
+      - migration/cloudflare-edge-v1
+    paths:
+      - package.json
+      - .github/workflows/cloudflare-lockfile-bootstrap.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-lockfile-bootstrap-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NPM_VERSION: 11.13.0
+
+jobs:
+  generate-lockfile:
+    name: Generate deterministic package-lock
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Install diagnostic npm version
+        run: npm install --global "npm@${NPM_VERSION}"
+
+      - name: Record toolchain
+        run: |
+          node --version
+          npm --version
+
+      - name: Apply scoped override hypothesis in runner only
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'package.json';
+          const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const overrides = { ...(pkg.overrides || {}) };
+
+          delete overrides['brace-expansion@1'];
+          delete overrides['brace-expansion@2'];
+
+          overrides['minimatch@3'] = {
+            ...(typeof overrides['minimatch@3'] === 'object' ? overrides['minimatch@3'] : {}),
+            'brace-expansion': '^1.1.18'
+          };
+
+          overrides['minimatch@5'] = {
+            '.': '^5.1.9',
+            'brace-expansion': '^2.1.4'
+          };
+
+          overrides['minimatch@9'] = {
+            'brace-expansion': '^2.1.4'
+          };
+
+          pkg.overrides = overrides;
+          fs.writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
+          NODE
+
+          echo '--- diagnostic package.json override diff ---'
+          git diff -- package.json
+
+      - name: Generate package-lock.json
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Upload diagnostic lockfile
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cloudflare-edge-package-lock-scoped-overrides
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Validate deterministic install graph
+        run: npm ci --ignore-scripts --dry-run --no-audit --no-fund
