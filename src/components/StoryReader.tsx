@@ -37,7 +37,6 @@ import {
   Flame,
   Train,
   Music2,
-  Shield,
   ArrowLeft,
   X,
   Award,
@@ -45,6 +44,8 @@ import {
   Gauge,
   Bot,
   Check,
+  Star,
+  Heart,
 } from 'lucide-react';
 
 interface ParsedSentence {
@@ -449,6 +450,16 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
     }, 1600);
   }, []);
 
+  const handleJumpToScene = useCallback((targetIndex: number) => {
+    if (targetIndex >= 0 && targetIndex < scenes.length && targetIndex !== currentSceneIndex) {
+      VoiceNarrator.stop();
+      setIsPlayingNarration(false);
+      setSpokenCharIndex(null);
+      setCurrentSceneIndex(targetIndex);
+      showRewindFeedback(`Navigated to Scene ${targetIndex + 1}`);
+    }
+  }, [scenes.length, currentSceneIndex, showRewindFeedback]);
+
   const fullTextToRead = useMemo(() => {
     if (!currentScene) return '';
     return currentScene.sleepAffirmation
@@ -675,14 +686,6 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
     if (currentSceneIndex > 0) {
       setCurrentSceneIndex((prev) => prev - 1);
     }
-  };
-
-  const handleJumpToScene = (index: number) => {
-    if (index < 0 || index >= scenes.length || index === currentSceneIndex) return;
-    VoiceNarrator.stop();
-    setIsPlayingNarration(false);
-    setSpokenCharIndex(null);
-    setCurrentSceneIndex(index);
   };
 
   const handleSelectChoice = (choice: { nextSceneId: string }) => {
@@ -1119,24 +1122,116 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
 
       {/* Main Story Stage */}
       <main className="relative z-10 flex-1 flex flex-col justify-between max-w-3xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-32 sm:pb-36">
-        {/* Constellation & Hero Badge */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-slate-900/90 text-indigo-300 border border-slate-800 shadow-sm">
-            <Shield className="w-3.5 h-3.5 text-amber-400" />
-            <span>Scene {currentSceneIndex + 1} of {scenes.length}</span>
+        {/* Visual Progress Indicator Track & Scene Stepper */}
+        <div className="mb-4 p-3 sm:p-4 rounded-2xl bg-slate-900/80 border border-slate-800/90 shadow-xl backdrop-blur-md">
+          {/* Header row: Scene info, companion badge, progress %, time remaining, breathing guide */}
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+            <div className="flex items-center flex-wrap gap-2">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 shadow-inner">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Scene {currentSceneIndex + 1} of {scenes.length}</span>
+              </div>
+
+              {story.companionName && (
+                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-950/60 text-purple-200 border border-purple-800/40">
+                  <Heart className="w-3 h-3 text-pink-400 fill-pink-400/40" />
+                  <span>With {story.companionName}</span>
+                </div>
+              )}
+
+              {currentSceneIndex === scenes.length - 1 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-950/70 text-amber-300 border border-amber-500/40 animate-pulse">
+                  <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                  <span>Bedtime Finale</span>
+                </span>
+              )}
+            </div>
+
+            {/* Right side: Gentle breathing guide or percentage & remaining time */}
+            <div className="flex items-center gap-2 text-xs">
+              {story.mode === 'sleep' && (
+                <div className="hidden sm:flex items-center gap-1.5 text-purple-300 bg-purple-950/40 px-2.5 py-0.5 rounded-full border border-purple-800/40">
+                  <div
+                    className={`w-2 h-2 rounded-full bg-purple-400 transition-all duration-1000 ${
+                      isBreathingIn ? 'scale-125 opacity-100' : 'scale-75 opacity-40'
+                    }`}
+                  />
+                  <span className="text-[11px]">{isBreathingIn ? 'Breathe in...' : 'Breathe out...'}</span>
+                </div>
+              )}
+
+              <span className="flex items-center gap-1 text-slate-400 text-[11px]">
+                <Clock className="w-3 h-3 text-indigo-400" />
+                <span>
+                  {currentSceneIndex === scenes.length - 1
+                    ? 'Final scene'
+                    : `~${Math.max(1, Math.round((scenes.length - currentSceneIndex) * 1.5))} min left`}
+                </span>
+              </span>
+
+              <span className="font-bold text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-500/30 text-[11px]">
+                {Math.round(((currentSceneIndex + 1) / scenes.length) * 100)}% Read
+              </span>
+            </div>
           </div>
 
-          {/* Gentle Breathing Guide for Calming Sleep Stories */}
-          {story.mode === 'sleep' && (
-            <div className="flex items-center gap-2 text-xs text-purple-300 bg-purple-950/40 px-3 py-1 rounded-full border border-purple-800/40">
-              <div
-                className={`w-2.5 h-2.5 rounded-full bg-purple-400 transition-all duration-1000 ${
-                  isBreathingIn ? 'scale-125 opacity-100' : 'scale-75 opacity-40'
-                }`}
-              />
-              <span>{isBreathingIn ? 'Breathe in peace...' : 'Breathe out calm...'}</span>
-            </div>
-          )}
+          {/* Visual Continuous Starlight Progress Bar */}
+          <div className="relative w-full h-2 rounded-full bg-slate-950 overflow-hidden border border-slate-800/80 mb-3">
+            <motion.div
+              className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-400 shadow-sm"
+              initial={false}
+              animate={{ width: `${((currentSceneIndex + 1) / scenes.length) * 100}%` }}
+              transition={{ type: "spring", stiffness: 120, damping: 20 }}
+            />
+          </div>
+
+          {/* Stepped Interactive Scene Checkpoints */}
+          <div className="flex items-center justify-between relative px-1">
+            {scenes.map((scene, idx) => {
+              const isPast = idx < currentSceneIndex;
+              const isCurrent = idx === currentSceneIndex;
+
+              return (
+                <button
+                  key={scene.id || idx}
+                  type="button"
+                  onClick={() => handleJumpToScene(idx)}
+                  className="group relative flex flex-col items-center focus:outline-none transition-all cursor-pointer"
+                  title={`Scene ${idx + 1}${isPast ? ' (Completed - tap to review)' : isCurrent ? ' (Reading now)' : ' (Upcoming - tap to jump)'}`}
+                >
+                  <div
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                      isPast
+                        ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/30 border border-amber-300 scale-95 hover:scale-105'
+                        : isCurrent
+                        ? 'bg-indigo-600 text-white border-2 border-amber-400 shadow-lg shadow-indigo-600/50 ring-4 ring-indigo-500/30 scale-110'
+                        : 'bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-500 hover:text-slate-200 hover:scale-105'
+                    }`}
+                  >
+                    {isPast ? (
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    ) : isCurrent ? (
+                      <Star className="w-3.5 h-3.5 text-amber-300 fill-amber-300 animate-spin-slow" />
+                    ) : (
+                      <span>{idx + 1}</span>
+                    )}
+                  </div>
+
+                  <span
+                    className={`mt-1 text-[10px] sm:text-[11px] font-semibold transition-colors ${
+                      isCurrent
+                        ? 'text-amber-300 font-bold'
+                        : isPast
+                        ? 'text-indigo-300'
+                        : 'text-slate-500 group-hover:text-slate-400'
+                    }`}
+                  >
+                    {idx === scenes.length - 1 ? 'End' : `Part ${idx + 1}`}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Sleep Journey Mode: Inline Sleep Duration & Wake-Up Projection Bar */}

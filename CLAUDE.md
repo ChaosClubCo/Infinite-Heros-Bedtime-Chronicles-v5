@@ -14,6 +14,12 @@ This codebase is the result of consolidating three sibling repos into one canoni
   full source (preserved on the `archive/android-kotlin-rewrite-2026-07-13` branch in
   that repo). Its Firebase auth was likewise not ported — Supabase auth (already in this
   repo) remains canonical.
+  > ⚠️ **Unresolved as of 2026-09-08**: the `archive/android-kotlin-rewrite/` directory
+  > this paragraph points to does **not exist** in the current tree (`git ls-files` has no
+  > `archive/` path). Live, git-tracked Kotlin/Jetpack Compose source instead sits at
+  > `app/src/main/java/...` — inside the Expo Router `app/` directory, where only route
+  > files belong. This is either a lost archival step or a bad merge artifact; it has not
+  > been resolved and needs a maintainer decision, not a docs fix. See "Known Gotchas."
 - **`krosebrook/infinite-heros-bedtime-chronicles-v5-main`** — had no application source
   in its git history (only docs/config); contributed nothing beyond receiving the merged
   tree so all three repos converge on identical content.
@@ -31,7 +37,8 @@ AI-powered interactive bedtime story app for children ages 3-9. Kids create cust
 
 ## Tech Stack
 
-- **Frontend:** Expo SDK ~55, React Native 0.83 (New Architecture), Expo Router ~55 (file-based routing, single root `app/_layout.tsx` — all navigation params via `useLocalSearchParams<T>()` generics; never use untyped string routes). Exact pins live in `package.json` (`react-native` 0.83.10, `expo-router` ~55.0.17, `react` 19.2.0) — PR #354 re-aligned the tree to SDK 55; treat `package.json` as authoritative over any version stated in prose.
+- **Frontend (mobile — canonical client):** Expo SDK ~55, React Native (New Architecture), Expo Router ~55 (file-based routing, single root `app/_layout.tsx` — all navigation params via `useLocalSearchParams<T>()` generics; never use untyped string routes). Exact pins live in `package.json` and drift routinely via Dependabot — as of 2026-09-08: `expo` ~55.0.30, `react-native` 0.87.1, `expo-router` ~55.0.18, `react`/`react-dom` 19.2.8. Always treat `package.json` as authoritative over any version stated in prose (including in this file). An Expo SDK 55→57 upgrade is **spec'd but not executed** — see `docs/operations/EXPO-57-UPGRADE-SPEC.md` and `scripts/verify-expo57-readiness.mjs`; `package.json` still pins SDK 55.
+- **Frontend (web — second, undocumented-relationship stack):** a separate Vite + React app lives under `src/` (`src/App.tsx`, `src/main.tsx`, `src/components/`, `src/data/`, `src/services/`), served by root `index.html` and driven by `npm run dev` / `npm run build` / `npm run preview` (vite / vite build / vite preview — distinct from `expo:dev` / `server:build`). It duplicates several component names from the Expo client (`HeroCard.tsx`, `StoryReader.tsx`, etc.) with independent implementations, and receives active feature commits in the same sprints as the Expo app (see `docs/CHANGELOG.md` 2026-08-22 / 2026-08-30 entries). **No document in this repo states whether `src/` is the new canonical web surface (replacing Expo's web export) or a separate/experimental product** — treat this as open until a maintainer clarifies; don't assume parity between the two component trees.
 - **State:** TanStack React Query v5 (server state) + React Context (app settings, profiles)
 - **Local Storage:** AsyncStorage for stories, profiles, badges, streaks, parent controls
 - **Styling:** React Native StyleSheet + react-native-reanimated v4 for animations
@@ -69,7 +76,22 @@ app/                    # Expo Router screens (file-based routing)
   parental-consent.tsx  # COPPA parental-consent gate (parent gate + consent; first-launch, before onboarding)
   privacy.tsx           # In-app Privacy Policy screen (native, offline; linked from consent + settings)
   welcome.tsx           # Onboarding splash (fade animation)
-components/             # Reusable React Native components
+  src/main/java/...     # ⚠️ STRAY: live, git-tracked native Android/Kotlin (Jetpack Compose) source
+                         #   sits here, inside the Expo Router app/ tree, where only route files
+                         #   belong. Contradicts the "archived to archive/android-kotlin-rewrite/"
+                         #   claim in "Merge Provenance" above — that archive/ directory does not
+                         #   exist. Unresolved; do not delete or move without a maintainer decision.
+src/                    # ⚠️ SEPARATE Vite + React web app — relationship to app/ above is UNDOCUMENTED
+  App.tsx / main.tsx    # Vite entry (served by root index.html); npm run dev/build/preview drive this
+  components/           # Own component tree (HeroCard.tsx, StoryReader.tsx, etc. — NOT the same files
+                         #   as the Expo components/ below despite overlapping names)
+  data/                 # avatars.ts, badges.ts, bedtimeAffirmations.ts, dreamThemes.ts,
+                         #   featuredStories.ts, heroes.ts, madlibsTemplates.ts, storySeeds.ts, visualizerThemes.ts
+  services/              # aiStoryGenerator.ts, audioNarration.ts, dreamIllustration.ts, offlineCacheService.ts
+  integrations/audio/    # Voice recording/playback/streaming utilities (parallel to server/replit_integrations/audio)
+  types.ts               # Web-app-local type definitions (not constants/types.ts)
+components/             # Reusable React Native components (Expo client — see src/components/ above for
+                         #   the web app's separate, differently-implemented components of similar names)
   ErrorBoundary.tsx     # Error boundary wrapper
   ErrorFallback.tsx     # Error fallback UI component
   HeroCard.tsx          # Hero template card (used in hero selection grid)
@@ -179,13 +201,24 @@ docs/                   # Project documentation
   adr/                  # Architecture Decision Records (6 ADRs)
   agents/               # 15 files: 12 agent spec files + README + pr-review.md + security.md
   best-practices/       # Best-practice guides (ACCESSIBILITY, PERFORMANCE, TESTING)
-  operations/           # DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md, OBSERVABILITY.md, SECRETS-ROTATION.md, BRANCH-PROTECTION-SETUP.md, README.md
+  operations/           # DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md, OBSERVABILITY.md, SECRETS-ROTATION.md,
+                         #   BRANCH-PROTECTION-SETUP.md, README.md, EXPO-57-UPGRADE-SPEC.md, RELEASE-PROOF-LEDGER-376.md,
+                         #   PLAY-STORE-SUBMISSION-CHECKLIST.md, GOOGLE-PLAY-STORE-REQUIREMENTS.md,
+                         #   CLOUD-SYNC-ISOLATION-EVIDENCE.md, MIRROR-ARCHIVAL-RUNBOOK.md, WEBHOOK-SURFACE-AUDIT.md,
+                         #   DEPENDENCY-AUDIT-REMEDIATION.md (grown substantially since 2026-07; not exhaustively listed)
   runbooks/             # incident-response, database-migrations, provider-outage, rollback, monitoring-alerting, deployment-provenance, README.md
+  evidence/, ai/, superpowers/, screenshots/  # newer subdirs (release-evidence manifests, AI-context docs,
+                         #   and the Cloudflare-migration design spec under superpowers/specs/) — not individually inventoried here
+  BETA_BLOCKERS_2026-08-22.md, BETA_READINESS_2026-08-22.md, RELEASE_FREEZE_2026-08-24.md,
+  TEST-COVERAGE-ANALYSIS.md  # dated point-in-time snapshots — check each file's own date before trusting its figures
+  SECURITY.md            # NOTE: root also has a near-empty SECURITY.md stub pointing here — see docs/SECURITY.md for the real policy
   archive/              # Consolidated historical records
     audits/             # Historical audit reports (AUDIT-*, COMPREHENSIVE-*, DEAD-CODE-*)
     plans/              # Historical maturity, hardening, and readiness plans
-api/                    # Vercel serverless entry point
-  server.mjs            # Handler that imports createApp from server_dist
+# api/                 — REMOVED (was the Vercel serverless entry point, api/server.mjs).
+#                         Vercel repo-driven deploys are disabled (see DEPLOY.md). The Cloudflare
+#                         Worker replacement (worker/index.ts, per the 2026-08-28 migration design)
+#                         does not exist yet either — production deploy is currently BLOCKED/in-between.
 scripts/                # Build scripts
   build.js              # Expo static build script
   build-android.sh      # Android build script
@@ -198,7 +231,8 @@ scripts/                # Build scripts
 - `AGENT-COORDINATION.md` — path-ownership rules for concurrent multi-agent work (Claude Code + Antigravity edit the same tree)
 - `CONTRIBUTING.md` — contribution guidelines
 - `CONVENTIONS.md` — code conventions reference
-- `DEPLOY.md` — Vercel/EAS deployment runbook
+- `DEPLOY.md` — deployment policy/runbook. **New Vercel repo-driven deploys are disabled** (`vercel.json` is a fail-closed tombstone with `git.deploymentEnabled=false`), but the **existing Vercel deployment still serves production** (`bedtime-chronicles.com`/`www.bedtime-chronicles.com`) — `DEPLOY.md` explicitly forbids detaching those domains or deleting the Vercel project until the Cloudflare gate passes. The canonical target going forward is Cloudflare Workers + Static Assets per `docs/superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md`, but **no Worker code exists in the repo yet** — so *new* revisions are blocked on both platforms, while the *current* revision keeps running on Vercel. EAS Build → Android is configured but currently can't complete in CI either (missing `package-lock.json` breaks its `npm ci` step, same as other workflows). Read `DEPLOY.md` directly before touching deploy anything; earlier prose elsewhere describing "Vercel/EAS" as canonical, or describing production as live on neither platform, is stale/wrong.
+- `ARCHITECTURE.md` / `CHANGELOG.md` (root) — thin stub pointers to the canonical `docs/ARCHITECTURE.md` / `docs/CHANGELOG.md`; edit the `docs/` versions, not these
 - `GEMINI.md` — Gemini-specific agent instructions
 - `GLOSSARY.md` — project terminology
 - `MEMORY.md` — persistent agent memory/context
@@ -215,7 +249,9 @@ scripts/                # Build scripts
 npm run server:dev          # Backend on port 5000 (tsx server/index.ts)
 npm run expo:dev            # Frontend on port 8081 (Replit environment)
 npx expo start              # Frontend (non-Replit)
-npm run dev                 # Both at once (dev:server & dev:expo — POSIX shells; on Windows run the two commands in separate terminals)
+# ⚠️ npm run dev is NOT "both at once" anymore — package.json now maps `dev` to `vite --host 0.0.0.0 --port 3000`
+#    (the src/ web app, see "Frontend (web)" above). To run Expo + server together, run
+#    `npm run dev:server` and `npm run dev:expo` in separate terminals — no single combined script exists.
 
 # Build
 npm run server:build        # esbuild → server_dist/index.js (CommonJS, minified)
@@ -237,6 +273,35 @@ npm run test:components      # jest (jest-expo + @testing-library/react-native) 
 
 # Database
 npm run db:push             # Drizzle schema migration (needs DATABASE_URL)
+
+# Web (secondary Vite/React stack under src/ — see Tech Stack / Project Structure)
+npm run dev                  # ⚠️ NOT the Expo+server dev loop — this is `vite --host 0.0.0.0 --port 3000` (serves src/)
+npm run build                # vite build (src/ → static web bundle)
+npm run preview              # vite preview
+
+# Release/provenance verification (added since mid-2026-07; not documented elsewhere in this file until now)
+npm run verify:sync              # Validates lib/sync/reconcile + mapper correctness for cloud-sync entities
+npm run verify:milestones        # Validates M1 (safety) / M2 (TTS cache) / M3 (Supabase sync) invariants together
+npm run verify:release-proof     # CORRECTED 2026-09-08 (Codex review caught the original overclaim): its own header
+                                  #   docstring lists 8 categories for Issue #376, but verifyReleaseProof() only actually
+                                  #   runs 4 gates — identity (repo/ref), runtime/engine alignment, privacy-route coverage,
+                                  #   and EAS config. It does NOT check M1-M3 safety/sync invariants, secure storage,
+                                  #   account-deletion behavior, or rollback evidence despite the docstring listing them —
+                                  #   don't treat a pass as proof of those. Not an "18-point matrix."
+npm run generate:beta-readiness  # CORRECTED 2026-09-08: writes to `.release-evidence/beta-acceptance-manifest.json`
+                                  #   (default --output), NOT docs/evidence/beta-acceptance-manifest.json — that path is
+                                  #   the read-only --template it reads FROM. Don't archive/inspect the template as if it
+                                  #   were the generated evidence.
+npm run verify:beta-readiness    # Validates the generated .release-evidence/ manifest against the template's gates
+npm run preflight:eas            # EAS/Android build preflight (child-safety permissions, icons, eas.json profiles).
+                                  #   CORRECTED 2026-09-08: its secrets check (validateClientSecretsSeparation) only scans
+                                  #   `.env.example` line-by-line for forbidden EXPO_PUBLIC_*-prefixed key NAMES — it does
+                                  #   NOT scan tracked source files or values, so "no leaked secrets" overstates it.
+npm run verify:mirror            # CORRECTED 2026-09-08: checks package.json's repo URL text + that the local archival
+                                  #   runbook (docs/operations/MIRROR-ARCHIVAL-RUNBOOK.md) contains its required section
+                                  #   headings — it never calls the GitHub API, so it cannot confirm the legacy mirror repo
+                                  #   is actually archived. `docs/ROADMAP.md` still lists that archival as outstanding.
+npm run verify:expo57-readiness  # Validates SDK 55→57 upgrade-spec readiness (upgrade itself is NOT yet executed)
 
 # Verify (compile_applet standard — required before every PR)
 npm run typecheck           # TypeScript type check (tsc --noEmit)
@@ -609,8 +674,8 @@ npm run test:components  # jest — RN components + Expo-native hooks
 ## Development Notes
 
 - **Testing:** Vitest v4 configured with coverage via @vitest/coverage-v8
-- **CI/CD:** GitHub Actions (`.github/workflows/ci.yml` — lint, test, typecheck, build on push/PR to main/develop; `eas-build.yml` — Expo EAS builds; `vercel-deploy.yml` — Vercel deployment; `deployment-drift.yml` — scheduled check that production's `/api/health` `releaseSha` still matches canonical `main`; `publish.yml` — release publishing; `auto-merge.yml`, `branch-cleanup.yml`, `stale.yml` — repo hygiene; `agent-pr-review.yml`, `agent-security.yml` — automated AI agent PR review and security scanning; `markdown-link-check.yml` — broken-link checker). Also supports Replit push-to-deploy.
-- **Vercel deployment:** `api/server.mjs` serverless handler wraps `server_dist/index.js` via `createApp()`. Config in `vercel.json` (300s max duration, all routes rewrite to `/api/server`)
+- **CI/CD:** GitHub Actions, 15 workflows as of 2026-09-08 (`vercel-deploy.yml` and `auto-merge.yml` are **gone** — do not reference them): `ci.yml` — lint, test, typecheck, build on push/PR to main/develop; `eas-build.yml` — Expo EAS builds; `deployment-drift.yml` — scheduled check that production's `/api/health` `releaseSha` still matches canonical `main`; `publish.yml` — release publishing; `branch-cleanup.yml`, `stale.yml` — repo hygiene; `agent-pr-review.yml`, `agent-security.yml` — automated AI agent PR review and security scanning; `markdown-link-check.yml` — broken-link checker; and newer additions not yet fully reconciled into this doc — `archive-recovery-gate.yml` (runs a Vite `npm run build`), `exact-head-pr-proof.yml`, `main-governance-guard.yml`, `prod-story-e2e-once.yml`, `public-v1-eslint-autofix.yml`, `release-proof.yml`. No `cloudflare-deploy.yml` exists yet (consistent with no Worker code being present — see `DEPLOY.md`). Also supports Replit push-to-deploy.
+- **New Vercel deploys are disabled, but the existing Vercel deployment is still what's live in production** — don't conflate the two. `api/server.mjs` (the old serverless handler) has been removed from the repo, and `vercel.json` is now a fail-closed tombstone (`git.deploymentEnabled: false`) that blocks *future* repo-driven deploys, but `DEPLOY.md` explicitly keeps the production domains attached to the current Vercel deployment until Cloudflare is proven. The production target going forward is Cloudflare Workers + Static Assets per `docs/superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md`, but that migration has **no Worker code in the repo yet** — read `DEPLOY.md` before touching either platform.
 - **React Compiler** enabled via app.json experiments
 - **New Architecture** (React Native) enabled
 - **Typed Routes** enabled for Expo Router — all route params via `useLocalSearchParams<T>()` generics; never access params without type parameters
@@ -652,7 +717,13 @@ npm run test:components  # jest — RN components + Expo-native hooks
 - **AI router JSON extraction** — `router.ts` uses `extractFirstJson()` (balanced-brace scan that skips string literals), not a greedy regex; callers consume `response.parsedJson` when `jsonMode` is set
 - **Streaming model field** — `router.ts` reports the provider's `textModel` (the concrete model ID) on streaming chunks, falling back to `provider.name` only when `textModel` is unset
 - **Offline sync-queue is best-effort, not durable** — `POST /api/sync/interactions` (see `lib/sync-queue.ts`) currently logs and echoes each interaction; nothing is persisted server-side yet. Don't assume synced interactions survive a server restart or are queryable later. Each item is Zod-validated (`SyncInteractionSchema` in `server/validation.ts`); malformed items come back `status: "rejected"` rather than crashing the batch or being marked processed. `useSyncOffline()` is mounted exactly once, in `app/_layout.tsx` via `lib/SyncOfflineContext.tsx` — screens read `useSyncOfflineStatus()` instead of calling the hook directly, so the reconnect drain can't run more than once concurrently.
-- **`archive/android-kotlin-rewrite/`** — docs-only pointer to a native Android/Kotlin client that was developed in a sibling repo and archived rather than merged; see its `README.md` for retrieval instructions. Not part of the active app.
+- **New production deploys are blocked; the EXISTING Vercel origin still serves live traffic — these are not the same thing (corrected 2026-09-08, a Codex review caught the earlier version conflating them).** `DEPLOY.md` explicitly says: "do not detach the production domains from Vercel and do not delete the Vercel project until the Cloudflare provenance gate... passes" — `bedtime-chronicles.com` / `www.bedtime-chronicles.com` are still live on the Vercel deployment that predates the tombstone. What's actually blocked is *shipping a new revision*: `vercel.json`'s `git.deploymentEnabled=false` stops new repo-driven Vercel deploys, and the Cloudflare Worker replacement has no code in the repo yet, so there's nowhere to ship a new revision *to* either. Read `DEPLOY.md`'s "Current production state" and "Vercel retirement guard" sections before touching deploy anything — don't say production is "live on neither platform," and don't detach or delete the Vercel project.
+- **`eas-build.yml` cannot currently complete a build.** It runs `actions/setup-node@v7` with npm caching then `npm ci`, same as every other CI job — and since `package-lock.json` doesn't exist in the repo (see the CI-red note in this repo's PR history / any recent `ci.yml` run), that step fails before EAS is even invoked. Don't call the EAS mobile deploy path "live" without that caveat; it's configured correctly but currently blocked by the same missing-lockfile issue as the rest of CI.
+- **Two parallel, undocumented-relationship frontend stacks exist.** The Expo Router client (`app/`, `components/`, `lib/`, `constants/`) is the one this file documents throughout. A second, separate Vite + React web app also lives under `src/` (own `App.tsx`, `components/`, `data/`, `services/`), served by root `index.html` and `npm run dev`/`build`/`preview`. No doc states whether `src/` replaces Expo's web export or is a distinct product surface; both receive active feature commits in the same sprints. Don't assume a component under `src/components/` and a same-named one under `components/` are the same file or kept in sync.
+- **`app/src/main/java/...` contains live, git-tracked native Android/Kotlin (Jetpack Compose) source** sitting inside the Expo Router `app/` tree, where only route files belong. This contradicts "Merge Provenance" above, which says the Kotlin rewrite was archived to `archive/android-kotlin-rewrite/` — that directory does not exist anywhere in this repo. Unresolved as of 2026-09-08; needs a maintainer decision (restore the archive, or accept the Kotlin source is live) rather than a docs-only fix. Do not delete `app/src/main/` assuming it's dead weight, and do not assume the "archived, not carried forward" claim is still true.
+- **CORRECTION (2026-09-08, caught by a PR review bot after this file first shipped the claim below): `eslint-config-expo` is still pinned at `~55.0.1` — it was NOT actually bumped.** Commit `612da83` on `main`, titled `build(deps): bump eslint-config-expo from 55.0.1 to 57.0.2 (#464)` (2026-09-01), is an **empty commit** — `git show 612da83 --stat` touches zero files, and `package.json` has never shown `eslint-config-expo` at anything but `~55.0.1` in its history. The Dependabot PR title/description describe a bump that never landed in the diff (a Dependabot/CI oddity worth someone's attention, not a docs problem). The "do NOT bump eslint-config-expo to ~57" warning (added after the SDK-55 realignment in PR #354, to avoid an `eslint-plugin-react` `context.getFilename is not a function` crash) **still fully applies and has not been violated** — don't bump it.
+- **Expo SDK 55→57 upgrade is spec'd, not executed.** `docs/operations/EXPO-57-UPGRADE-SPEC.md` and `scripts/verify-expo57-readiness.mjs` (`npm run verify:expo57-readiness`) exist to gate a future upgrade; `package.json` still pins SDK 55 (`expo` ~55.0.30). Don't assume SDK 57 is in effect just because the supporting infra exists.
+- **`archive/android-kotlin-rewrite/`** — referenced by "Merge Provenance" above as a docs-only pointer to the archived native Android/Kotlin client, but **the directory does not exist in this repo** (confirmed via `git ls-files`). See the `app/src/main/java/...` gotcha above — treat the whole archival claim as unverified until a maintainer resolves it.
 
 ## Files/Directories — Do Not Modify Without Explicit Approval
 

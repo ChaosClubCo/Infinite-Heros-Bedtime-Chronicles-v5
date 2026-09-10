@@ -17,8 +17,8 @@ import {
   ChevronRight,
   Search,
   PenTool,
-  Feather,
   Sunrise,
+  Wind,
 } from 'lucide-react';
 
 interface BedtimeChroniclesHomeProps {
@@ -27,6 +27,7 @@ interface BedtimeChroniclesHomeProps {
   onOpenMadlibs: () => void;
   onOpenDreamJournal: () => void;
   onOpenWindDown: () => void;
+  onOpenGuidedBreathing?: () => void;
   onOpenLibrary: (categoryFilter?: string) => void;
   onOpenCreator?: () => void;
   onOpenSettings: () => void;
@@ -51,6 +52,7 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
   onOpenMadlibs,
   onOpenDreamJournal,
   onOpenWindDown,
+  onOpenGuidedBreathing,
   onOpenLibrary,
   onOpenCreator,
   onOpenSettings,
@@ -293,12 +295,12 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-2">
             <button
               type="button"
               id="listen-now-hero-btn"
               onClick={() => onSelectStory(heroStory)}
-              className="flex items-center gap-2 px-6 sm:px-8 py-3 rounded-full font-bold text-xs sm:text-sm bg-[#f2cb6c] hover:bg-[#ebd07f] text-[#1e1403] shadow-xl shadow-amber-400/20 transition-all hover:scale-105 active:scale-95"
+              className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 rounded-full font-bold text-xs sm:text-sm bg-[#f2cb6c] hover:bg-[#ebd07f] text-[#1e1403] shadow-xl shadow-amber-400/20 transition-all hover:scale-105 active:scale-95 min-h-[44px]"
             >
               <Play className="w-4 h-4 fill-current" />
               <span>Listen Now</span>
@@ -307,7 +309,7 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
             <button
               type="button"
               onClick={() => onOpenDetails(heroStory)}
-              className="px-5 sm:px-6 py-3 rounded-full font-semibold text-xs sm:text-sm bg-[#1b1535]/80 hover:bg-[#271f4b] text-slate-200 hover:text-white border border-slate-700/70 transition-all"
+              className="px-5 sm:px-6 py-3 rounded-full font-semibold text-xs sm:text-sm bg-[#1b1535]/80 hover:bg-[#271f4b] text-slate-200 hover:text-white border border-slate-700/70 transition-all min-h-[44px] flex items-center justify-center"
             >
               Details
             </button>
@@ -325,10 +327,10 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
             action: () => onOpenLibrary('Short Tale'),
           },
           {
-            id: 'meditation',
-            label: 'Meditation',
-            icon: Feather,
-            action: () => onOpenLibrary('Guided Meditation'),
+            id: 'guided-breathing',
+            label: 'Guided Breathing',
+            icon: Wind,
+            action: onOpenGuidedBreathing ? onOpenGuidedBreathing : () => onOpenLibrary('Guided Meditation'),
           },
           {
             id: 'classic-fables',
@@ -361,6 +363,39 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
           );
         })}
       </section>
+
+      {/* GUIDED BREATHING BANNER: Settle Down Before Storytime */}
+      {onOpenGuidedBreathing && (
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#140e32]/90 via-[#0d0926]/95 to-[#160f38]/90 border border-indigo-900/60 p-5 sm:p-6 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 group">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-400/20 via-indigo-500/20 to-purple-500/30 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-inner group-hover:scale-105 transition-transform flex-shrink-0">
+              <Wind className="w-7 h-7 animate-pulse text-cyan-300" />
+            </div>
+            <div className="space-y-1 text-center sm:text-left">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-400/10 border border-cyan-400/30 text-cyan-300 text-[10px] font-bold uppercase tracking-wider">
+                <Sparkles className="w-3 h-3" />
+                <span>Bedtime Wind-Down Ritual</span>
+              </div>
+              <h3 className="text-base sm:text-lg font-bold font-playfair text-white tracking-wide">
+                Guided Bedtime Breathing
+              </h3>
+              <p className="text-xs text-slate-300 max-w-md font-light">
+                Expand and contract with the glowing starlight orb and calm ambient audio to help {childName} gently unwind.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            id="home-guided-breathing-cta-btn"
+            onClick={onOpenGuidedBreathing}
+            className="flex items-center justify-center gap-2 px-6 py-3 rounded-full font-bold text-xs sm:text-sm bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-xl shadow-cyan-500/20 transition-all hover:scale-105 active:scale-95 whitespace-nowrap min-h-[44px]"
+          >
+            <Wind className="w-4 h-4" />
+            <span>Open Breathing Orb</span>
+          </button>
+        </section>
+      )}
 
       {/* PERSONALIZED FOR YOU SECTION (Image 1) */}
       <section className="space-y-4">

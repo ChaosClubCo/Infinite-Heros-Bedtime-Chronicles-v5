@@ -10,6 +10,7 @@ import {
   Compass,
   Wand2,
   WifiOff,
+  Wind,
 } from 'lucide-react';
 
 export type NavTab = 'home' | 'gallery' | 'madlibs' | 'create' | 'library' | 'saved' | 'trophies' | 'settings';
@@ -18,6 +19,7 @@ interface NavbarProps {
   currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   onOpenSettings: () => void;
+  onOpenGuidedBreathing?: () => void;
   savedCount: number;
   streakCount: number;
   childName?: string;
@@ -29,6 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentTab,
   onSelectTab,
   onOpenSettings,
+  onOpenGuidedBreathing,
   savedCount,
   streakCount,
   childName = 'Little Explorer',
@@ -119,6 +122,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="xs:hidden">{streakCount}</span>
           </div>
 
+          {/* Guided Breathing Quick Action */}
+          {onOpenGuidedBreathing && (
+            <button
+              id="navbar-guided-breathing-btn"
+              type="button"
+              onClick={onOpenGuidedBreathing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/40 text-indigo-200 hover:text-white text-xs font-bold transition-all shadow-sm group"
+              title="Guided Bedtime Breathing • Calm Orb for Sleep"
+            >
+              <Wind className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+              <span className="hidden sm:inline">Breathe</span>
+            </button>
+          )}
+
 
           {/* Bedtime Routine & Child Profile */}
           <button
@@ -138,15 +155,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <div className="lg:hidden flex items-center justify-around border-t border-slate-800/80 bg-slate-950/95 py-2 px-2 overflow-x-auto custom-scrollbar">
+      {/* Mobile Fixed Bottom Navigation Bar */}
+      <nav
+        id="mobile-bottom-nav"
+        aria-label="Mobile Navigation"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-slate-800/90 bg-slate-950/95 backdrop-blur-xl py-1.5 px-2 shadow-2xl shadow-black safe-area-inset-bottom overflow-x-auto custom-scrollbar"
+      >
         {[
           { id: 'home', label: 'Explore', icon: Compass },
           { id: 'gallery', label: 'Themes', icon: Sparkles },
           { id: 'madlibs', label: 'Madlibs', icon: Wand2 },
           { id: 'create', label: 'Create', icon: PlusCircle },
           { id: 'library', label: 'Library', icon: BookOpen },
-          { id: 'saved', label: 'Saved', icon: Bookmark },
+          { id: 'saved', label: `Saved${savedCount > 0 ? ` (${savedCount})` : ''}`, icon: Bookmark },
           { id: 'trophies', label: 'Trophies', icon: Award },
           { id: 'settings', label: 'Settings', icon: Settings },
         ].map((item) => {
@@ -156,18 +177,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           return (
             <button
               key={item.id}
+              id={`mobile-nav-tab-${item.id}`}
               type="button"
               onClick={() => onSelectTab(item.id as NavTab)}
-              className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl text-[10px] font-bold transition-all shrink-0 ${
-                isActive ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-300'
+              className={`flex flex-col items-center justify-center min-h-[44px] min-w-[48px] py-1 px-2 rounded-xl text-[10px] font-bold transition-all shrink-0 active:scale-95 ${
+                isActive
+                  ? 'text-indigo-300 bg-indigo-950/70 border border-indigo-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Icon className={`w-4 h-4 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
-              <span>{item.label}</span>
+              <Icon className={`w-4 h-4 mb-0.5 ${isActive ? 'stroke-[2.5] text-amber-300' : 'stroke-2'}`} />
+              <span className="whitespace-nowrap leading-none">{item.label}</span>
             </button>
           );
         })}
-      </div>
+      </nav>
     </header>
   );
 };

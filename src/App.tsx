@@ -18,6 +18,7 @@ import { SavedStoriesView } from './components/SavedStoriesView';
 import { TrophiesView } from './components/TrophiesView';
 import { StoryReader } from './components/StoryReader';
 import { SleepSetupModal } from './components/SleepSetupModal';
+import { GuidedBreathingModal } from './components/GuidedBreathingModal';
 import { OfflineToast } from './components/OfflineToast';
 import { INITIAL_CHILD_PROFILES } from './data/dreamThemes';
 import { useNetworkStatus, cacheStoriesForOffline } from './services/offlineCacheService';
@@ -107,6 +108,7 @@ export const App: React.FC = () => {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showDreamJournalModal, setShowDreamJournalModal] = useState(false);
   const [showWindDownModal, setShowWindDownModal] = useState(false);
+  const [showGuidedBreathingModal, setShowGuidedBreathingModal] = useState(false);
   const [showMadlibsDirect, setShowMadlibsDirect] = useState(false);
 
   // Network and Service Worker Offline Status
@@ -416,6 +418,7 @@ export const App: React.FC = () => {
           setCurrentTab(tab);
         }}
         onOpenSettings={() => setCurrentTab('settings')}
+        onOpenGuidedBreathing={() => setShowGuidedBreathingModal(true)}
         savedCount={savedStories.length}
         streakCount={stats.currentStreak}
         childName={activeChildProfile?.name || settings.childName}
@@ -424,7 +427,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 pb-24 lg:pb-12">
         
         {/* Full-screen Direct Madlib Diaries Mode if toggled */}
         {showMadlibsDirect ? (
@@ -443,6 +446,7 @@ export const App: React.FC = () => {
                 onOpenMadlibs={() => setShowMadlibsDirect(true)}
                 onOpenDreamJournal={() => setShowDreamJournalModal(true)}
                 onOpenWindDown={() => setShowWindDownModal(true)}
+                onOpenGuidedBreathing={() => setShowGuidedBreathingModal(true)}
                 onOpenLibrary={(categoryFilter) => {
                   setCurrentTab('library');
                 }}
@@ -579,6 +583,18 @@ export const App: React.FC = () => {
         onClose={() => setShowWindDownModal(false)}
         settings={settings}
         onSaveSettings={setSettings}
+        onOpenGuidedBreathing={() => setShowGuidedBreathingModal(true)}
+      />
+
+      {/* Guided Breathing Modal */}
+      <GuidedBreathingModal
+        isOpen={showGuidedBreathingModal}
+        onClose={() => setShowGuidedBreathingModal(false)}
+        childName={activeChildProfile?.name || settings.childName}
+        onReadyForStory={() => {
+          setShowGuidedBreathingModal(false);
+          setCurrentTab('library');
+        }}
       />
 
       {/* Bedtime Routine Settings Modal */}

@@ -503,7 +503,7 @@ export const MadlibDiariesView: React.FC<MadlibDiariesViewProps> = ({
         </div>
 
         {/* 5-Mode Switcher */}
-        <div className="flex items-center bg-[#130f2d] p-1 rounded-2xl border border-purple-900/40 shadow-inner flex-wrap gap-1">
+        <div className="flex items-center bg-[#130f2d] p-1 rounded-2xl border border-purple-900/40 shadow-inner overflow-x-auto max-w-full custom-scrollbar gap-1">
           {[
             { id: 'diary', label: 'Story Diaries', icon: BookOpen },
             { id: 'focus', label: 'Celestial Focus', icon: Moon },
@@ -518,7 +518,7 @@ export const MadlibDiariesView: React.FC<MadlibDiariesViewProps> = ({
                 key={mode.id}
                 type="button"
                 onClick={() => setViewMode(mode.id as MadlibMode)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
                   isActive
                     ? 'bg-amber-400 text-slate-950 shadow-md font-bold'
                     : 'text-purple-300 hover:text-white hover:bg-purple-950/40'
