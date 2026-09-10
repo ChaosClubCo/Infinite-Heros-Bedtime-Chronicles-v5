@@ -1,93 +1,100 @@
 # Runbook: Deploy
 
-<!-- Last verified: 2026-07-21 -->
+<!-- Last verified: 2026-08-29 -->
 
-This runbook covers deploying a new version of Infinity Heroes: Bedtime Chronicles to Replit or Vercel.
+This runbook covers the active release surfaces for Infinity Heroes: Bedtime Chronicles.
 
-For the full, detailed deployment guide see [docs/operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md).
+- Web/API target: Cloudflare Workers + Workers Static Assets.
+- Mobile delivery: Expo / EAS.
+- Vercel deployment: retired for new revisions and fail-closed at the Git integration.
+- Cloudflare production certification: **BLOCKED** until the exact service, routes, deployment/version, runtime SHA, and rollback version are independently verified.
+
+For the runtime migration contract and release gates, see [the Cloudflare Runtime Migration Design](../superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md).
 
 ---
 
 ## Prerequisites
 
-- Changes merged to `main` branch
-- All CI checks passing (lint, typecheck, tests, build)
-- Required environment variables set in the target platform's secrets/config
+- Changes merged through the repository's protected release process.
+- All CI, security, exact-head, and release checks required for the candidate are passing.
+- Required environment variables and secrets are configured only on the active target platform.
+- The deployed runtime identity can be reconciled to the exact candidate SHA before promotion is claimed.
 
 ---
 
-## Canonical Deployment Workflow
+## Web/API deployment
 
-### 1. Backend: Vercel Serverless
-Vercel deployments are triggered automatically on push to `main` via the [.github/workflows/vercel-deploy.yml](../../.github/workflows/vercel-deploy.yml) workflow (or native Git integration fallback).
+### Cloudflare admission
 
-1. Monitor the workflow run in GitHub Actions.
-2. The deployed serverless endpoints run Node 22 (`nodejs22.x`) matching `package.json` engines.
-3. On success, the API is live at the production domain.
-4. Proceed to [Post-Deploy Verification](#post-deploy-verification).
+Do not promote a Cloudflare deployment until all of the following are captured for the same candidate:
+
+1. Cloudflare account identity.
+2. Worker/Pages service or project identity.
+3. Production route for `bedtime-chronicles.com`.
+4. Production route for `www.bedtime-chronicles.com`.
+5. Exact deployment/version ID.
+6. Runtime source SHA equal to the candidate SHA.
+7. Runtime canonical repository and `main` ref.
+8. One previously verified rollback version and SHA.
+
+The canonical branch currently does not contain the Worker entry and Wrangler configuration described by the August 28 design. Treat the hosting migration as unverified until that implementation and provider-side evidence are reconciled.
+
+### Vercel retirement guard
+
+`vercel.json` is retained only as a fail-closed tombstone with `git.deploymentEnabled=false` while the Vercel project remains linked. The former deploy-hook workflow and Vercel runtime/build adapters are retired.
+
+Any new Vercel deployment for this repository is deployment drift and blocks release promotion.
+
+Do not detach the two production domains or delete the Vercel project until Cloudflare admission and rollback evidence exist.
 
 ---
 
-### 2. Mobile Client: EAS Build
-Native mobile binaries (Android AAB/APK and iOS IPA) are built via EAS:
-- **Preview (internal APK testing):** `bash scripts/build-android.sh preview`
-- **Production (Google Play AAB):** `bash scripts/build-android.sh production`
-- See [docs/operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md) and [docs/operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md](../operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md) for signing credentials and submission steps.
+## Mobile client: EAS Build
+
+Native mobile binaries are built via EAS:
+
+- **Preview:** `bash scripts/build-android.sh preview`
+- **Production:** `bash scripts/build-android.sh production`
+- See [docs/operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md) and [docs/operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md](../operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md) for signing and submission procedures.
 
 ---
 
-### 3. Historical / Secondary: Replit Dev Environment
-Replit is supported as a local cloud IDE and testbed.
-1. Push or merge changes to the `main` branch.
-2. Watch the **Deployments** tab in the Replit workspace.
-3. Once green, run health verification.
+## Local production-mode smoke
 
----
-
-## Manual / Emergency Deploy
+These commands validate the Node application locally. They are not a Cloudflare deployment proof.
 
 ```bash
-# 1. Install dependencies
 npm ci
-
-# 2. Build server bundle
 npm run server:build
-
-# 3. Start production server
 npm run server:prod
 ```
 
-See [docs/operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md) for full EAS mobile build and environment variable setup.
+Do not substitute local success for Worker/workerd compatibility, deployed provenance, custom-domain routing, or rollback evidence.
 
 ---
 
-## Post-Deploy Verification
+## Post-deploy verification
 
-Run these health checks against the deployed instance to confirm a successful deploy:
+Against a provider deployment already admitted by the Cloudflare gate:
 
 ```bash
-BASE_URL=https://<your-deployment-url>.app
+BASE_URL=https://bedtime-chronicles.com
 
-# 1. Server health (expected: {"status":"ok", ...})
-curl $BASE_URL/api/health
-
-# 2. AI provider reachability
-curl $BASE_URL/api/ai-providers
-
-# 3. Voices list (expected: {"voices": [...], "defaults": {...}})
-curl $BASE_URL/api/voices
+curl --fail --silent --show-error "$BASE_URL/api/health"
+curl --fail --silent --show-error "$BASE_URL/api/ai-providers"
+curl --fail --silent --show-error "$BASE_URL/api/voices"
+curl --fail --silent --show-error "$BASE_URL/privacy"
 ```
 
-A healthy deploy shows:
-- `/api/health` → `{ "status": "ok" }`
-- `/api/ai-providers` → at least one provider with `"available": true`
+The release-proof contract requires exact runtime identity. An `ok` health response without the candidate SHA is not enough.
 
-If any check fails, follow the [rollback runbook](./rollback.md).
+If any required check fails, follow the [rollback runbook](./rollback.md). Roll back using an identified provider version, not a source-only guess.
 
 ---
 
-## See Also
+## See also
 
-- [rollback.md](./rollback.md) — Roll back a bad deployment
-- [incident-response.md](./incident-response.md) — Respond to a production incident
-- [docs/operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md) — Full deployment reference (EAS, Vercel, Replit)
+- [Cloudflare Runtime Migration Design](../superpowers/specs/2026-08-28-cloudflare-runtime-migration-design.md)
+- [Deployment Manual](../operations/DEPLOYMENT.md)
+- [rollback.md](./rollback.md)
+- [incident-response.md](./incident-response.md)

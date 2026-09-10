@@ -1,0 +1,16 @@
+{
+  "name": "Infinite Heroes: Bedtime Chronicles",
+  "short_name": "Bedtime Tales",
+  "description": "Child-safe bedtime story app with voice narration, calming sleep journeys, and offline library",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#060413",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✨</text></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

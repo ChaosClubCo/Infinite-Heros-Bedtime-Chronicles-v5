@@ -13,6 +13,7 @@ import {
   X,
   PartyPopper,
   Star,
+  Sunrise,
 } from 'lucide-react';
 import { StreakMilestone } from '../types';
 import {
@@ -28,6 +29,7 @@ interface DailyStreakMilestoneCardProps {
   childName?: string;
   onAdvanceStreak?: () => void;
   onSelectMilestone?: (milestone: StreakMilestone) => void;
+  onCheckMorningStreak?: () => void;
 }
 
 export const DailyStreakMilestoneCard: React.FC<DailyStreakMilestoneCardProps> = ({
@@ -35,6 +37,7 @@ export const DailyStreakMilestoneCard: React.FC<DailyStreakMilestoneCardProps> =
   childName = 'Little Explorer',
   onAdvanceStreak,
   onSelectMilestone,
+  onCheckMorningStreak,
 }) => {
   const [selectedMilestone, setSelectedMilestone] = useState<StreakMilestone | null>(null);
   const [isCelebrating, setIsCelebrating] = useState(false);
@@ -173,18 +176,32 @@ export const DailyStreakMilestoneCard: React.FC<DailyStreakMilestoneCardProps> =
           </div>
         </div>
 
-        {/* Action Controls: Celebrate & Check-In */}
-        <div className="flex items-center gap-2.5 self-start md:self-auto">
+        {/* Action Controls: Good Morning Wake-Up, Celebrate & Check-In */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap self-start md:self-auto">
+          {/* Good Morning Sun-Rising Check-In Button */}
+          {onCheckMorningStreak && (
+            <button
+              type="button"
+              id="good-morning-streak-check-btn"
+              onClick={onCheckMorningStreak}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-400/50 hover:border-amber-300 text-amber-300 transition-all active:scale-95 shadow-sm group"
+              title="Good Morning! Check your bedtime streak and view last night's dream summary with a sunrise animation"
+            >
+              <Sunrise className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform animate-pulse" />
+              <span>Good Morning Check-In</span>
+            </button>
+          )}
+
           {/* Celebrate Confetti Trigger Button */}
           <button
             type="button"
             id="celebrate-streak-btn"
             onClick={() => handleCelebrate()}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/40 hover:border-amber-400 text-amber-300 transition-all active:scale-95 shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-indigo-950/80 hover:bg-indigo-900/90 border border-indigo-700/50 hover:border-indigo-500 text-indigo-200 hover:text-white transition-all active:scale-95 shadow-sm"
             title="Trigger celebratory confetti shower for bedtime consistency"
           >
-            <PartyPopper className="w-3.5 h-3.5" />
-            <span>Celebrate Streak</span>
+            <PartyPopper className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Celebrate</span>
           </button>
 
           {/* Log / Check-in Reading Button */}
@@ -193,7 +210,7 @@ export const DailyStreakMilestoneCard: React.FC<DailyStreakMilestoneCardProps> =
               type="button"
               id="log-tonight-read-btn"
               onClick={handleAdvance}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
               title="Check-in tonight's bedtime story & build consistency"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />

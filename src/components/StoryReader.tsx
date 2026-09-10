@@ -1,8 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { Story, StoryScene, AppSettings, CelestialBadge } from '../types';
 import { getHeroById } from '../data/heroes';
-import { VoiceNarrator, ambientSoundEngine } from '../services/audioNarration';
+import {
+  VoiceNarrator,
+  ambientSoundEngine,
+  PRELOADED_NARRATORS,
+  CharacterNarrator,
+} from '../services/audioNarration';
 import { SleepDurationEstimator } from './SleepDurationEstimator';
+import { SleepTimerModal } from './SleepTimerModal';
 import { AmbientWaveVisualizer } from './AmbientWaveVisualizer';
 import { BadgeUnlockCelebrationModal } from './BadgeUnlockCelebrationModal';
 import confetti from 'canvas-confetti';
@@ -16,6 +23,10 @@ import {
   BookmarkCheck,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
+  RotateCcw,
+  SkipForward,
+  SkipBack,
   Sparkles,
   Moon,
   Clock,
@@ -26,11 +37,15 @@ import {
   Flame,
   Train,
   Music2,
-  Shield,
   ArrowLeft,
   X,
   Award,
   Sliders,
+  Gauge,
+  Bot,
+  Check,
+  Star,
+  Heart,
 } from 'lucide-react';
 
 interface ParsedSentence {
@@ -103,6 +118,12 @@ const SOUND_OPTIONS = [
   { id: 'train', label: 'Train', name: 'Dream Train', icon: Train },
 ];
 
+export const READING_SPEED_OPTIONS = [
+  { id: 'slow', label: 'Slow', rate: 0.75, sublabel: '0.75x', description: 'Extra calm bedtime pacing' },
+  { id: 'gentle', label: 'Gentle', rate: 0.88, sublabel: '0.9x', description: 'Soothing story rhythm' },
+  { id: 'natural', label: 'Natural', rate: 1.0, sublabel: '1.0x', description: 'Standard conversational flow' },
+] as const;
+
 interface StoryReaderProps {
   story: Story;
   settings: AppSettings;
@@ -138,6 +159,10 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
     settings.readingSpeed === 'gentle' ? 0.75 : settings.readingSpeed === 'medium' ? 0.88 : 1.0
   );
   const [sleepTimerRemaining, setSleepTimerRemaining] = useState<number | null>(null);
+  const [sleepTimerTotalSeconds, setSleepTimerTotalSeconds] = useState<number | null>(null);
+  const [isSleepTimerPaused, setIsSleepTimerPaused] = useState(false);
+  const [enableGradualFadeout, setEnableGradualFadeout] = useState(true);
+  const [showSleepTimerModal, setShowSleepTimerModal] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [showSoundControls, setShowSoundControls] = useState(false);
   const [isBreathingIn, setIsBreathingIn] = useState(true);
@@ -145,9 +170,61 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
   const [showBadgeCelebrationModal, setShowBadgeCelebrationModal] = useState(false);
   const prevAmbientVolumeRef = useRef<number>(ambientVolume > 0 ? ambientVolume : 0.3);
 
+  // AI Character Narrator Voice Selection state
+  const [selectedNarratorId, setSelectedNarratorId] = useState<string>(() => {
+    const initial = settings.narratorVoice;
+    if (initial === 'moonbeam' || initial === 'voice-moonbeam') return 'luna';
+    if (PRELOADED_NARRATORS.some((n) => n.id === initial)) return initial;
+    return 'luna';
+  });
+  const [showNarratorDropdown, setShowNarratorDropdown] = useState(false);
+  const [previewingNarratorId, setPreviewingNarratorId] = useState<string | null>(null);
+  const narratorDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  const activeNarrator = useMemo(() => {
+    return (
+      PRELOADED_NARRATORS.find((n) => n.id === selectedNarratorId) || PRELOADED_NARRATORS[0]
+    );
+  }, [selectedNarratorId]);
+
+  // Click outside to dismiss AI Narrator dropdown menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        narratorDropdownRef.current &&
+        !narratorDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowNarratorDropdown(false);
+      }
+    };
+    if (showNarratorDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNarratorDropdown]);
+
   const activeSoundOption = useMemo(() => {
     return SOUND_OPTIONS.find((s) => s.id === ambientSound) || SOUND_OPTIONS[0];
   }, [ambientSound]);
+
+  const activeSpeedOption = useMemo(() => {
+    return (
+      READING_SPEED_OPTIONS.find((s) => Math.abs(readingSpeed - s.rate) < 0.05) ||
+      READING_SPEED_OPTIONS[1]
+    );
+  }, [readingSpeed]);
+
+  // Breathing animation cycle duration (in seconds) synchronized with Reading Speed setting
+  // Slow (0.75x) -> 6.0s deep bedtime breath cycle
+  // Gentle (0.9x) -> 4.8s calming soothing breath cycle
+  // Natural (1.0x) -> 3.6s relaxed natural breath cycle
+  const breathingDuration = useMemo(() => {
+    if (readingSpeed <= 0.76) return 6.0;
+    if (readingSpeed <= 0.90) return 4.8;
+    return 3.6;
+  }, [readingSpeed]);
 
   const handleToggleMuteAmbient = useCallback(() => {
     if (ambientVolume > 0) {
@@ -193,22 +270,48 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Sleep timer countdown
+  // Sleep timer countdown with gradual audio fade-out
   useEffect(() => {
-    if (sleepTimerRemaining === null || sleepTimerRemaining <= 0) return;
+    if (sleepTimerRemaining === null || sleepTimerRemaining <= 0 || isSleepTimerPaused) return;
+
     const timer = setInterval(() => {
       setSleepTimerRemaining((prev) => {
-        if (prev === null || prev <= 1) {
+        if (prev === null) return null;
+        if (prev <= 1) {
+          // Timer reached 0: gracefully stop audio and reset
           VoiceNarrator.stop();
           ambientSoundEngine.stopAmbient();
           setIsPlayingNarration(false);
+          setSleepTimerTotalSeconds(null);
           return null;
         }
-        return prev - 1;
+
+        const nextRemaining = prev - 1;
+
+        // Gradual fade-out calculation over final 60 seconds
+        if (enableGradualFadeout) {
+          const fadeWindow = Math.min(
+            60,
+            sleepTimerTotalSeconds ? Math.max(20, Math.floor(sleepTimerTotalSeconds * 0.35)) : 60
+          );
+          if (nextRemaining <= fadeWindow) {
+            const fadeFactor = Math.max(0.04, nextRemaining / fadeWindow);
+            ambientSoundEngine.setVolume(ambientVolume * fadeFactor);
+          }
+        }
+
+        return nextRemaining;
       });
     }, 1000);
+
     return () => clearInterval(timer);
-  }, [sleepTimerRemaining]);
+  }, [
+    sleepTimerRemaining,
+    isSleepTimerPaused,
+    enableGradualFadeout,
+    sleepTimerTotalSeconds,
+    ambientVolume,
+  ]);
 
   // Ambient sound engine sync
   useEffect(() => {
@@ -334,28 +437,148 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
     }
   }, [currentSceneIndex, scenes.length, handleComplete]);
 
-  // Read the current scene aloud with real-time sentence tracking
-  const handleSpeakCurrentScene = useCallback(() => {
+  const [rewindToast, setRewindToast] = useState<string | null>(null);
+  const rewindToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showRewindFeedback = useCallback((msg: string) => {
+    if (rewindToastTimeoutRef.current) {
+      clearTimeout(rewindToastTimeoutRef.current);
+    }
+    setRewindToast(msg);
+    rewindToastTimeoutRef.current = setTimeout(() => {
+      setRewindToast(null);
+    }, 1600);
+  }, []);
+
+  const handleJumpToScene = useCallback((targetIndex: number) => {
+    if (targetIndex >= 0 && targetIndex < scenes.length && targetIndex !== currentSceneIndex) {
+      VoiceNarrator.stop();
+      setIsPlayingNarration(false);
+      setSpokenCharIndex(null);
+      setCurrentSceneIndex(targetIndex);
+      showRewindFeedback(`Navigated to Scene ${targetIndex + 1}`);
+    }
+  }, [scenes.length, currentSceneIndex, showRewindFeedback]);
+
+  const fullTextToRead = useMemo(() => {
+    if (!currentScene) return '';
+    return currentScene.sleepAffirmation
+      ? `${currentScene.text}. ... ${currentScene.sleepAffirmation}`
+      : currentScene.text;
+  }, [currentScene]);
+
+  // Read the current scene aloud starting from a specific character offset
+  const startNarration = useCallback((fromCharOffset: number = 0) => {
+    if (!currentScene) return;
+    const offset = Math.max(0, Math.min(fromCharOffset, fullTextToRead.length));
+    const subtext = fullTextToRead.slice(offset);
+
+    setIsPlayingNarration(true);
+    setSpokenCharIndex(offset);
+
+    VoiceNarrator.speak(subtext, {
+      voiceId: selectedNarratorId,
+      speedRate: readingSpeed,
+      volume: narrationVolume,
+      onStart: () => {
+        setSpokenCharIndex(offset);
+      },
+      onBoundary: (charIndex) => {
+        setSpokenCharIndex(offset + charIndex);
+      },
+      onEnd: () => {
+        setIsPlayingNarration(false);
+        setSpokenCharIndex(null);
+        if (settings.autoAdvance && currentSceneIndex < scenes.length - 1) {
+          setTimeout(() => {
+            handleNextScene();
+          }, 1800);
+        }
+      },
+      onError: () => {
+        setIsPlayingNarration(false);
+        setSpokenCharIndex(null);
+      },
+    });
+  }, [currentScene, fullTextToRead, selectedNarratorId, readingSpeed, narrationVolume, settings.autoAdvance, currentSceneIndex, scenes.length, handleNextScene]);
+
+  // Toggle narration playback (play/pause)
+  const handleTogglePlayPause = useCallback(() => {
     if (!currentScene) return;
     if (isPlayingNarration) {
       VoiceNarrator.pause();
       setIsPlayingNarration(false);
-      setSpokenCharIndex(null);
     } else {
-      setIsPlayingNarration(true);
-      setSpokenCharIndex(0);
-      const textToRead = currentScene.sleepAffirmation
-        ? `${currentScene.text}. ... ${currentScene.sleepAffirmation}`
-        : currentScene.text;
+      // If we had a spoken position, resume from that sentence start, else from beginning
+      let resumeChar = spokenCharIndex || 0;
+      if (spokenCharIndex !== null && spokenCharIndex > 0) {
+        for (let i = parsedSentences.length - 1; i >= 0; i--) {
+          if (parsedSentences[i].startIndex <= spokenCharIndex) {
+            resumeChar = parsedSentences[i].startIndex;
+            break;
+          }
+        }
+      }
+      startNarration(resumeChar);
+    }
+  }, [currentScene, isPlayingNarration, spokenCharIndex, parsedSentences, startNarration]);
 
-      VoiceNarrator.speak(textToRead, {
-        speedRate: readingSpeed,
+  // Rewind narration by approximately 10 seconds
+  const handleRewind10Seconds = useCallback(() => {
+    const currentChar = spokenCharIndex ?? 0;
+    // Estimate ~13 characters per second at ~0.85 rate
+    const charsToRewind = Math.round(readingSpeed * 10 * 14);
+    const targetChar = Math.max(0, currentChar - charsToRewind);
+
+    // Find the sentence that begins at or before targetChar
+    let targetSentenceStart = 0;
+    for (let i = parsedSentences.length - 1; i >= 0; i--) {
+      if (parsedSentences[i].startIndex <= targetChar) {
+        targetSentenceStart = parsedSentences[i].startIndex;
+        break;
+      }
+    }
+
+    const isNearStart = currentChar <= 25 && targetSentenceStart === 0;
+    showRewindFeedback(isNearStart ? 'Scene Start ⏪' : '-10s Rewind ⏪');
+
+    if (isPlayingNarration) {
+      VoiceNarrator.stop();
+      startNarration(targetSentenceStart);
+    } else {
+      setSpokenCharIndex(targetSentenceStart);
+    }
+  }, [spokenCharIndex, readingSpeed, parsedSentences, isPlayingNarration, showRewindFeedback, startNarration]);
+
+  // Adjust reading speed and update active narration seamlessly if playing
+  const handleSelectReadingSpeed = useCallback((newRate: number) => {
+    setReadingSpeed(newRate);
+    if (isPlayingNarration && currentScene) {
+      VoiceNarrator.stop();
+      let resumeChar = spokenCharIndex || 0;
+      if (spokenCharIndex !== null && spokenCharIndex > 0) {
+        for (let i = parsedSentences.length - 1; i >= 0; i--) {
+          if (parsedSentences[i].startIndex <= spokenCharIndex) {
+            resumeChar = parsedSentences[i].startIndex;
+            break;
+          }
+        }
+      }
+      const offset = Math.max(0, Math.min(resumeChar, fullTextToRead.length));
+      const subtext = fullTextToRead.slice(offset);
+
+      setIsPlayingNarration(true);
+      setSpokenCharIndex(offset);
+
+      VoiceNarrator.speak(subtext, {
+        voiceId: selectedNarratorId,
+        speedRate: newRate,
         volume: narrationVolume,
         onStart: () => {
-          setSpokenCharIndex(0);
+          setSpokenCharIndex(offset);
         },
         onBoundary: (charIndex) => {
-          setSpokenCharIndex(charIndex);
+          setSpokenCharIndex(offset + charIndex);
         },
         onEnd: () => {
           setIsPlayingNarration(false);
@@ -372,7 +595,76 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
         },
       });
     }
-  }, [currentScene, isPlayingNarration, readingSpeed, narrationVolume, settings.autoAdvance, currentSceneIndex, scenes.length, handleNextScene]);
+  }, [isPlayingNarration, currentScene, spokenCharIndex, parsedSentences, fullTextToRead, selectedNarratorId, narrationVolume, settings.autoAdvance, currentSceneIndex, scenes.length, handleNextScene]);
+
+  // Select AI Character Narrator and smoothly re-narrate if active
+  const handleSelectNarrator = useCallback((narratorId: string) => {
+    setSelectedNarratorId(narratorId);
+    setShowNarratorDropdown(false);
+    const chosen = PRELOADED_NARRATORS.find((n) => n.id === narratorId) || PRELOADED_NARRATORS[0];
+    showRewindFeedback(`${chosen.avatarEmoji} ${chosen.name.split(' ')[0]} Voice Active`);
+
+    if (isPlayingNarration && currentScene) {
+      VoiceNarrator.stop();
+      let resumeChar = spokenCharIndex || 0;
+      if (spokenCharIndex !== null && spokenCharIndex > 0) {
+        for (let i = parsedSentences.length - 1; i >= 0; i--) {
+          if (parsedSentences[i].startIndex <= spokenCharIndex) {
+            resumeChar = parsedSentences[i].startIndex;
+            break;
+          }
+        }
+      }
+      const offset = Math.max(0, Math.min(resumeChar, fullTextToRead.length));
+      const subtext = fullTextToRead.slice(offset);
+
+      setIsPlayingNarration(true);
+      setSpokenCharIndex(offset);
+
+      VoiceNarrator.speak(subtext, {
+        voiceId: narratorId,
+        speedRate: readingSpeed,
+        volume: narrationVolume,
+        onStart: () => {
+          setSpokenCharIndex(offset);
+        },
+        onBoundary: (charIndex) => {
+          setSpokenCharIndex(offset + charIndex);
+        },
+        onEnd: () => {
+          setIsPlayingNarration(false);
+          setSpokenCharIndex(null);
+          if (settings.autoAdvance && currentSceneIndex < scenes.length - 1) {
+            setTimeout(() => {
+              handleNextScene();
+            }, 1800);
+          }
+        },
+        onError: () => {
+          setIsPlayingNarration(false);
+          setSpokenCharIndex(null);
+        },
+      });
+    }
+  }, [isPlayingNarration, currentScene, spokenCharIndex, parsedSentences, fullTextToRead, readingSpeed, narrationVolume, settings.autoAdvance, currentSceneIndex, scenes.length, handleNextScene, showRewindFeedback]);
+
+  // Preview voice sample phrase for testing character voices
+  const handlePreviewVoice = useCallback((narrator: CharacterNarrator, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (previewingNarratorId === narrator.id) {
+      VoiceNarrator.stop();
+      setPreviewingNarratorId(null);
+    } else {
+      if (isPlayingNarration) {
+        setIsPlayingNarration(false);
+      }
+      setPreviewingNarratorId(narrator.id);
+      VoiceNarrator.previewSample(narrator.id, {
+        onStart: () => setPreviewingNarratorId(narrator.id),
+        onEnd: () => setPreviewingNarratorId(null),
+      });
+    }
+  }, [previewingNarratorId, isPlayingNarration]);
 
   // Auto-speak on scene change if auto narration was already active
   const isFirstMount = useRef(true);
@@ -410,6 +702,47 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
     }
   };
 
+  // Sleep Timer Action Handlers
+  const handleSetSleepTimer = useCallback(
+    (minutes: number) => {
+      const totalSecs = Math.max(10, Math.round(minutes * 60));
+      setSleepTimerTotalSeconds(totalSecs);
+      setSleepTimerRemaining(totalSecs);
+      setIsSleepTimerPaused(false);
+      showRewindFeedback(`🌙 Sleep timer set for ${minutes} min`);
+    },
+    [showRewindFeedback]
+  );
+
+  const handleTogglePauseSleepTimer = useCallback(() => {
+    setIsSleepTimerPaused((prev) => {
+      const next = !prev;
+      showRewindFeedback(next ? '⏸️ Sleep timer paused' : '▶️ Sleep timer resumed');
+      return next;
+    });
+  }, [showRewindFeedback]);
+
+  const handleAddSleepTimerMinutes = useCallback(
+    (extraMinutes: number) => {
+      setSleepTimerRemaining((prev) => {
+        const current = prev !== null ? prev : 0;
+        const updated = current + extraMinutes * 60;
+        setSleepTimerTotalSeconds((tot) => (tot !== null ? tot + extraMinutes * 60 : updated));
+        showRewindFeedback(`➕ Added ${extraMinutes}m to sleep timer`);
+        return updated;
+      });
+    },
+    [showRewindFeedback]
+  );
+
+  const handleCancelSleepTimer = useCallback(() => {
+    setSleepTimerRemaining(null);
+    setSleepTimerTotalSeconds(null);
+    setIsSleepTimerPaused(false);
+    ambientSoundEngine.setVolume(ambientVolume);
+    showRewindFeedback('Sleep timer turned off');
+  }, [ambientVolume, showRewindFeedback]);
+
   const formatTimer = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -418,6 +751,129 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#05051a] text-slate-100 overflow-y-auto">
+      {/* Subtle Top-of-Screen Scene Progress Bar with Breathing Rhythm Animation */}
+      <div
+        id="story-scene-progress-top"
+        role="progressbar"
+        aria-label="Story scene reading progress"
+        aria-valuenow={currentSceneIndex + 1}
+        aria-valuemin={1}
+        aria-valuemax={scenes.length}
+        aria-valuetext={`Scene ${currentSceneIndex + 1} of ${scenes.length}`}
+        className="w-full sticky top-0 z-40 bg-slate-950/95 border-b border-indigo-950/80 backdrop-blur-md px-3 sm:px-8 py-1.5 shadow-sm relative overflow-hidden group"
+      >
+        {/* Subtle Calming Breathing Glow Aura synced with Reading Speed */}
+        <motion.div
+          key={`breathing-aura-${breathingDuration}`}
+          animate={{
+            opacity: [0.15, 0.55, 0.15],
+            scaleY: [0.9, 1.15, 0.9],
+          }}
+          transition={{
+            duration: breathingDuration,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+          className="absolute inset-0 bg-gradient-to-r from-indigo-600/10 via-purple-500/15 to-amber-400/10 pointer-events-none"
+        />
+
+        {/* Dynamic Breathing Underline Glow */}
+        <motion.div
+          key={`breathing-line-${breathingDuration}`}
+          animate={{
+            opacity: [0.25, 0.85, 0.25],
+            scaleX: [0.92, 1, 0.92],
+          }}
+          transition={{
+            duration: breathingDuration,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+          className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/50 to-transparent pointer-events-none"
+        />
+
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 relative z-10">
+          {/* Segmented Scene Progress Bar */}
+          <div className="flex-1 flex items-center gap-1.5 sm:gap-2">
+            {scenes.map((sceneItem, idx) => {
+              const isPast = idx < currentSceneIndex;
+              const isCurrent = idx === currentSceneIndex;
+              return (
+                <button
+                  key={sceneItem.id || idx}
+                  type="button"
+                  onClick={() => handleJumpToScene(idx)}
+                  className="flex-1 group/btn py-0.5 focus:outline-none cursor-pointer"
+                  title={`Scene ${idx + 1}: ${sceneItem.title || `Scene ${idx + 1}`}`}
+                  aria-label={`Jump to Scene ${idx + 1} of ${scenes.length}${isCurrent ? ' (Current)' : ''}`}
+                >
+                  <div
+                    className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 relative overflow-hidden ${
+                      isPast
+                        ? 'bg-gradient-to-r from-indigo-500 to-purple-500 opacity-90'
+                        : isCurrent
+                        ? 'bg-gradient-to-r from-purple-400 via-amber-400 to-yellow-300 shadow-sm shadow-amber-400/50 ring-1 ring-amber-300/70'
+                        : 'bg-slate-800/80 group-hover/btn:bg-slate-700/80'
+                    }`}
+                  >
+                    {isCurrent && (
+                      <motion.div
+                        key={`breathing-track-${breathingDuration}`}
+                        animate={{
+                          opacity: [0.3, 0.85, 0.3],
+                          scale: [0.98, 1.02, 0.98],
+                        }}
+                        transition={{
+                          duration: breathingDuration,
+                          repeat: Infinity,
+                          ease: 'easeInOut',
+                        }}
+                        className="absolute inset-0 bg-white/40"
+                      />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right side: Breathing Pace Indicator & Scene Counter */}
+          <div className="flex items-center gap-2 shrink-0 select-none">
+            {/* Visual Bedtime Breathing Guide Badge */}
+            <div
+              className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-950/80 border border-indigo-800/50 text-[10px] text-indigo-200/90 shadow-sm"
+              title={`Breathing rhythm visual aid (${breathingDuration}s cycle) — synchronized to ${activeSpeedOption.label} (${activeSpeedOption.sublabel}) reading speed`}
+            >
+              <motion.span
+                key={`breathing-dot-${breathingDuration}`}
+                animate={{
+                  scale: [0.8, 1.45, 0.8],
+                  opacity: [0.4, 1, 0.4],
+                }}
+                transition={{
+                  duration: breathingDuration,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+                className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block shadow-sm shadow-amber-400/90"
+              />
+              <span className="font-semibold text-slate-300">Breathe</span>
+              <span className="text-[9px] text-indigo-300/80 font-mono">({activeSpeedOption.label})</span>
+            </div>
+
+            {/* Scene Progress Counter Label */}
+            <div className="flex items-center gap-1 text-[11px] font-medium text-slate-400 pl-0.5">
+              <span className="text-amber-300 font-bold">Scene {currentSceneIndex + 1}</span>
+              <span className="text-slate-600">/</span>
+              <span className="text-slate-300">{scenes.length}</span>
+              <span className="hidden md:inline text-indigo-300/75 text-[10px] pl-1 font-mono">
+                ({progressPercent}%)
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Dynamic Hero Ambient Glow Backdrop */}
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-96 opacity-25 blur-3xl pointer-events-none transition-all duration-700"
@@ -481,22 +937,22 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
             <button
               id="sleep-timer-btn"
               type="button"
-              onClick={() => {
-                if (sleepTimerRemaining) {
-                  setSleepTimerRemaining(null);
-                } else {
-                  setSleepTimerRemaining(15 * 60); // 15 mins default
-                }
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                sleepTimerRemaining
-                  ? 'bg-purple-950/80 border-purple-400 text-purple-200'
+              onClick={() => setShowSleepTimerModal(true)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all active:scale-95 ${
+                sleepTimerRemaining !== null
+                  ? isSleepTimerPaused
+                    ? 'bg-amber-950/80 border-amber-500/70 text-amber-200 shadow-md'
+                    : 'bg-purple-950/80 border-purple-400 text-purple-200 shadow-md shadow-purple-900/40 ring-1 ring-purple-400/40'
                   : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:border-slate-700'
               }`}
-              title="Sleep Timer"
+              title={
+                sleepTimerRemaining !== null
+                  ? `Sleep Timer: ${formatTimer(sleepTimerRemaining)} remaining ${isSleepTimerPaused ? '(Paused)' : ''} — Click to manage`
+                  : 'Set Bedtime Sleep Timer'
+              }
             >
-              <Clock className="w-3.5 h-3.5 text-purple-400" />
-              <span>{sleepTimerRemaining ? formatTimer(sleepTimerRemaining) : 'Timer'}</span>
+              <Clock className={`w-3.5 h-3.5 ${sleepTimerRemaining !== null && !isSleepTimerPaused ? 'text-purple-300 animate-pulse' : 'text-purple-400'}`} />
+              <span>{sleepTimerRemaining !== null ? formatTimer(sleepTimerRemaining) : 'Timer'}</span>
             </button>
           </div>
 
@@ -531,14 +987,6 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
           </button>
         </div>
       </header>
-
-      {/* Progress Bar */}
-      <div className="w-full bg-slate-900/80 h-1 relative z-10">
-        <div
-          className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-400 transition-all duration-300"
-          style={{ width: `${progressPercent}%` }}
-        />
-      </div>
 
       {/* Ambient Sound Settings Popover */}
       {showSoundControls && (
@@ -673,25 +1121,117 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
       )}
 
       {/* Main Story Stage */}
-      <main className="relative z-10 flex-1 flex flex-col justify-between max-w-3xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* Constellation & Hero Badge */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-slate-900/90 text-indigo-300 border border-slate-800 shadow-sm">
-            <Shield className="w-3.5 h-3.5 text-amber-400" />
-            <span>Scene {currentSceneIndex + 1} of {scenes.length}</span>
+      <main className="relative z-10 flex-1 flex flex-col justify-between max-w-3xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-32 sm:pb-36">
+        {/* Visual Progress Indicator Track & Scene Stepper */}
+        <div className="mb-4 p-3 sm:p-4 rounded-2xl bg-slate-900/80 border border-slate-800/90 shadow-xl backdrop-blur-md">
+          {/* Header row: Scene info, companion badge, progress %, time remaining, breathing guide */}
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+            <div className="flex items-center flex-wrap gap-2">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 shadow-inner">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Scene {currentSceneIndex + 1} of {scenes.length}</span>
+              </div>
+
+              {story.companionName && (
+                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-950/60 text-purple-200 border border-purple-800/40">
+                  <Heart className="w-3 h-3 text-pink-400 fill-pink-400/40" />
+                  <span>With {story.companionName}</span>
+                </div>
+              )}
+
+              {currentSceneIndex === scenes.length - 1 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-950/70 text-amber-300 border border-amber-500/40 animate-pulse">
+                  <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                  <span>Bedtime Finale</span>
+                </span>
+              )}
+            </div>
+
+            {/* Right side: Gentle breathing guide or percentage & remaining time */}
+            <div className="flex items-center gap-2 text-xs">
+              {story.mode === 'sleep' && (
+                <div className="hidden sm:flex items-center gap-1.5 text-purple-300 bg-purple-950/40 px-2.5 py-0.5 rounded-full border border-purple-800/40">
+                  <div
+                    className={`w-2 h-2 rounded-full bg-purple-400 transition-all duration-1000 ${
+                      isBreathingIn ? 'scale-125 opacity-100' : 'scale-75 opacity-40'
+                    }`}
+                  />
+                  <span className="text-[11px]">{isBreathingIn ? 'Breathe in...' : 'Breathe out...'}</span>
+                </div>
+              )}
+
+              <span className="flex items-center gap-1 text-slate-400 text-[11px]">
+                <Clock className="w-3 h-3 text-indigo-400" />
+                <span>
+                  {currentSceneIndex === scenes.length - 1
+                    ? 'Final scene'
+                    : `~${Math.max(1, Math.round((scenes.length - currentSceneIndex) * 1.5))} min left`}
+                </span>
+              </span>
+
+              <span className="font-bold text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-500/30 text-[11px]">
+                {Math.round(((currentSceneIndex + 1) / scenes.length) * 100)}% Read
+              </span>
+            </div>
           </div>
 
-          {/* Gentle Breathing Guide for Calming Sleep Stories */}
-          {story.mode === 'sleep' && (
-            <div className="flex items-center gap-2 text-xs text-purple-300 bg-purple-950/40 px-3 py-1 rounded-full border border-purple-800/40">
-              <div
-                className={`w-2.5 h-2.5 rounded-full bg-purple-400 transition-all duration-1000 ${
-                  isBreathingIn ? 'scale-125 opacity-100' : 'scale-75 opacity-40'
-                }`}
-              />
-              <span>{isBreathingIn ? 'Breathe in peace...' : 'Breathe out calm...'}</span>
-            </div>
-          )}
+          {/* Visual Continuous Starlight Progress Bar */}
+          <div className="relative w-full h-2 rounded-full bg-slate-950 overflow-hidden border border-slate-800/80 mb-3">
+            <motion.div
+              className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-400 shadow-sm"
+              initial={false}
+              animate={{ width: `${((currentSceneIndex + 1) / scenes.length) * 100}%` }}
+              transition={{ type: "spring", stiffness: 120, damping: 20 }}
+            />
+          </div>
+
+          {/* Stepped Interactive Scene Checkpoints */}
+          <div className="flex items-center justify-between relative px-1">
+            {scenes.map((scene, idx) => {
+              const isPast = idx < currentSceneIndex;
+              const isCurrent = idx === currentSceneIndex;
+
+              return (
+                <button
+                  key={scene.id || idx}
+                  type="button"
+                  onClick={() => handleJumpToScene(idx)}
+                  className="group relative flex flex-col items-center focus:outline-none transition-all cursor-pointer"
+                  title={`Scene ${idx + 1}${isPast ? ' (Completed - tap to review)' : isCurrent ? ' (Reading now)' : ' (Upcoming - tap to jump)'}`}
+                >
+                  <div
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                      isPast
+                        ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/30 border border-amber-300 scale-95 hover:scale-105'
+                        : isCurrent
+                        ? 'bg-indigo-600 text-white border-2 border-amber-400 shadow-lg shadow-indigo-600/50 ring-4 ring-indigo-500/30 scale-110'
+                        : 'bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-500 hover:text-slate-200 hover:scale-105'
+                    }`}
+                  >
+                    {isPast ? (
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    ) : isCurrent ? (
+                      <Star className="w-3.5 h-3.5 text-amber-300 fill-amber-300 animate-spin-slow" />
+                    ) : (
+                      <span>{idx + 1}</span>
+                    )}
+                  </div>
+
+                  <span
+                    className={`mt-1 text-[10px] sm:text-[11px] font-semibold transition-colors ${
+                      isCurrent
+                        ? 'text-amber-300 font-bold'
+                        : isPast
+                        ? 'text-indigo-300'
+                        : 'text-slate-500 group-hover:text-slate-400'
+                    }`}
+                  >
+                    {idx === scenes.length - 1 ? 'End' : `Part ${idx + 1}`}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Sleep Journey Mode: Inline Sleep Duration & Wake-Up Projection Bar */}
@@ -805,17 +1345,18 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
         <div className="relative z-10 mt-6 rounded-2xl bg-slate-950/85 border border-slate-800/90 backdrop-blur-md overflow-hidden shadow-2xl">
           {/* Top Row: Narration & Navigation */}
           <div className="p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/70">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 sm:gap-2.5">
               {/* Play/Pause Voice Narration Button */}
               <button
                 id="narration-play-btn"
                 type="button"
-                onClick={handleSpeakCurrentScene}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md ${
+                onClick={handleTogglePlayPause}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 ${
                   isPlayingNarration
                     ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/30'
                     : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30'
                 }`}
+                title={isPlayingNarration ? 'Pause Story Narration' : 'Read Scene Aloud'}
               >
                 {isPlayingNarration ? (
                   <>
@@ -830,16 +1371,34 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
                 )}
               </button>
 
+              {/* Rewind 10s Button */}
+              <button
+                id="narration-rewind-btn"
+                type="button"
+                onClick={handleRewind10Seconds}
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-amber-400/40 text-slate-300 hover:text-amber-300 text-xs font-semibold transition-all active:scale-95 group"
+                title="Rewind narration by 10 seconds"
+                aria-label="Rewind narration by 10 seconds"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-indigo-400 group-hover:text-amber-300 transition-transform group-hover:-rotate-45" />
+                <span>10s</span>
+              </button>
+
               {/* Speed Rate Toggle */}
               <button
+                id="card-reading-speed-btn"
                 type="button"
                 onClick={() => {
-                  setReadingSpeed((prev) => (prev === 0.75 ? 0.88 : prev === 0.88 ? 1.0 : 0.75));
+                  const nextRate =
+                    readingSpeed === 0.75 ? 0.88 : readingSpeed === 0.88 ? 1.0 : 0.75;
+                  handleSelectReadingSpeed(nextRate);
                 }}
-                className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:border-slate-700 hover:text-white transition-colors"
-                title="Narration Speed"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:border-slate-700 hover:text-white transition-colors hidden sm:inline-flex active:scale-95 group"
+                title={`Narration Speed: ${activeSpeedOption.label} (${activeSpeedOption.sublabel}) — Tap to cycle (Slow, Gentle, Natural)`}
               >
-                {readingSpeed === 0.75 ? '0.75x Gentle' : readingSpeed === 0.88 ? '0.9x Calm' : '1.0x Normal'}
+                <Gauge className="w-3.5 h-3.5 text-indigo-400 group-hover:text-amber-300 transition-colors" />
+                <span>Speed: {activeSpeedOption.label}</span>
+                <span className="text-[10px] text-indigo-300 font-mono">({activeSpeedOption.sublabel})</span>
               </button>
 
               {/* Narration Active Pill */}
@@ -870,17 +1429,19 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
                   id="reader-next-btn"
                   type="button"
                   onClick={handleNextScene}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition-all"
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition-all active:scale-95 group"
+                  title="Skip to Next Scene"
+                  aria-label="Skip to Next Scene"
                 >
                   <span>Next Scene</span>
-                  <ChevronRight className="w-4 h-4" />
+                  <SkipForward className="w-4 h-4 text-indigo-300 group-hover:text-amber-300 transition-transform group-hover:translate-x-0.5" />
                 </button>
               ) : (
                 <button
                   id="reader-finish-btn"
                   type="button"
                   onClick={handleComplete}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-600/20 transition-all"
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>Complete Story</span>
@@ -1012,6 +1573,447 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
           />
         </div>
       </main>
+
+      {/* Persistent Bottom Playback Control Panel */}
+      <footer
+        id="story-playback-control-panel"
+        aria-label="Story Narration and Playback Controls"
+        className="sticky bottom-0 z-40 w-full bg-slate-950/95 border-t border-indigo-900/60 backdrop-blur-xl shadow-2xl px-3 sm:px-6 py-2.5 sm:py-3 transition-all"
+      >
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+          {/* Left: Current Scene Info & Live Narration/Audio Status */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 sm:flex-initial">
+            <div className="relative shrink-0">
+              <div
+                className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 transition-all ${
+                  isPlayingNarration
+                    ? 'bg-amber-500/20 border border-amber-400/50 text-amber-300 shadow-md shadow-amber-500/20'
+                    : 'bg-slate-900 border border-indigo-900/60 text-slate-300'
+                }`}
+              >
+                {isPlayingNarration ? (
+                  <Sparkles className="w-4 h-4 text-amber-400 animate-pulse fill-current" />
+                ) : (
+                  <Moon className="w-4 h-4 text-indigo-400" />
+                )}
+              </div>
+            </div>
+
+            <div className="min-w-0 hidden md:block">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-white truncate max-w-[140px] lg:max-w-[220px]">
+                  {currentScene?.title || `Scene ${currentSceneIndex + 1}`}
+                </span>
+                <span className="text-[11px] text-slate-400 shrink-0 font-medium">
+                  ({currentSceneIndex + 1}/{scenes.length})
+                </span>
+              </div>
+              <p className="text-[10px] text-indigo-300/80 truncate">
+                {isPlayingNarration ? 'Voice narration active • Bedtime pace' : 'Paused • Tap play to listen'}
+              </p>
+            </div>
+
+            {/* Rewind Feedback Toast Pill */}
+            {rewindToast && (
+              <div
+                id="rewind-toast-feedback"
+                className="animate-fade-in flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-400/20 border border-amber-300/50 text-amber-200 text-xs font-bold shadow-lg shadow-amber-400/20 shrink-0"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>{rewindToast}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Center: Core Playback Controls (Previous, Rewind 10s, Play/Pause, Skip Next Scene) */}
+          <div className="flex items-center justify-center gap-1.5 sm:gap-3 shrink-0">
+            {/* Step to Previous Scene */}
+            <button
+              id="bottom-playback-prev-scene-btn"
+              type="button"
+              onClick={handlePrevScene}
+              disabled={currentSceneIndex === 0}
+              className="p-2 sm:p-2.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:text-white hover:border-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
+              title="Previous Scene"
+              aria-label="Previous Scene"
+            >
+              <SkipBack className="w-4 h-4" />
+            </button>
+
+            {/* Rewind 10 Seconds Button */}
+            <button
+              id="bottom-playback-rewind-10s-btn"
+              type="button"
+              onClick={handleRewind10Seconds}
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl border border-indigo-900/70 bg-slate-900/90 hover:bg-slate-850 text-indigo-200 hover:text-amber-300 hover:border-amber-400/40 transition-all active:scale-95 group shadow-sm"
+              title="Rewind narration by 10 seconds"
+              aria-label="Rewind narration by 10 seconds"
+            >
+              <RotateCcw className="w-4 h-4 text-indigo-400 group-hover:text-amber-300 transition-transform group-hover:-rotate-45" />
+              <span className="text-xs font-bold font-mono">10s</span>
+            </button>
+
+            {/* Play / Pause Main Action Button */}
+            <button
+              id="bottom-playback-play-pause-btn"
+              type="button"
+              onClick={handleTogglePlayPause}
+              className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-bold text-xs sm:text-sm transition-all shadow-lg active:scale-95 ${
+                isPlayingNarration
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 shadow-amber-500/30 ring-2 ring-amber-300/40'
+                  : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-indigo-600/30 ring-1 ring-indigo-400/40'
+              }`}
+              title={isPlayingNarration ? 'Pause Story Narration' : 'Play / Read Scene Aloud'}
+              aria-label={isPlayingNarration ? 'Pause Story Narration' : 'Play / Read Scene Aloud'}
+            >
+              {isPlayingNarration ? (
+                <>
+                  <Pause className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
+                  <span>Pause</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current ml-0.5" />
+                  <span>Read Aloud</span>
+                </>
+              )}
+            </button>
+
+            {/* Skip to Next Scene Button */}
+            {currentSceneIndex < scenes.length - 1 ? (
+              <button
+                id="bottom-playback-skip-next-btn"
+                type="button"
+                onClick={handleNextScene}
+                className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-700/80 hover:border-slate-600 transition-all active:scale-95 group shadow-sm"
+                title="Skip to Next Scene"
+                aria-label="Skip to Next Scene"
+              >
+                <span className="hidden sm:inline">Next Scene</span>
+                <SkipForward className="w-4 h-4 text-indigo-300 group-hover:text-amber-300 transition-transform group-hover:translate-x-0.5" />
+              </button>
+            ) : (
+              <button
+                id="bottom-playback-complete-btn"
+                type="button"
+                onClick={handleComplete}
+                className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-600/30 transition-all active:scale-95"
+                title="Complete Story"
+                aria-label="Complete Story"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Complete</span>
+              </button>
+            )}
+          </div>
+
+          {/* Right: AI Narrator Select + Ambient Audio Volume Slider + Reading Speed + Sound Settings */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* AI Narrator Select Dropdown Trigger & Popover Menu */}
+            <div className="relative" ref={narratorDropdownRef}>
+              <button
+                id="bottom-ai-narrator-select-btn"
+                type="button"
+                onClick={() => setShowNarratorDropdown((prev) => !prev)}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all select-none active:scale-95 group ${
+                  showNarratorDropdown
+                    ? 'bg-indigo-950/90 border-indigo-400 text-white shadow-md shadow-indigo-500/20 ring-1 ring-indigo-400/40'
+                    : 'bg-slate-900/90 border-slate-800/90 text-slate-300 hover:text-white hover:border-slate-700'
+                }`}
+                aria-haspopup="listbox"
+                aria-expanded={showNarratorDropdown}
+                aria-label={`AI Narrator: ${activeNarrator.name} (${activeNarrator.characterTitle})`}
+                title={`AI Narrator Voice: ${activeNarrator.name} — Click to switch voice`}
+              >
+                <span className="text-sm leading-none" role="img" aria-hidden="true">
+                  {activeNarrator.avatarEmoji}
+                </span>
+                <div className="flex flex-col text-left leading-tight hidden xs:flex">
+                  <span className="text-[11px] font-bold text-slate-200 group-hover:text-white truncate max-w-[70px] sm:max-w-[90px]">
+                    {activeNarrator.name.split(' ')[0]}
+                  </span>
+                  <span className="text-[9px] text-indigo-300/80 font-normal truncate max-w-[70px] sm:max-w-[90px]">
+                    {activeNarrator.badge}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200 transition-transform duration-200 ${
+                    showNarratorDropdown ? 'rotate-180 text-indigo-300' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Dropdown Menu Popover */}
+              {showNarratorDropdown && (
+                <div
+                  id="narrator-select-dropdown-menu"
+                  role="listbox"
+                  aria-label="Select AI Character Narrator"
+                  className="absolute bottom-full right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 mb-2.5 w-[310px] sm:w-[360px] max-h-[420px] overflow-y-auto rounded-2xl bg-slate-950/95 border border-indigo-500/30 p-3 shadow-2xl backdrop-blur-xl z-50 animate-fade-in"
+                >
+                  {/* Dropdown Header */}
+                  <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-800/80">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                      <Bot className="w-4 h-4 text-indigo-400" />
+                      <span>AI Narrator Voice</span>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800/50 font-medium">
+                      {PRELOADED_NARRATORS.length} Voices
+                    </span>
+                  </div>
+
+                  {/* Voices list */}
+                  <div className="space-y-1.5">
+                    {PRELOADED_NARRATORS.map((narrator) => {
+                      const isSelected = selectedNarratorId === narrator.id;
+                      const isPreviewing = previewingNarratorId === narrator.id;
+
+                      return (
+                        <div
+                          key={narrator.id}
+                          id={`narrator-option-${narrator.id}`}
+                          role="option"
+                          aria-selected={isSelected}
+                          onClick={() => handleSelectNarrator(narrator.id)}
+                          className={`group relative flex items-start gap-2.5 p-2.5 rounded-xl border transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-indigo-950/70 border-indigo-400/80 shadow-md shadow-indigo-900/30 ring-1 ring-indigo-400/30'
+                              : 'bg-slate-900/60 border-slate-800/80 hover:bg-slate-900 hover:border-slate-700'
+                          }`}
+                        >
+                          {/* Avatar Badge */}
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0 shadow-sm transition-transform group-hover:scale-105 bg-gradient-to-br ${narrator.gradient}`}
+                          >
+                            <span>{narrator.avatarEmoji}</span>
+                          </div>
+
+                          {/* Information */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <div className="flex items-center gap-1.5 truncate">
+                                <h4 className="text-xs font-bold text-slate-100 truncate">
+                                  {narrator.name}
+                                </h4>
+                                <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-slate-800/90 text-indigo-300 font-medium shrink-0">
+                                  {narrator.badge}
+                                </span>
+                              </div>
+                              {isSelected && (
+                                <span className="flex items-center text-indigo-400 shrink-0">
+                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-[10px] text-slate-400 font-medium mt-0.5 line-clamp-1 leading-snug">
+                              {narrator.tagline}
+                            </p>
+                            <p className="text-[9px] text-slate-500 line-clamp-1 mt-0.5 italic">
+                              &ldquo;{narrator.samplePhrase}&rdquo;
+                            </p>
+                          </div>
+
+                          {/* Voice Preview Button */}
+                          <button
+                            id={`preview-voice-btn-${narrator.id}`}
+                            type="button"
+                            onClick={(e) => handlePreviewVoice(narrator, e)}
+                            className={`p-1.5 rounded-lg border transition-all shrink-0 self-center active:scale-95 ${
+                              isPreviewing
+                                ? 'bg-amber-400/20 border-amber-400 text-amber-300 animate-pulse'
+                                : 'bg-slate-800/80 border-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-700'
+                            }`}
+                            title={`Listen to sample phrase for ${narrator.name}`}
+                            aria-label={`Listen to sample phrase for ${narrator.name}`}
+                          >
+                            <Volume2 className={`w-3.5 h-3.5 ${isPreviewing ? 'text-amber-300' : ''}`} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Ambient Audio Independent Volume Slider Control */}
+            <div
+              id="bottom-ambient-audio-control"
+              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800/90 hover:border-indigo-800/60 transition-all group"
+              title={`Ambient Audio Soundscape Volume: ${ambientSound === 'none' || ambientVolume === 0 ? 'Muted' : `${Math.round(ambientVolume * 100)}%`} (${activeSoundOption.name})`}
+            >
+              {/* Quick Mute / Unmute Button */}
+              <button
+                id="bottom-ambient-mute-btn"
+                type="button"
+                onClick={handleToggleMuteAmbient}
+                className="text-slate-400 group-hover:text-indigo-300 hover:text-white transition-colors focus:outline-none"
+                aria-label={ambientVolume === 0 || ambientSound === 'none' ? 'Unmute Ambient Soundscape' : 'Mute Ambient Soundscape'}
+                title={ambientVolume === 0 || ambientSound === 'none' ? 'Unmute Ambient Sound' : 'Mute Ambient Sound'}
+              >
+                {ambientVolume === 0 || ambientSound === 'none' ? (
+                  <VolumeX className="w-3.5 h-3.5 text-slate-500 hover:text-amber-400 transition-colors" />
+                ) : ambientVolume < 0.5 ? (
+                  <Volume1 className="w-3.5 h-3.5 text-indigo-400" />
+                ) : (
+                  <Volume2 className="w-3.5 h-3.5 text-indigo-300" />
+                )}
+              </button>
+
+              {/* Slider Label & Sound Type (desktop/tablet) */}
+              <div className="hidden xl:flex flex-col text-left mr-0.5 select-none">
+                <span className="text-[10px] font-bold text-slate-300 leading-tight">Ambient</span>
+                <span className="text-[9px] text-indigo-300/80 leading-tight truncate max-w-[65px]">
+                  {ambientSound === 'none' ? 'Off' : activeSoundOption.name}
+                </span>
+              </div>
+
+              {/* Independent Ambient Volume Range Slider */}
+              <div className="flex items-center gap-1.5">
+                <input
+                  id="ambient-audio-volume-slider"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={ambientSound === 'none' ? 0 : ambientVolume}
+                  onChange={(e) => {
+                    const newVol = parseFloat(e.target.value);
+                    setAmbientVolume(newVol);
+                    if (newVol > 0 && ambientSound === 'none') {
+                      setAmbientSound('ocean');
+                    }
+                  }}
+                  aria-label="Ambient Audio Volume"
+                  className="w-14 sm:w-20 md:w-24 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-400 hover:accent-indigo-300 transition-all focus:outline-none"
+                />
+
+                {/* Percentage Readout */}
+                <span className="text-[10px] font-mono text-slate-400 min-w-[24px] text-right font-medium select-none">
+                  {ambientSound === 'none' || ambientVolume === 0 ? '0%' : `${Math.round(ambientVolume * 100)}%`}
+                </span>
+              </div>
+            </div>
+
+            {/* Reading Speed 3-Way Toggle Group (Slow, Gentle, Natural) */}
+            <div
+              id="bottom-reading-speed-group"
+              className="flex items-center p-0.5 rounded-xl bg-slate-900/90 border border-slate-800/90 shadow-sm"
+              role="group"
+              aria-label="Story Narration Reading Speed"
+              title={`Reading Speed: ${activeSpeedOption.label} (${activeSpeedOption.sublabel}) — ${activeSpeedOption.description}`}
+            >
+              <div className="hidden xl:flex items-center gap-1 pl-2 pr-1 select-none text-slate-400">
+                <Gauge className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="text-[10px] font-bold text-slate-300">Speed</span>
+              </div>
+              <div className="flex items-center gap-0.5">
+                {READING_SPEED_OPTIONS.map((speed) => {
+                  const isSelected = Math.abs(readingSpeed - speed.rate) < 0.05;
+                  return (
+                    <button
+                      key={speed.id}
+                      id={`reading-speed-toggle-${speed.id}`}
+                      type="button"
+                      onClick={() => handleSelectReadingSpeed(speed.rate)}
+                      className={`px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold transition-all select-none active:scale-95 ${
+                        isSelected
+                          ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/40 font-bold ring-1 ring-indigo-400/40'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                      }`}
+                      aria-pressed={isSelected}
+                      title={`Set reading speed to ${speed.label} (${speed.sublabel}) — ${speed.description}`}
+                    >
+                      <span>{speed.label}</span>
+                      <span
+                        className={`ml-1 text-[9px] font-mono hidden md:inline ${
+                          isSelected ? 'text-indigo-200' : 'text-slate-500'
+                        }`}
+                      >
+                        {speed.sublabel}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bedtime Sleep Timer Trigger Button */}
+            <button
+              id="bottom-playback-sleep-timer-btn"
+              type="button"
+              onClick={() => setShowSleepTimerModal(true)}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all select-none active:scale-95 group ${
+                sleepTimerRemaining !== null
+                  ? isSleepTimerPaused
+                    ? 'bg-amber-950/80 border-amber-500/70 text-amber-200 shadow-md shadow-amber-950/40 ring-1 ring-amber-400/40'
+                    : 'bg-purple-950/90 border-purple-400 text-white shadow-md shadow-purple-900/40 ring-1 ring-purple-400/50'
+                  : 'bg-slate-900/90 border-slate-800/90 text-slate-300 hover:text-white hover:border-slate-700'
+              }`}
+              title={
+                sleepTimerRemaining !== null
+                  ? `Sleep Timer: ${formatTimer(sleepTimerRemaining)} remaining ${isSleepTimerPaused ? '(Paused)' : ''} — Click to adjust`
+                  : 'Set Bedtime Sleep Timer (gradual audio fade-out)'
+              }
+              aria-label="Bedtime Sleep Timer Settings"
+            >
+              <Moon
+                className={`w-3.5 h-3.5 ${
+                  sleepTimerRemaining !== null
+                    ? isSleepTimerPaused
+                      ? 'text-amber-400'
+                      : 'text-purple-300 animate-pulse'
+                    : 'text-purple-400 group-hover:text-purple-300'
+                }`}
+              />
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] font-bold">
+                  {sleepTimerRemaining !== null ? formatTimer(sleepTimerRemaining) : 'Timer'}
+                </span>
+                {sleepTimerRemaining !== null && isSleepTimerPaused && (
+                  <span className="text-[9px] text-amber-300 font-normal hidden xs:inline">(paused)</span>
+                )}
+              </div>
+            </button>
+
+            {/* Quick Ambient Sound Selector Toggle */}
+            <button
+              id="bottom-playback-sound-btn"
+              type="button"
+              onClick={() => setShowSoundControls(!showSoundControls)}
+              className={`p-2 rounded-xl border text-xs transition-all ${
+                ambientSound !== 'none'
+                  ? 'bg-indigo-950/80 border-indigo-400 text-indigo-200 shadow-sm shadow-indigo-500/20'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+              title={`Ambient Soundscape Settings (${activeSoundOption.name})`}
+              aria-label="Ambient Sleep Sounds Settings"
+            >
+              <Music2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </footer>
+
+      {/* Bedtime Sleep Timer Countdown & Fade-out Modal */}
+      <SleepTimerModal
+        isOpen={showSleepTimerModal}
+        onClose={() => setShowSleepTimerModal(false)}
+        remainingSeconds={sleepTimerRemaining}
+        totalSeconds={sleepTimerTotalSeconds}
+        isPaused={isSleepTimerPaused}
+        onSetTimer={handleSetSleepTimer}
+        onTogglePause={handleTogglePauseSleepTimer}
+        onAddMinutes={handleAddSleepTimerMinutes}
+        onCancelTimer={handleCancelSleepTimer}
+        enableFadeout={enableGradualFadeout}
+        onToggleFadeout={setEnableGradualFadeout}
+        storyDurationMinutes={story.audioDurationMinutes || 6}
+        scenesRemainingCount={Math.max(1, scenes.length - currentSceneIndex)}
+        currentSceneIndex={currentSceneIndex}
+        totalScenesCount={scenes.length}
+      />
 
       {/* Interactive Sleep Forecast & Duration Modal */}
       {showSleepForecastModal && (

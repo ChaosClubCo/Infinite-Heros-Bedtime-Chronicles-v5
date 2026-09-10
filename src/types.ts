@@ -44,6 +44,7 @@ export interface Story {
   ageRange: AgeRange;
   heroId: string;
   heroName: string;
+  companionName?: string;
   summary: string;
   coverImage?: string;
   badge?: string;
@@ -59,6 +60,8 @@ export interface StorySeed {
   id: string;
   title: string;
   blurb: string;
+  category?: string;
+  audioDurationMinutes?: number;
   theme: ContentTheme;
   ageRange: AgeRange;
   mode: StoryMode;
@@ -66,6 +69,7 @@ export interface StorySeed {
   setting?: string;
   tone?: string;
   sidekick?: string;
+  companionName?: string;
   problem?: string;
   emoji: string;
 }
@@ -142,6 +146,17 @@ export interface DreamTheme {
   category: 'cosmic' | 'nature' | 'adventure' | 'fantasy';
 }
 
+export type VisualizerColorTheme =
+  | 'soundscape'
+  | 'starlight'
+  | 'celestial'
+  | 'ocean'
+  | 'emerald'
+  | 'rose'
+  | 'aurora'
+  | 'sunset'
+  | 'mint';
+
 export interface AppSettings {
   narratorVoice: string;
   readingSpeed: "gentle" | "medium" | "normal";
@@ -162,6 +177,7 @@ export interface AppSettings {
   activeChildProfileId?: string;
   childProfiles?: ChildProfile[];
   bookmarkedThemeIds?: string[];
+  visualizerColorTheme?: VisualizerColorTheme;
 }
 
 export type DreamArtStyle =

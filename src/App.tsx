@@ -18,6 +18,11 @@ import { SavedStoriesView } from './components/SavedStoriesView';
 import { TrophiesView } from './components/TrophiesView';
 import { StoryReader } from './components/StoryReader';
 import { SleepSetupModal } from './components/SleepSetupModal';
+import { GuidedBreathingModal } from './components/GuidedBreathingModal';
+import { OfflineToast } from './components/OfflineToast';
+import { INITIAL_CHILD_PROFILES } from './data/dreamThemes';
+import { useNetworkStatus, cacheStoriesForOffline } from './services/offlineCacheService';
+
 
 const DEFAULT_SETTINGS: AppSettings = {
   narratorVoice: 'moonbeam',
@@ -27,9 +32,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoAdvance: true,
   sleepTimerMinutes: 45,
   parentPin: '1234',
-  childName: 'Little Explorer',
+  childName: 'Leo',
   childAge: 5,
-  childAvatar: 'fox',
+  childAvatar: 'bear',
   themeMode: 'dark',
   ageFilteringEnabled: true,
   madlibSillyMode: false,
@@ -37,6 +42,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoFadeToAmbient: true,
   activeVoiceId: 'voice-moms-voice',
   activeChildProfileId: 'profile-leo',
+  childProfiles: INITIAL_CHILD_PROFILES,
+  visualizerColorTheme: 'soundscape',
 };
 
 const DEFAULT_COMPLETED_STORIES: CompletedStoryRecord[] = [
@@ -101,7 +108,17 @@ export const App: React.FC = () => {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showDreamJournalModal, setShowDreamJournalModal] = useState(false);
   const [showWindDownModal, setShowWindDownModal] = useState(false);
+  const [showGuidedBreathingModal, setShowGuidedBreathingModal] = useState(false);
   const [showMadlibsDirect, setShowMadlibsDirect] = useState(false);
+
+  // Network and Service Worker Offline Status
+  const {
+    isOnline,
+    wasOffline,
+    clearWasOffline,
+    cachedStoryCount,
+    refreshOfflineCache,
+  } = useNetworkStatus();
 
   // Persistence in localStorage
   const [savedStories, setSavedStories] = useState<Story[]>(() => {
@@ -112,6 +129,7 @@ export const App: React.FC = () => {
       return [FEATURED_STORIES[0], FEATURED_STORIES[1]];
     }
   });
+
 
   const [dreamEntries, setDreamEntries] = useState<DreamJournalEntry[]>(() => {
     try {
@@ -202,7 +220,14 @@ export const App: React.FC = () => {
     } catch {}
   }, [settings]);
 
+  // Sync offline story cache with service worker storage
+  useEffect(() => {
+    cacheStoriesForOffline([...FEATURED_STORIES, ...savedStories]);
+    refreshOfflineCache();
+  }, [savedStories, refreshOfflineCache]);
+
   const handleToggleSaveStory = (story: Story) => {
+
     setSavedStories((prev) => {
       const exists = prev.some((s) => s.id === story.id);
       if (exists) {
@@ -354,6 +379,32 @@ export const App: React.FC = () => {
     setDreamEntries((prev) => prev.filter((e) => e.id !== id));
   };
 
+  // Compute active child profile for personalization
+  const currentChildProfiles = settings.childProfiles && settings.childProfiles.length > 0
+    ? settings.childProfiles
+    : INITIAL_CHILD_PROFILES;
+
+  const activeChildProfile =
+    currentChildProfiles.find((p) => p.id === settings.activeChildProfileId) ||
+    currentChildProfiles[0];
+
+  const handleSwitchChildProfile = (profileId: string) => {
+    const target = currentChildProfiles.find((p) => p.id === profileId);
+    if (target) {
+      const updated: AppSettings = {
+        ...settings,
+        activeChildProfileId: target.id,
+        childName: target.name,
+        childAge: target.age,
+        childAvatar: target.avatar,
+      };
+      setSettings(updated);
+      try {
+        localStorage.setItem('infinite_heroes_settings', JSON.stringify(updated));
+      } catch {}
+    }
+  };
+
   return (
     <div className="relative min-h-screen text-slate-100 flex flex-col font-sans selection:bg-indigo-500 bg-[#060413]">
       {/* Background Starry Sky Canvas */}
@@ -367,22 +418,24 @@ export const App: React.FC = () => {
           setCurrentTab(tab);
         }}
         onOpenSettings={() => setCurrentTab('settings')}
+        onOpenGuidedBreathing={() => setShowGuidedBreathingModal(true)}
         savedCount={savedStories.length}
         streakCount={stats.currentStreak}
-        childName={settings.childName}
-        childAvatar={settings.childAvatar}
+        childName={activeChildProfile?.name || settings.childName}
+        childAvatar={activeChildProfile?.avatar || settings.childAvatar}
+        isOnline={isOnline}
       />
 
       {/* Main Content Area */}
-      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 pb-24 lg:pb-12">
         
         {/* Full-screen Direct Madlib Diaries Mode if toggled */}
         {showMadlibsDirect ? (
           <MadlibDiariesView
             onBack={() => setShowMadlibsDirect(false)}
             onStoryGenerated={handleStoryGenerated}
-            childName={settings.childName}
-            childAge={settings.childAge}
+            childName={activeChildProfile?.name || settings.childName}
+            childAge={activeChildProfile?.age || settings.childAge}
           />
         ) : (
           <>
@@ -393,16 +446,24 @@ export const App: React.FC = () => {
                 onOpenMadlibs={() => setShowMadlibsDirect(true)}
                 onOpenDreamJournal={() => setShowDreamJournalModal(true)}
                 onOpenWindDown={() => setShowWindDownModal(true)}
+                onOpenGuidedBreathing={() => setShowGuidedBreathingModal(true)}
                 onOpenLibrary={(categoryFilter) => {
                   setCurrentTab('library');
                 }}
                 onOpenCreator={() => setCurrentTab('create')}
                 onOpenSettings={() => setCurrentTab('settings')}
-                childName={settings.childName}
-                childAvatar={settings.childAvatar}
+                childName={activeChildProfile?.name || settings.childName}
+                childAge={activeChildProfile?.age || settings.childAge}
+                childAvatar={activeChildProfile?.avatar || settings.childAvatar}
+                storyPreference={activeChildProfile?.storyPreference || 'Gentle Stories • Sleepy Animals'}
+                gentleMode={activeChildProfile?.gentleMode !== false}
+                activeChildProfileId={settings.activeChildProfileId || activeChildProfile?.id}
+                childProfiles={currentChildProfiles}
+                onSwitchProfile={handleSwitchChildProfile}
                 completedStories={stats.completedStoriesList || DEFAULT_COMPLETED_STORIES}
                 streakCount={stats.currentStreak}
                 onAdvanceStreak={handleAdvanceStreak}
+                dreamEntries={dreamEntries}
               />
             )}
 
@@ -439,6 +500,7 @@ export const App: React.FC = () => {
                 onSelectStory={(s) => setActiveStory(s)}
                 onSaveStory={handleToggleSaveStory}
                 savedStoryIds={savedStories.map((s) => s.id)}
+                isOnline={isOnline}
               />
             )}
 
@@ -449,6 +511,7 @@ export const App: React.FC = () => {
                 onSelectStory={(s) => setActiveStory(s)}
                 onRemoveSavedStory={handleRemoveSavedStory}
                 onOpenCreator={() => setCurrentTab('create')}
+                isOnline={isOnline}
               />
             )}
 
@@ -469,6 +532,7 @@ export const App: React.FC = () => {
           </>
         )}
       </main>
+
 
       {/* Active Story Reader Modal */}
       {activeStory && (
@@ -519,6 +583,18 @@ export const App: React.FC = () => {
         onClose={() => setShowWindDownModal(false)}
         settings={settings}
         onSaveSettings={setSettings}
+        onOpenGuidedBreathing={() => setShowGuidedBreathingModal(true)}
+      />
+
+      {/* Guided Breathing Modal */}
+      <GuidedBreathingModal
+        isOpen={showGuidedBreathingModal}
+        onClose={() => setShowGuidedBreathingModal(false)}
+        childName={activeChildProfile?.name || settings.childName}
+        onReadyForStory={() => {
+          setShowGuidedBreathingModal(false);
+          setCurrentTab('library');
+        }}
       />
 
       {/* Bedtime Routine Settings Modal */}
@@ -529,8 +605,19 @@ export const App: React.FC = () => {
           onClose={() => setShowSettingsModal(false)}
         />
       )}
+
+      {/* Unobtrusive Offline & Reconnection Toast Notification */}
+      <OfflineToast
+        isOnline={isOnline}
+        wasOffline={wasOffline}
+        onClearWasOffline={clearWasOffline}
+        cachedStoryCount={cachedStoryCount}
+        onOpenLibrary={() => setCurrentTab('library')}
+        onOpenSaved={() => setCurrentTab('saved')}
+      />
     </div>
   );
 };
+
 
 export default App;
