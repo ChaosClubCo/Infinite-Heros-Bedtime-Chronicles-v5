@@ -27,6 +27,7 @@ export interface StoryScene {
   id: string;
   sceneNumber: number;
   totalScenes?: number;
+  title?: string;
   text: string;
   sleepAffirmation?: string;
   illustrationPrompt?: string;
