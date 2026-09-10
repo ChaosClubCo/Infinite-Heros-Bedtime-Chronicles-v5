@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-08-29 -->
+<!-- Last verified: 2026-08-28 -->
 # Infinity Heroes: Bedtime Chronicles
 
 ![Node 22.x](https://img.shields.io/badge/node-22.x-339933)
