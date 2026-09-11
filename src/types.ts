@@ -55,6 +55,9 @@ export interface Story {
   isSaved?: boolean;
   completedAt?: string;
   audioDurationMinutes?: number;
+  rating?: number;
+  isEditorPick?: boolean;
+  tags?: string[];
 }
 
 export interface StorySeed {

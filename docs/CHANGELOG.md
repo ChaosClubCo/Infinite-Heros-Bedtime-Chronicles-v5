@@ -3,6 +3,17 @@
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
 
+## [Unreleased] — 2026-09-11 — Infinity Heroes Library UI Redesign & Story Catalog Enhancement
+
+### Added
+- **High-Fidelity Library Redesign (`src/components/LibraryView.tsx`)** — Re-architected the story library interface based on canonical design references featuring display typography (`Bangers`), top navigation bar with back and settings routes, interactive pill search capsule, and 4 thematic category cards (**Cosmic**, **Magical**, **Winter**, **Oceanic**) with cover artwork and instant category filtering.
+- **Curated Sub-Navigation & Filtering Controls** — Added sub-navigation tabs (**All Crafted**, **New Arrivals**, **Favorites**) with animated indicator bars, a collapsible reading duration drawer (Quick `< 8m`, Standard `8-12m`, Extended `13m+`), and instant search query resetting.
+- **Cinematic "Editor's Pick" Hero Feature Banner** — Implemented a prominent featured story banner showcasing *The Starry Whales* with cosmic gradient overlays, audio duration badges, instant narration playback, bookmarking, and deep story previewing.
+- **New Arrivals & All Crafted Highlight Carousels** — Added focused discovery rows for *Astro Pups*, *Planet Giggles*, *The Moon Owl*, *Galaxy Book*, and *Earth's Lullaby* with star ratings and duration tokens.
+- **Interactive Story Preview Modal** — Created an in-modal preview dialog displaying story artwork, age brackets, bedtime pacing modes, ratings, and one-click bedtime journey initialization.
+- **Extended Story Data Schema (`src/types.ts`)** — Extended the `Story` type to support `rating`, `isEditorPick`, and `tags` for deep metadata tracking.
+- **Library UI Specification (`docs/LIBRARY_UI_SPEC.md`)** — Documented the layout hierarchy, design tokens, data models, and component structure.
+
 ## [Unreleased] — 2026-09-11 — Restore Story Safety Pipeline, Account Deletion & Webhook Routes
 
 ### Fixed

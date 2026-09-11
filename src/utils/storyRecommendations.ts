@@ -1,4 +1,4 @@
-import { Story, StorySeed, AgeRange, ContentTheme, DreamTheme } from '../types';
+import { Story, AgeRange, ContentTheme } from '../types';
 import { FEATURED_STORIES } from '../data/featuredStories';
 import { DREAM_THEMES } from '../data/dreamThemes';
 import { STORY_SEEDS } from '../data/storySeeds';
@@ -252,7 +252,6 @@ export function getRecommendedStories({
   limit?: number;
 }): RecommendedStoryItem[] {
   const activeSavedThemes = resolveSavedThemes(savedThemeIds);
-  const targetAgeRange = getTargetAgeRange(childAge);
 
   // Combine FEATURED_STORIES and savedStories (deduped by ID)
   const candidateMap = new Map<string, Story>();

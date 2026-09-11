@@ -504,6 +504,8 @@ export const App: React.FC = () => {
                 onSaveStory={handleToggleSaveStory}
                 savedStoryIds={savedStories.map((s) => s.id)}
                 isOnline={isOnline}
+                onOpenSettings={() => setCurrentTab('settings')}
+                onBack={() => setCurrentTab('home')}
               />
             )}
 
