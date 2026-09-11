@@ -6,6 +6,7 @@ import { logger, createRequestId } from "./logger";
 import { recordRequest, getMetrics } from "./metrics";
 import { checkAlertThresholds } from "./alerting";
 import { createLoadSheddingMiddleware } from "./load-shedding";
+import { attachRealtimeWebSocketServer, closeAllRealtimeConnections } from "./realtime/ws-server";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -130,17 +131,29 @@ function setupCors(app: express.Application) {
   });
 }
 
-function setupBodyParsing(app: express.Application) {
-  app.use(
-    express.json({
-      limit: "100kb",
-      verify: (req, _res, buf) => {
-        req.rawBody = buf;
-      },
-    }),
-  );
+// GitHub webhook payloads can legitimately exceed the 100kb app-wide limit and
+// need their exact wire bytes (not the parsed/re-serialized form) for HMAC
+// signature verification, so that route installs its own raw-body parser
+// (server/routes/github-webhook.ts) and must skip these global parsers entirely.
+const BODY_PARSING_EXEMPT_PATHS = new Set(["/api/github/webhook"]);
 
-  app.use(express.urlencoded({ extended: false, limit: "100kb" }));
+function setupBodyParsing(app: express.Application) {
+  const jsonParser = express.json({
+    limit: "100kb",
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  });
+  const urlencodedParser = express.urlencoded({ extended: false, limit: "100kb" });
+
+  app.use((req, res, next) => {
+    if (BODY_PARSING_EXEMPT_PATHS.has(req.path)) return next();
+    jsonParser(req, res, next);
+  });
+  app.use((req, res, next) => {
+    if (BODY_PARSING_EXEMPT_PATHS.has(req.path)) return next();
+    urlencodedParser(req, res, next);
+  });
 }
 
 function setupRequestLogging(app: express.Application) {
@@ -357,6 +370,7 @@ if (process.env.NODE_ENV !== "test") {
     const app = await createApp();
     const { createServer } = await import("node:http");
     const server = createServer(app);
+    attachRealtimeWebSocketServer(server);
 
     const port = parseInt(process.env.PORT || "5000", 10);
     server.listen(
@@ -372,6 +386,11 @@ if (process.env.NODE_ENV !== "test") {
 
     function gracefulShutdown(signal: string) {
       log(`[Shutdown] Received ${signal}, closing server...`);
+      // server.close() alone waits for connections to end on their own, but a
+      // WebSocket upgrade hijacks its socket out of the HTTP server's normal
+      // connection tracking — an open realtime session would otherwise hold
+      // shutdown open until the force-exit timeout below on every deploy.
+      closeAllRealtimeConnections();
       server.close(() => {
         log("[Shutdown] Server closed cleanly");
         process.exit(0);

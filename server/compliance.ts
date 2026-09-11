@@ -108,3 +108,26 @@ export function isVoiceChatComplianceApproved(): boolean {
   if (process.env.NODE_ENV !== 'production') return true;
   return getVoiceChatComplianceStatus().approved;
 }
+
+/**
+ * Realtime media sessions (typed-input moderated talkback + streamed speech)
+ * add no additional attestation requirement beyond the general AI-provider
+ * gate this increment — there is no microphone input and no new retained
+ * transcript (see the increment plan), unlike voice chat's bounded-retention
+ * requirement. Kept as its own named status/approval pair (rather than reusing
+ * `isVoiceChatComplianceApproved`) because it gates a structurally different
+ * feature with its own feature flag, and the two must be able to diverge
+ * independently as each capability's requirements evolve.
+ */
+export function getRealtimeMediaComplianceStatus(): AiProviderComplianceStatus {
+  return getAiProviderComplianceStatus();
+}
+
+/**
+ * Production is fail-closed. Development/test may exercise the implementation,
+ * but FEATURE_REALTIME_MEDIA_ENABLED must still be explicitly true.
+ */
+export function isRealtimeMediaComplianceApproved(): boolean {
+  if (process.env.NODE_ENV !== 'production') return true;
+  return getRealtimeMediaComplianceStatus().approved;
+}

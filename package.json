@@ -132,6 +132,7 @@
     "@types/react": "~19.2.18",
     "@types/react-dom": "^19.2.5",
     "@types/supertest": "^7.2.1",
+    "@types/ws": "^8.5.13",
     "@vitejs/plugin-react": "^6.1.0",
     "@vitest/coverage-v8": "^4.1.9",
     "babel-jest": "^29.7.0",

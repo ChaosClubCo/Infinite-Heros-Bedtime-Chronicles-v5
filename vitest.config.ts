@@ -24,7 +24,7 @@ export default defineConfig({
     exclude: ['node_modules', 'server_dist', 'static-build'],
     coverage: {
       provider: 'v8',
-      include: ['server/**/*.ts', 'lib/**/*.ts'],
+      include: ['server/**/*.ts', 'lib/**/*.ts', 'shared/media/**/*.ts'],
       exclude: [
         'server/replit_integrations/**',
         'server/templates/**',

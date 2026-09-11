@@ -427,6 +427,102 @@ Serves a completed video file. ID must match `/^[a-f0-9]+$/`.
 
 ---
 
+## Realtime Media Sessions (requires ELEVENLABS_API_KEY + FEATURE_REALTIME_MEDIA_ENABLED=true)
+
+Typed-input-only moderated talkback: a realtime session accepts typed text (no
+microphone — see the client-side release gate note below), runs the reply
+through the same child-safety pipeline as story generation, generates the
+approved reply's speech, then sends it to the client in fixed-size chunks
+(the underlying ElevenLabs call — `server/elevenlabs.ts`'s `generateSpeech()`
+— returns the full audio buffer before chunking begins; this is not
+incremental/streaming synthesis today). Registered by
+`registerRealtimeMediaRoutes()` in `server/routes/realtime-media.ts`, gated
+exactly like Voice Chat (feature flag + compliance status + dependency check
+in `server/routes.ts`).
+
+**Deployment note:** production on Vercel serves requests through a single
+stateless serverless function with no persistent process, so a session
+created there gets `transport: "sse-fallback"` (no `wsUrl`) instead of a
+live WebSocket. **This fallback currently has no working interactive
+transport at all** — the `sseUrl` it returns is a plain JSON status-poll
+endpoint (`GET /api/v1/realtime-media-sessions/:id`), not an
+EventSource-compatible stream; the response also sets
+`realtimeAvailable: false` and a `note` field saying so. A real Vercel-side
+fallback (chunked SSE or similar) is unbuilt follow-up work. The WebSocket
+transport only activates on a long-running deployment target (Replit) — see
+`server/realtime/ws-server.ts`.
+
+**Client note:** no screen in the current release links to this feature and
+no microphone permission is requested by it — it is typed-input only. See
+`__tests__/release/voice-containment.test.ts`, which this feature does not
+touch or loosen.
+
+### `POST /api/v1/realtime-media-sessions`
+Creates a realtime media session. Requires a `realtime-media`-scoped consent
+artifact — this is a new, additive consent scope; existing story-generation
+consent does not cover it.
+
+**Request Body:**
+```json
+{
+  "mode": "sleep",
+  "characterProfileId": "moonbeam",
+  "consentArtifact": {
+    "schemaVersion": 1,
+    "id": "consent-1",
+    "consentRecordVersion": 3,
+    "grantedAt": "2026-09-11T00:00:00.000Z",
+    "scope": "realtime-media"
+  }
+}
+```
+
+**Response (201, non-Vercel):**
+```json
+{
+  "session": { "id": "...", "status": "active", "mode": "sleep", "characterProfileId": "moonbeam", "transport": "websocket", "ownerId": "...", "...": "..." },
+  "wsUrl": "/api/v1/realtime-media-sessions/ws?sessionId=...&ticket=..."
+}
+```
+
+The `ticket` query param is a single-use, 5-minute credential
+(`server/realtime/connection-tickets.ts`) minted for the calling user and
+consumed by the WS upgrade handshake below — it is not a bearer token and
+cannot be reused or shared with another session id.
+
+**Response (201, Vercel):** same shape plus `"transport": "sse-fallback"`, an
+`sseUrl` (no `wsUrl`/`ticket`), `"realtimeAvailable": false`, and a `note`
+explaining the fallback is status-poll only (see the deployment note above).
+
+### `GET /api/v1/realtime-media-sessions/:id`
+Returns the current session state — only to the user who created it. 404 both
+for an unknown ID and for a session owned by a different user (a
+distinguishing status code would let a caller enumerate other users'
+session IDs).
+
+### `POST /api/v1/realtime-media-sessions/:id/cancel`
+Idempotent — cancelling an already-cancelled or completed session returns its
+current state rather than erroring. Same ownership check (404 if not the
+owner) as the GET endpoint above; also closes the live WebSocket connection
+for that session, if one is open.
+
+### WebSocket — `GET /api/v1/realtime-media-sessions/ws?sessionId=...&ticket=...`
+Non-Vercel only. Upgrades to a WebSocket once `sessionId` resolves to an
+active session created via the endpoint above **and** `ticket` is a valid,
+unexpired, not-yet-consumed ticket minted for that same session — a session
+ID alone is not sufficient authorization. Client sends typed-text JSON
+frames (`{"type":"user_text","text":"..."}`), one at a time (a second message
+while a reply is still generating is rejected with an `error` event rather
+than queued); the server never sends audio as base64-in-JSON — a
+`speech_chunk_ready` event (JSON) precedes each chunk's raw bytes, sent as a
+separate **binary** WebSocket frame. Every server event is a versioned
+envelope (`RealtimeEventSchema` in `shared/media/schemas.ts`):
+`session_started`, `safety_inspection`, `response_text_delta` (only the
+already-moderated, safe-to-display text — never raw model output),
+`speech_chunk_ready`, `speech_complete`, `error`, `session_ended`.
+
+---
+
 ## Voice Chat (requires DATABASE_URL + AI_INTEGRATIONS_OPENAI_API_KEY)
 
 ### `GET /api/conversations`
