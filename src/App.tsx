@@ -464,6 +464,9 @@ export const App: React.FC = () => {
                 streakCount={stats.currentStreak}
                 onAdvanceStreak={handleAdvanceStreak}
                 dreamEntries={dreamEntries}
+                bookmarkedThemeIds={bookmarkedThemeIds}
+                savedStories={savedStories}
+                onOpenThemes={() => setCurrentTab('gallery')}
               />
             )}
 
