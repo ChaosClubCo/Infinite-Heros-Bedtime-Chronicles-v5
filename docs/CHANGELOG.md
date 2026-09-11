@@ -1,7 +1,14 @@
-<!-- Last verified: 2026-08-30 -->
+<!-- Last verified: 2026-09-11 -->
 # Changelog
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
+
+## [Unreleased] — 2026-09-11 — Restore Story Safety Pipeline, Account Deletion & Webhook Routes
+
+### Fixed
+- **Restored the child-safety story-moderation pipeline** (`server/safety/story-guard.ts`, `buildStricterSystemPrompt` in `server/prompts.ts`) and wired `guardStory` back into both `POST /api/generate-story` and `POST /api/generate-story-stream` in `server/routes/story.ts`. These had been silently dropped by an earlier history rewrite (commit `8828fd4`) — generated stories were reaching clients with no output-side moderation despite `docs/API.md`/`CLAUDE.md` documenting the guard as active. Moderate → regenerate once → known-safe fallback is gated on `contentSafetyEnabled` as before.
+- **Restored `DELETE /api/account`** (`server/routes/account.ts`) and its registration in `server/routes.ts`. Parents had no way to trigger server-side account/data deletion while this was missing.
+- **Restored `POST /api/github/webhook`** (`server/routes/github-webhook.ts`) plus the raw-body-parser exemption in `server/index.ts`'s `setupBodyParsing()` that the route's HMAC signature check depends on.
 
 ## [Unreleased] — 2026-08-30 — Morning Awakening & Story Playback Immersion Sprint
 

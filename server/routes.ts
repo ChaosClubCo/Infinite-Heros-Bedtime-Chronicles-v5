@@ -14,6 +14,7 @@ import { isFeatureEnabled } from "./feature-flags";
 import { logger } from "./logger";
 import { registerAudioRoutes } from "./integrations/audio";
 import { registerImageRoutes } from "./integrations/image";
+import { registerAccountRoutes } from "./routes/account";
 import { registerHealthRoutes } from "./routes/health";
 import { registerStoryRoutes } from "./routes/story";
 import { registerImageGenRoutes } from "./routes/images";
@@ -21,6 +22,7 @@ import { registerTtsRoutes } from "./routes/tts";
 import { registerMusicRoutes } from "./routes/music";
 import { registerSuggestRoutes } from "./routes/suggest";
 import { registerVideoRoutes } from "./routes/video";
+import { registerGithubWebhookRoute } from "./routes/github-webhook";
 import { registerRealtimeMediaRoutes } from "./routes/realtime-media";
 
 /**
@@ -71,12 +73,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   registerHealthRoutes(app);
+  registerAccountRoutes(app);
   registerStoryRoutes(app);
   registerImageGenRoutes(app);
   registerTtsRoutes(app);
   registerMusicRoutes(app);
   registerSuggestRoutes(app);
   registerVideoRoutes(app);
+  registerGithubWebhookRoute(app);
 
   const realtimeMediaFeatureEnabled = isFeatureEnabled('realtimeMediaEnabled');
   const realtimeMediaComplianceApproved = isRealtimeMediaComplianceApproved();
