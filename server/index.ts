@@ -6,7 +6,7 @@ import { logger, createRequestId } from "./logger";
 import { recordRequest, getMetrics } from "./metrics";
 import { checkAlertThresholds } from "./alerting";
 import { createLoadSheddingMiddleware } from "./load-shedding";
-import { attachRealtimeWebSocketServer } from "./realtime/ws-server";
+import { attachRealtimeWebSocketServer, closeAllRealtimeConnections } from "./realtime/ws-server";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -386,6 +386,11 @@ if (process.env.NODE_ENV !== "test") {
 
     function gracefulShutdown(signal: string) {
       log(`[Shutdown] Received ${signal}, closing server...`);
+      // server.close() alone waits for connections to end on their own, but a
+      // WebSocket upgrade hijacks its socket out of the HTTP server's normal
+      // connection tracking — an open realtime session would otherwise hold
+      // shutdown open until the force-exit timeout below on every deploy.
+      closeAllRealtimeConnections();
       server.close(() => {
         log("[Shutdown] Server closed cleanly");
         process.exit(0);

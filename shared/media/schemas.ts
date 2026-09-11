@@ -66,6 +66,13 @@ export const MediaSessionSchema = z.object({
   updatedAt: z.string(),
   consentArtifactId: z.string().min(1),
   transport: MediaSessionTransportSchema,
+  /**
+   * The authenticated `req.user.uid` that created this session. Binds the
+   * session to its owner so the WS upgrade handshake and the status/cancel
+   * routes can enforce that only the creator ever observes or controls it —
+   * a session id alone is not authorization.
+   */
+  ownerId: z.string().min(1),
 });
 export type MediaSession = z.infer<typeof MediaSessionSchema>;
 

@@ -26,6 +26,7 @@ function validMediaSession() {
     updatedAt: new Date().toISOString(),
     consentArtifactId: 'consent-1',
     transport: 'websocket',
+    ownerId: 'user-1',
   };
 }
 

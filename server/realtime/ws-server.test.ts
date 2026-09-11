@@ -16,10 +16,19 @@ vi.mock("../elevenlabs", async (importOriginal) => {
 });
 
 import { attachRealtimeWebSocketServer, REALTIME_WS_PATH } from "./ws-server";
-import { createSession, _resetSessionStoreForTests } from "./session-store";
+import { createSession, updateSessionStatus, getSession, _resetSessionStoreForTests } from "./session-store";
+import { issueConnectionTicket, _resetConnectionTicketsForTests } from "./connection-tickets";
 
 let server: Server;
 let port: number;
+
+/** Create a session and a matching WebSocket URL with a valid, freshly-issued ticket. */
+function createSessionAndUrl(input: Parameters<typeof createSession>[0]) {
+  const session = createSession(input);
+  const ticket = issueConnectionTicket(session.id, session.ownerId);
+  const url = `ws://localhost:${port}${REALTIME_WS_PATH}?sessionId=${session.id}&ticket=${ticket}`;
+  return { session, url };
+}
 
 async function startServer() {
   server = createServer();
@@ -100,6 +109,7 @@ function waitForOpen(ws: WebSocket): Promise<void> {
 describe("attachRealtimeWebSocketServer", () => {
   beforeEach(() => {
     _resetSessionStoreForTests();
+    _resetConnectionTicketsForTests();
     delete process.env.VERCEL;
     mockGenerateText.mockReset();
     mockGenerateSpeech.mockReset();
@@ -136,14 +146,15 @@ describe("attachRealtimeWebSocketServer", () => {
 
   it("sends session_started immediately on a valid connection", async () => {
     await startServer();
-    const session = createSession({
+    const { session, url } = createSessionAndUrl({
       mode: "sleep",
       characterProfileId: "moonbeam",
       consentArtifactId: "consent-1",
       transport: "websocket",
+      ownerId: "user-1",
     });
 
-    const ws = new WebSocket(`ws://localhost:${port}${REALTIME_WS_PATH}?sessionId=${session.id}`);
+    const ws = new WebSocket(url);
     const queue = createMessageQueue(ws);
     await waitForOpen(ws);
 
@@ -157,11 +168,12 @@ describe("attachRealtimeWebSocketServer", () => {
 
   it("runs the full typed-text pipeline: text reply, safety inspection, binary speech chunk, completion", async () => {
     await startServer();
-    const session = createSession({
+    const { url } = createSessionAndUrl({
       mode: "classic",
       characterProfileId: "captain",
       consentArtifactId: "consent-1",
       transport: "websocket",
+      ownerId: "user-1",
     });
 
     mockGenerateText.mockResolvedValueOnce({
@@ -171,7 +183,7 @@ describe("attachRealtimeWebSocketServer", () => {
     });
     mockGenerateSpeech.mockResolvedValueOnce(Buffer.from("fake-mp3-bytes"));
 
-    const ws = new WebSocket(`ws://localhost:${port}${REALTIME_WS_PATH}?sessionId=${session.id}`);
+    const ws = new WebSocket(url);
     const queue = createMessageQueue(ws);
     await waitForOpen(ws);
 
@@ -209,11 +221,12 @@ describe("attachRealtimeWebSocketServer", () => {
 
   it("never emits the raw model reply when moderation replaces it with a fallback", async () => {
     await startServer();
-    const session = createSession({
+    const { url } = createSessionAndUrl({
       mode: "classic",
       characterProfileId: "captain",
       consentArtifactId: "consent-1",
       transport: "websocket",
+      ownerId: "user-1",
     });
 
     mockGenerateText.mockResolvedValueOnce({
@@ -223,7 +236,7 @@ describe("attachRealtimeWebSocketServer", () => {
     });
     mockGenerateSpeech.mockResolvedValueOnce(Buffer.from("fallback-audio"));
 
-    const ws = new WebSocket(`ws://localhost:${port}${REALTIME_WS_PATH}?sessionId=${session.id}`);
+    const ws = new WebSocket(url);
     const queue = createMessageQueue(ws);
     await waitForOpen(ws);
     await queue.next(); // session_started
@@ -244,14 +257,15 @@ describe("attachRealtimeWebSocketServer", () => {
 
   it("emits an error event for a malformed client message instead of crashing the connection", async () => {
     await startServer();
-    const session = createSession({
+    const { url } = createSessionAndUrl({
       mode: "sleep",
       characterProfileId: "moonbeam",
       consentArtifactId: "consent-1",
       transport: "websocket",
+      ownerId: "user-1",
     });
 
-    const ws = new WebSocket(`ws://localhost:${port}${REALTIME_WS_PATH}?sessionId=${session.id}`);
+    const ws = new WebSocket(url);
     const queue = createMessageQueue(ws);
     await waitForOpen(ws);
     await queue.next(); // session_started
@@ -265,14 +279,15 @@ describe("attachRealtimeWebSocketServer", () => {
 
   it("marks the session completed when the socket closes", async () => {
     await startServer();
-    const session = createSession({
+    const { session, url } = createSessionAndUrl({
       mode: "sleep",
       characterProfileId: "moonbeam",
       consentArtifactId: "consent-1",
       transport: "websocket",
+      ownerId: "user-1",
     });
 
-    const ws = new WebSocket(`ws://localhost:${port}${REALTIME_WS_PATH}?sessionId=${session.id}`);
+    const ws = new WebSocket(url);
     const queue = createMessageQueue(ws);
     await waitForOpen(ws);
     await queue.next(); // session_started
@@ -283,9 +298,111 @@ describe("attachRealtimeWebSocketServer", () => {
       ws.close();
     });
 
-    const { getSession } = await import("./session-store");
     // Allow the server-side 'close' handler a tick to run.
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(getSession(session.id)?.status).toBe("completed");
+  }, 8000);
+
+  it("preserves a cancelled session's terminal state instead of overwriting it to completed on close", async () => {
+    await startServer();
+    const { session, url } = createSessionAndUrl({
+      mode: "sleep",
+      characterProfileId: "moonbeam",
+      consentArtifactId: "consent-1",
+      transport: "websocket",
+      ownerId: "user-1",
+    });
+
+    const ws = new WebSocket(url);
+    const queue = createMessageQueue(ws);
+    await waitForOpen(ws);
+    await queue.next(); // session_started
+
+    // Simulate a concurrent cancel (e.g. via POST .../cancel) happening while
+    // the socket is still open.
+    updateSessionStatus(session.id, "cancelled");
+
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("close event timed out")), 4000);
+      ws.once("close", () => { clearTimeout(timer); resolve(); });
+      ws.close();
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(getSession(session.id)?.status).toBe("cancelled");
+  }, 8000);
+
+  it("rejects a second message while a reply is still being generated", async () => {
+    await startServer();
+    const { url } = createSessionAndUrl({
+      mode: "classic",
+      characterProfileId: "captain",
+      consentArtifactId: "consent-1",
+      transport: "websocket",
+      ownerId: "user-1",
+    });
+
+    // Never resolves during this test — keeps the connection "busy".
+    mockGenerateText.mockReturnValueOnce(new Promise(() => {}));
+
+    const ws = new WebSocket(url);
+    const queue = createMessageQueue(ws);
+    await waitForOpen(ws);
+    await queue.next(); // session_started
+
+    ws.send(JSON.stringify({ type: "user_text", text: "First message" }));
+    ws.send(JSON.stringify({ type: "user_text", text: "Second message while busy" }));
+
+    const busyError = JSON.parse((await queue.next()).text!);
+    expect(busyError.eventType).toBe("error");
+    expect(busyError.payload.message).toMatch(/already being generated/i);
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+
+    ws.terminate();
+  }, 8000);
+
+  it("refuses an upgrade with a missing or invalid ticket even for a known active session", async () => {
+    await startServer();
+    const session = createSession({
+      mode: "sleep",
+      characterProfileId: "moonbeam",
+      consentArtifactId: "consent-1",
+      transport: "websocket",
+      ownerId: "user-1",
+    });
+
+    const ws = new WebSocket(`ws://localhost:${port}${REALTIME_WS_PATH}?sessionId=${session.id}&ticket=not-a-real-ticket`);
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("expected rejection timed out")), 4000);
+      ws.once("unexpected-response", () => { clearTimeout(timer); resolve(); });
+      ws.once("error", () => { clearTimeout(timer); resolve(); });
+    });
+    ws.terminate();
+  }, 8000);
+
+  it("refuses an upgrade reusing a ticket already consumed by a prior connection", async () => {
+    await startServer();
+    const { url } = createSessionAndUrl({
+      mode: "sleep",
+      characterProfileId: "moonbeam",
+      consentArtifactId: "consent-1",
+      transport: "websocket",
+      ownerId: "user-1",
+    });
+
+    const first = new WebSocket(url);
+    await waitForOpen(first);
+    first.terminate();
+
+    // The ticket was already consumed by the first (successful) handshake, so
+    // a second attempt with the same ticket must be rejected regardless of
+    // whether the first connection's close has been processed yet.
+    const second = new WebSocket(url);
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("expected rejection timed out")), 4000);
+      second.once("unexpected-response", () => { clearTimeout(timer); resolve(); });
+      second.once("error", () => { clearTimeout(timer); resolve(); });
+    });
+    second.terminate();
   }, 8000);
 });

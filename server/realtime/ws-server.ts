@@ -13,8 +13,8 @@
  * No mic input, no transcription — this is a typed-text-only realtime slice
  * (see the increment plan's Decision 1). The pipeline re-plumbs the existing
  * chat-safe reply + moderation + TTS steps already implemented for the (dark)
- * voice-chat backend (`server/replit_integrations/audio/routes.ts`) onto
- * binary WebSocket frames instead of base64-JSON-then-one-SSE-event.
+ * voice-chat backend (`server/integrations/audio/routes.ts`) onto binary
+ * WebSocket frames instead of base64-JSON-then-one-SSE-event.
  */
 
 import type { Server as HttpServer, IncomingMessage } from 'node:http';
@@ -28,6 +28,7 @@ import { sanitizeChatInput, CHILD_CHAT_SYSTEM_PROMPT, MAX_CHAT_INPUT_LENGTH } fr
 import { chatSafetyModerationProvider } from '../providers/safety-provider';
 import { elevenLabsSpeechProvider } from '../providers/elevenlabs-provider';
 import { findVoiceBinding } from '../media/provider-bindings';
+import { consumeConnectionTicket } from './connection-tickets';
 import {
   findCharacterProfile,
   SLEEP_MODE_PERFORMANCE_OVERRIDE,
@@ -44,10 +45,19 @@ export const REALTIME_WS_PATH = '/api/v1/realtime-media-sessions/ws';
 
 const SPEECH_CHUNK_BYTES = 32 * 1024;
 
+// Generous headroom over MAX_CHAT_INPUT_LENGTH (4,000 UTF-16 units, up to ~4
+// bytes each in the worst case) plus the small JSON envelope, so a legitimate
+// message is never rejected while an oversized/abusive frame is capped before
+// it reaches JSON.parse or any provider call.
+const WS_MAX_PAYLOAD_BYTES = 20 * 1024;
+
 const ClientMessageSchema = z.object({
   type: z.literal('user_text'),
   text: z.string().min(1).max(MAX_CHAT_INPUT_LENGTH),
 });
+
+/** Live connections keyed by session id, so a cancel or shutdown can close them. */
+const liveConnections = new Map<string, WebSocket>();
 
 function buildPerformanceProfile(session: MediaSession): PerformanceProfile | undefined {
   const profile = findCharacterProfile(session.characterProfileId);
@@ -62,6 +72,9 @@ function buildPerformanceProfile(session: MediaSession): PerformanceProfile | un
 
 class RealtimeConnection {
   private sequence = 0;
+  /** Serializes message handling: a client cannot pipeline a second generation
+   * (each one calls a paid AI + TTS provider) while the first is in flight. */
+  private busy = false;
 
   constructor(private readonly ws: WebSocket, private readonly session: MediaSession) {}
 
@@ -86,6 +99,20 @@ class RealtimeConnection {
   }
 
   async handleMessage(raw: string): Promise<void> {
+    if (this.busy) {
+      this.sendEvent('error', { message: 'A response is already being generated for this session. Please wait for it to finish.' });
+      return;
+    }
+
+    // Re-check the session's live status rather than trusting the snapshot
+    // captured at connection time — a cancel (or expiry sweep) since then must
+    // stop new generations even though the socket is still technically open.
+    const currentSession = getSession(this.session.id);
+    if (!currentSession || currentSession.status !== 'active') {
+      this.sendEvent('error', { message: 'This session is no longer active.' });
+      return;
+    }
+
     let parsedBody: unknown;
     try {
       parsedBody = JSON.parse(raw);
@@ -106,6 +133,8 @@ class RealtimeConnection {
       return;
     }
 
+    this.busy = true;
+    const startedAt = new Date().toISOString();
     try {
       const generation = await getAIRouter().generateText('suggestion', {
         systemPrompt: CHILD_CHAT_SYSTEM_PROMPT,
@@ -158,7 +187,7 @@ class RealtimeConnection {
           status: 'succeeded',
           provider: speech.provider,
           model: speech.model,
-          createdAt: new Date().toISOString(),
+          createdAt: startedAt,
           completedAt: new Date().toISOString(),
           resultRef: null,
           error: null,
@@ -177,12 +206,37 @@ class RealtimeConnection {
     } catch (err) {
       logger.error({ err, sessionId: this.session.id }, 'realtime session generation failed');
       this.sendEvent('error', { message: 'Something went wrong generating a response. Please try again.' });
+    } finally {
+      this.busy = false;
     }
   }
 
   rejectBinary(): void {
     this.sendEvent('error', { message: 'This session accepts typed text only — binary frames are not supported for input.' });
   }
+}
+
+/** Close a live connection for `sessionId`, if one is currently open. */
+export function closeRealtimeSession(sessionId: string, code = 1000, reason = 'Session ended'): void {
+  const ws = liveConnections.get(sessionId);
+  if (!ws) return;
+  try {
+    ws.close(code, reason);
+  } catch (err) {
+    logger.warn({ err, sessionId }, 'failed to close realtime session socket');
+  }
+}
+
+/** Close every live connection — called from graceful shutdown. */
+export function closeAllRealtimeConnections(): void {
+  for (const [sessionId, ws] of liveConnections) {
+    try {
+      ws.close(1001, 'Server shutting down');
+    } catch (err) {
+      logger.warn({ err, sessionId }, 'failed to close realtime session socket during shutdown');
+    }
+  }
+  liveConnections.clear();
 }
 
 /**
@@ -196,22 +250,27 @@ export function attachRealtimeWebSocketServer(server: HttpServer): void {
     return;
   }
 
-  const wss = new WebSocketServer({ noServer: true });
+  const wss = new WebSocketServer({ noServer: true, maxPayload: WS_MAX_PAYLOAD_BYTES });
 
   server.on('upgrade', (req: IncomingMessage, socket, head) => {
     let pathname: string;
     let sessionId: string | null;
+    let ticket: string | null;
     try {
       const url = new URL(req.url ?? '', 'http://localhost');
       pathname = url.pathname;
       sessionId = url.searchParams.get('sessionId');
+      ticket = url.searchParams.get('ticket');
     } catch {
       socket.destroy();
       return;
     }
 
     if (pathname !== REALTIME_WS_PATH) {
-      // Not our path — leave the socket alone for any other upgrade handler.
+      // Not our path, and this is the only `server.on('upgrade', ...)`
+      // registration in the process — nothing else will ever claim this
+      // socket, so leaving it open would leak it until the client times out.
+      socket.destroy();
       return;
     }
 
@@ -224,14 +283,31 @@ export function attachRealtimeWebSocketServer(server: HttpServer): void {
       return;
     }
 
+    // The session id alone is not authorization — a single-use ticket minted
+    // at session-creation time (bound to the creator's uid) must also be
+    // presented and is consumed here so it can never be replayed.
+    const consumed = consumeConnectionTicket(session.id, ticket ?? undefined);
+    if (!consumed || consumed.ownerId !== session.ownerId) {
+      socket.end('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
+      return;
+    }
+
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit('connection', ws, req, session);
     });
   });
 
   wss.on('connection', (ws: WebSocket, _req: IncomingMessage, session: MediaSession) => {
+    liveConnections.set(session.id, ws);
     const connection = new RealtimeConnection(ws, session);
     connection.start();
+
+    // An uncaught 'error' event on an EventEmitter crashes the process — a
+    // socket reset, protocol violation, or similar transport-level fault must
+    // not be allowed to take the whole server down.
+    ws.on('error', (err) => {
+      logger.warn({ err, sessionId: session.id }, 'realtime websocket connection error');
+    });
 
     ws.on('message', (data, isBinary) => {
       if (isBinary) {
@@ -242,7 +318,14 @@ export function attachRealtimeWebSocketServer(server: HttpServer): void {
     });
 
     ws.on('close', () => {
-      updateSessionStatus(session.id, 'completed');
+      liveConnections.delete(session.id);
+      // Only clean-close a still-active session into 'completed' — a session
+      // already 'cancelled' (or otherwise moved on) must keep that terminal
+      // state rather than being overwritten by the socket closing afterward.
+      const current = getSession(session.id);
+      if (current?.status === 'active') {
+        updateSessionStatus(session.id, 'completed');
+      }
     });
   });
 

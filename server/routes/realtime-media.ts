@@ -9,7 +9,8 @@ import {
   findCharacterProfile,
 } from "../../shared/media/schemas";
 import { createSession, getSession, updateSessionStatus } from "../realtime/session-store";
-import { REALTIME_WS_PATH } from "../realtime/ws-server";
+import { REALTIME_WS_PATH, closeRealtimeSession } from "../realtime/ws-server";
+import { issueConnectionTicket } from "../realtime/connection-tickets";
 
 const CreateSessionRequestSchema = z.object({
   mode: MediaSessionModeSchema,
@@ -24,6 +25,11 @@ const CreateSessionRequestSchema = z.object({
  */
 export function registerRealtimeMediaRoutes(app: Express): void {
   app.post("/api/v1/realtime-media-sessions", rateLimited(), (req, res) => {
+    const ownerId = req.user?.uid;
+    if (!ownerId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
     const parsed = CreateSessionRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
@@ -54,13 +60,25 @@ export function registerRealtimeMediaRoutes(app: Express): void {
         characterProfileId,
         consentArtifactId: consentArtifact.id,
         transport,
+        ownerId,
       });
 
       const response: Record<string, unknown> = { session };
       if (transport === "websocket") {
-        response.wsUrl = `${REALTIME_WS_PATH}?sessionId=${encodeURIComponent(session.id)}`;
+        // A single-use, 5-minute ticket binds the upcoming upgrade handshake to
+        // this caller — see server/realtime/connection-tickets.ts for why a
+        // bearer JWT can't be used here directly.
+        const ticket = issueConnectionTicket(session.id, ownerId);
+        response.wsUrl = `${REALTIME_WS_PATH}?sessionId=${encodeURIComponent(session.id)}&ticket=${encodeURIComponent(ticket)}`;
       } else {
+        // Honest about current capability: this is a plain status-poll endpoint,
+        // not an EventSource-compatible interactive stream. Vercel deployments
+        // have no persistent process to hold a realtime session open at all
+        // (see server/realtime/ws-server.ts) — a true SSE/bidirectional
+        // fallback is unbuilt, tracked as follow-up work, not shipped here.
         response.sseUrl = `/api/v1/realtime-media-sessions/${encodeURIComponent(session.id)}`;
+        response.realtimeAvailable = false;
+        response.note = "Interactive realtime media is not available on this deployment target yet; poll sseUrl for session status only.";
       }
 
       res.status(201).json(response);
@@ -76,21 +94,23 @@ export function registerRealtimeMediaRoutes(app: Express): void {
     }
 
     const session = getSession(sessionId);
-    if (!session) {
+    // 404 (not 403) for both "doesn't exist" and "not yours" — a distinguishing
+    // status code would let a caller enumerate other users' session ids.
+    if (!session || session.ownerId !== req.user?.uid) {
       return res.status(404).json({ error: "Realtime media session not found" });
     }
 
     res.json({ session });
   });
 
-  app.post("/api/v1/realtime-media-sessions/:id/cancel", (req, res) => {
+  app.post("/api/v1/realtime-media-sessions/:id/cancel", rateLimited(), (req, res) => {
     const sessionId = sanitizeString(req.params.id, 64);
     if (!sessionId) {
       return res.status(400).json({ error: "Session ID is required" });
     }
 
     const session = getSession(sessionId);
-    if (!session) {
+    if (!session || session.ownerId !== req.user?.uid) {
       return res.status(404).json({ error: "Realtime media session not found" });
     }
 
@@ -100,6 +120,7 @@ export function registerRealtimeMediaRoutes(app: Express): void {
     // transition (unlike the expensive generation calls in server/routes/story.ts).
     if (session.status === "active") {
       updateSessionStatus(sessionId, "cancelled");
+      closeRealtimeSession(sessionId, 4000, "Session cancelled");
     }
 
     res.json({ session: getSession(sessionId) });

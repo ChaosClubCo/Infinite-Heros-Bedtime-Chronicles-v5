@@ -34,6 +34,7 @@ export interface CreateSessionInput {
   characterProfileId: string;
   consentArtifactId: string;
   transport: MediaSessionTransport;
+  ownerId: string;
 }
 
 export function createSession(input: CreateSessionInput): MediaSession {
@@ -48,6 +49,7 @@ export function createSession(input: CreateSessionInput): MediaSession {
     updatedAt: now,
     consentArtifactId: input.consentArtifactId,
     transport: input.transport,
+    ownerId: input.ownerId,
   };
   sessions.set(session.id, session);
   return session;

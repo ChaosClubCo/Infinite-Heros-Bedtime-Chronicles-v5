@@ -31,7 +31,14 @@ import { registerRealtimeMediaRoutes } from "./routes/realtime-media";
  */
 export function requiresAuthGate(method: string, path: string): boolean {
   if (path === '/github/webhook' || path === '/github/webhook/') return false;
-  if (method === 'GET') return path.startsWith('/conversations');
+  if (method === 'GET') {
+    // Both carry per-user private state (voice-chat history; realtime media
+    // session ownership) that the route layer enforces against req.user.uid —
+    // without this gate req.user would be unset and ownership checks there
+    // would silently 404 everyone instead of ever matching, or (worse, if a
+    // route forgot the check) leak across users.
+    return path.startsWith('/conversations') || path.startsWith('/v1/realtime-media-sessions');
+  }
   return true;
 }
 
