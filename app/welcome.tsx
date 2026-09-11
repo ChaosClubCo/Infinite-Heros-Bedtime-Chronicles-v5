@@ -4,7 +4,6 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  Platform,
   Dimensions,
   FlatList,
   NativeSyntheticEvent,
@@ -13,11 +12,11 @@ import {
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { setOnboardingComplete } from "@/lib/storage";
 import { useSettings } from "@/lib/SettingsContext";
+import { useScreenInsets } from "@/lib/useScreenInsets";
 import { OnboardingSlide } from "@/components/OnboardingSlide";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -46,9 +45,7 @@ const SLIDES = [
 ];
 
 export default function WelcomeScreen() {
-  const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const { topInset, bottomInset } = useScreenInsets();
 
   const { settings } = useSettings();
   const reducedMotion = settings?.reducedMotion ?? false;

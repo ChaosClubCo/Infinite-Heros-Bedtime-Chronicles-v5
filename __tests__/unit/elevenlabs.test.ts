@@ -1,11 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   VOICE_MAP,
   MODE_DEFAULT_VOICES,
   MODE_VOICE_CATEGORIES,
   getVoicesForMode,
 } from "../../server/elevenlabs";
-import type { VoiceCategory } from "../../server/elevenlabs";
 import { logger } from "../../server/logger";
 
 describe("VOICE_MAP", () => {
@@ -14,7 +13,7 @@ describe("VOICE_MAP", () => {
   });
 
   it("every voice has required fields", () => {
-    for (const [key, voice] of Object.entries(VOICE_MAP)) {
+    for (const voice of Object.values(VOICE_MAP)) {
       expect(voice.id).toBeTruthy();
       expect(voice.name).toBeTruthy();
       expect(voice.characterName).toBeTruthy();
@@ -185,7 +184,6 @@ describe("Sleep mode voice override logic", () => {
   });
 
   it("reduces style for non-sleep voice in sleep mode", () => {
-    const original = VOICE_MAP.captain.settings.style; // 0.30
     const result = applySleepOverride("captain");
     expect(result.style).toBeCloseTo(0.20); // 0.30 - 0.10
   });

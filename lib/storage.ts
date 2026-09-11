@@ -9,7 +9,6 @@ import {
   StreakData,
   ParentControls,
   DEFAULT_PARENT_CONTROLS,
-  BADGE_DEFINITIONS,
 } from '@/constants/types';
 import { HEROES } from '@/constants/heroes';
 import { evaluateBadges } from './badges';
@@ -668,3 +667,30 @@ export async function getParentControls(): Promise<ParentControls> {
 export async function saveParentControls(controls: ParentControls): Promise<void> {
   await AsyncStorage.setItem(PARENT_CONTROLS_KEY, JSON.stringify(controls));
 }
+
+/**
+ * Save parent controls inside the tamper-evident secure storage envelope.
+ */
+export async function saveSecureParentControls(controls: ParentControls): Promise<void> {
+  const { setSecureItem } = await import('./secureStorage');
+  await setSecureItem('parent_controls', controls);
+  await AsyncStorage.setItem(PARENT_CONTROLS_KEY, JSON.stringify(controls));
+}
+
+/**
+ * Retrieve parent controls with secure storage envelope verification.
+ * Falls back transparently to standard storage if secure envelope is not present.
+ */
+export async function getSecureParentControls(): Promise<ParentControls> {
+  try {
+    const { getSecureItem } = await import('./secureStorage');
+    const secureData = await getSecureItem<ParentControls>('parent_controls');
+    if (secureData) {
+      return secureData;
+    }
+  } catch {
+    // Fall back to standard storage on uninitialized secure envelope
+  }
+  return getParentControls();
+}
+

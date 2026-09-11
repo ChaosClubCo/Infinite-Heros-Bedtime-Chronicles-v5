@@ -1,24 +1,23 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
   TextInput,
   Pressable,
   StyleSheet,
-  Platform,
 } from "react-native";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AnimatedView } from "@/components/AnimatedView";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import * as Haptics from "expo-haptics";
 import { FadeInDown, FadeIn } from "react-native-reanimated";
 import Colors from "@/constants/colors";
-import { HEROES } from "@/constants/heroes";
 import { StarField } from "@/components/StarField";
+import { useRequireHero } from "@/lib/useRequireHero";
+import { useScreenInsets } from "@/lib/useScreenInsets";
 
 const MADLIB_FIELDS = [
   { key: "adjective", label: "A Silly Adjective", placeholder: "e.g. sparkly, wobbly, gigantic", icon: "color-palette-outline" as const },
@@ -36,25 +35,12 @@ export default function MadLibsScreen() {
     voice: string;
     speed: string;
   }>();
-  const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const { topInset, bottomInset } = useScreenInsets();
 
   const [words, setWords] = useState<Record<string, string>>({});
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
-  const hero = HEROES.find((h) => h.id === heroId);
-
-  // A missing/unknown heroId (stale deep link) leaves nothing to configure.
-  // Navigate in an effect — never during render — and guard against an
-  // empty back stack when this screen is the app's entry point.
-  useEffect(() => {
-    if (!hero) {
-      if (router.canGoBack()) router.back();
-      else router.replace("/(tabs)");
-    }
-  }, [hero]);
-
+  const hero = useRequireHero(heroId);
   if (!hero) return null;
 
   const filledCount = Object.values(words).filter((v) => v.trim().length > 0).length;

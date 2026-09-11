@@ -22,20 +22,23 @@ This runbook covers how to respond when Infinity Heroes: Bedtime Chronicles has 
 Before taking any action:
 
 ```bash
+BASE_URL="https://<your-production-domain>"
+
 # 1. Check server health
-curl https://<your-deployment>.replit.app/api/health
+curl $BASE_URL/api/health
 # Expected: {"status":"ok","timestamp":...}
 
 # 2. Check which AI providers are available
-curl https://<your-deployment>.replit.app/api/ai-providers
-# Expected: {"providers":{"gemini":true,"openai":false,...}}
+curl $BASE_URL/api/ai-providers
+# Expected: {"providers":[{"name":"anthropic","available":true,...},...]}
 
-# 3. Check Replit deployment logs
-# → Replit dashboard → Deployments → Latest deployment → Logs
+# 3. Check Sentry error dashboard & Vercel deployment logs
+# → Sentry → Issues (filter by release / environment)
+# → Vercel dashboard → Project → Logs / Deployments
 ```
 
-**If `/api/health` returns an error:** Code or server problem → escalate to P1/P2
-**If `/api/health` returns OK but `/api/ai-providers` shows providers down:** External provider outage → P3 (no code fix possible)
+**If `/api/health` returns an error (5xx or connection refused):** Server problem → escalate to P1/P2
+**If `/api/health` returns OK but `/api/ai-providers` shows providers down:** External provider outage → P3 (fallback chain engages automatically)
 **If story generation fails but providers show as available:** Likely a prompt or response parsing issue → P2
 
 ---
@@ -43,11 +46,13 @@ curl https://<your-deployment>.replit.app/api/ai-providers
 ## Response Playbooks
 
 ### P1: Server is down
-1. Check Replit deployment logs for crash/startup errors
-2. If a recent deploy caused the issue → see [rollback.md](./rollback.md)
-3. If no recent deploy → check if Replit infrastructure has an incident at https://replit.statuspage.io
-4. If Replit is healthy → check `server/index.ts` for startup errors (port conflicts, missing env vars)
-5. Check that required env vars are set in Replit Secrets
+1. Check Vercel deployment logs / Sentry for crash or syntax/runtime errors.
+2. If a recent deploy caused the issue → see [rollback.md](./rollback.md).
+3. If no recent deploy → check status of infrastructure providers:
+   - Vercel: https://www.vercel-status.com
+   - Supabase: https://status.supabase.com
+   - Cloudflare (KV/R2): https://www.cloudflarestatus.com
+4. Check that required environment variables are set in production configuration.
 
 ### P2: Story generation broken
 1. Check `/api/ai-providers` — are all providers down?

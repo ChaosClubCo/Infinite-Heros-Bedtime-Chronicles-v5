@@ -19,8 +19,6 @@ interface FeatureFlags {
 
 const flags: FeatureFlags = {
   videoEnabled: process.env.FEATURE_VIDEO_ENABLED === 'true',
-  // Child voice processing is opt-in and additionally compliance-gated in
-  // registerRoutes. A missing environment value must never enable it by accident.
   voiceChatEnabled: process.env.FEATURE_VOICE_CHAT_ENABLED === 'true',
   streamingEnabled: process.env.FEATURE_STREAMING_ENABLED !== 'false', // default on
   contentSafetyEnabled: process.env.FEATURE_CONTENT_SAFETY_ENABLED !== 'false', // default on

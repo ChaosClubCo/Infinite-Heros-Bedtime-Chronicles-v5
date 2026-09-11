@@ -95,3 +95,22 @@ export const MODE_VOICES: Record<StoryMode, ModeVoice[]> = {
 };
 
 export const SPEED_RATES: Record<string, number> = { gentle: 0.8, medium: 0.9, normal: 1.0 };
+
+// Display metadata for list/tab screens; color aliases MODE_THEME so the
+// accent can never drift between the two.
+export const MODE_META: Record<StoryMode, { label: string; color: string }> = {
+  classic: { label: "Classic", color: MODE_THEME.classic.accent },
+  madlibs: { label: "Mad Libs", color: MODE_THEME.madlibs.accent },
+  sleep: { label: "Sleep", color: MODE_THEME.sleep.accent },
+};
+
+const STORY_MODES: readonly StoryMode[] = ["classic", "madlibs", "sleep"];
+
+/** Narrows an untyped route param / stored string to a StoryMode, falling back to "classic". */
+export function resolveStoryMode(mode: string | null | undefined): StoryMode {
+  return STORY_MODES.includes(mode as StoryMode) ? (mode as StoryMode) : "classic";
+}
+
+// App-wide fallback narrator voice/speed (matches the AppSettings defaults).
+export const DEFAULT_STORY_VOICE = "moonbeam";
+export const DEFAULT_STORY_SPEED = "medium";

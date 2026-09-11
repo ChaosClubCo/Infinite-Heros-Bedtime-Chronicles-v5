@@ -20,7 +20,6 @@ function SceneVideoPlayer({ jobId, accent }: { jobId: string; accent: string }) 
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const videoRef = useRef<Video>(null);
 
   useEffect(() => {
     const baseUrl = getApiUrl();
@@ -78,7 +77,6 @@ function SceneVideoPlayer({ jobId, accent }: { jobId: string; accent: string }) 
   return (
     <Animated.View entering={FadeIn.duration(600)} style={s.videoPlayerWrap}>
       <Video
-        ref={videoRef}
         source={{ uri: videoUrl }}
         style={s.videoPlayer}
         resizeMode={ResizeMode.COVER}

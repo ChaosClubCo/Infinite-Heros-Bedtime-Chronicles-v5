@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { FadeIn, FadeInDown } from "react-native-reanimated";
 import { AnimatedView } from "@/components/AnimatedView";
@@ -20,6 +19,7 @@ import { ChildProfile, AVATAR_EMOJIS } from "@/constants/types";
 import { HEROES } from "@/constants/heroes";
 import { useProfile } from "@/lib/ProfileContext";
 import { confirmDestructive } from "@/lib/confirmDestructive";
+import { useScreenInsets } from "@/lib/useScreenInsets";
 import * as Crypto from "expo-crypto";
 
 interface Props {
@@ -32,9 +32,7 @@ type Screen = "list" | "create" | "edit";
 const AGE_OPTIONS = [3, 4, 5, 6, 7, 8, 9];
 
 export function ProfileModal({ visible, onClose }: Props) {
-  const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const { topInset, bottomInset } = useScreenInsets();
 
   const { profiles, activeProfile, switchProfile, createProfile, updateProfile, removeProfile } = useProfile();
 
@@ -443,7 +441,6 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: "rgba(255,255,255,0.06)",
     minWidth: 80,
   },
-  heroCardEmoji: { fontSize: 24 },
   heroCardName: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 11, color: "rgba(255,255,255,0.5)" },
   saveBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",

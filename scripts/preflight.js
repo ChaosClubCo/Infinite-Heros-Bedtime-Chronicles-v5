@@ -4,14 +4,11 @@
 // Exits 1 on any failure so CI and local devs get a clear signal before deployment.
 
 import { readFileSync, readdirSync, existsSync } from 'fs';
-import { execSync } from 'child_process';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
-const require = createRequire(import.meta.url);
 
 let failures = 0;
 
@@ -75,22 +72,17 @@ if (existsSync(patchesDir)) {
     pass('No patch files — nothing to validate');
   } else {
     for (const patchFile of patchFiles) {
-      // patch-package filenames: <pkg-name>+<version>.patch (scoped: @scope+name+version.patch)
       const withoutExt = patchFile.replace(/\.patch$/, '');
-      // Split on '+' to get parts; last part is version, rest reassemble to pkg name
       const parts = withoutExt.split('+');
       if (parts.length < 2) {
         fail(`Cannot parse version from patch filename: ${patchFile}`);
         continue;
       }
       const patchedVersion = parts[parts.length - 1];
-      // Reconstruct npm package name.
-      // patch-package encodes scoped packages as: @scope+name+version.patch
-      // so @scope+name needs the first '+' replaced with '/' to get @scope/name.
       let pkgName;
       if (withoutExt.startsWith('@')) {
-        const nameRaw = parts.slice(0, -1).join('+'); // e.g. "@scope+name"
-        pkgName = nameRaw.replace('+', '/');           // "@scope/name"
+        const nameRaw = parts.slice(0, -1).join('+');
+        pkgName = nameRaw.replace('+', '/');
       } else {
         pkgName = parts.slice(0, -1).join('+');
       }
@@ -124,20 +116,22 @@ if (existsSync(patchesDir)) {
 // ---------------------------------------------------------------------------
 section('Required environment variables');
 
-// At minimum one AI text provider key must be present for story generation.
 const aiProviderKeys = [
   'AI_INTEGRATIONS_GEMINI_API_KEY',
   'AI_INTEGRATIONS_OPENAI_API_KEY',
   'AI_INTEGRATIONS_ANTHROPIC_API_KEY',
   'AI_INTEGRATIONS_OPENROUTER_API_KEY',
+  'GEMINI_API_KEY',
+  'OPENAI_API_KEY',
+  'ANTHROPIC_API_KEY',
+  'OPENROUTER_API_KEY',
 ];
 const missingAiKeys = aiProviderKeys.filter((k) => !process.env[k]);
 if (missingAiKeys.length === aiProviderKeys.length) {
   const msg =
-    'No AI provider key is set. At least one of the following must be configured in Vercel Environment Variables:\n' +
+    'No AI provider key is set. At least one of the following must be configured in the production deployment environment/secrets:\n' +
     aiProviderKeys.map((k) => `    • ${k}`).join('\n');
   if (process.env.CI) {
-    // In CI there are no runtime env vars — this is expected. Warn only.
     console.warn(`  ⚠  WARN: ${msg}`);
   } else {
     fail(msg);
@@ -147,7 +141,6 @@ if (missingAiKeys.length === aiProviderKeys.length) {
   pass(`AI provider key(s) present: ${present.join(', ')}`);
 }
 
-// These warn but do not fail — they enable optional features.
 const optionalKeys = [
   { key: 'ELEVENLABS_API_KEY', feature: 'TTS narration (optional — Replit connector fallback available)' },
   { key: 'DATABASE_URL', feature: 'Voice chat / conversation history' },

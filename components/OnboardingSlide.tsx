@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, Image, Dimensions, Platform } from "react-native";
+import { View, Text, StyleSheet, Image, Dimensions, Platform, type ImageSourcePropType } from "react-native";
 import { FadeIn } from "react-native-reanimated";
 import { AnimatedView } from "@/components/AnimatedView";
 import { StarField } from "@/components/StarField";
@@ -9,7 +9,7 @@ import { useSettings } from "@/lib/SettingsContext";
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 interface OnboardingSlideProps {
-  image: any;
+  image: ImageSourcePropType;
   title: string;
   body: string;
 }

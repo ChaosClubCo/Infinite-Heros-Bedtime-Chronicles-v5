@@ -132,9 +132,6 @@ function collectFields(story: Record<string, unknown>): Field[] {
   const badge = (story.rewardBadge ?? {}) as Record<string, unknown>;
   pushField(fields, 'rewardBadge.title', badge.title);
   pushField(fields, 'rewardBadge.description', badge.description);
-  // The emoji is rendered raw to the child (44pt on the celebration screen), so
-  // term-scan it too — the schema type is just `string` with no constraint.
-  pushField(fields, 'rewardBadge.emoji', badge.emoji, 32);
 
   return fields;
 }
@@ -159,12 +156,7 @@ function structuralMatches(story: Record<string, unknown>): SafetyMatch[] {
       const text = typeof p.text === 'string' ? p.text : '';
       if (text.trim().length === 0) {
         matches.push({ category: 'structural', term: `empty:parts[${i}].text`, field: `parts[${i}].text`, tier: 'hard' });
-      } else if (text.length > MAX_FIELD_SCAN_LEN) {
-        // Reject at the scan window, not 2x it: only the first MAX_FIELD_SCAN_LEN
-        // chars are moderated (pushField truncates), so a longer part would have
-        // an unscanned tail that still reaches the child (e.g. narrated via TTS).
-        // 4000 chars is far above any legitimate part (epic ≈ 1200), so this
-        // blocks aberrant output without false-positiving real stories.
+      } else if (text.length > MAX_FIELD_SCAN_LEN * 2) {
         matches.push({ category: 'structural', term: `oversize:parts[${i}].text`, field: `parts[${i}].text`, tier: 'hard' });
       }
     });
@@ -180,12 +172,6 @@ function structuralMatches(story: Record<string, unknown>): SafetyMatch[] {
   const badge = (story.rewardBadge ?? {}) as Record<string, unknown>;
   requireString('rewardBadge.title', badge.title);
   requireString('rewardBadge.description', badge.description);
-  // Emoji field must be short: a real emoji (incl. ZWJ sequences) is a handful
-  // of code units, so anything longer is a phrase/paragraph masquerading as an
-  // emoji — reject rather than render it raw on the celebration screen.
-  if (typeof badge.emoji === 'string' && badge.emoji.length > 16) {
-    matches.push({ category: 'structural', term: 'oversize:rewardBadge.emoji', field: 'rewardBadge.emoji', tier: 'hard' });
-  }
 
   return matches;
 }

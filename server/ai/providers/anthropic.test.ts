@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+import { anthropicProvider } from './anthropic';
+
 const { createMock, streamMock, ctorArgs } = vi.hoisted(() => ({
   createMock: vi.fn(),
   streamMock: vi.fn(),
@@ -14,8 +16,6 @@ vi.mock('@anthropic-ai/sdk', () => ({
     }
   },
 }));
-
-import { anthropicProvider } from './anthropic';
 
 function mockMessage(overrides: Record<string, unknown> = {}) {
   return {

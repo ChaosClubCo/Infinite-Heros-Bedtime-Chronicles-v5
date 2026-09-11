@@ -1,62 +1,53 @@
-# EAS Secrets Checklist
+# EAS & Deployment Secrets Checklist
 
-All environment variables that must be set as EAS secrets before a production build will work.
+This document details the configuration for **EAS Mobile Client Build Secrets** (`EXPO_PUBLIC_*`) and **Server Environment Variables** (Vercel / Backend hosting).
 
-Run each command from the project root after `eas login`:
-
-```bash
-eas secret:create --scope project --name <NAME> --value <VALUE>
-```
+> [!SECURITY]
+> **Client Security Rule**: Never embed server-only API keys (`AI_INTEGRATIONS_*`, `ELEVENLABS_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`) into the client APK/AAB bundle. The mobile client communicates solely via the Express API server and Supabase client SDK using `EXPO_PUBLIC_*` configuration.
 
 ---
 
-## Required — Core App Functionality
+## 1. EAS Mobile Client Build Secrets (`EXPO_PUBLIC_*`)
+
+Set these in EAS before triggering mobile builds (`eas secret:create --scope project --name <NAME> --value <VALUE>` or in `eas.json`):
+
+| Variable Name | Description | Required For |
+|---|---|---|
+| `EXPO_PUBLIC_API_URL` | Full URL to the production Express server (e.g. `https://www.bedtime-chronicles.com`) | All mobile client API requests |
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL (`https://aeraxfupuvwiskmfjliq.supabase.co`) | Client Supabase Auth & Cloud Sync |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Public Supabase anonymous client key | Client Supabase Auth & Cloud Sync |
+| `EXPO_PUBLIC_ENV` | Environment identifier (`production`, `preview`, `development`) | Environment detection & logging |
+| `EXPO_PUBLIC_SENTRY_DSN` *(Optional)* | Client Sentry DSN for React Native crash tracking | Mobile crash monitoring |
+
+---
+
+## 2. Server Environment Variables (Vercel / Hosting Target)
+
+Set these securely in your server hosting environment (e.g., Vercel Project Settings > Environment Variables):
+
+### Core AI & TTS Providers (Server Only)
 
 | Secret Name | Description | Required For |
-|-------------|-------------|--------------|
-| `AI_INTEGRATIONS_GEMINI_API_KEY` | Google Gemini API key | Story generation (primary text), image generation |
-| `AI_INTEGRATIONS_ANTHROPIC_API_KEY` | Anthropic Claude API key | Story generation (primary) |
-| `AI_INTEGRATIONS_OPENAI_API_KEY` | OpenAI API key | Story generation (fallback), image generation (fallback) |
-| `ELEVENLABS_API_KEY` | ElevenLabs API key | TTS narration (9 voices) |
-| `EXPO_PUBLIC_API_URL` | Full URL to your Express API server (e.g. `https://your-app.replit.app`) | All API calls from the app |
+|---|---|---|
+| `AI_INTEGRATIONS_ANTHROPIC_API_KEY` | Anthropic Claude API key | Primary story generation |
+| `AI_INTEGRATIONS_GEMINI_API_KEY` | Google Gemini API key | Primary fallback story generation & illustration |
+| `AI_INTEGRATIONS_OPENAI_API_KEY` | OpenAI API key | Fallback story generation & image generation |
+| `ELEVENLABS_API_KEY` | ElevenLabs API key | Narration TTS (multilingual v2) |
+| `AI_INTEGRATIONS_OPENROUTER_API_KEY` *(Optional)* | OpenRouter API key | xAI, Mistral, Cohere, Meta Llama fallbacks |
 
-## Required — Authentication
-
-| Secret Name | Description | Required For |
-|-------------|-------------|--------------|
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key (server-only) | Server-side auth in production; omit → dev mode (no auth), 503 in production |
-| `SUPABASE_URL` | Server-side Supabase project URL | Server-side auth (falls back to `EXPO_PUBLIC_SUPABASE_URL`) |
-| `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL | Client Supabase Auth |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key (bundled — not a secret) | Client Supabase Auth |
-
-## Required — Voice Chat
+### Backend Database & Storage (Server Only)
 
 | Secret Name | Description | Required For |
-|-------------|-------------|--------------|
-| `DATABASE_URL` | PostgreSQL connection string | Voice chat conversations + messages |
-| `AI_INTEGRATIONS_OPENAI_BASE_URL` | OpenAI base URL (Replit connector endpoint) | Voice chat audio processing (Whisper) |
-
-> **Supabase DATABASE_URL format:**
-> `postgresql://postgres.aeraxfupuvwiskmfjliq:<password>@aws-0-us-east-1.pooler.supabase.com:6543/postgres`
->
-> Get the DB password from: Supabase Dashboard → Project Settings → Database → Database password
-
-## Optional — AI Fallback Chain
-
-| Secret Name | Description |
-|-------------|-------------|
-| `AI_INTEGRATIONS_OPENROUTER_API_KEY` | OpenRouter key for xAI, Mistral, Cohere, Meta Llama fallbacks |
-| `OPENAI_API_KEY` | Direct OpenAI key for video generation via Sora 2 |
-| `AI_INTEGRATIONS_GEMINI_BASE_URL` | Custom Gemini base URL (proxy / regional override) |
-| `AI_INTEGRATIONS_OPENAI_BASE_URL` | Custom OpenAI base URL |
-| `AI_INTEGRATIONS_ANTHROPIC_BASE_URL` | Custom Anthropic base URL |
-
-## Optional — Observability
-
-| Secret Name | Description |
-|-------------|-------------|
-| `SENTRY_DSN` | Sentry DSN for server-side error tracking |
-| `EXPO_PUBLIC_SENTRY_DSN` | Sentry DSN for client-side error tracking |
+|---|---|---|
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key | Server-authoritative auth & account management |
+| `DATABASE_URL` | PostgreSQL connection string | Voice chat & server-side data persistence |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID | Cloudflare R2 binary TTS cache & KV rate limiting |
+| `CLOUDFLARE_R2_BUCKET` | Cloudflare R2 bucket name | Binary TTS MP3 caching |
+| `CLOUDFLARE_R2_ACCESS_KEY_ID` | Cloudflare R2 Access Key ID | S3-compatible R2 authentication |
+| `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | Cloudflare R2 Secret Access Key | S3-compatible R2 authentication |
+| `CLOUDFLARE_KV_REST_API_URL` | Cloudflare KV REST URL | Persistent rate limiting & deduplication |
+| `CLOUDFLARE_KV_REST_API_TOKEN` | Cloudflare KV REST Token | KV authentication |
+| `SENTRY_DSN` | Server Sentry DSN | Node.js error reporting & alerting thresholds |
 
 ## Optional — Persistent Rate Limiting
 

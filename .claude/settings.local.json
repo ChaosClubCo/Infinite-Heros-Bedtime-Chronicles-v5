@@ -22,7 +22,11 @@
       "Bash(gh pr *)",
       "Bash(gh run *)",
       "Bash(awk '{print $2}')",
-      "Bash(git diff-tree *)"
+      "Bash(git diff-tree *)",
+      "Bash(git *)",
+      "Bash(echo *)",
+      "Read(//c/Users/kyler/.claude/skills/**)",
+      "Bash(mv model-training-pipelines *)"
     ]
   }
 }

@@ -1,8 +1,7 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Platform, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { StarField } from "@/components/StarField";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
@@ -10,10 +9,10 @@ import { ProfileModal } from "@/components/ProfileModal";
 import { SettingsModal } from "@/components/SettingsModal";
 import { ParentControlsModal } from "@/components/ParentControlsModal";
 import { useProfile } from "@/lib/ProfileContext";
+import { useScreenInsets } from "@/lib/useScreenInsets";
 
 export default function ProfileScreen() {
-  const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const { topInset } = useScreenInsets();
   const { activeProfile } = useProfile();
   const [profileVisible, setProfileVisible] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);

@@ -12,7 +12,8 @@ import {
 } from "./compliance";
 import { isFeatureEnabled } from "./feature-flags";
 import { logger } from "./logger";
-import { registerAccountRoutes } from "./routes/account";
+import { registerAudioRoutes } from "./integrations/audio";
+import { registerImageRoutes } from "./integrations/image";
 import { registerHealthRoutes } from "./routes/health";
 import { registerStoryRoutes } from "./routes/story";
 import { registerImageGenRoutes } from "./routes/images";
@@ -20,7 +21,6 @@ import { registerTtsRoutes } from "./routes/tts";
 import { registerMusicRoutes } from "./routes/music";
 import { registerSuggestRoutes } from "./routes/suggest";
 import { registerVideoRoutes } from "./routes/video";
-import { registerGithubWebhookRoute } from "./routes/github-webhook";
 import { registerRealtimeMediaRoutes } from "./routes/realtime-media";
 
 /**
@@ -46,7 +46,6 @@ export function requiresAiProviderCompliance(path: string): boolean {
     || path.startsWith('/v1/realtime-media-sessions');
 }
 
-/** Route composer. */
 export async function registerRoutes(app: Express): Promise<Server> {
   logProviderStatus();
 
@@ -72,14 +71,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   registerHealthRoutes(app);
-  registerAccountRoutes(app);
   registerStoryRoutes(app);
   registerImageGenRoutes(app);
   registerTtsRoutes(app);
   registerMusicRoutes(app);
   registerSuggestRoutes(app);
   registerVideoRoutes(app);
-  registerGithubWebhookRoute(app);
 
   const realtimeMediaFeatureEnabled = isFeatureEnabled('realtimeMediaEnabled');
   const realtimeMediaComplianceApproved = isRealtimeMediaComplianceApproved();
@@ -101,11 +98,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const voiceFeatureEnabled = isFeatureEnabled('voiceChatEnabled');
   const voiceComplianceApproved = isVoiceChatComplianceApproved();
   const voiceDependenciesConfigured = !!(
-    process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.DATABASE_URL
+    process.env.OPENAI_API_KEY && process.env.DATABASE_URL
   );
 
   if (voiceFeatureEnabled && voiceComplianceApproved && voiceDependenciesConfigured) {
-    const { registerAudioRoutes } = await import("./replit_integrations/audio");
     registerAudioRoutes(app);
     logger.info('voice chat & conversation routes registered');
   } else if (voiceFeatureEnabled) {
@@ -118,8 +114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }, 'voice chat requested but fail-closed release requirements were not met');
   }
 
-  if (process.env.AI_INTEGRATIONS_GEMINI_API_KEY) {
-    const { registerImageRoutes } = await import("./replit_integrations/image");
+  if (process.env.GEMINI_API_KEY) {
     registerImageRoutes(app);
     logger.info('Gemini image generation route registered');
   }

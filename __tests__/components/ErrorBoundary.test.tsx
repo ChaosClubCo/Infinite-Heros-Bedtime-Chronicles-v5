@@ -4,15 +4,23 @@ import { render, screen } from '@testing-library/react-native';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import type { ErrorFallbackProps } from '@/components/ErrorFallback';
 
-// Stub out ErrorFallback so we don't pull in Modal or safe-area context
-jest.mock('@/components/ErrorFallback', () => ({
-  ErrorFallback: ({ error }: ErrorFallbackProps) =>
-    require('react').createElement(
-      require('react-native').Text,
-      null,
-      `Oops! ${error.message}`
-    ),
-}));
+// Stub out ErrorFallback so we don't pull in Modal or safe-area context.
+// Jest hoists mock factories, so React/React Native must be required lazily here.
+jest.mock('@/components/ErrorFallback', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const mockReact = require('react');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Text: MockText } = require('react-native');
+
+  return {
+    ErrorFallback: ({ error }: ErrorFallbackProps) =>
+      mockReact.createElement(
+        MockText,
+        null,
+        `Oops! ${error.message}`
+      ),
+  };
+});
 
 function ThrowingChild({ shouldThrow }: { shouldThrow: boolean }) {
   if (shouldThrow) throw new Error('test render error');

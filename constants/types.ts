@@ -1,3 +1,5 @@
+import { BADGE_DEFINITIONS } from '@/lib/badges';
+
 export interface StoryPart {
   text: string;
   choices?: string[];
@@ -111,8 +113,6 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 };
 
 export const AVATAR_EMOJIS = ['🦸', '🧙', '🦊', '🐱', '🦄', '🌟', '🚀', '🦋', '🐼', '🦁', '🐸', '🌈'];
-
-import { BADGE_DEFINITIONS } from '@/lib/badges';
 export { BADGE_DEFINITIONS };
 
 export const CONTENT_THEMES = [

@@ -1,16 +1,14 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   View,
   Text,
   Pressable,
   StyleSheet,
-  Platform,
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AnimatedView } from "@/components/AnimatedView";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import * as Haptics from "expo-haptics";
@@ -29,6 +27,9 @@ import {
 } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { HEROES } from "@/constants/heroes";
+import type { IoniconsName } from "@/constants/heroes";
+import { MODE_THEME, resolveStoryMode, DEFAULT_STORY_VOICE, DEFAULT_STORY_SPEED } from "@/constants/story-theme";
+import { useScreenInsets } from "@/lib/useScreenInsets";
 import { StarField } from "@/components/StarField";
 import { StoryFull, EarnedBadge } from "@/constants/types";
 import { saveStory, saveStoryWithProfile, saveStoryScene, updateStreak, checkAndAwardBadges, markStoryRead, updateFeedback } from "@/lib/storage";
@@ -38,25 +39,27 @@ import { useProfile } from "@/lib/ProfileContext";
 import { useSettings } from "@/lib/SettingsContext";
 import { runSync } from "@/lib/sync/runSync";
 
+// Colors alias MODE_THEME (constants/story-theme.ts) — only the completion
+// copy (label, sublabel) lives here.
 const MODE_THEMES = {
   classic: {
-    accent: "#6366f1",
-    accentDark: "#4f46e5",
-    gradient: ["#05051e", "#0a0a2e", "#05051e"] as [string, string, string],
+    accent: MODE_THEME.classic.accent,
+    accentDark: MODE_THEME.classic.choiceColors[0][1],
+    gradient: MODE_THEME.classic.gradient,
     label: "STORY COMPLETE",
     sublabel: "A heroic tale well told",
   },
   madlibs: {
-    accent: "#F97316",
-    accentDark: "#EA580C",
-    gradient: ["#05051e", "#1A0A00", "#05051e"] as [string, string, string],
+    accent: MODE_THEME.madlibs.accent,
+    accentDark: MODE_THEME.madlibs.choiceColors[0][1],
+    gradient: MODE_THEME.madlibs.gradient,
     label: "THAT WAS HILARIOUS!",
     sublabel: "Your wacky words made magic",
   },
   sleep: {
-    accent: "#A855F7",
-    accentDark: "#7C3AED",
-    gradient: ["#05051e", "#0D0520", "#05051e"] as [string, string, string],
+    accent: MODE_THEME.sleep.accent,
+    accentDark: MODE_THEME.sleep.choiceColors[0][1],
+    gradient: MODE_THEME.sleep.gradient,
     label: "SWEET DREAMS",
     sublabel: "Time to drift off to sleep",
   },
@@ -143,6 +146,50 @@ function PulsingBadge({ emoji, color }: { emoji: string; color: string }) {
   );
 }
 
+function ExpandableExtraCard({
+  label,
+  title,
+  icon,
+  iconColor,
+  iconBg,
+  body,
+  expanded,
+  onToggle,
+}: {
+  label: string;
+  title: string;
+  icon: IoniconsName;
+  iconColor: string;
+  iconBg: string;
+  body: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Pressable onPress={onToggle} style={styles.extraCard}>
+      <View style={styles.extraCardHeader}>
+        <View style={[styles.extraIconWrap, { backgroundColor: iconBg }]}>
+          <Ionicons name={icon} size={18} color={iconColor} />
+        </View>
+        <View style={styles.extraCardHeaderText}>
+          <Text style={styles.extraCardLabel}>{label}</Text>
+          <Text style={styles.extraCardTitle}>{title}</Text>
+        </View>
+        <Ionicons
+          name={expanded ? "chevron-up" : "chevron-down"}
+          size={18}
+          color={Colors.textMuted}
+        />
+      </View>
+      {expanded && (
+        <AnimatedView entering={FadeIn.duration(300)}>
+          <Text style={styles.extraCardBody}>{body}</Text>
+        </AnimatedView>
+      )}
+    </Pressable>
+  );
+}
+
 export default function CompletionScreen() {
   const { heroId, mode, voice, speed, storyJson } = useLocalSearchParams<{
     heroId: string;
@@ -151,13 +198,10 @@ export default function CompletionScreen() {
     speed: string;
     storyJson: string;
   }>();
-  const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const { topInset, bottomInset } = useScreenInsets();
 
   const hero = HEROES.find((h) => h.id === heroId);
-  const modeKey = (mode || "classic") as keyof typeof MODE_THEMES;
-  const theme = MODE_THEMES[modeKey] || MODE_THEMES.classic;
+  const theme = MODE_THEMES[resolveStoryMode(mode)];
   const [saved, setSaved] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [newBadges, setNewBadges] = useState<EarnedBadge[]>([]);
@@ -172,10 +216,13 @@ export default function CompletionScreen() {
     syncEnabledRef.current = settings.cloudSyncEnabled;
   }, [settings.cloudSyncEnabled]);
 
-  let storyData: StoryFull | null = null;
-  try {
-    if (storyJson) storyData = JSON.parse(storyJson) as StoryFull;
-  } catch {}
+  const storyData = useMemo<StoryFull | null>(() => {
+    try {
+      return storyJson ? (JSON.parse(storyJson) as StoryFull) : null;
+    } catch {
+      return null;
+    }
+  }, [storyJson]);
 
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -195,8 +242,8 @@ export default function CompletionScreen() {
             mode || "classic",
             activeProfile.id,
             undefined,
-            voice || "moonbeam",
-            speed || "medium",
+            voice || DEFAULT_STORY_VOICE,
+            speed || DEFAULT_STORY_SPEED,
           );
           setSavedStoryId(storyId);
           if (scenes) {
@@ -245,7 +292,7 @@ export default function CompletionScreen() {
   const handleSaveToJar = useCallback(async () => {
     if (!storyData || !hero || saved) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await saveStory(storyData, hero.id, mode || "classic", undefined, voice || "moonbeam", speed || "medium");
+    await saveStory(storyData, hero.id, mode || "classic", undefined, voice || DEFAULT_STORY_VOICE, speed || DEFAULT_STORY_SPEED);
     setSaved(true);
   }, [storyData, hero, mode, saved, voice, speed]);
 
@@ -326,75 +373,42 @@ export default function CompletionScreen() {
 
         <AnimatedView entering={FadeInDown.duration(600).delay(600)} style={styles.extrasArea}>
           {vocabWord && (
-            <Pressable onPress={() => toggleSection("vocab")} style={styles.extraCard}>
-              <View style={styles.extraCardHeader}>
-                <View style={[styles.extraIconWrap, { backgroundColor: `${theme.accent}18` }]}>
-                  <Ionicons name="book-outline" size={18} color={theme.accent} />
-                </View>
-                <View style={styles.extraCardHeaderText}>
-                  <Text style={styles.extraCardLabel}>New Word</Text>
-                  <Text style={styles.extraCardTitle}>{vocabWord.word}</Text>
-                </View>
-                <Ionicons
-                  name={expandedSection === "vocab" ? "chevron-up" : "chevron-down"}
-                  size={18}
-                  color={Colors.textMuted}
-                />
-              </View>
-              {expandedSection === "vocab" && (
-                <AnimatedView entering={FadeIn.duration(300)}>
-                  <Text style={styles.extraCardBody}>{vocabWord.definition}</Text>
-                </AnimatedView>
-              )}
-            </Pressable>
+            <ExpandableExtraCard
+              label="New Word"
+              title={vocabWord.word}
+              icon="book-outline"
+              iconColor={theme.accent}
+              iconBg={`${theme.accent}18`}
+              body={vocabWord.definition}
+              expanded={expandedSection === "vocab"}
+              onToggle={() => toggleSection("vocab")}
+            />
           )}
 
           {joke && (
-            <Pressable onPress={() => toggleSection("joke")} style={styles.extraCard}>
-              <View style={styles.extraCardHeader}>
-                <View style={[styles.extraIconWrap, { backgroundColor: "rgba(245, 158, 11, 0.15)" }]}>
-                  <Ionicons name="happy-outline" size={18} color="#F59E0B" />
-                </View>
-                <View style={styles.extraCardHeaderText}>
-                  <Text style={styles.extraCardLabel}>Story Joke</Text>
-                  <Text style={styles.extraCardTitle}>Tap to reveal</Text>
-                </View>
-                <Ionicons
-                  name={expandedSection === "joke" ? "chevron-up" : "chevron-down"}
-                  size={18}
-                  color={Colors.textMuted}
-                />
-              </View>
-              {expandedSection === "joke" && (
-                <AnimatedView entering={FadeIn.duration(300)}>
-                  <Text style={styles.extraCardBody}>{joke}</Text>
-                </AnimatedView>
-              )}
-            </Pressable>
+            <ExpandableExtraCard
+              label="Story Joke"
+              title="Tap to reveal"
+              icon="happy-outline"
+              iconColor="#F59E0B"
+              iconBg="rgba(245, 158, 11, 0.15)"
+              body={joke}
+              expanded={expandedSection === "joke"}
+              onToggle={() => toggleSection("joke")}
+            />
           )}
 
           {lesson && (
-            <Pressable onPress={() => toggleSection("lesson")} style={styles.extraCard}>
-              <View style={styles.extraCardHeader}>
-                <View style={[styles.extraIconWrap, { backgroundColor: "rgba(16, 185, 129, 0.15)" }]}>
-                  <Ionicons name="heart-outline" size={18} color="#10B981" />
-                </View>
-                <View style={styles.extraCardHeaderText}>
-                  <Text style={styles.extraCardLabel}>Today&apos;s Lesson</Text>
-                  <Text style={styles.extraCardTitle}>What we learned</Text>
-                </View>
-                <Ionicons
-                  name={expandedSection === "lesson" ? "chevron-up" : "chevron-down"}
-                  size={18}
-                  color={Colors.textMuted}
-                />
-              </View>
-              {expandedSection === "lesson" && (
-                <AnimatedView entering={FadeIn.duration(300)}>
-                  <Text style={styles.extraCardBody}>{lesson}</Text>
-                </AnimatedView>
-              )}
-            </Pressable>
+            <ExpandableExtraCard
+              label="Today's Lesson"
+              title="What we learned"
+              icon="heart-outline"
+              iconColor="#10B981"
+              iconBg="rgba(16, 185, 129, 0.15)"
+              body={lesson}
+              expanded={expandedSection === "lesson"}
+              onToggle={() => toggleSection("lesson")}
+            />
           )}
 
           {tomorrowHook && (

@@ -8,74 +8,76 @@ This runbook covers how to roll back a bad deployment of Infinity Heroes: Bedtim
 
 ## Overview
 
-The deployment target is Replit Cloud Run. Rollback is achieved by redeploying from the last known-good commit.
+The primary production backend is deployed on Vercel Serverless Functions (`nodejs22.x`), while the mobile client is distributed via EAS Build / Google Play Store. Rollback is achieved by promoting the previous stable deployment on Vercel or rolling back OTA updates via EAS.
 
 ---
 
 ## Step 1: Identify the Problem
 
 Before rolling back, confirm the issue:
-1. Check the deployment URL — is it returning errors?
-2. Check Replit deployment logs for build or runtime errors
+1. Check the production deployment URL — is it returning 5xx errors?
+2. Check Vercel deployment logs / Sentry dashboard for runtime exceptions
 3. Check `/api/health` endpoint response
 
 ```bash
-curl https://<your-deployment>.replit.app/api/health
+curl https://<your-deployment-domain>/api/health
 ```
 
-If the issue is a server crash or broken endpoint, proceed with rollback. If the issue is an AI provider outage (not a code problem), see [incident-response.md](./incident-response.md) instead.
+If the issue is a server crash or broken endpoint, proceed with rollback. If the issue is an external AI provider outage (not a code problem), see [incident-response.md](./incident-response.md) instead.
 
 ---
 
-## Step 2: Find the Last Known-Good Commit
+## Step 2: Find the Last Known-Good Commit or Deployment
 
+### Backend (Vercel)
+1. Navigate to **Vercel Dashboard** → **Deployments**.
+2. Identify the previous successful production deployment.
+3. Or view Git history:
 ```bash
 # View recent commit history
 git log --oneline -20
 
-# Find the last commit before the breaking change
-# Note the commit SHA (e.g., abc1234)
+# Find the last commit before the breaking change (e.g., abc1234)
 ```
-
-Alternatively, use the GitHub repository UI: go to **Commits** and identify the last good state.
 
 ---
 
-## Step 3: Revert to the Last Good State
+## Step 3: Execute Rollback
 
-### Option A: Revert the breaking commit (preserves history — preferred)
+### Option A: Instant Vercel Rollback (Recommended for Backend)
+From the Vercel Dashboard:
+1. Go to **Deployments** → Select the last known-good deployment.
+2. Click **•••** → **Promote to Production** (or **Rollback**).
+3. The change takes effect immediately without rebuilding.
+
+Or via Vercel CLI:
 ```bash
-# Revert the most recent commit
+vercel rollback <deployment-id-or-url>
+```
+
+### Option B: Git Revert (Standard Git Workflow)
+```bash
+# Revert the breaking commit on main
 git revert HEAD --no-edit
 
-# Push the revert commit
+# Push the revert commit to trigger CI & automatic deploy
 git push origin main
 ```
 
-### Option B: Roll back to a specific commit (if multiple commits are bad)
+### Option C: Mobile Client OTA Rollback (EAS Update)
+If the regression is in a published Expo update:
 ```bash
-# Create a revert-to commit from the known-good SHA
-git revert <bad-sha-1> <bad-sha-2> --no-edit
-
-# Push
-git push origin main
-```
-
-### Option C: Hard reset (destructive — only if revert is not possible)
-```bash
-# WARNING: This rewrites history. Coordinate with the team first.
-git reset --hard <last-known-good-sha>
-git push --force-with-lease origin main
+eas update:rollback --channel production
 ```
 
 ---
 
-## Step 4: Redeploy
+## Step 4: Verification
 
-After reverting:
-1. In Replit, click **Deploy** to trigger a new build from the reverted code
-2. Monitor build logs
-3. Run the post-deploy verification steps from [deploy.md](./deploy.md#post-deploy-verification)
+After executing rollback:
+1. Verify the `/api/health` and `/api/ai-providers` endpoints return `200 OK`.
+2. Confirm Sentry error rate drops to normal baseline.
+3. Run post-deploy verification steps from [deploy.md](./deploy.md#post-deploy-verification).
 
 ---
 

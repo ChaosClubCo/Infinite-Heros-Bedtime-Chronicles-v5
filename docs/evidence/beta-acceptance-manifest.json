@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "kind": "BetaAcceptancePolicy/v2",
+  "manifestVersion": "2.0.0",
+  "project": "Infinity Heroes: Bedtime Chronicles v5",
+  "repository": "ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5",
+  "baseBranch": "main",
+  "policy": {
+    "receiptMaxAgeHours": 168,
+    "mandatoryStatuses": ["PASS"],
+    "blockingStatuses": ["FAIL", "BLOCKED", "NOT_RUN"],
+    "maxOpenP0": 0,
+    "maxOpenP1": 0,
+    "requireDefectReceipt": true,
+    "requireTrustedProvenance": true,
+    "promotionEnabled": false
+  },
+  "gates": [
+    {
+      "id": "BR-01",
+      "name": "Package lock synchronization",
+      "mandatory": true
+    },
+    {
+      "id": "BR-02",
+      "name": "Exact-head CI",
+      "mandatory": true
+    },
+    {
+      "id": "BR-03",
+      "name": "Exact-head security agent",
+      "mandatory": true
+    },
+    {
+      "id": "BR-04",
+      "name": "Exact-head CodeQL",
+      "mandatory": true
+    },
+    {
+      "id": "BR-05",
+      "name": "Markdown link integrity",
+      "mandatory": true
+    },
+    {
+      "id": "BR-06",
+      "name": "Production deployment",
+      "mandatory": true
+    },
+    {
+      "id": "BR-07",
+      "name": "Physical Android critical journey",
+      "mandatory": true
+    },
+    {
+      "id": "BR-08",
+      "name": "COPPA consent and launch gate on device",
+      "mandatory": true
+    },
+    {
+      "id": "BR-09",
+      "name": "Offline and reconnect recovery on device",
+      "mandatory": true
+    },
+    {
+      "id": "BR-10",
+      "name": "Cloud sync account isolation",
+      "mandatory": true
+    },
+    {
+      "id": "BR-11",
+      "name": "Accessibility critical journey on Android",
+      "mandatory": true
+    },
+    {
+      "id": "BR-12",
+      "name": "Rollback rehearsal",
+      "mandatory": true
+    }
+  ]
+}

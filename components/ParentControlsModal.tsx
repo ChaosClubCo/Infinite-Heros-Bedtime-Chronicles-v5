@@ -10,13 +10,13 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { FadeIn } from "react-native-reanimated";
 import { AnimatedView } from "@/components/AnimatedView";
 import Colors from "@/constants/colors";
 import { ParentControls, DEFAULT_PARENT_CONTROLS, CONTENT_THEMES } from "@/constants/types";
 import { getParentControls, saveParentControls, hashPin, generatePinSalt, isPinLockedOut, recordFailedPinAttempt, resetPinAttempts } from "@/lib/storage";
+import { useScreenInsets } from "@/lib/useScreenInsets";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 
 interface Props {
@@ -35,9 +35,7 @@ const STORY_LENGTHS = [
 ];
 
 export function ParentControlsModal({ visible, onClose }: Props) {
-  const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const { topInset, bottomInset } = useScreenInsets();
 
   const [controls, setControls] = useState<ParentControls>(DEFAULT_PARENT_CONTROLS);
   const [pinInput, setPinInput] = useState("");

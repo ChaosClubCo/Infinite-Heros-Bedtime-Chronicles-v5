@@ -4,14 +4,12 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  Platform,
   ScrollView,
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AnimatedView } from "@/components/AnimatedView";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
@@ -23,12 +21,11 @@ import { getBadges, getStreak, getStoriesForProfile } from "@/lib/storage";
 import { BadgeCard } from "@/components/BadgeCard";
 import { getBadgeProgress, BADGE_DEFINITIONS, BadgeState } from "@/lib/badges";
 import { getCustomHeroes } from "@/lib/customHeroStorage";
+import { useScreenInsets } from "@/lib/useScreenInsets";
 import type { Hero } from "@/constants/heroes";
 
 export default function TrophiesScreen() {
-  const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const { topInset, bottomInset } = useScreenInsets();
 
   const { activeProfile } = useProfile();
   const [badges, setBadges] = useState<EarnedBadge[]>([]);

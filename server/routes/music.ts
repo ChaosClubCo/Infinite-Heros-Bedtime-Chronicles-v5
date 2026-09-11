@@ -21,15 +21,7 @@ export function registerMusicRoutes(app: Express): void {
       if (err) {
         logger.error({ err }, 'music file error');
         if (!res.headersSent) {
-          // Both the Content-Type ("audio/mpeg") and Cache-Control (5m) headers
-          // were set above for the success path; override them so the JSON error
-          // body is neither mislabeled as audio nor cached by clients/CDNs
-          // (see the same fix in routes/video.ts).
-          res
-            .status(404)
-            .set("Content-Type", "application/json")
-            .set("Cache-Control", "no-store")
-            .json({ error: "Music file not found" });
+          res.status(404).json({ error: "Music file not found" });
         }
       }
     });

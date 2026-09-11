@@ -1,156 +1,105 @@
-<!-- Last verified: 2026-03-21 -->
+<!-- Last verified: 2026-08-14 -->
 # GEMINI.md — Gemini CLI Agent Context
 
-Custom instructions for Gemini CLI and Gemini-based coding agents working on this repository.
+## Project context
 
----
+- Repository: `ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5`
+- Type: single full-stack Expo + Express application
+- Product: child-safe bedtime story app for ages 3–9
+- Primary runtime: Expo SDK 55 client + Express 5 API + TypeScript strict mode
 
-## Project Context
-
-**Project:** Infinity Heroes: Bedtime Chronicles
-**Type:** Children's bedtime story mobile app (ages 3–9)
-**Architecture:** Expo SDK ~55.0.28 (React Native) frontend + Express.js v5 backend, TypeScript throughout
-**Repo structure:** Single full-stack app — `app/` (screens), `components/`, `lib/`, `server/`, `shared/`, `constants/`, `docs/`
-
-The app lets children pick a superhero character and generate personalized bedtime stories using a multi-provider AI fallback chain (story generation: Anthropic → Gemini → OpenAI → OpenRouter/Meta-Llama → OpenRouter/xAI → OpenRouter/Mistral → OpenRouter/Cohere). Stories include AI-generated scene illustrations, ElevenLabs TTS narration, and background music.
-
----
-
-## Tech Stack
+## Tech stack
 
 | Concern | Technology |
-|---------|-----------|
-| Mobile | Expo SDK ~55.0.28, React Native 0.83.10 |
-| Routing | Expo Router v6 (file-based) |
-| Server | Express.js v5, Node.js, TypeScript |
-| Primary AI (story) | Anthropic Claude (`claude-sonnet-4-6`) |
-| AI fallback 1 (story) | Google Gemini (`gemini-2.5-flash`) |
-| AI fallback 2 (story) | OpenAI (`gpt-4o-mini`) |
-| AI fallback 3+ (story) | OpenRouter (Meta-Llama → xAI Grok → Mistral → Cohere) |
-| Image/avatar/scene AI | Gemini (`gemini-2.5-flash-image`) → OpenAI (`gpt-image-1`) |
-| TTS | ElevenLabs `eleven_multilingual_v2` |
-| Database | PostgreSQL + Drizzle ORM (voice chat only) |
-| Client state | React Context + TanStack React Query v5 |
-| Client storage | AsyncStorage |
-| Validation | Zod v3 |
-| Animations | react-native-reanimated v4 |
+|---------|------------|
+| Client | Expo `~55.0.28`, React Native `0.83.10`, React `19.2.0` |
+| Routing | Expo Router `~55.0.17` |
+| API | Express `^5.0.1` |
+| Validation | Zod `^4.4.3` |
+| Database | PostgreSQL + Drizzle ORM (Supabase-hosted) |
+| State | React Context + TanStack React Query v5 |
+| Local storage | AsyncStorage helpers in `lib/storage.ts` |
+| AI text | Anthropic primary, then Gemini, OpenAI, OpenRouter |
+| AI image | Gemini primary, OpenAI fallback |
+| TTS | ElevenLabs |
+| Builds | esbuild, GitHub Actions, Vercel, EAS Build |
 
----
+## Repository boundaries
 
-## Code Conventions
+- `app/` = Expo Router screens
+- `components/` = reusable React Native UI
+- `lib/` = client helpers, contexts, sync engine, storage
+- `server/` = Express routes, middleware, AI router, compliance gates
+- `shared/` = types and schema shared by client and server
+- `docs/` = canonical architecture, security, ADRs, and runbooks
 
-### Naming Rules
-- Screen files: `kebab-case.tsx` under `app/`
-- Component files: `PascalCase.tsx` under `components/`
-- Utility files: `camelCase.ts` under `lib/` or `server/`
-- Constants: `SCREAMING_SNAKE_CASE` (true constants), `camelCase` (config objects)
-- AsyncStorage keys: `@infinity_heroes_<descriptor>` pattern (e.g., `@infinity_heroes_app_settings`)
-- Hooks: `useXxx` prefix
+## Conventions to follow
 
-### Import Order
-1. React / React Native core imports
-2. Expo SDK imports
-3. Third-party library imports
-4. Internal imports (`constants/`, `lib/`, `components/`, `shared/`)
-5. Relative imports
+- Use TypeScript strict types; avoid `any` unless annotated with `// intentional: <reason>`.
+- Use `@/` imports for repository-root aliases.
+- Put screens in `app/`, reusable UI in `components/`, and shared pure utilities in `lib/` or `server/`.
+- Use `StyleSheet.create()` for styles and theme tokens from `constants/colors.ts`.
+- Use `StyleSheet.absoluteFill`, not `absoluteFillObject`.
+- Use `useLocalSearchParams<T>()` for typed Expo Router params.
+- Route all AI work through `server/ai/`; never call providers directly from a route.
+- Sanitize user-controlled prompt input with `sanitizeString()` or the existing request schemas in `server/validation.ts`.
 
-### TypeScript
-- `strict: true` — never use `any` without an inline comment explaining why
-- Define component props as interfaces directly above the component
-- API schemas: define with Zod in `shared/schema.ts` or inline
+## Security constraints
 
-### Styling
-- `StyleSheet.create()` always — no bare inline style objects
-- Colors from `constants/colors.ts` — never hardcode hex values
-- Safe area insets via `react-native-safe-area-context` on all screens
+- Never commit API keys, DSNs, tokens, or connection strings.
+- `EXPO_PUBLIC_*` variables are public client config only.
+- `CHILD_SAFETY_RULES` must stay in every story-generation prompt path.
+- Protected routes rely on Supabase bearer-token verification in production.
+- TTS files must remain constrained to `/^[a-f0-9]+\.mp3$/`.
+- Voice chat and other child-data processing features fail closed behind compliance gates.
 
----
-
-## Security Constraints
-
-These rules are non-negotiable:
-
-1. **No API keys on the client.** All AI provider keys are server-side env vars only.
-2. **All user string inputs must pass through `sanitizeString()`** before inclusion in AI prompts. This is defined in `server/routes.ts`.
-3. **Child safety prompt always included.** The `CHILD_SAFETY_RULES` constant must be part of every story generation system prompt.
-4. **TTS file serving**: only filenames matching `/^[a-f0-9]+\.mp3$/` are served. Do not loosen this check.
-5. **Rate limiting**: the per-IP sliding window rate limiter applies to all POST endpoints. New POST routes must be inside the rate-limiter middleware.
-6. **Error responses**: use `sanitizeErrorMessage()` — never return raw error objects or stack traces to clients.
-
----
-
-## Architecture Constraints
-
-- **AI calls through `server/ai/index.ts` only.** Never call provider SDKs directly from route handlers.
-- **Settings only via `SettingsContext`.** Do not create parallel settings storage mechanisms.
-- **AsyncStorage via `lib/storage.ts` helpers.** Do not call AsyncStorage directly from screens or components.
-- **No direct database queries from routes.** Use the Drizzle ORM client from `server/db.ts`.
-
----
-
-## Build, Test, and Deploy Commands
+## Build, test, and verification commands
 
 ```bash
-# Development
-npm install                 # Install deps (patch-package runs automatically)
-npm run server:dev          # Express server on port 5000
-npm run expo:dev            # Expo dev client (Replit environment)
-npx expo start              # Expo dev client (non-Replit)
-
-# Type and lint checks
-npm run typecheck           # TypeScript, no emit
-npm run lint                # ESLint
-npm run lint:fix            # ESLint auto-fix
-
-# Testing
-npm test                    # Vitest suite (1401 tests across 83 files: unit, integration, release) — last measured 2026-07-27 (see docs/CHANGELOG.md)
-npm run test:components     # Jest component suite (52 tests across 8 files: React Native UI) — last measured 2026-07-27 (see docs/CHANGELOG.md)
-npm run test:coverage       # Coverage report (>=80% branch coverage target for server utilities)
-
-# Production build
-npm run server:build        # esbuild → server_dist/index.js
-npm run server:prod         # Run production bundle
-npm run expo:static:build   # Static Expo web bundle
-
-# Database
-npm run db:push             # Apply Drizzle schema to DATABASE_URL
+npm install
+npm run server:dev
+npm run dev:expo
+npm run typecheck
+npm run lint
+npm test
+npm run test:components
+npm run test:coverage
+npm run server:build
+npm run expo:static:build
+npm run preflight
 ```
 
----
+## Common workflows
 
-## Known Constraints and Gotchas
+### Add an API endpoint
+1. Create or update the relevant module under `server/routes/`.
+2. Validate request data with `server/validation.ts` patterns or route-local Zod.
+3. Apply existing rate-limit and error-handling helpers.
+4. Document the endpoint in `docs/API.md`.
 
-- `npm run dev` does not exist. Use `npm run server:dev` and `npm run expo:dev` separately.
-- Expo dev commands embed `REPLIT_DEV_DOMAIN` — outside Replit, use `npx expo start` instead.
-- The Expo SDK 55 upgrade has landed; the temporary `patches/expo-asset+12.0.12.patch` fix was removed along with it — the `patches/` directory no longer exists in this tree.
-- `server/replit_integrations/` is Replit-provided boilerplate; the voice chat backend is wired up but the mobile UI screen does not exist yet.
-- `components/HeroCard.tsx` is intentionally kept but not currently rendered anywhere — it's preserved for future reuse.
-- `lib/storage.ts` (client AsyncStorage helpers) and `server/storage.ts` (server in-memory cache) are different files serving different purposes.
-- Comprehensive test suites are present and green: 1401 Vitest tests across 83 files + 52 Jest component tests across 8 files (1453 total tests) — last measured 2026-07-27 (see docs/CHANGELOG.md).
+### Add a client screen
+1. Create the route file in `app/`.
+2. Use safe area handling, haptics, and existing color/font tokens.
+3. Keep storage access in `lib/storage.ts` helpers or React Context, not inline AsyncStorage calls.
 
----
+### Update auth, storage, or sync behavior
+1. Check `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, and `MEMORY.md` first.
+2. Preserve the offline-first model.
+3. Avoid syncing child-profile PII.
 
-## Common Workflows
+## Known gotchas
 
-### Add a new API endpoint
-1. Add route in `server/routes.ts`
-2. Validate input with Zod; sanitize string fields with `sanitizeString()`
-3. Place AI calls inside `server/ai/index.ts` router
-4. Apply rate limiting middleware
-5. Document in `docs/API.md`
+- `npm run dev` exists but is POSIX-only; use `npm run server:dev` and `npm run dev:expo` directly when in doubt.
+- `npm run expo:dev` is Replit-specific.
+- Voice chat is conditionally registered and not always available in production builds.
+- `server/routes.ts` is a thin composer; domain logic belongs in `server/routes/*`.
+- `.github/agents/` should not be edited unless the task is explicitly about GitHub custom agents.
+- `.agents/` contains vendored skill docs and is excluded from normal app lint/type flows.
 
-### Add a new screen
-1. Create `app/<name>.tsx` — Expo Router registers it automatically
-2. Tab screens go in `app/(tabs)/`
-3. Use `SafeAreaView` and colors from `constants/colors.ts`
-4. Add to project structure in `README.md` if significant
+## References
 
-### Update environment variables
-1. Add to `.env.example` with a blank value and inline comment
-2. Update the env table in `README.md`
-3. Use `process.env.VAR_NAME` in server code; `process.env.EXPO_PUBLIC_VAR_NAME` for client-safe vars
-
-### Modify database schema
-1. Edit `shared/schema.ts` (or `shared/models/chat.ts`)
-2. Run `npm run db:push` against a dev database
-3. Test migration before committing
+- [README.md](./README.md)
+- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+- [docs/SECURITY.md](./docs/SECURITY.md)
+- [CONVENTIONS.md](./CONVENTIONS.md)
+- [AGENTS.md](./AGENTS.md)

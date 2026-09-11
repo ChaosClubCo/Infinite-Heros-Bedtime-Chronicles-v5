@@ -4,7 +4,6 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  Platform,
   ScrollView,
   TextInput,
   Animated as RNAnimated,
@@ -13,7 +12,6 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AnimatedView } from "@/components/AnimatedView";
 import { ResponsiveContainer } from "@/components/ResponsiveContainer";
 import * as Haptics from "expo-haptics";
@@ -22,6 +20,8 @@ import { StarField } from "@/components/StarField";
 import Colors from "@/constants/colors";
 import { HEROES } from "@/constants/heroes";
 import { HeroCard } from "@/components/HeroCard";
+import { useScreenInsets } from "@/lib/useScreenInsets";
+import { DEFAULT_STORY_VOICE, DEFAULT_STORY_SPEED } from "@/constants/story-theme";
 
 const THEMES = [
   {
@@ -83,9 +83,7 @@ const LENGTHS = [
 const AGE_RANGES = ["2-4", "4-6", "6-8", "8-10"];
 
 export default function QuickCreateScreen() {
-  const insets = useSafeAreaInsets();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const { topInset, bottomInset } = useScreenInsets();
 
   const [selectedTheme, setSelectedTheme] = useState("fantasy");
   const [childName, setChildName] = useState("");
@@ -118,8 +116,8 @@ export default function QuickCreateScreen() {
         heroId: theme.heroId,
         mode: "classic",
         duration: storyLength,
-        voice: "moonbeam",
-        speed: "medium",
+        voice: DEFAULT_STORY_VOICE,
+        speed: DEFAULT_STORY_SPEED,
         ...(childName.trim() ? { childName: childName.trim() } : {}),
         ...(customPrompt.trim() ? { customPrompt: customPrompt.trim() } : {}),
       },

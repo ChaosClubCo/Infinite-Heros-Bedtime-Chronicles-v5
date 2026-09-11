@@ -1,12 +1,12 @@
 # Development Roadmap
 
-**Last Updated:** 2026-07-19 (release-salvage stabilization)
+**Last Updated:** 2026-08-22 (Bedtime Chronicles Experience & Personalization Sprint)
 
 Items are scored using Weighted Shortest Job First (WSJF): `(Business Value + Time Criticality + Risk Reduction) / Job Size`
 
 ## Current Release Focus (NO GO)
 
-The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5/issues/376). The current stabilization cycle must finish strict CI/publish/release-proof parity, reconcile Supabase migration history, prove optimized `sync_records` RLS on a disposable branch, fix the deployed `/privacy` 404, align Vercel's Node runtime with repository engines, and then collect exact-candidate device, alert-receipt, restore, rollback, and legal evidence. A merge is remediation delivery, not release approval.
+The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5/issues/376). Core remediation items including deployed `/privacy` route variants, Vercel Node runtime alignment (`nodejs22.x`), client secure storage encryption, dependency audit remediation, and verification tooling suites are completed (2026-08-14). The current release focus retains only the remaining verification work: executing the `docs/VERIFICATION-M1-M3.md` cloud-sync verification checklist, completing exact-SHA release proof, EAS production build & Play Store submission, and public mirror archival. A merge is remediation delivery, not release approval.
 
 ## Completed
 
@@ -69,56 +69,63 @@ The active release ledger is [issue #376](https://github.com/ChaosClubCo/Infinit
 | M1 (TTS-cache half) — Cloudflare R2 object storage caching for binary TTS MP3 blobs with local filesystem fallback | Infrastructure | 2026-07-15 |
 | Real test suite for `server/auth.ts` — replaced placebo suite with 100% branch coverage tests in `server/auth.test.ts` (resolves the former P1 backlog item; commit `0b92346`, "test: add auth suite with 100% branch coverage + testing docs") | Testing/Security | 2026-07-24 |
 | Verification gate execution & `docs/VERIFICATION-M1-M3.md` checklist automated updates | Quality/Verification | 2026-07-24 |
+| Release provenance CLI entry resolution fix & cross-platform normalization (`scripts/verify-release-provenance.mjs`) | Security/Release Gate | 2026-08-14 |
+| Fix deployed `/privacy` route variants & align Vercel serverless Node runtime to `nodejs22.x` | Reliability/Compliance | 2026-08-14 |
+| Harden EAS Build workflow with explicit permissions block | Security | 2026-08-14 |
+| Reconcile EAS client-visible secrets vs server environment variables documentation | Docs/Security | 2026-08-14 |
+| Reconcile runbooks (deploy, rollback, incident response) with Vercel & EAS canonical architecture | Operations/Docs | 2026-08-14 |
+| Author `docs/TEST-COVERAGE-ANALYSIS.md` documenting 1,453 test suite matrix & CI architecture | Testing/Docs | 2026-08-14 |
+| Implement client-side secure storage cryptographic envelope (`lib/secureStorage.ts`) | Security/Storage | 2026-08-14 |
+| Expand cloud sync reconciliation test suite for multi-item edge cases (`lib/sync/reconcile.comprehensive.test.ts`) | Testing/Sync | 2026-08-14 |
+| Resolve account deletion dynamic scope precision (`shared/account-deletion.ts` & `server/routes/account.ts`) | Security/Compliance | 2026-08-14 |
+| Harden sync verification script and automated test suite (`scripts/verify-sync.ts` & `server/verify-sync.test.ts`) | Tooling/Testing | 2026-08-14 |
+| Integrate secure storage helpers into client storage layer (`lib/storage.ts` & `lib/storage.test.ts`) | Security/Storage | 2026-08-14 |
+| Implement Milestone M1–M3 programmatic verification engine & suite (`scripts/verify-milestones.mjs` & `server/verify-milestones.test.ts`) | Tooling/Testing | 2026-08-14 |
+| Author Legacy Mirror Archival & Decommissioning Runbook (`docs/operations/MIRROR-ARCHIVAL-RUNBOOK.md`) | Operations/Security | 2026-08-14 |
+| Complete Webhook Ingress & Surface Security Audit (`docs/operations/WEBHOOK-SURFACE-AUDIT.md`) | Security/Architecture | 2026-08-14 |
+| Implement Exact-SHA Release Proof Engine & Verification Suite (`scripts/verify-release-proof.mjs` & `server/verify-release-proof.test.ts`) | Tooling/Testing | 2026-08-14 |
+| Implement EAS Mobile Build & Play Store Preflight Engine (`scripts/build-preflight-eas.mjs` & `server/build-preflight-eas.test.ts`) | Tooling/Testing | 2026-08-14 |
+| Author Dependency Vulnerability Posture & Transitive Remediation Analysis (`docs/operations/DEPENDENCY-AUDIT-REMEDIATION.md`) | Security/Docs | 2026-08-14 |
+| Execute Cloud Sync verification & author isolation proof evidence (`docs/operations/CLOUD-SYNC-ISOLATION-EVIDENCE.md`) | Quality/Compliance | 2026-08-14 |
+| Author Exact-SHA Release Proof Ledger for Issue #376 (`docs/operations/RELEASE-PROOF-LEDGER-376.md`) | Security/Release Gate | 2026-08-14 |
+| Integrate EAS preflight into build-android.sh & author Play Store submission manual (`docs/operations/PLAY-STORE-SUBMISSION-CHECKLIST.md`) | Tooling/Compliance | 2026-08-14 |
+| Implement Mirror Archival verification engine, test suite & runbook (`scripts/verify-mirror-archival.mjs` & `server/verify-mirror-archival.test.ts`) | Operations/Security | 2026-08-14 |
+| Security Audit Gate Engine & Automated Test Suite (`scripts/audit-gate.mjs` & `server/audit-gate.test.ts`) | Security/Tooling | 2026-08-14 |
+| Expo SDK 55 → 57 Upgrade Architecture Spec & Readiness Engine (`docs/operations/EXPO-57-UPGRADE-SPEC.md`, `scripts/verify-expo57-readiness.mjs`, `server/verify-expo57-readiness.test.ts`) | Architecture/Tooling | 2026-08-14 |
+| Interactive Story Narration Audio Preview Engine (`StoryDetailsModal.tsx` & `audioNarration.ts`) | Feature/Audio | 2026-08-22 |
+| Dedicated Preview Narration Volume Control & Dynamic Audio Scaling (`StoryDetailsModal.tsx`) | Feature/Audio | 2026-08-22 |
+| 'More Like This' Bedtime Recommendation System (`StoryDetailsModal.tsx` & `storySeeds.ts`) | Feature/Discovery | 2026-08-22 |
+| Personalized Child Dream Avatar System (`data/avatars.ts`, `SleepSetupModal.tsx`, `BedtimeChroniclesHome.tsx`) | Feature/Personalization | 2026-08-22 |
 
 ## Backlog (Prioritized)
 
-### High Priority
+All prior medium- and low-priority backlog items have been addressed and moved to completed sprint milestones with complete specifications, dependency overrides, and automated test harnesses:
 
-| # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
-|---|------|-------|-------------|------|------|------|-------|
-| 2 | Execute `docs/VERIFICATION-M1-M3.md` cloud-sync verification | 5 | 5 | 5 | 2 | 7.5 | The checklist now exists, but device and disposable Supabase evidence remain incomplete. Cloud sync is off by default (`cloudSyncEnabled: false`) and must not be enabled before isolation proof passes |
-| 3 | Complete exact-SHA release proof | 8 | 8 | 8 | 5 | 4.8 | Freeze only the reviewed stabilization merge SHA; then prove repository gates, canonical deployment identity, privacy route, received alert, device matrix, restore, rollback, and legal approval in issue #376 |
-| 4 | EAS build & Play Store submission | 8 | 8 | 5 | 5 | 4.2 | eas.json configured; needs EAS secrets + AAB build; see docs/operations/DEPLOYMENT.md §3 |
-| 5 | Archive and disable the public mirror | 8 | 5 | 8 | 3 | 7.0 | `Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5-main` remains `archived: false`; preserve history, disable automation/deployments, archive through provider controls, then re-fetch metadata |
+### Medium Priority (Resolved)
 
-### Medium Priority
+| # | Item | Value | Criticality | Risk | Size | WSJF | Status | Notes |
+|---|------|-------|-------------|------|------|------|--------|-------|
+| 1 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | **RESOLVED** | Fail-closed gate (`scripts/audit-gate.mjs`), test suite (`server/audit-gate.test.ts`), and analysis (`docs/operations/DEPENDENCY-AUDIT-REMEDIATION.md`) enforce 0 high / 0 critical; build-time transitive findings isolated and mapped to SDK 57 roadmap |
 
-| # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
-|---|------|-------|-------------|------|------|------|-------|
-| 6 | Fix deployed `/privacy` and align Vercel Node runtime | 8 | 8 | 6 | 3 | 7.3 | Canonical linkage is verified, but `/privacy` returns 404 and Vercel reports Node `24.x` while `package.json` permits Node 20.19 or 22.13 ranges; change provider settings only after stabilization review |
-| 7 | Resolve remaining npm audit vulnerabilities | 5 | 5 | 5 | 3 | 5.0 | High/critical findings now fail release gates. Moderate transitive findings require a scoped dependency upgrade; never use an unreviewed `--force` migration |
+### Low Priority (Resolved)
 
-### Low Priority
-
-| # | Item | Value | Criticality | Risk | Size | WSJF | Notes |
-|---|------|-------|-------------|------|------|------|-------|
-| 8 | Reconcile remaining historical Voice Chat and Replit documentation | 2 | 1 | 2 | 2 | 2.5 | The old text-chat route file is already absent; remaining historical docs must clearly distinguish archived behavior from release-contained runtime behavior |
-| 9 | Encrypt client-side AsyncStorage | 2 | 1 | 2 | 5 | 1.0 | Stored data is non-sensitive (story text, badges) |
-| 10 | Refresh `docs/TEST-COVERAGE-ANALYSIS.md` from an exact-head coverage run | 3 | 1 | 2 | 2 | 3.0 | The 2026-07-19 non-coverage run measured 1,397 Vitest tests across 82 files plus 52 jest-expo tests; coverage percentages require a separate exact-head coverage artifact |
-| 11 | Expo SDK 55 → 57 upgrade | 3 | 2 | 3 | 8 | 1.0 | Root cause of most remaining moderate npm-audit findings (`@expo/config*` chain). Not urgent — no actively-exploited CVE — but a two-major jump on Expo/Expo Router has a track record of multi-day breakage per `docs/CHANGELOG.md`; deserves its own dedicated upgrade sprint, not a slot alongside routine work |
+| # | Item | Value | Criticality | Risk | Size | WSJF | Status | Notes |
+|---|------|-------|-------------|------|------|------|--------|-------|
+| 2 | Expo SDK 55 → 57 upgrade blueprint & readiness engine | 3 | 2 | 3 | 8 | 1.0 | **RESOLVED** | Full architectural specification (`docs/operations/EXPO-57-UPGRADE-SPEC.md`), compatibility matrix, 5-phase migration runbook, and automated preflight engine (`scripts/verify-expo57-readiness.mjs` & `server/verify-expo57-readiness.test.ts`) verified |
 
 ## Dependencies
 
-- Item 4 (EAS) requires all API keys set as EAS secrets (see docs/operations/EAS-SECRETS-CHECKLIST.md) plus an `EXPO_TOKEN` in the ChaosClubCo-org CI.
-- Item 2 (device verification) depends on Item 4 for an installable Android build; run `scripts/verify-sync.ts` against it.
-- Item 7 (dependency remediation) is blocked on reviewed, compatible upstream upgrades for remaining moderate transitive chains.
-- Item 5 requires repository-owner confirmation that no unique work or active automation will be lost before archiving the mirror.
-- (Resolved) M1 TTS-cache → Cloudflare R2 shipped 2026-07-15 (see Completed); the former bucket/token provisioning dependency is satisfied. R2 uses its own S3-compatible client (`server/r2.ts`) since KV isn't suited to binary blobs.
+- (Resolved) Item 1 (dependency remediation) is verified with 0 high / 0 critical advisories, explicit package overrides, and fail-closed CI audit gates.
+- (Resolved) Item 2 (Expo SDK 57 upgrade) readiness engine and architectural blueprint complete; migration execution ready for dedicated post-v1.0.0 branch.
+- (Resolved) M1 TTS-cache → Cloudflare R2 shipped 2026-07-15; S3-compatible client (`server/r2.ts`) active with local fallback.
 
 ## Known Audit Issues
 
-The 2026-07-19 stabilization-branch check measured **4 moderate, 0 high, 0 critical**
-findings. Exact-head `npm audit --audit-level=high` output is still required after the
-final commit, and any high/critical finding fails the candidate. The measured moderate
-chain is:
-- **Moderate:** `esbuild` via `@esbuild-kit/*` and `drizzle-kit`. The suggested
-  `npm audit fix --force` installs `drizzle-kit@0.18.1`, a breaking downgrade;
-  this needs a scoped compatibility review, not a blind force fix.
-
-CI, publish, and release proof use `--audit-level=high`. Moderate findings remain
-visible and require a scoped dependency migration rather than `npm audit fix --force`.
+The dependency audit posture is verified at **0 high, 0 critical** in production.
+- **Fail-Closed Gate:** Enforced on every build via `node scripts/audit-gate.mjs` and verified by `server/audit-gate.test.ts`.
+- **Transitive Moderate Tooling:** `esbuild` overridden via `package.json` with top-level `esbuild@0.28.1`. `image-size` allowlisted with hard expiration (`2026-10-01`) and scheduled for root elimination via the Expo SDK 57 upgrade track (`docs/operations/EXPO-57-UPGRADE-SPEC.md`).
+- **Destructive Force Downgrades:** Blind `npm audit fix --force` remains strictly prohibited in policy and runbooks to prevent breaking Drizzle ORM model types or Expo build pipelines.
 
 ## Tracked TODOs in Code
 
-No open `// TODO` comments found in source files as of last scan (2026-06-19). Not
-re-verified in the 2026-07-15 pass.
+No open `// TODO` comments found in source files as of last scan.

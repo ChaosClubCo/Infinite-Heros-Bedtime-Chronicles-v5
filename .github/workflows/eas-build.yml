@@ -33,6 +33,11 @@ on:
           - production
         default: 'preview'
 
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   build:
     name: EAS Build - ${{ github.event.inputs.platform || 'android' }} (${{ github.event.inputs.profile || 'preview' }})

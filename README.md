@@ -1,258 +1,207 @@
+<!-- Last verified: 2026-08-28 -->
 # Infinity Heroes: Bedtime Chronicles
 
-<!-- Last verified: 2026-05-05 -->
+![Node 22.x](https://img.shields.io/badge/node-22.x-339933)
+![Expo SDK 55](https://img.shields.io/badge/expo-SDK%2055-4630EB)
+![TypeScript Strict](https://img.shields.io/badge/typescript-strict-3178C6)
+![CI GitHub Actions](https://img.shields.io/badge/ci-GitHub%20Actions-2088FF)
 
-An AI-powered interactive bedtime story app for children ages 3–9. Kids create their own superhero and embark on magical, personalized adventures with AI-generated stories, illustrations, and narration.
+AI-powered bedtime stories for children ages 3–9, built with Expo and an Express API.
+Kids choose a hero, story mode, and bedtime setting, then receive a narrated, illustrated, child-safe story with badges, streaks, and optional cloud sync.
 
-## Features
+## What this project does
 
-- **3 Story Modes:** Classic (adventure), Mad Libs (silly/funny), Sleep (calming/meditative)
-- **AI Story Generation:** Multi-provider AI routing with automatic fallback (Anthropic → Gemini → OpenAI → OpenRouter)
-- **AI Scene Illustrations:** Unique art for each story scene in randomized styles (watercolor, cel-shaded, collage, etc.)
-- **Text-to-Speech Narration:** 9 unique narrator voices via ElevenLabs with per-mode voice matching
-- **Hero Creator:** Create custom superheroes with name, title, power, and AI-generated avatar
-- **Child Profiles:** Multi-child support with per-profile story history, badges, and streaks
-- **Gamification:** 12 achievement badges, reading streaks, vocabulary words, and story completion rewards
-- **Parent Controls:** Story length limits, bedtime scheduling, theme filtering, PIN protection
-- **Voice Chat:** Talk to your hero (requires OpenAI audio API + PostgreSQL)
-- **Video Generation:** Animated story scenes via OpenAI Sora (optional)
-- **Background Music:** Mode-specific ambient music
-- **Smart Suggestions:** AI-powered story setting recommendations based on time of day and child profile
+- Generates bedtime stories in three kid-safe modes: Classic, Mad Libs, and Sleep.
+- Produces scene artwork, narration audio, and optional video through a server-side multi-provider AI router.
+- Stores stories, badges, streaks, and settings locally first, with optional Supabase-backed cloud sync for non-PII progress data.
 
-## Tech Stack
+## Architecture overview
 
-| Layer | Technology | Version |
-|-------|-----------|---------|
-| Mobile Framework | Expo (React Native) | ~55.0.28 / RN 0.83.10 |
-| Router | Expo Router (file-based) | ~55.0.17 |
-| Backend | Express.js (Node.js) | v5 |
-| Language | TypeScript | ~5.9.2 (strict) |
-| AI Text | Anthropic Claude, Gemini, OpenAI, OpenRouter | fallback chain |
-| AI Images | Gemini 2.5-flash-image, gpt-image-1 | fallback chain |
-| TTS | ElevenLabs | eleven_multilingual_v2 |
-| Database | PostgreSQL + Drizzle ORM | voice chat only |
-| Client Storage | AsyncStorage | stories, profiles, settings, badges |
-| Animations | react-native-reanimated | v4 |
-| Server State | TanStack React Query | v5 |
-| Testing | Vitest | v4 |
-| CI/CD | GitHub Actions + EAS Build | — |
+```text
+Expo app (app/, components/, lib/)
+  -> HTTPS/JSON + SSE
+Express API (server/)
+  -> AI router (Anthropic -> Gemini -> OpenAI -> OpenRouter)
+  -> ElevenLabs TTS
+  -> Supabase Auth + Postgres
+  -> Cloudflare KV / R2 (optional infrastructure integrations)
+```
+
+### Major boundaries
+
+- **Client:** Expo Router screens, React Context state, AsyncStorage persistence, React Query request layer.
+- **API server:** Input validation, auth gates, rate limiting, compliance checks, AI orchestration, TTS/video/image endpoints.
+- **External services:** Anthropic, Gemini, OpenAI, OpenRouter, ElevenLabs, Supabase, Cloudflare KV/R2, Sentry, EAS Build.
+- **Web/API hosting target:** Cloudflare Workers + Workers Static Assets per the August 28 migration design. Production Cloudflare provenance remains blocked until the Worker implementation and provider deployment/version evidence are reconciled.
+
+For the full system design, see [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
+
+## Tech stack
+
+| Layer | Technology | Version / Notes |
+|------|------------|-----------------|
+| Client | Expo + React Native + React | `expo ~55.0.30`, `react-native 0.83.10`, `react 19.2.0` |
+| Routing | Expo Router | `~55.0.18` |
+| Backend | Express | `^5.0.1` |
+| Language | TypeScript | `~5.9.2`, strict mode |
+| Validation | Zod | `^4.4.3` |
+| Database | PostgreSQL + Drizzle ORM | Supabase-hosted; voice chat + cloud sync |
+| Client persistence | AsyncStorage | offline-first local storage |
+| Server state | TanStack React Query | `^5.101.4` |
+| TTS | ElevenLabs | provider-backed narration |
+| Observability | pino + Sentry | optional DSNs |
+| Build / release | esbuild, GitHub Actions, Cloudflare target, EAS Build | web/API migration + native mobile builds |
 
 ## Prerequisites
 
-- **Node.js 20 or 22** (npm ≥ 10) — see `.nvmrc`
-- At least one AI provider API key — `AI_INTEGRATIONS_GEMINI_API_KEY` recommended
-- ElevenLabs API key — for TTS narration (optional, app works without it)
-- PostgreSQL database — optional, required only for voice chat
+- Node.js `>=20.19 <21` or `>=22.15 <23`
+- npm `11.x`
+- At least one AI provider key; Gemini is the simplest starting point
+- Optional: ElevenLabs key for narration, Supabase project for auth/cloud sync, PostgreSQL for voice chat
+- Optional accounts: Cloudflare for target web/API hosting and KV/R2, Expo/EAS for mobile builds, Sentry for error tracking
 
-## Quick Start
+## Quickstart
 
 ```bash
-# 1. Install dependencies
+# 1. Clone and install
+git clone https://github.com/ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5.git
+cd Infinite-Heros-Bedtime-Chronicles-v5
 npm install
 
-# 2. Copy and configure environment variables
+# 2. Configure environment
 cp .env.example .env
-# Edit .env — set at minimum AI_INTEGRATIONS_GEMINI_API_KEY
+# edit .env and add at minimum AI_INTEGRATIONS_GEMINI_API_KEY
 
-# 3. Start backend (Express on port 5000) and frontend in separate terminals
+# 3. Start the API
 npm run server:dev
-npx expo start          # or: npm run expo:dev (inside Replit)
+
+# 4. Start the Expo app in a second terminal
+npm run dev:expo
+# or outside this local-web flow:
+# npx expo start
 ```
 
-## Environment Variables
+### Replit dev flow
 
-See [`.env.example`](./.env.example) for all variables with inline descriptions.
+Use `npm run expo:dev` inside Replit. It injects the Replit-specific Expo host variables automatically.
 
-| Variable | Required | Description |
-|----------|---------|-------------|
-| `AI_INTEGRATIONS_GEMINI_API_KEY` | Yes (min 1 AI key) | Primary AI provider (Gemini 2.5-flash) |
-| `AI_INTEGRATIONS_GEMINI_BASE_URL` | Optional | Custom/proxy base URL override for Gemini API |
-| `AI_INTEGRATIONS_OPENAI_API_KEY` | Recommended | AI fallback + voice chat |
-| `AI_INTEGRATIONS_OPENAI_BASE_URL` | Optional | Custom/proxy base URL override for OpenAI API |
-| `AI_INTEGRATIONS_ANTHROPIC_API_KEY` | Recommended | AI story generation (priority 1) |
-| `AI_INTEGRATIONS_ANTHROPIC_BASE_URL` | Optional | Custom/proxy base URL override for Anthropic API |
-| `AI_INTEGRATIONS_OPENROUTER_API_KEY` | Optional | xAI / Mistral / Cohere / Meta Llama fallbacks |
-| `AI_INTEGRATIONS_OPENROUTER_BASE_URL` | Optional | Custom/proxy base URL override for OpenRouter API |
-| `ELEVENLABS_API_KEY` | Optional | TTS narration |
-| `DATABASE_URL` | Optional | PostgreSQL — required for voice chat |
-| `SUPABASE_SERVICE_ROLE_KEY` | Optional (prod required) | Supabase server-side token verification; omit to bypass auth in dev. Server-only — never expose client-side |
-| `EXPO_PUBLIC_SUPABASE_URL` | Optional (prod required) | Supabase project URL (client) |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Optional (prod required) | Supabase anon/public key (client) |
-| `EXPO_PUBLIC_API_URL` | Optional | Override API server base URL |
-| `PORT` | Optional | Server port (default: 5000) |
-| `RATE_LIMIT_MAX` | Optional | Requests per window (default: 10) |
-| `RATE_LIMIT_WINDOW_MS` | Optional | Rate limit window in ms (default: 60000) |
-| `STORY_MAX_TOKENS` | Optional | Per-call LLM token ceiling for story generation, cost guard (default: 8192) |
-| `SUGGEST_MAX_TOKENS` | Optional | Per-call LLM token ceiling for settings suggestions, cost guard (default: 2048) |
-| `OPENAI_API_KEY` | Optional | Direct key for Sora video generation |
-| `GITHUB_WEBHOOK_SECRET` | Optional | Enables `POST /api/github/webhook`; must match the secret configured on the GitHub repo webhook |
+## Environment variables
 
-**Never** put real secret values in `.env.example` or commit `.env`. For EAS builds, set all vars as EAS secrets.
+The full list lives in [`.env.example`](./.env.example). These are the most important values:
 
-## Running Tests
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `AI_INTEGRATIONS_GEMINI_API_KEY` | Recommended | Primary image provider and a text fallback | `AIzaSy-example` |
+| `AI_INTEGRATIONS_ANTHROPIC_API_KEY` | Recommended | Primary story-generation provider | `sk-ant-example` |
+| `AI_INTEGRATIONS_OPENAI_API_KEY` | Optional | Text/image fallback and voice-chat dependency | `sk-proj-example` |
+| `AI_INTEGRATIONS_OPENROUTER_API_KEY` | Optional | Extra text fallbacks | `sk-or-v1-example` |
+| `ELEVENLABS_API_KEY` | Optional | Narration audio generation | `sk_12345example` |
+| `DATABASE_URL` | Optional | PostgreSQL connection string for voice chat and migrations | `postgresql://postgres.example:<password>@host:6543/postgres` |
+| `SUPABASE_URL` | Optional | Server-side Supabase project URL | `https://example.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Optional in dev, required in prod for auth-gated routes | Server-only Supabase service key | `service-role-example` |
+| `EXPO_PUBLIC_SUPABASE_URL` | Optional | Client-visible Supabase URL | `https://example.supabase.co` |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Optional | Client-visible Supabase anon key | `sb-public-anon-example` |
+| `SENTRY_DSN` | Optional | Server error tracking | `https://public@example.ingest.sentry.io/1` |
+| `EXPO_PUBLIC_SENTRY_DSN` | Optional | Client error tracking | `https://public@example.ingest.sentry.io/2` |
+| `CLOUDFLARE_ACCOUNT_ID` | Optional | Enables KV and R2 integrations | `0123456789abcdef` |
+| `CLOUDFLARE_KV_NAMESPACE_ID` | Optional | Persistent rate-limit/idempotency state | `ed09afa77f9243bbb08f3dbe34df1e70` |
+| `CLOUDFLARE_R2_BUCKET` | Optional | Durable TTS cache bucket | `infinity-heroes-tts` |
+| `OPENAI_API_KEY` | Optional | Direct Sora/video integration key | `sk-proj-example` |
+| `GITHUB_WEBHOOK_SECRET` | Optional | HMAC secret for `/api/github/webhook` | `ghs_example_secret` |
+| `COPILOT_MCP_SUPABASE_PROJECT_REF` | Optional, agents only | Non-production Supabase project ref used by the read-only repository agent MCP | `abcdefghijklmnopqrst` |
+| `COPILOT_MCP_SUPABASE_ACCESS_TOKEN` | Optional, agents only | Server-only development token for project-scoped Supabase MCP access; never expose via `EXPO_PUBLIC_*` | `sbp_example` |
+| `COPILOT_MCP_SENTRY_ACCESS_TOKEN` | Optional, agents only | Minimal read-only token for Sentry diagnostics used by the release-conformance agent | `sntrys_example` |
+
+The `COPILOT_MCP_*` variables are repository-agent configuration, not application runtime requirements. Keep them out of client bundles and production child-data workflows unless a separately approved procedure explicitly requires that access.
+
+Never commit real secrets. `EXPO_PUBLIC_*` values are bundled into the client app and must never contain server-only credentials.
+
+## Development commands
 
 ```bash
-npm test                  # Vitest suite (unit, integration, release)
-npm run test:components   # Jest component suite (React Native UI)
-npm run test:watch        # Watch mode (Vitest)
-npm run test:coverage     # Coverage report (≥80% branch target for server utilities)
+# API
+npm run server:dev
+npm run server:build
+npm run server:prod
+
+# Expo
+npm run dev:expo
+npm run expo:dev          # Replit-specific
+npm run expo:static:build
+
+# Quality gates
+npm run typecheck
+npm run lint
+npm run lint:fix
+npm test
+npm run test:components
+npm run test:coverage
+npm run preflight
 ```
 
-1,453 tests (1,401 Vitest across 83 files + 52 Jest across 8 files) — last measured 2026-07-27 (see docs/CHANGELOG.md); run `npm test && npm run test:components` for the current figure.
+## Testing
 
-## Code Quality
+- **Vitest:** server, shared, and pure `lib/` units (`npm test`)
+- **Jest Expo:** React Native component coverage (`npm run test:components`)
+- **Coverage target:** `>=80%` branch coverage for the Vitest coverage set (`vitest.config.ts`)
+- Re-run the complete suites before publishing any test-count snapshot; point-in-time counts become stale quickly.
 
-```bash
-npm run typecheck         # Zero TypeScript errors required
-npm run lint              # ESLint (expo config)
-npm run lint:fix          # Auto-fix lint issues
-npm run preflight         # typecheck + lint + test in one command
-```
+See [docs/best-practices/TESTING.md](./docs/best-practices/TESTING.md).
 
 ## Deployment
 
-- **Replit (primary):** Click **Deploy** in the Replit workspace. See [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md) for the full procedure.
-- **Vercel:** `api/server.mjs` is the serverless entry point. Config in `vercel.json`. **Production deploys go through GitHub Actions only** (`.github/workflows/vercel-deploy.yml` → the `VERCEL_DEPLOY_HOOK_URL` deploy hook) — the Vercel CLI (`vercel --prod`) is intentionally blocked (`scripts/deploy-vercel.sh` exits 1 by design) and builds fail closed without canonical Git metadata. See [`DEPLOY.md`](DEPLOY.md) for the full policy. Note: the original Hobby-plan commit-author rationale for this design is currently unverified — see the `DEPLOY.md` "Vercel Hobby limitation" section for details.
-- **Android (Play Store):** Use EAS Build — see [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md).
+- **Web/API target:** Cloudflare Workers + Workers Static Assets. The target is not yet certified from `main`; see the migration gate in [DEPLOY.md](./DEPLOY.md).
+- **Vercel:** retired for new revisions. Git deployment is disabled by a temporary tombstone while the linked project/domains remain pending safe retirement.
+- **Native mobile:** Expo Application Services using [`eas.json`](./eas.json).
+- **CI/CD:** GitHub Actions handles lint, typecheck, tests, web build, exact-head evidence, release proof, link checking, and deployment-drift measurement.
 
-Build commands:
-```bash
-npm run server:build         # Bundle server → server_dist/index.js (esbuild)
-npm run expo:static:build    # Build Expo web bundle → web-build/
-npm run server:prod          # Run production server bundle
+Deployment references:
+- [DEPLOY.md](./DEPLOY.md) — production deployment policy and Cloudflare admission gate
+- [docs/operations/DEPLOYMENT.md](./docs/operations/DEPLOYMENT.md) — detailed deployment manual
+- [docs/runbooks/deploy.md](./docs/runbooks/deploy.md) — operational deploy runbook
+- [docs/runbooks/rollback.md](./docs/runbooks/rollback.md) — rollback steps
+
+## Project structure
+
+```text
+app/                    Expo Router screens and route groups
+components/             Reusable React Native UI components
+constants/              Shared constants, hero catalog, color/timing tokens, app types
+lib/                    Client utilities, contexts, storage helpers, sync engine, hooks
+server/                 Express server, AI router, middleware, route modules, compliance gates
+shared/                 Types and database schema shared across client/server
+scripts/                Build, verification, and release-support scripts
+docs/                   Architecture, API, security, operations, ADRs, runbooks, agent docs
+supabase/               Supabase migrations and related assets
+__tests__/              Integration and component tests
 ```
 
-## Project Structure
+## Key features and constraints
 
-```
-app/                    # Expo Router screens (file path = route)
-  (tabs)/               # Tab navigation: index, create, library, saved, profile
-  story.tsx             # Story reading/playback screen (~440 lines; composition shell over lib/use* hooks + components/Story*)
-  story-seeds.tsx       # Browsable story-seed gallery (filter by theme + age)
-  completion.tsx        # Story completion + badge awarding
-  story-details.tsx     # Story customization wizard (Classic mode)
-  madlibs.tsx           # Mad Libs mode wizard
-  sleep-setup.tsx       # Sleep mode setup
-  quick-create.tsx      # Onboarding hero creation
-  settings.tsx          # App settings screen
-  trophies.tsx          # Badge collection view
-  voice-chat.tsx        # Voice chat UI (reachable from the profile tab)
-  parental-consent.tsx  # COPPA parental-consent gate (first launch, before onboarding)
-  privacy.tsx           # In-app Privacy Policy screen (offline)
-  welcome.tsx           # Onboarding splash
-components/             # Reusable React Native components (PascalCase.tsx)
-constants/              # Static data and configuration
-  types.ts              # TypeScript interfaces (canonical type definitions)
-  heroes.ts             # 8 pre-defined hero templates
-  colors.ts             # Cosmic theme color palette
-  timing.ts             # Animation/transition duration constants
-lib/                    # Client utilities and state management
-  SettingsContext.tsx   # App settings (React Context — canonical settings source)
-  ProfileContext.tsx    # Child profile context
-  AuthContext.tsx       # Supabase authentication context
-  storage.ts            # AsyncStorage helpers (stories, profiles, badges, streaks)
-  query-client.ts       # TanStack React Query config
-  useStoryAudio.ts      # TTS narration playback hook (expo-av)
-  narration.ts          # resolveNarrationUri(): on-device cache hit → offline; miss → fetch + cache
-  tts-cache.ts          # On-device narration MP3 cache (expo-file-system; LRU + size budget)
-server/                 # Express backend
-  index.ts              # Server bootstrap, security middleware, CORS, shutdown
-  routes.ts             # All API route registrations
-  prompts.ts            # Story system/user prompt builders + CHILD_SAFETY_RULES + buildStricterSystemPrompt
-  validation.ts         # Zod schemas + sanitizeString()
-  auth.ts               # Supabase bearer-token (JWT) middleware
-  rate-limit.ts         # Per-IP sliding-window rate limiter
-  safety/               # AI output moderation: moderateStory → regenerate once → known-safe fallback
-  ai/                   # Multi-provider AI abstraction layer
-    router.ts           # AIRouter: fallback chains, circuit breakers, retry
-    index.ts            # Provider registration + status
-    providers/          # gemini.ts, openai.ts, anthropic.ts, openrouter.ts
-  elevenlabs.ts         # TTS voice definitions + audio generation
-  suno.ts               # Background music file serving
-  video.ts              # OpenAI Sora video generation
-  db.ts                 # Drizzle ORM + PostgreSQL client
-  replit_integrations/  # Replit-provided voice chat modules (do not modify)
-shared/                 # Shared between client and server
-  schema.ts             # Drizzle ORM table definitions
-  models/chat.ts        # conversations + messages tables
-  safety-terms.ts       # Canonical banned-term list shared by server moderation + client fail-safe
-docs/                   # All project documentation
-  ARCHITECTURE.md       # System design and data flow
-  API.md                # API endpoint reference (28 endpoints — 22 always-registered + 6 conditional: 5 voice-chat + 1 image-gen)
-  SECURITY.md           # Security policy and OWASP assessment
-  ROADMAP.md            # Prioritized development roadmap
-  CHANGELOG.md          # Version history
-  adr/                  # Architecture Decision Records (6 ADRs: ADR-0001 – ADR-0006)
-  agents/               # 12 specialized AI agent instruction files
-  best-practices/       # Accessibility, performance, security, testing guides
-  operations/           # DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md, OBSERVABILITY.md, SECRETS-ROTATION.md, BRANCH-PROTECTION-SETUP.md, README.md
-  runbooks/             # incident-response, rollback, provider-outage, deploy, database-migrations, monitoring-alerting
-  archive/              # Historical audits and plans (docs/archive/audits/, docs/archive/plans/)
-  COPPA-COMPLIANCE.md   # COPPA compliance audit and privacy analysis
-api/                    # Vercel serverless entry point
-  server.mjs            # Wraps server_dist/index.js for Vercel
-scripts/                # Build helpers
-```
+- Three story modes: `classic`, `madlibs`, `sleep`
+- Child-safety rules are mandatory for every story prompt and output-safety review
+- All AI calls must go through `server/ai/`
+- Voice chat is conditional and fail-closed behind compliance + dependency checks
+- Cloud sync is opt-in and excludes child-profile PII
 
-## API Endpoints
-
-See [docs/API.md](docs/API.md) for full reference.
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/health` | Health check |
-| GET | `/api/ai-providers` | Provider availability status |
-| GET | `/api/metrics` | In-process metrics (request/provider counters) |
-| GET | `/privacy` | Privacy Policy HTML |
-| POST | `/api/generate-story` | Generate a complete story (JSON) |
-| POST | `/api/generate-story-stream` | Generate story via SSE stream |
-| POST | `/api/generate-avatar` | Generate hero avatar image |
-| POST | `/api/generate-scene` | Generate story scene illustration |
-| POST | `/api/tts` | Text-to-speech (returns audio URL) |
-| GET | `/api/tts-audio/:file` | Serve cached TTS audio |
-| POST | `/api/tts-preview` | Voice preview audio |
-| GET | `/api/voices` | List available narrator voices |
-| GET | `/api/music/:mode` | Serve background music |
-| GET | `/api/music-info/:mode` | Background music track metadata |
-| POST | `/api/suggest-settings` | AI-powered story setting suggestions |
-| POST | `/api/sync/interactions` | Drain target for the client's offline interaction sync-queue |
-| DELETE | `/api/account` | Permanently delete account + cascade-delete synced cloud data |
-| GET | `/api/video-available` | Whether video generation is configured |
-| POST | `/api/generate-video` | Start video generation job |
-| GET | `/api/video-status/:id` | Check video generation progress |
-| GET | `/api/video/:id` | Retrieve generated video |
-| GET | `/api/conversations` *(conditional)* | List voice chat conversations — requires `AI_INTEGRATIONS_OPENAI_API_KEY` + `DATABASE_URL` + the `voiceChatEnabled` feature flag + passing `isVoiceChatComplianceApproved()` (in production: DPA/child-data/privacy-policy/app-store attestations + a valid `VOICE_CHAT_TRANSCRIPT_RETENTION_DAYS`; always true outside production) — see `server/compliance.ts` |
-| POST | `/api/conversations` *(conditional)* | Create new conversation — same conditional gating as above |
-| GET | `/api/conversations/:id` *(conditional)* | Get a single conversation's history — same conditional gating as above |
-| DELETE | `/api/conversations/:id` *(conditional)* | Delete a conversation — same conditional gating as above |
-| POST | `/api/conversations/:id/messages` *(conditional)* | Send voice message (SSE response) — same conditional gating as above |
-| POST | `/api/generate-image` *(conditional)* | Gemini image generation (Replit integration) — requires `AI_INTEGRATIONS_GEMINI_API_KEY` |
-| POST | `/api/github/webhook` | GitHub webhook receiver (HMAC-authenticated) |
-
-## Documentation
+## Documentation map
 
 | Document | Purpose |
 |----------|---------|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and data flow |
-| [API.md](docs/API.md) | All endpoints with request/response schemas |
-| [SECURITY.md](docs/SECURITY.md) | Security policy, OWASP assessment, and vulnerability reporting |
-| [ROADMAP.md](docs/ROADMAP.md) | Prioritized development roadmap |
-| [CHANGELOG.md](docs/CHANGELOG.md) | Version history |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Branch conventions, PR process, testing requirements |
-| [CONVENTIONS.md](CONVENTIONS.md) | Code standards: naming, styling, error handling, APIs |
-| [GLOSSARY.md](GLOSSARY.md) | Domain vocabulary reference |
-| [AGENTS.md](AGENTS.md) | AI agent configuration index |
-| [TODO.md](TODO.md) | WSJF-prioritized backlog |
-| [docs/agents/README.md](docs/agents/README.md) | Specialized AI agent catalog |
-| [docs/best-practices/](docs/best-practices/) | Accessibility, performance, security, testing guides |
-| [docs/operations/](docs/operations/) | Operational guides: DEPLOYMENT.md, EAS-SECRETS-CHECKLIST.md, OBSERVABILITY.md, SECRETS-ROTATION.md, BRANCH-PROTECTION-SETUP.md, README.md |
-| [docs/adr/](docs/adr/) | Architecture Decision Records (6 ADRs) |
-| [docs/operations/DEPLOYMENT.md](docs/operations/DEPLOYMENT.md) | EAS Build + Play Store + server deployment manual |
-| [DEPLOY.md](DEPLOY.md) | Production deploy policy — Vercel CLI deploys are intentionally blocked; deploys go through GitHub Actions |
-| [docs/COPPA-COMPLIANCE.md](docs/COPPA-COMPLIANCE.md) | COPPA compliance audit and privacy analysis |
-| [docs/runbooks/](docs/runbooks/) | Incident-response, rollback, provider-outage, deploy, database-migrations, and monitoring-alerting runbooks |
-| [docs/archive/](docs/archive/) | Historical audits and plans (consolidated records) |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Canonical system design, data flow, and infrastructure topology |
+| [docs/API.md](./docs/API.md) | REST endpoint reference |
+| [docs/SECURITY.md](./docs/SECURITY.md) | Security policy, controls, and reporting |
+| [docs/CHANGELOG.md](./docs/CHANGELOG.md) | Version history |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | Contribution workflow |
+| [CONVENTIONS.md](./CONVENTIONS.md) | Code standards and repo conventions |
+| [AGENTS.md](./AGENTS.md) | Cross-agent coordination rules |
+| [CLAUDE.md](./CLAUDE.md) / [GEMINI.md](./GEMINI.md) / [.github/copilot-instructions.md](./.github/copilot-instructions.md) | AI agent operating context |
+| [MEMORY.md](./MEMORY.md) | Dense project context for future sessions |
+| [TODO.md](./TODO.md) | WSJF-prioritized backlog |
+| [docs/adr/README.md](./docs/adr/README.md) | ADR process and index |
+| [docs/runbooks/README.md](./docs/runbooks/README.md) | Operational runbooks |
+| [docs/operations/README.md](./docs/operations/README.md) | Operational reference set |
 
 ## License
 
-Proprietary project — All Rights Reserved by ChaosClubCo. See the LICENSE file in the root of the repository for full terms.
+All rights reserved. See [LICENSE](./LICENSE).

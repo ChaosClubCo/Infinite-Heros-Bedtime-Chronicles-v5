@@ -5,6 +5,11 @@
  */
 export const ACCOUNT_DELETION_RECEIPT_VERSION = 2 as const;
 
+export type DeletionScope =
+  | 'voice_chat_history'
+  | 'cloud_sync_records'
+  | 'parent_auth_identity';
+
 export interface ServerDeletionReceipt {
   version: typeof ACCOUNT_DELETION_RECEIPT_VERSION;
   receiptId: string;
@@ -12,13 +17,15 @@ export interface ServerDeletionReceipt {
   /** Exact 40-character deployed source revision, or null when unavailable. */
   releaseSha: string | null;
   status: 'completed';
-  deletedScopes: [
-    'voice_chat_history',
-    'cloud_sync_records',
-    'parent_auth_identity',
-  ];
+  deletedScopes: DeletionScope[];
   localDeviceData: 'pending_client_cleanup';
 }
+
+const VALID_DELETION_SCOPES: readonly DeletionScope[] = [
+  'voice_chat_history',
+  'cloud_sync_records',
+  'parent_auth_identity',
+] as const;
 
 export function isServerDeletionReceipt(value: unknown): value is ServerDeletionReceipt {
   if (!value || typeof value !== 'object') return false;
@@ -34,8 +41,8 @@ export function isServerDeletionReceipt(value: unknown): value is ServerDeletion
     && !Number.isNaN(Date.parse(candidate.completedAt))
     && releaseShaValid
     && Array.isArray(candidate.deletedScopes)
-    && candidate.deletedScopes.length === 3
-    && candidate.deletedScopes.includes('voice_chat_history')
+    && candidate.deletedScopes.length >= 2
+    && candidate.deletedScopes.every((scope) => typeof scope === 'string' && VALID_DELETION_SCOPES.includes(scope as DeletionScope))
     && candidate.deletedScopes.includes('cloud_sync_records')
     && candidate.deletedScopes.includes('parent_auth_identity')
     && candidate.localDeviceData === 'pending_client_cleanup';

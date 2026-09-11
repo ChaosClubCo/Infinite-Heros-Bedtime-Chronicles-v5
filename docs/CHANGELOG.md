@@ -1,6 +1,64 @@
+<!-- Last verified: 2026-08-30 -->
 # Changelog
 
 All notable changes to Infinity Heroes: Bedtime Chronicles are documented here.
+
+## [Unreleased] — 2026-08-30 — Morning Awakening & Story Playback Immersion Sprint
+
+### Added
+- **Good Morning Sunrise Animation Overlay (`GoodMorningOverlay.tsx`)** — Built a panoramic morning awakening transition canvas using `motion/react` with twilight indigo melting into glowing dawn ambers, ascending sun disc with rotating corona flares, radiating beams, flying songbirds, emerald hills, and morning dew particles.
+- **Harmonic Dawn Audio Synthesizer** — Built a Web Audio API chime generator (`playMorningSunriseChime`) playing an ascending Lydian harp harmonic sequence with delicate morning bird chirps, sound toggle, and "Replay Sun" button.
+- **Morning Streak & Dream Memory Integration** — Embedded bedtime streak summary (active nights, starlight hero rank, milestone countdown), morning rest affirmations, and Last Night's Dream Memory card pulling from the child's Dream Journal with sleep rating stars, mood badges, excerpt quote, AI artwork preview, and quick log button.
+- **Subtle Top-of-Screen Scene Progress Bar (`StoryReader.tsx`)** — Added a sticky, segmented scene progress bar at the top of the reader with dynamic cosmic visual states (completed indigo/purple, active glowing amber pulse, upcoming muted slate), scene counter (`Scene X / Y (Z%)`), ARIA progressbar accessibility attributes, and jump-to-scene interactivity.
+- **Persistent Bottom Playback Control Panel (`StoryReader.tsx`)** — Added a docked bedtime playback control panel with play/pause narration toggle, active narration pulse glow, previous/next scene stepping, and scene title display.
+- **10-Second Narration Rewind Engine** — Implemented a `-10s Rewind` button in `StoryReader.tsx` with speech rate character math, sentence boundary snapping, audio re-alignment, and transient visual toast feedback.
+- **Independent Ambient Audio Volume Slider (`StoryReader.tsx`)** — Added a dedicated background soundscape volume slider (0%–100%) in the bottom playback control bar with quick-mute toggle, dynamic volume icons (`VolumeX`, `Volume1`, `Volume2`), and live percentage display decoupled from voice narration volume.
+- **Sprint Update Operations Documentation** — Created `docs/operations/SPRINT-UPDATE-2026-08-30.md` detailing technical specifications, Web Audio synthesize architecture, progress state synchronization, and playback control lifecycles.
+
+## [Unreleased] — 2026-08-22 — Bedtime Chronicles Experience & Personalization Sprint
+
+### Added
+- **Story Details Modal Entrance Animation & Interaction Polish** — Added a fluid, physics-calibrated entrance animation using `motion/react` (subtle backdrop opacity transition, gentle dialog scale `0.98 -> 1`, and slide-up translation `y: 18 -> 0` with cubic bezier `[0.16, 1, 0.3, 1]`) along with keyboard escape dismissal and backdrop click-to-close behavior to enhance navigation feel.
+- **Interactive Story Audio Preview Engine** — Added a browser `SpeechSynthesis`-powered "Listen to Preview" feature in `StoryDetailsModal.tsx` allowing children and parents to hear a calming, bedtime-paced audio sample of the story title, hero introduction, and synopsis before starting a full story session.
+- **Dedicated Preview Narration Volume Control & Dynamic Audio Scaling** — Built an independent volume slider (0%–100%) and quick-mute toggle in `StoryDetailsModal.tsx` (`audioNarration.ts`) specifically for story speech previews, distinct from ambient background audio settings, with dynamic volume status icons (`Volume2`, `Volume1`, `VolumeX`) and live audio re-scaling.
+- **'More Like This' Bedtime Recommendation System** — Implemented a multi-factor similarity recommendation algorithm in `StoryDetailsModal.tsx` calculating and rendering 3 related bedtime stories based on matching themes, categories, pacing modes, age ranges, and hero affinities, with instant in-modal previewing and direct story playback.
+- **Personalized Child Dream Avatar System** — Created an 8-character bedtime archetype registry in `src/data/avatars.ts` (**Moon Fox**, **Star Voyager**, **Night Owl**, **Sleepy Bear**, **Dream Unicorn**, **Cosmic Whale**, **Moon Bunny**, **Spark Dragon**), interactive selection grid with descriptors in `SleepSetupModal.tsx`, persistent profile storage (`AppSettings.childAvatar`), and personalized UI indicators across the top navigation bar, home header profile pill, and bedtime greeting banner.
+- **Sprint Update Documentation** — Created `docs/operations/SPRINT-UPDATE-2026-08-22.md` documenting technical architectures, scoring equations, audio lifecycle rules, and verification proofs.
+
+## [Unreleased] — 2026-08-14 — Release Gate Provenance & Deployment Security Hardening
+
+### Added
+- **22-Suite Comprehensive Test Suite Expansion** — Added 22 focused test suites covering all core layers: server privacy policy, database client, fallback stories, shared sync types, chat database models, custom hero storage, design tokens (colors, timing, themes), story seeds & heroes, route context & helpers, image generation routes, scene handoff, destructive action confirmations, sync error reporters, loading messages, safety terms, TTS cache eviction, sync validation, and runbook specification integrity.
+- **Security Audit Gate Engine & Automated Test Suite** — Refactored `scripts/audit-gate.mjs` with modular export architecture, implemented comprehensive unit test suite `server/audit-gate.test.ts` verifying fail-closed gating on unlisted high/critical CVEs and time-bounded allowlist expiry, and updated `docs/operations/DEPENDENCY-AUDIT-REMEDIATION.md`.
+- **Expo SDK 55 → 57 Upgrade Specification & Readiness Engine** — Authored complete technical upgrade specification `docs/operations/EXPO-57-UPGRADE-SPEC.md` covering platform version matrices, Bridgeless/TurboModule architecture requirements, and 5-phase migration runbooks; implemented automated preflight engine `scripts/verify-expo57-readiness.mjs` and unit test suite `server/verify-expo57-readiness.test.ts`; exposed `npm run verify:expo57-readiness`.
+- **Mirror Archival Verification Engine & Test Suite** — Implemented `scripts/verify-mirror-archival.mjs` and test suite `server/verify-mirror-archival.test.ts` validating canonical origin enforcement, archival runbook completeness, and fail-closed release blocking on legacy mirror refs; exposed `npm run verify:mirror`.
+- **Cloud Sync Isolation & Multi-Tenant Evidence** — Authored `docs/operations/CLOUD-SYNC-ISOLATION-EVIDENCE.md` detailing PostgreSQL RLS user isolation proofs, zero-PII `profileStub` mapping, binary asset stripping, and disposable branch testing runbooks.
+- **Exact-SHA Release Proof Ledger (Issue #376)** — Authored `docs/operations/RELEASE-PROOF-LEDGER-376.md` documenting the complete 18-point verification matrix for release approval and candidate freezing.
+- **Play Store Submission & Families Compliance Manual** — Authored `docs/operations/PLAY-STORE-SUBMISSION-CHECKLIST.md` and integrated preflight checks into `scripts/build-android.sh` to enforce zero-microphone permissions and secret separation before EAS builds.
+- **Exact-SHA Release Proof Engine** — Implemented `scripts/verify-release-proof.mjs` and unit test suite `server/verify-release-proof.test.ts` validating the 18-point release evidence matrix (canonical repository identity, strict 40-character commit SHAs, runtime nodejs22.x alignment, privacy route coverage, and EAS profiles); exposed `npm run verify:release-proof`.
+- **EAS Mobile Build & Play Store Preflight Engine** — Implemented `scripts/build-preflight-eas.mjs` and test suite `server/build-preflight-eas.test.ts` validating `app.json` package identifiers, zero-microphone child safety permissions, adaptive icon asset presence, production AAB build profiles, and client secret separation; exposed `npm run preflight:eas`.
+- **Dependency Vulnerability & Transitive Remediation Analysis** — Created `docs/operations/DEPENDENCY-AUDIT-REMEDIATION.md` documenting the 0-high/0-critical production security profile, audit gate allowlist lifecycles, and risk analysis of transitive build-time tooling.
+- **Milestone Verification Engine (M1–M3)** — Implemented `scripts/verify-milestones.mjs` and test suite `server/verify-milestones.test.ts` to programmatically validate M1 safety guardrails and fallback templates, M2 narration cache constraints and R2 fallback resilience, and M3 cloud sync reconciliation and secure cryptographic envelopes; exposed `npm run verify:milestones`.
+- **Legacy Mirror Archival & Decommissioning Runbook** — Authored `docs/operations/MIRROR-ARCHIVAL-RUNBOOK.md` detailing step-by-step procedures for repository parity verification, workflow neutralization, secret purging, and archival of `Krosebrook/Infinite-Heros-Bedtime-Chronicles-v5-main`.
+- **Webhook Ingress & Surface Security Audit** — Authored `docs/operations/WEBHOOK-SURFACE-AUDIT.md` documenting inbound GitHub webhook raw-body parsing, timing-safe HMAC-SHA256 signature checks, Vercel deploy hook isolation, and database cascade deletion triggers.
+- **Account Deletion Dynamic Scope Resolution** — Refactored `server/routes/account.ts` and `shared/account-deletion.ts` to dynamically construct and validate `deletedScopes` (`['cloud_sync_records', 'parent_auth_identity']`, plus `'voice_chat_history'` when `DATABASE_URL` is active and PostgreSQL transcripts are purged), ensuring verification receipts accurately reflect data stores. Added unit test suite `shared/account-deletion.test.ts`.
+- **Sync Verification Test Harness & CLI Script** — Normalized `scripts/verify-sync.ts` with standard relative imports and exported verification engine, added test suite `server/verify-sync.test.ts`, and exposed `npm run verify:sync`.
+- **Client Secure Storage Integration Helpers** — Added `saveSecureParentControls` and `getSecureParentControls` to `lib/storage.ts` with transparent fallback to AsyncStorage and comprehensive tests in `lib/storage.test.ts`.
+- **Test Coverage & Suite Architecture Manual** — Created `docs/TEST-COVERAGE-ANALYSIS.md` documenting the full 1,453 test suite matrix (1,401 Vitest unit/integration/release tests across 83 files + 52 Jest-Expo component tests across 8 files), subsystem breakdown, CI gates, and coverage threshold enforcement.
+- **Client Secure Storage Envelope** — Added `lib/secureStorage.ts` and `lib/secureStorage.test.ts` providing tamper-evident cryptographic envelopes with SHA-256 integrity signatures, salt generation, and reversible masking for client secrets.
+- **Cloud Sync Reconciliation Comprehensive Suite** — Added `lib/sync/reconcile.comprehensive.test.ts` testing multi-entity edge cases, timestamp tie-breakers, idempotency, and clock skew resilience.
+- **Google Play Store Compliance & Submission Manual** — Created `docs/operations/GOOGLE-PLAY-STORE-REQUIREMENTS.md` covering Designed for Families policies, COPPA declarations, Data Safety questionnaire answers, in-app/web account deletion paths, and AAB store assets.
+- **Privacy Policy Multi-Route Handlers** — Registered handlers for `/privacy`, `/privacy/`, `/privacy-policy`, `/privacy-policy/`, and `/api/privacy` in `server/routes/health.ts` to ensure consistent delivery across all reverse proxies and trailing slash variations.
+- **Vercel Serverless Runtime Pinning** — Added `"runtime": "nodejs22.x"` to `vercel.json` to lock production serverless function execution to Node 22 matching `.nvmrc` and `package.json` engines.
+
+### Changed
+- **Operational Runbooks Reconciliation** — Updated `docs/runbooks/rollback.md`, `docs/runbooks/deploy.md`, and `docs/runbooks/incident-response.md` to reflect Vercel serverless and EAS Build as canonical deployment paths, replacing legacy references to Replit.
+
+### Fixed
+- **Release Provenance Gate CLI Entry Detection** — Refactored `scripts/verify-release-provenance.mjs` to use `path.resolve` and `fileURLToPath` for reliable entry-point detection across Windows/POSIX environments and percent-encoded paths.
+- **Vercel Deploy Hook Preflight Fix** — Removed dangling `needs: check-secret` reference from `.github/workflows/vercel-deploy.yml` to prevent silent workflow skips when secrets are missing.
+- **EAS Build Workflow Permissions** — Added explicit `permissions:` block (`contents: read`, `pull-requests: write`, `issues: write`) to `.github/workflows/eas-build.yml`.
+- **EAS Secrets Documentation** — Reconciled `docs/operations/EAS-SECRETS-CHECKLIST.md` and `docs/operations/DEPLOYMENT.md` to clearly distinguish client-only build parameters (`EXPO_PUBLIC_*`) from backend-only secrets.
 
 ## [Unreleased] — 2026-08-13 — Expo SDK 55 Dependency Realignment
 

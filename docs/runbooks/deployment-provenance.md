@@ -1,157 +1,154 @@
 # Runbook: Deployment Provenance
 
-This runbook covers how to determine **what triggered a given Vercel deployment**, and how to find
-every mechanism capable of deploying this repo.
+<!-- Last verified: 2026-08-29 -->
 
-**Last Updated:** 2026-08-13
+This runbook defines how to prove **which provider deployment/version is serving production and which exact source revision it contains**.
 
----
+The rule is deliberately provider-neutral: a release is not accepted because a dashboard says “production,” DNS resolves, or a source branch looks correct. The deployed runtime and provider metadata must reconcile to the same immutable candidate.
 
-## Overview
-
-This repo has historically had more than one thing able to deploy production at the same time. When
-that happens, "why did production change?" becomes unanswerable from the Vercel dashboard alone,
-because every trigger produces a deployment that *looks* identical.
-
-The techniques below exist because an August 2026 investigation into a webhook 403 took weeks and
-repeatedly reached wrong conclusions. Every wrong turn came from an artifact that looked
-authoritative and wasn't. Read this before trusting any single signal.
-
-Related: [deploy.md](./deploy.md), [rollback.md](./rollback.md),
-[../operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md).
+Related: [deploy.md](./deploy.md), [rollback.md](./rollback.md), and [../operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md).
 
 ---
 
-## Step 1: Identify What Triggered a Deployment
+## 1. Resolve the provider deployment object
 
-Vercel records the trigger in each deployment's `meta`. The two fields are mutually exclusive and
-this is the single most useful discriminator available:
+For the active hosting provider, capture:
 
-| Field present in `meta` | Trigger |
-|---|---|
-| `deployHookId`, `deployHookName`, `deployHookRef` | A **deploy hook** was POSTed (by CI, a webhook, or a human with the URL) |
-| `repoPushedAt` (and no `deployHookId`) | **Vercel's native Git integration** reacted to a push |
+- account/organization identity;
+- project/service/Worker identity;
+- deployment/version ID;
+- creation/promotion timestamp;
+- configured production routes/custom domains;
+- provider-reported source revision when available.
+
+For the Cloudflare migration, both canonical domains must map to the same verified release surface unless an approved architecture document says otherwise:
+
+- `bedtime-chronicles.com`
+- `www.bedtime-chronicles.com`
+
+Do not infer domain ownership from the application health response. Domain routing is provider configuration and must be inspected as provider configuration.
+
+---
+
+## 2. Read runtime release identity
+
+The application exposes platform-neutral deployment identity on `/api/health`:
 
 ```bash
-# Via the Vercel MCP tools or REST API — inspect meta on recent deployments
-# list_deployments(projectId, teamId) → deployments[].meta
+curl --fail --silent --show-error \
+  https://www.bedtime-chronicles.com/api/health \
+  | jq '{status, releaseSha, releaseRepo, releaseRef, environment, version}'
 ```
 
-**If both patterns appear on the same project, you have duplicate triggers.** That is a defect, not
-a configuration choice: the same commit will build twice, and cancelled/superseded builds will
-appear for no obvious reason.
+The values come from explicit deployment bindings:
+
+- `RELEASE_SHA`
+- `RELEASE_REPO`
+- `RELEASE_REF`
+- `DEPLOYMENT_ENV`
+- `RELEASE_VERSION`
+
+Missing values are reported as `unknown`. `unknown` is a failed provenance gate, not a value to explain away.
+
+The deployment adapter must bind identity from immutable provider/build metadata. Never derive these values from request headers.
 
 ---
 
-## Step 2: Attribute a Deploy-Hook Fire to Its Caller
+## 3. Reconcile to canonical source
 
-A deploy hook records *that* it fired, never *who* fired it. Attribute by timing instead:
+Canonical production identity:
 
-1. Note the hook-fired deployment's `created` timestamp.
-2. Find the push-triggered deployment (the one carrying `repoPushedAt`) immediately before it.
-3. Compute the gap.
-
-Interpretation:
-
-- **~1–3 seconds** — a GitHub **webhook** POSTing the hook directly. Nothing else is that fast.
-- **~20–40 seconds or more** — a **GitHub Actions** workflow. A hosted runner must be provisioned
-  and check out the repo before it can `curl`, which cannot happen in under ~10s.
-
-> **Decisive check:** if a hook fire follows a push to a **non-`main`** branch, it cannot be
-> `vercel-deploy.yml` — that workflow only triggers on push to `main`. It is a webhook subscribed to
-> all branches firing a `main`-pinned hook, which silently promotes `main` to production on every
-> feature-branch push.
-
-If one push produces **more than one** hook fire, there is more than one caller. Enumerate them in
-Step 3.
-
----
-
-## Step 3: Enumerate Every Possible Sender
-
-A repo webhook list is not sufficient. All three of these must be checked:
-
-```
-Settings → Webhooks                                  (repo-level; up to 20)
-https://github.com/organizations/ChaosClubCo/settings/hooks   (org-level)
-Settings → GitHub Apps / Installations               (App webhooks)
+```text
+repository = ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5
+ref        = main
+sha        = exact approved candidate SHA
 ```
 
-**Org-level webhooks fire for every repo in the org and never appear in repo settings. GitHub App
-webhooks live in the App's own configuration and are invisible from both.** This repo has heavy App
-activity (Copilot, Dependabot, Claude), so App-originated traffic is plausible by default.
-
----
-
-## Step 4: Confirm What Production Is Actually Running
-
-`/api/health` is the authoritative statement of what is deployed — it is generated from
-`server/release-identity.ts` at build time, so it cannot drift from the artifact:
+Run the verifier:
 
 ```bash
-curl -s https://www.bedtime-chronicles.com/api/health | jq '{releaseSha, releaseRepo, releaseRef}'
-
-# Compare against canonical main
-git rev-parse origin/main
+EXPECTED_RELEASE_SHA=<candidate-40-hex-sha> \
+DEPLOYED_RELEASE_SHA=<health-releaseSha> \
+DEPLOYED_RELEASE_REPO=<health-releaseRepo> \
+DEPLOYED_RELEASE_REF=<health-releaseRef> \
+node scripts/verify-release-provenance.mjs --phase release-gate
 ```
 
-The `Deployment Drift Monitor` workflow (`.github/workflows/deployment-drift.yml`) runs this
-comparison automatically every 15 minutes. If you are investigating by hand, check that workflow's
-recent runs first — it may have already caught and dated the divergence.
+Required equality:
+
+```text
+deployed provider source SHA == candidate SHA
+runtime releaseSha            == candidate SHA
+runtime releaseRepo           == canonical repository
+runtime releaseRef            == main
+```
+
+If the provider cannot expose a source SHA directly, preserve a signed/build-time mapping from provider deployment/version ID to candidate SHA and independently verify runtime `releaseSha`. Do not substitute the source branch tip for a deployment receipt.
 
 ---
 
-## Known Traps
+## 4. Check the deployment-drift monitor
 
-Each of these produced a wrong conclusion during the August 2026 investigation.
+`.github/workflows/deployment-drift.yml` compares canonical `main` with production `/api/health`.
 
-**`get_project.domains` omits custom domains.** It returns only auto-generated `*.vercel.app`
-aliases. `www.bedtime-chronicles.com` does not appear on the project that serves it. Never conclude
-"this project has no custom domain" from that field — check **Settings → Domains** in the dashboard.
-`get_deployment.alias` has the same blind spot.
-
-**A matching `releaseSha` does not identify which project serves a domain.** When two projects are
-connected to one repo, both build the same commit, so both report the same `releaseSha`. Use
-Settings → Domains, not the health endpoint, to establish domain ownership.
-
-**A sub-20-second `Vercel Deploy Hook` run deployed nothing.** A healthy run takes minutes — its
-final step polls `/api/health` for up to 900s waiting for an exact SHA match. A 10–14s run failed at
-`test -n "$VERCEL_DEPLOY_HOOK_URL"` or at the `curl`, before anything was triggered. Treat a fast
-failure as "no deployment occurred", not as a flake.
-
-**GitHub webhook delivery GUIDs are UUIDv1 and carry a timestamp.** A delivery ID quoted in a code
-comment or an old ticket can be dated exactly, which is often the fastest way to prove an incident
-is stale. Reassemble the time fields (`time_low`, `time_mid`, `time_hi`) into a 60-bit count of
-100 ns intervals since 1582-10-15:
-
-```bash
-# 17c1c010-7b5b-11f1-919c-3358006d3edc  →  2026-07-09T05:57:39.601Z
-python3 -c "
-import uuid, datetime
-u = uuid.UUID('17c1c010-7b5b-11f1-919c-3358006d3edc')
-assert u.version == 1
-print(datetime.datetime(1582,10,15,tzinfo=datetime.timezone.utc)
-      + datetime.timedelta(microseconds=u.time//10))
-"
-```
-
-Sanity-check any decoder against GitHub's own published example GUID
-`72d3162e-cc78-11e3-81ab-4c9367dc0958`, which should decode to April 2014.
-
-**GitHub retains only ~3 days of webhook deliveries.** A delivery ID older than that cannot have
-been read live; it came from a code comment or a document. Do not assume a quoted delivery and a
-currently-configured payload URL describe the same moment in time.
-
-**Vercel Deployment Protection does not apply to `api.vercel.com`.** `ssoProtection` governs
-deployment URLs only. A deploy-hook call is not a deployment URL, so protection settings can never
-explain a failure to trigger one. Deploy hooks return `201` on success, `404` for a bad hook, and
-`429` at the 60/hour cap — never `202`.
+A passing drift monitor is useful evidence only when the health endpoint is reporting a real immutable deployment identity. If `releaseSha`, `releaseRepo`, or `releaseRef` is `unknown`, fix the deployment bindings rather than weakening the monitor.
 
 ---
 
-## See Also
+## 5. Prove rollback provenance
 
-- [../operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md) — deployment targets and procedure
-- [../../DEPLOY.md](../../DEPLOY.md) — production policy and release-approval gates
-- [monitoring-alerting.md](./monitoring-alerting.md) — alert routing
-- [incident-response.md](./incident-response.md) — general incident procedure
+Before certification, identify one previous known-good provider deployment/version and its source SHA.
+
+A rollback receipt must include:
+
+1. candidate deployment/version + SHA;
+2. known-good rollback deployment/version + SHA;
+3. provider-side rollback action;
+4. post-rollback `/api/health` identity;
+5. domain/HTTPS smoke after rollback;
+6. optional re-promotion of the candidate plus a second identity check.
+
+A Git revert without provider-side deployment/version evidence is not a rollback rehearsal.
+
+---
+
+## 6. Transitional Vercel evidence
+
+Vercel is retired for new revisions but remains a transitional object until Cloudflare origin and rollback are proven.
+
+During retirement:
+
+- `vercel.json` must remain a deployment-disabled tombstone while the project is Git-linked;
+- any new Vercel deployment is deployment drift;
+- historical Vercel deployment metadata may be retained as incident/audit evidence;
+- historical deploy-hook/native-Git attribution techniques belong in archived incident records, not in the active deployment procedure.
+
+Do not remove production domains from the Vercel project until the replacement provider passes the admission and rollback gates.
+
+---
+
+## 7. Evidence quality rules
+
+The following are **not sufficient** by themselves:
+
+- a successful local build;
+- a green source-only CI run;
+- DNS resolving to an expected address;
+- a provider dashboard screenshot without deployment/version identity;
+- a matching branch name;
+- a shortened commit SHA;
+- a health response with `releaseSha=unknown`;
+- source code containing the candidate SHA.
+
+Prefer immutable IDs, full SHAs, provider receipts, timestamps, and independently fetched runtime identity.
+
+---
+
+## See also
+
+- [../operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md)
+- [../../DEPLOY.md](../../DEPLOY.md)
+- [deploy.md](./deploy.md)
+- [rollback.md](./rollback.md)
+- [monitoring-alerting.md](./monitoring-alerting.md)
+- [incident-response.md](./incident-response.md)

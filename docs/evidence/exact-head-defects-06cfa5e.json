@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": "1.0.0",
+  "repository": "ChaosClubCo/Infinite-Heros-Bedtime-Chronicles-v5",
+  "pullRequest": 443,
+  "candidateSha": "06cfa5e5dc16822c763d05099bdde51c7971a417",
+  "baseSha": "458e9597218293aa52de1b5b73c75d2ceb9c4384",
+  "recordedAt": "2026-08-24T20:41:33Z",
+  "releaseDecision": "BLOCKED",
+  "verification": {
+    "local": {
+      "node": "22.23.2",
+      "npm": "11.13.0",
+      "productionInstall": "PASS",
+      "productionInstallVulnerabilities": 0,
+      "typecheck": "PASS",
+      "vitest": "PASS",
+      "vitestTestFiles": 69,
+      "vitestTests": 848,
+      "jestExpo": "PASS",
+      "jestExpoSuites": 8,
+      "jestExpoTests": 54,
+      "serverBuild": "PASS",
+      "expoCompatibility": "PASS",
+      "expoWebExport": "PASS",
+      "repositorySecurityAgent": "PASS",
+      "secretFindings": 0,
+      "lint": "FAIL",
+      "lintErrors": 1,
+      "lintWarnings": 68
+    },
+    "github": {
+      "workflowRunIds": [32773355383, 32773355761, 32773349248, 32773349246],
+      "conclusion": "startup_failure",
+      "jobsCreated": 0
+    },
+    "securityScan": {
+      "scanId": "2c9a3b1f-7e3b-4673-8cdf-54879862b61d",
+      "status": "COMPLETE",
+      "coverage": "PARTIAL",
+      "findingCount": 13
+    }
+  },
+  "defects": [
+    {
+      "id": "RC-2026-08-24-001",
+      "severity": "P1",
+      "title": "GitHub Actions cannot start jobs for the exact candidate",
+      "status": "OPEN",
+      "impact": "Hosted CI, CodeQL, security, review, and release-evidence jobs created zero jobs, so the candidate cannot be promoted."
+    },
+    {
+      "id": "RC-2026-08-24-004",
+      "severity": "P1",
+      "title": "Direct ESLint has unresolved findings",
+      "status": "OPEN",
+      "impact": "The exact-head lint gate fails with one error and 68 warnings."
+    },
+    {
+      "id": "SEC-2026-08-24-001",
+      "severity": "P1",
+      "title": "Voice processing can start without enforcing compliance gates",
+      "status": "OPEN",
+      "locations": ["server/feature-flags.ts:7", "server/routes.ts:40", "server/compliance.ts:61"]
+    },
+    {
+      "id": "SEC-2026-08-24-002",
+      "severity": "P1",
+      "title": "Story generation bypasses the implemented child-safety output guard",
+      "status": "OPEN",
+      "locations": ["server/routes/story.ts:28", "server/safety/story-guard.ts:54"]
+    },
+    {
+      "id": "SEC-2026-08-24-003",
+      "severity": "P1",
+      "title": "Child name and age are sent to providers beyond the consent disclosure",
+      "status": "OPEN",
+      "locations": ["server/routes/story.ts:16", "server/prompts.ts:151", "server/routes/suggest.ts:14"]
+    },
+    {
+      "id": "SEC-2026-08-24-004",
+      "severity": "P2",
+      "title": "Parent PIN, lockout state, and controls are stored in tamperable plaintext",
+      "status": "OPEN",
+      "locations": ["lib/storage.ts:659", "lib/secureStorage.ts:14"]
+    },
+    {
+      "id": "SEC-2026-08-24-005",
+      "severity": "P2",
+      "title": "PostgreSQL TLS accepts untrusted server certificates",
+      "status": "OPEN",
+      "locations": ["server/db.ts:4"]
+    },
+    {
+      "id": "SEC-2026-08-24-006",
+      "severity": "P2",
+      "title": "Conversation reads bypass authentication",
+      "status": "OPEN",
+      "locations": ["server/routes.ts:25", "server/replit_integrations/audio/routes.ts:39"]
+    },
+    {
+      "id": "SEC-2026-08-24-007",
+      "severity": "P1",
+      "title": "Candidate receipts do not prove trusted release provenance",
+      "status": "REMEDIATION_IN_PROGRESS",
+      "locations": ["scripts/generate-beta-readiness.mjs:23", "scripts/beta-readiness-evidence.mjs:43", ".github/workflows/exact-head-pr-proof.yml:273"]
+    },
+    {
+      "id": "SEC-2026-08-24-008",
+      "severity": "P1",
+      "title": "Caller-supplied SHA can bypass independent checkout binding",
+      "status": "REMEDIATION_IN_PROGRESS",
+      "locations": ["scripts/generate-beta-readiness.mjs:16", "scripts/verify-beta-readiness.mjs:16"]
+    },
+    {
+      "id": "SEC-2026-08-24-009",
+      "severity": "P1",
+      "title": "One-off lockfile repair executes candidate code with repository write access",
+      "status": "REMEDIATION_IN_PROGRESS",
+      "locations": [".github/workflows/beta-lockfile-repair.yml:3"]
+    },
+    {
+      "id": "SEC-2026-08-24-010",
+      "severity": "P1",
+      "title": "Package publishing executes candidate code with package credentials",
+      "status": "OPEN",
+      "locations": [".github/workflows/publish.yml:11"]
+    },
+    {
+      "id": "SEC-2026-08-24-011",
+      "severity": "P1",
+      "title": "EAS build accepts an untrusted ref at a token-bearing boundary",
+      "status": "OPEN",
+      "locations": [".github/workflows/eas-build.yml:15"]
+    },
+    {
+      "id": "SEC-2026-08-24-012",
+      "severity": "P2",
+      "title": "Dependabot auto-merge contradicts the active release freeze",
+      "status": "REMEDIATION_IN_PROGRESS",
+      "locations": [".github/workflows/auto-merge.yml:4"]
+    },
+    {
+      "id": "SEC-2026-08-24-013",
+      "severity": "P2",
+      "title": "Release proof accepts repository SHAs without trusted release lineage",
+      "status": "OPEN",
+      "locations": [".github/workflows/release-proof.yml:66"]
+    }
+  ]
+}

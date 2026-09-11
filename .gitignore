@@ -65,6 +65,7 @@ mnt/
 
 # Local outputs / session logs
 /outputs/
+.release-evidence/
 
 # Firebase debug
 firebase-debug.log
@@ -75,5 +76,6 @@ firebase-debug.*.log
 
 # Editor (local, per-developer settings — not shared)
 .vscode/
+.snapshots/
 .vercel
 .env*

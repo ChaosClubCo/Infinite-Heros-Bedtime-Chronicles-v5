@@ -5,7 +5,7 @@ import fs from "node:fs";
 const MODE_MUSIC_TRACKS: Record<string, string[]> = {};
 
 function loadMusicTracks(): void {
-  const musicDir = path.resolve(process.cwd(), "assets", "music");
+  const musicDir = path.resolve("assets", "music");
   const modes = ["classic", "madlibs", "sleep"];
   for (const mode of modes) {
     try {
@@ -31,7 +31,7 @@ function pickTrack(mode: string, trackIndex?: number): string {
 }
 
 export function getMusicFilePath(mode: string, trackIndex?: number): string {
-  return path.resolve(process.cwd(), "assets", "music", pickTrack(mode, trackIndex));
+  return path.resolve("assets", "music", pickTrack(mode, trackIndex));
 }
 
 export function getMusicFileName(mode: string, trackIndex?: number): string {

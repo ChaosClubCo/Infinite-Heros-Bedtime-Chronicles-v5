@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { logger } from './logger';
 
 interface TtsCacheOptions {
   cacheDir: string;
@@ -17,13 +16,6 @@ interface CacheFileInfo {
 
 const DEFAULT_MAX_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB
 
-// This manager is filesystem-only (/tmp) by design and stays that way — /tmp
-// is lost across Vercel serverless cold starts/instances, so the persistent
-// tier lives OUTSIDE this class: Cloudflare R2 (object storage) is implemented
-// in server/r2.ts and wired into the TTS route (server/routes/tts.ts) via its
-// writeWithLock backfill, gated on R2_ENABLED (CLOUDFLARE_R2_* in .env.example).
-// KV was rejected for the binary MP3 blobs (base64 inflation + ~25MB value
-// limits); R2 is the S3-compatible object store used instead.
 export class TtsCacheManager {
   readonly cacheDir: string;
   private readonly maxAgeMs: number;
@@ -57,7 +49,6 @@ export class TtsCacheManager {
       const files = await this.listFiles();
       const now = Date.now();
 
-      // Phase 1: Remove expired files
       for (const file of files) {
         if (now - file.mtimeMs > this.maxAgeMs) {
           await fs.promises.unlink(file.path);
@@ -66,7 +57,6 @@ export class TtsCacheManager {
         }
       }
 
-      // Phase 2: If still over size limit, remove oldest files
       const remaining = await this.listFiles();
       let totalSize = remaining.reduce((sum, f) => sum + f.size, 0);
 
@@ -98,13 +88,12 @@ export class TtsCacheManager {
           if (stat.isFile()) {
             files.push({ name, path: filePath, size: stat.size, mtimeMs: stat.mtimeMs });
           }
-        } catch (err) {
-          logger.warn({ err, file: name }, 'tts-cache: stat failed, skipping file');
+        } catch {
+          // File may have been deleted between readdir and stat
         }
       }
       return files;
-    } catch (err) {
-      logger.error({ err }, 'tts-cache: readdir failed, returning empty list');
+    } catch {
       return [];
     }
   }

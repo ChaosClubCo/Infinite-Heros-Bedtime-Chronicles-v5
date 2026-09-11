@@ -25,5 +25,9 @@ ttsCacheManager.cleanup();
 // Rate limit cleanup runs every 5 minutes
 setInterval(cleanupExpiredEntries, 5 * 60 * 1000);
 
-export const aiRouter = getAIRouter();
+export const aiRouter = {
+  generateText: (type: any, req: any) => getAIRouter().generateText(type, req),
+  generateImage: (type: any, req: any) => getAIRouter().generateImage(type, req),
+  generateTextStream: (type: any, req: any) => getAIRouter().generateTextStream(type, req),
+};
 export const idempotencyCache = new IdempotencyCache({ ttlMs: 5 * 60 * 1000, maxEntries: 200 });
