@@ -8,6 +8,13 @@ interface FeatureFlags {
   contentSafetyLlmLayer: boolean;
   /** Tighten the soft-term threshold so a single soft hit rejects. Default OFF. */
   contentSafetyStrict: boolean;
+  /**
+   * Typed-input realtime media sessions (moderated talkback + streamed
+   * speech). No microphone input this increment. Opt-in and additionally
+   * compliance-gated in registerRoutes, same shape as voiceChatEnabled — a
+   * missing environment value must never enable it by accident.
+   */
+  realtimeMediaEnabled: boolean;
 }
 
 const flags: FeatureFlags = {
@@ -19,6 +26,7 @@ const flags: FeatureFlags = {
   contentSafetyEnabled: process.env.FEATURE_CONTENT_SAFETY_ENABLED !== 'false', // default on
   contentSafetyLlmLayer: process.env.FEATURE_CONTENT_SAFETY_LLM === 'true', // default off
   contentSafetyStrict: process.env.FEATURE_CONTENT_SAFETY_STRICT === 'true', // default off
+  realtimeMediaEnabled: process.env.FEATURE_REALTIME_MEDIA_ENABLED === 'true',
 };
 
 export function getFeatureFlags(): FeatureFlags {

@@ -427,6 +427,77 @@ Serves a completed video file. ID must match `/^[a-f0-9]+$/`.
 
 ---
 
+## Realtime Media Sessions (requires ELEVENLABS_API_KEY + FEATURE_REALTIME_MEDIA_ENABLED=true)
+
+Typed-input-only moderated talkback: a realtime session accepts typed text (no
+microphone — see the client-side release gate note below), runs the reply
+through the same child-safety pipeline as story generation, and streams the
+approved reply's speech back as it's generated. Registered by
+`registerRealtimeMediaRoutes()` in `server/routes/realtime-media.ts`, gated
+exactly like Voice Chat (feature flag + compliance status + dependency check
+in `server/routes.ts`).
+
+**Deployment note:** production on Vercel serves requests through a single
+stateless serverless function with no persistent process, so a session
+created there gets `transport: "sse-fallback"` (no `wsUrl`) instead of a
+live WebSocket. The WebSocket transport only activates on a long-running
+deployment target (Replit) — see `server/realtime/ws-server.ts`.
+
+**Client note:** no screen in the current release links to this feature and
+no microphone permission is requested by it — it is typed-input only. See
+`__tests__/release/voice-containment.test.ts`, which this feature does not
+touch or loosen.
+
+### `POST /api/v1/realtime-media-sessions`
+Creates a realtime media session. Requires a `realtime-media`-scoped consent
+artifact — this is a new, additive consent scope; existing story-generation
+consent does not cover it.
+
+**Request Body:**
+```json
+{
+  "mode": "sleep",
+  "characterProfileId": "moonbeam",
+  "consentArtifact": {
+    "schemaVersion": 1,
+    "id": "consent-1",
+    "consentRecordVersion": 3,
+    "grantedAt": "2026-09-11T00:00:00.000Z",
+    "scope": "realtime-media"
+  }
+}
+```
+
+**Response (201, non-Vercel):**
+```json
+{
+  "session": { "id": "...", "status": "active", "mode": "sleep", "characterProfileId": "moonbeam", "transport": "websocket", "...": "..." },
+  "wsUrl": "/api/v1/realtime-media-sessions/ws?sessionId=..."
+}
+```
+
+**Response (201, Vercel):** same shape with `"transport": "sse-fallback"` and an `sseUrl` (no `wsUrl`).
+
+### `GET /api/v1/realtime-media-sessions/:id`
+Returns the current session state. 404 for an unknown ID.
+
+### `POST /api/v1/realtime-media-sessions/:id/cancel`
+Idempotent — cancelling an already-cancelled or completed session returns its
+current state rather than erroring.
+
+### WebSocket — `GET /api/v1/realtime-media-sessions/ws?sessionId=...`
+Non-Vercel only. Upgrades to a WebSocket once `sessionId` resolves to an
+active session created via the endpoint above. Client sends typed-text JSON
+frames (`{"type":"user_text","text":"..."}`); the server never sends audio as
+base64-in-JSON — a `speech_chunk_ready` event (JSON) precedes each chunk's
+raw bytes, sent as a separate **binary** WebSocket frame. Every server event
+is a versioned envelope (`RealtimeEventSchema` in `shared/media/schemas.ts`):
+`session_started`, `safety_inspection`, `response_text_delta` (only the
+already-moderated, safe-to-display text — never raw model output),
+`speech_chunk_ready`, `speech_complete`, `error`, `session_ended`.
+
+---
+
 ## Voice Chat (requires DATABASE_URL + AI_INTEGRATIONS_OPENAI_API_KEY)
 
 ### `GET /api/conversations`

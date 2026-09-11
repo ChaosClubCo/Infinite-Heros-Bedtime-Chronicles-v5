@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { sanitizeString, validateMadlibWords, VALID_MODES, VALID_DURATIONS, TtsPreviewRequestSchema } from './validation';
 import { getPartCount, getWordCount } from './prompts';
 import { checkRateLimit, resetRateLimits } from './rate-limit';
-import { requiresAuthGate } from './routes';
+import { requiresAuthGate, requiresAiProviderCompliance } from './routes';
 
 describe('sanitizeString', () => {
   it('returns empty string for non-string input', () => {
@@ -271,6 +271,32 @@ describe('requiresAuthGate', () => {
   it('skips auth for POST /github/webhook (uses HMAC signature verification)', () => {
     expect(requiresAuthGate('POST', '/github/webhook')).toBe(false);
     expect(requiresAuthGate('POST', '/github/webhook/')).toBe(false);
+  });
+
+  it('requires auth for the realtime media session endpoints (non-GET, so already covered by the default)', () => {
+    expect(requiresAuthGate('POST', '/v1/realtime-media-sessions')).toBe(true);
+    expect(requiresAuthGate('POST', '/v1/realtime-media-sessions/abc/cancel')).toBe(true);
+  });
+});
+
+describe('requiresAiProviderCompliance', () => {
+  it('gates the realtime media session endpoints (session creation calls the AI router + ElevenLabs)', () => {
+    expect(requiresAiProviderCompliance('/v1/realtime-media-sessions')).toBe(true);
+    expect(requiresAiProviderCompliance('/v1/realtime-media-sessions/abc')).toBe(true);
+    expect(requiresAiProviderCompliance('/v1/realtime-media-sessions/abc/cancel')).toBe(true);
+  });
+
+  it('gates the existing generate-*/suggest-settings/tts/conversations paths', () => {
+    expect(requiresAiProviderCompliance('/generate-story')).toBe(true);
+    expect(requiresAiProviderCompliance('/suggest-settings')).toBe(true);
+    expect(requiresAiProviderCompliance('/tts')).toBe(true);
+    expect(requiresAiProviderCompliance('/conversations/1')).toBe(true);
+  });
+
+  it('does not gate unrelated catalog/health paths', () => {
+    expect(requiresAiProviderCompliance('/health')).toBe(false);
+    expect(requiresAiProviderCompliance('/voices')).toBe(false);
+    expect(requiresAiProviderCompliance('/music/classic')).toBe(false);
   });
 });
 

@@ -7,6 +7,7 @@ import { logger, createRequestId } from "./logger";
 import { recordRequest, getMetrics } from "./metrics";
 import { checkAlertThresholds } from "./alerting";
 import { createLoadSheddingMiddleware } from "./load-shedding";
+import { attachRealtimeWebSocketServer } from "./realtime/ws-server";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -462,6 +463,7 @@ if (!process.env.VERCEL) {
     }
     const { createServer } = await import("node:http");
     const server = createServer(app);
+    attachRealtimeWebSocketServer(server);
 
     const port = parseInt(process.env.PORT || "5000", 10);
     server.listen(

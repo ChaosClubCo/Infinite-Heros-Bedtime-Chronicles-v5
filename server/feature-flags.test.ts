@@ -36,6 +36,11 @@ describe('feature-flags', () => {
       const { getFeatureFlags } = await import('./feature-flags');
       expect(getFeatureFlags().contentSafetyStrict).toBe(false);
     });
+
+    it('realtimeMediaEnabled defaults to false (env var absent)', async () => {
+      const { getFeatureFlags } = await import('./feature-flags');
+      expect(getFeatureFlags().realtimeMediaEnabled).toBe(false);
+    });
   });
 
   describe('env var overrides', () => {
@@ -91,6 +96,18 @@ describe('feature-flags', () => {
       vi.stubEnv('FEATURE_CONTENT_SAFETY_STRICT', 'true');
       const { getFeatureFlags } = await import('./feature-flags');
       expect(getFeatureFlags().contentSafetyStrict).toBe(true);
+    });
+
+    it('realtimeMediaEnabled remains false when FEATURE_REALTIME_MEDIA_ENABLED=false', async () => {
+      vi.stubEnv('FEATURE_REALTIME_MEDIA_ENABLED', 'false');
+      const { getFeatureFlags } = await import('./feature-flags');
+      expect(getFeatureFlags().realtimeMediaEnabled).toBe(false);
+    });
+
+    it('realtimeMediaEnabled is true when FEATURE_REALTIME_MEDIA_ENABLED=true', async () => {
+      vi.stubEnv('FEATURE_REALTIME_MEDIA_ENABLED', 'true');
+      const { getFeatureFlags } = await import('./feature-flags');
+      expect(getFeatureFlags().realtimeMediaEnabled).toBe(true);
     });
   });
 

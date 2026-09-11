@@ -5,8 +5,10 @@ import { requireAuth } from "./auth";
 import {
   getAiProviderComplianceStatus,
   getVoiceChatComplianceStatus,
+  getRealtimeMediaComplianceStatus,
   isAiProviderProcessingApproved,
   isVoiceChatComplianceApproved,
+  isRealtimeMediaComplianceApproved,
 } from "./compliance";
 import { isFeatureEnabled } from "./feature-flags";
 import { logger } from "./logger";
@@ -19,6 +21,7 @@ import { registerMusicRoutes } from "./routes/music";
 import { registerSuggestRoutes } from "./routes/suggest";
 import { registerVideoRoutes } from "./routes/video";
 import { registerGithubWebhookRoute } from "./routes/github-webhook";
+import { registerRealtimeMediaRoutes } from "./routes/realtime-media";
 
 /**
  * Auth-gate predicate for `/api/*` requests (paths are relative to the `/api` mount,
@@ -39,7 +42,8 @@ export function requiresAiProviderCompliance(path: string): boolean {
   return path.startsWith('/generate-')
     || path.startsWith('/suggest-settings')
     || path.startsWith('/tts')
-    || path.startsWith('/conversations');
+    || path.startsWith('/conversations')
+    || path.startsWith('/v1/realtime-media-sessions');
 }
 
 /** Route composer. */
@@ -76,6 +80,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerSuggestRoutes(app);
   registerVideoRoutes(app);
   registerGithubWebhookRoute(app);
+
+  const realtimeMediaFeatureEnabled = isFeatureEnabled('realtimeMediaEnabled');
+  const realtimeMediaComplianceApproved = isRealtimeMediaComplianceApproved();
+  const realtimeMediaDependenciesConfigured = !!process.env.ELEVENLABS_API_KEY;
+
+  if (realtimeMediaFeatureEnabled && realtimeMediaComplianceApproved && realtimeMediaDependenciesConfigured) {
+    registerRealtimeMediaRoutes(app);
+    logger.info('realtime media session routes registered');
+  } else if (realtimeMediaFeatureEnabled) {
+    const compliance = getRealtimeMediaComplianceStatus();
+    logger.warn({
+      event: 'realtime_media_disabled',
+      complianceApproved: realtimeMediaComplianceApproved,
+      missingCompliance: compliance.missing,
+      dependenciesConfigured: realtimeMediaDependenciesConfigured,
+    }, 'realtime media requested but fail-closed release requirements were not met');
+  }
 
   const voiceFeatureEnabled = isFeatureEnabled('voiceChatEnabled');
   const voiceComplianceApproved = isVoiceChatComplianceApproved();

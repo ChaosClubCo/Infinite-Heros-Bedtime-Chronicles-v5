@@ -115,6 +115,7 @@
     "@types/pg": "^8.21.0",
     "@types/react": "~19.2.18",
     "@types/supertest": "^7.2.1",
+    "@types/ws": "^8.5.13",
     "@vitest/coverage-v8": "^4.1.9",
     "babel-jest": "^29.7.0",
     "babel-plugin-react-compiler": "^19.0.0-beta-714736e-20250131",
