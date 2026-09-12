@@ -89,6 +89,18 @@ export interface CelestialBadge {
   category: "starter" | "theme" | "streak" | "explorer";
 }
 
+export interface VocabularyWord {
+  id: string;
+  word: string;
+  pronunciation: string;
+  definition: string;
+  exampleSentence?: string;
+  category?: string;
+  iconUrl?: string;
+  storyId?: string;
+  unlockedAt?: string;
+}
+
 export interface CompletedStoryRecord {
   id: string;
   title: string;

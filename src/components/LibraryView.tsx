@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Story, StorySeed } from '../types';
+import { Story, StorySeed, VocabularyWord } from '../types';
 import { FEATURED_STORIES } from '../data/featuredStories';
 import { STORY_SEEDS } from '../data/storySeeds';
+import { getVocabularyWordById } from '../data/vocabularyWords';
 import { getHeroById } from '../data/heroes';
 import { generateCustomBedtimeStory } from '../services/aiStoryGenerator';
 import {
@@ -11,8 +12,6 @@ import {
   Moon,
   Compass,
   Bookmark,
-  CheckCircle2,
-  WifiOff,
   SlidersHorizontal,
   RotateCcw,
   Star,
@@ -23,6 +22,8 @@ import {
   Info,
   Rocket,
   Wand2,
+  Mic,
+  Sparkles,
 } from 'lucide-react';
 
 interface LibraryViewProps {
@@ -32,6 +33,7 @@ interface LibraryViewProps {
   isOnline?: boolean;
   onOpenSettings?: () => void;
   onBack?: () => void;
+  onOpenWordSpark?: (word?: VocabularyWord) => void;
 }
 
 export type CategoryFilter = 'all' | 'Cosmic' | 'Magical' | 'Winter' | 'Oceanic' | 'Bedtime Calm';
@@ -47,24 +49,27 @@ const THEMATIC_CATEGORIES: ThematicCategory[] = [
   {
     id: 'Cosmic',
     label: 'Cosmic',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCoKk36V8dFYivJt4Nxgr5NPtOBud3OXjibZM8Uh7idzJhEcPL7mvt13QwqSwFGht3CBlDWIzOHAObliUzIHGegUdVWanS-N7Jm_O3fiKZ7d28fXO0FaR5KesUAgev2m7BiNaSkVrtNJsphLsbE-_ZmOsCpzfyP2EXOtU-ZPdQaTH4AdrjaujtAE2yb3eDJUVP2Aj3j6wKlgDPhG_9vgh7y0Rm6GeD3Zmhy1nGUuewXWNDsA-nog7FeYIUO6TLmdzx96WnwJX610F4',
+    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDyH9PXA0o_H9gQoYIg9PgFWnd-Cxd3VSwHewaRw4gA5TdIgfEwcCnq9Yw6THbfN5W7SCwDuBS76T8VgxNh4serExSasSVjyf8qrgMXtSZLaBLXUawIj6Esrg127wtmk62PAb66DtNeOwAQRZIP4m5DCVpfpzMcPhhfgRwl1GLK_SNVakCNJcZjZk-BvnJOXkez_GRk6AMWImFUScZS4na2fgBsOWB8c4T34v_AWzH9CxAcdfiQIliK2UYnYAevO29Dl3I1rgIlRCg',
   },
   {
     id: 'Magical',
     label: 'Magical',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDXYY5sEzIMkmCZxpwmPxTAE567Z1dYGXa-A7_wdfiAMqqp987qKvzRVYmsJkT2KvDagS5_PWN27siIeMecGGu5QNcoJpZ8wPlSYw8svqSCAm_SjSp0mTlZkjx-9HRZJlPf9Lxxkr3VhCKb43v2aG4Clr47TBOGpQ8XHsfIhJToGG-tpZS7Ad1szU2XibKGhro7j6dummDmk4seXiN2FNl4L1oE1c4uLIu5SIHYsTnyp6LaMk_HllgtttiddjIcWK-cOOw05vMAKVg',
+    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCJenlNSm8Agdp7vd6mQfALJZNiFDhIBkB8Hht3wuHMd-nDtV3lQuE0q8HVa4BXXoXLnfVJKUnQma8M1zCf9ZEVOPpzce-yf6eXuRcaEAREZWno7QEpntEBTbG8jNko_pCSOO92szrwkLWiYIAay2EoWn7-nHlIVPzV7bW6FMtDIKNBZM5DHQZjPP-IuK9j1Urzj1naF8xtdKxaN7tA4IR3aHPMs1w46n3rwKpKGw4phB-h-S3yFLcCuB5H9EHq9iIJgmufMVj3ca4',
   },
   {
     id: 'Winter',
     label: 'Winter',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAxfX-zx6ghTtr6RHzEcaYpeDEtGkLXXY3g-4XH3Feres50IILX_eV9O1441iGHM4RBnND6fMiqIpimJJypLgS2jLxazLFagzTPYje40tVLXCE6tCnXUmZ2M2HQ-00ESHe0bxYx9_RVhH7RcnmRYHgzj2Uozhhz8XH5CA9kDHs0v0eC1Ly6wWvrSXDWxkuNmRbhdMdxAENeqEZ0cAi8cLoBPZHj_eKoHNeDwMHrEXAhVCCwrdTiJ45F2YbX4wK36vRgBKSeYu81yr0',
+    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD6LdjlvZ6ZnBRCfp7ZyVotlcDzYkIoW3s2Ogh13oeY2geHTq8yRv6kAEA8o-SqpRO8alweqStOlOgipAXTYj6XW8S2xW9EP8Ix_RcXJyFd8EZUy8o_5kcBvOAghF_tbwLstaUp51PboVxijo68zMNdPRRZQrYE3l255lV5mqMntpIOJX6Ue1yu-q6VzGSo4gb2U7tfh2Elj45mw_C4VffAU0qdObVBtLBdcA5YMPyprceGZvEK5tRBhHOTM9F5JZGWgBF8zv8XB4o',
   },
   {
     id: 'Oceanic',
     label: 'Oceanic',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD6OXTfL_mvShYyP7odXhDKPfSCtCM4CgJgoXWLzMtI35bPyiF91Zn7B2OOO7udMQoLHd6IqMB_qo_t8nUy1e72GYauFjWmGBe2JMG5ngwMXHG47FD3yVPWmjmtE-EDn2kxCv7Lc3DP4PKnkh4PG8OmzKNdH76TWyNR_mT_XsA4utDdcQN_iBBLlyQpovds5o2q0bkJ0G-uHWWZ3VcU3-jfE8D8oBEgRgL8vQnWyMAW5HRQtXhuXTjDnW29xspQwJEERx68i_7Gl74',
+    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBZo5EmFIH_nt5TK6omVOfrm1JaWYFIzJXU91TbQGFgDF9NA6JiHU8Qbr-JMRrcc8jyyMGcOinQ7QNrS648CrMfIvSGSeXLcDfDRg3wFC9vL92aM77zaUPZlhBK73aPD5vrSM6kfeDaM6QGtEy2DGu_-8tUCE3JMZCd8VK99BPLh9cDtf1w0WexMIxtT0eyyVStj47Ho3Qi6Uvc_9Hyd06yi6FmkIeOTplsGyqtihhUu7WYSjUKXMM3HmVByoQyvdzMzNhuuZMBVB8',
   },
 ];
+
+const HERO_AVATAR_IMAGE =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuCn9p3C34xAYu7Z9zxHYOATTXoMRBJemWHounQiOIgw1h6dBGWO6crSxqkzWzh9mheLP4alAfXSPOQpsHmiYqX-Xek1NR_BhEvHt4Sy8UMluvyisHrM7F5zS0oue3SoNjzawUmElDelySyX4ZPDcJdspEkUPYPzP_aPQLz0QG4tumxQ9fFkoxh8k_VNm8xAfULsUFux1yoFfNiq_tcltyDbXPckoDYo4Johiuls_1oYnIV4uz85ImwaKueArr28cr5r7HJHVzTKaLE';
 
 function getCategoryColor(category: string): { bg: string; text: string; border: string } {
   switch (category) {
@@ -95,7 +100,11 @@ function matchesCategory(storyCategory: string, selectedCat: CategoryFilter): bo
     return storyCategory === 'Oceanic' || storyCategory === 'Ocean Wonders';
   }
   if (selectedCat === 'Magical') {
-    return storyCategory === 'Magical' || storyCategory === 'Bedtime Calm' || storyCategory === 'Heartwarming Fables';
+    return (
+      storyCategory === 'Magical' ||
+      storyCategory === 'Bedtime Calm' ||
+      storyCategory === 'Heartwarming Fables'
+    );
   }
   if (selectedCat === 'Winter') {
     return storyCategory === 'Winter';
@@ -151,6 +160,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   isOnline = true,
   onOpenSettings,
   onBack,
+  onOpenWordSpark,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
@@ -159,8 +169,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   const [showFiltersDrawer, setShowFiltersDrawer] = useState(false);
   const [showSeedsVault, setShowSeedsVault] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState<string>('all');
+  const [isListeningVoice, setIsListeningVoice] = useState(false);
 
-  // Hero Story (Editor's pick: The Starry Whales or The Boy Who Caught a Star)
+  // Hero Story (Editor's pick: The Starry Whales)
   const heroStory = useMemo(() => {
     return (
       FEATURED_STORIES.find((s) => s.id === 'story-starry-whales') ||
@@ -209,6 +220,12 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     });
   }, [searchQuery, selectedCategory, selectedDuration, subTab, savedStoryIds]);
 
+  // Bento stories for All Crafted view
+  const bentoStories = useMemo(() => {
+    // Exclude the hero story from secondary list when hero banner is shown
+    return filteredStories.filter((s) => s.id !== heroStory.id);
+  }, [filteredStories, heroStory.id]);
+
   // Specific groups for UI sections
   const newArrivalStories = useMemo(() => {
     return FEATURED_STORIES.filter(
@@ -248,66 +265,112 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   }, [searchQuery]);
 
   const handleLaunchSeed = (seed: StorySeed) => {
-    const category = getSeedCategory(seed);
-    const duration = getSeedDuration(seed);
-    const generated = generateCustomBedtimeStory({
-      heroId: seed.suggestedHeroId,
-      theme: seed.theme,
+    const hero = getHeroById(seed.suggestedHeroId);
+    const customStory = generateCustomBedtimeStory({
       mode: seed.mode,
-      ageRange: seed.ageRange,
-      customPrompt: seed.title,
-      setting: seed.setting,
-      sidekick: seed.sidekick,
-      problem: seed.problem,
+      hero,
+      childName: hero.name,
+      childAge: 5,
+      theme: seed.theme,
+      tone: 'cozy and gentle',
     });
-    generated.category = category;
-    generated.audioDurationMinutes = duration;
-    onSelectStory(generated);
+    onSelectStory(customStory);
   };
 
-  const handleToggleCategory = (catId: CategoryFilter) => {
-    setSelectedCategory((prev) => (prev === catId ? 'all' : catId));
+  const handleToggleCategory = (category: CategoryFilter) => {
+    setSelectedCategory((prev) => (prev === category ? 'all' : category));
+  };
+
+  // Voice Search / Simulation
+  const handleToggleVoiceSearch = () => {
+    if (isListeningVoice) {
+      setIsListeningVoice(false);
+      return;
+    }
+
+    setIsListeningVoice(true);
+
+    // If browser supports web speech recognition
+    const SpeechRecognition =
+      (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
+        .SpeechRecognition ||
+      (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
+        .webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      try {
+        const recognition = new (SpeechRecognition as new () => any)();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setSearchQuery(transcript);
+          setIsListeningVoice(false);
+        };
+        recognition.onerror = () => {
+          setIsListeningVoice(false);
+        };
+        recognition.onend = () => {
+          setIsListeningVoice(false);
+        };
+        recognition.start();
+        return;
+      } catch {
+        // fallback
+      }
+    }
+
+    // Friendly fallback simulated speech input
+    setTimeout(() => {
+      setSearchQuery('whales');
+      setIsListeningVoice(false);
+    }, 1200);
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6 pb-12 font-jakarta">
+    <div id="library-view-container" className="space-y-6 sm:space-y-8 animate-fade-in max-w-5xl mx-auto">
       {/* Offline Alert Banner */}
       {!isOnline && (
-        <div className="p-4 rounded-2xl bg-indigo-950/60 border border-indigo-500/40 text-indigo-200 shadow-xl flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-900/70 border border-indigo-400/40 flex items-center justify-center text-amber-300 shrink-0">
-              <WifiOff className="w-4 h-4 animate-pulse" />
-            </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
-                Offline Library Active
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950 border border-emerald-500/50 text-emerald-300">
-                  Cached
-                </span>
-              </h4>
-              <p className="text-xs text-indigo-300/80">
-                All master stories and audio narrations are cached on your device.
-              </p>
-            </div>
-          </div>
-          <span className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-emerald-300 px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-600/40 shrink-0">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Ready</span>
-          </span>
+        <div
+          id="library-offline-alert"
+          className="flex items-center gap-2 p-3 rounded-2xl bg-amber-950/60 border border-amber-500/40 text-amber-200 text-xs shadow-lg backdrop-blur-md"
+        >
+          <Moon className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>Offline Mode Active • Audio and stories are served from local starlight cache.</span>
         </div>
       )}
 
-      {/* Top Application Bar matching screenshot header */}
+      {/* Top Application Bar matching screenshots */}
       <header className="flex items-center justify-between gap-4 py-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-900/80 border border-slate-700/60 text-slate-300 hover:text-white hover:border-indigo-400/60 hover:bg-slate-800 transition-all shadow-md"
-          title="Back to Home"
-          aria-label="Back to Home"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2.5">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-900/80 border border-slate-700/60 text-slate-300 hover:text-white hover:border-indigo-400/60 hover:bg-slate-800 transition-all shadow-md"
+              title="Back to Home"
+              aria-label="Back to Home"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
+
+          {/* Hero Avatar with glowing ring */}
+          <div
+            className="w-10 h-10 rounded-full overflow-hidden border-2 border-cyan-400/80 p-0.5 shadow-[0_0_15px_rgba(34,211,238,0.5)] bg-slate-950 shrink-0 cursor-pointer hover:scale-105 transition-transform"
+            title="Cosmic Explorer"
+            onClick={onOpenSettings}
+          >
+            <img
+              src={HERO_AVATAR_IMAGE}
+              alt="Cosmic Hero Avatar"
+              className="w-full h-full object-cover rounded-full"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+        </div>
 
         <div className="text-center">
           <h1 className="font-bangers text-3xl sm:text-4xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 via-white to-purple-200 drop-shadow-[0_0_12px_rgba(192,193,255,0.45)]">
@@ -326,7 +389,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
         </button>
       </header>
 
-      {/* Search Input Bar (rounded capsule matching screenshots) */}
+      {/* Search Input Bar (rounded capsule with Mic button matching screenshots) */}
       <div className="relative max-w-xl mx-auto w-full">
         <div className="relative flex items-center">
           <Search className="w-4 h-4 text-indigo-300/80 absolute left-4 pointer-events-none" />
@@ -336,22 +399,36 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search for a magical tale..."
-            className="w-full pl-11 pr-10 py-3 rounded-full bg-slate-900/70 border border-slate-700/80 hover:border-indigo-500/50 focus:border-indigo-400 text-sm text-white placeholder-slate-400 shadow-xl backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+            className="w-full pl-11 pr-20 py-3 rounded-full bg-slate-900/70 border border-slate-700/80 hover:border-indigo-500/50 focus:border-indigo-400 text-sm text-white placeholder-slate-400 shadow-xl backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
           />
-          {searchQuery && (
+          <div className="absolute right-3 flex items-center gap-1.5">
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="p-1 rounded-full text-slate-400 hover:text-white bg-slate-800/60"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3.5 p-1 rounded-full text-slate-400 hover:text-white bg-slate-800/60"
-              title="Clear search"
+              onClick={handleToggleVoiceSearch}
+              className={`p-1.5 rounded-full transition-all ${
+                isListeningVoice
+                  ? 'bg-rose-500 text-white animate-pulse ring-2 ring-rose-400/50'
+                  : 'text-indigo-300 hover:text-white hover:bg-indigo-900/50'
+              }`}
+              title={isListeningVoice ? 'Listening...' : 'Voice Search'}
             >
-              <X className="w-3.5 h-3.5" />
+              <Mic className="w-4 h-4" />
             </button>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* 4 Thematic Categories Cards matching screenshot row */}
+      {/* 4 Thematic Categories Cards matching screenshots */}
       <section className="space-y-2">
         <div className="flex items-center justify-between">
           <h2 className="text-xs uppercase tracking-widest text-slate-400 font-bold px-1">
@@ -368,7 +445,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-4 gap-2.5 sm:gap-4">
           {THEMATIC_CATEGORIES.map((cat) => {
             const isSelected = selectedCategory === cat.id;
             return (
@@ -376,61 +453,57 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 key={cat.id}
                 type="button"
                 onClick={() => handleToggleCategory(cat.id)}
-                className={`group relative h-28 sm:h-32 rounded-2xl overflow-hidden border transition-all duration-300 text-left flex flex-col justify-end p-3 ${
-                  isSelected
-                    ? 'border-indigo-400 ring-2 ring-indigo-400/50 scale-[1.02] shadow-lg shadow-indigo-900/50'
-                    : 'border-slate-800 hover:border-indigo-500/50 hover:scale-[1.01]'
+                className={`group relative flex flex-col items-center gap-1.5 transition-all text-center ${
+                  isSelected ? 'scale-105' : 'hover:scale-102 opacity-90 hover:opacity-100'
                 }`}
               >
-                <img
-                  src={cat.image}
-                  alt={cat.label}
-                  referrerPolicy="no-referrer"
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
                 <div
-                  className={`absolute inset-0 transition-opacity ${
+                  className={`relative w-full h-24 sm:h-28 rounded-2xl overflow-hidden border transition-all duration-300 shadow-md ${
                     isSelected
-                      ? 'bg-gradient-to-t from-indigo-950/90 via-slate-950/50 to-transparent'
-                      : 'bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent'
+                      ? 'border-cyan-400 ring-2 ring-cyan-400/60 shadow-[0_0_20px_rgba(34,211,238,0.4)]'
+                      : 'border-slate-800 hover:border-indigo-500/50'
                   }`}
-                />
-
-                <div className="relative z-10 flex items-center justify-between">
-                  <span className="font-bold text-sm sm:text-base text-white drop-shadow-md">
-                    {cat.label}
-                  </span>
+                >
+                  <img
+                    src={cat.image}
+                    alt={cat.label}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div
+                    className={`absolute inset-0 transition-opacity ${
+                      isSelected
+                        ? 'bg-gradient-to-t from-cyan-950/80 via-transparent to-transparent'
+                        : 'bg-gradient-to-t from-slate-950/70 via-transparent to-transparent'
+                    }`}
+                  />
                   {isSelected && (
-                    <span className="w-2 h-2 rounded-full bg-indigo-400 ring-4 ring-indigo-400/30" />
+                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-cyan-400 ring-4 ring-cyan-400/40" />
                   )}
                 </div>
+
+                <span
+                  className={`text-xs font-bold transition-colors ${
+                    isSelected ? 'text-cyan-300' : 'text-slate-300 group-hover:text-white'
+                  }`}
+                >
+                  {cat.label}
+                </span>
               </button>
             );
           })}
         </div>
       </section>
 
-      {/* Sub-Navigation Tabs matching screenshots: All Crafted | New Arrivals | Favorites */}
+      {/* Sub-Navigation Tabs matching screenshots: New Arrivals | Favorites | All Crafted */}
       <div className="flex items-center justify-between border-b border-slate-800/80 pt-2">
-        <div className="flex items-center gap-6 text-sm font-bold">
-          <button
-            type="button"
-            onClick={() => setSubTab('crafted')}
-            className={`pb-3 relative transition-colors ${
-              subTab === 'crafted'
-                ? 'text-indigo-300 font-extrabold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-indigo-400 after:shadow-[0_0_8px_rgba(129,140,248,0.9)]'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            All Crafted
-          </button>
-
+        <div className="flex items-center gap-6 sm:gap-8 text-sm font-bold">
           <button
             type="button"
             onClick={() => setSubTab('arrivals')}
             className={`pb-3 relative transition-colors flex items-center gap-1.5 ${
               subTab === 'arrivals'
-                ? 'text-indigo-300 font-extrabold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-indigo-400 after:shadow-[0_0_8px_rgba(129,140,248,0.9)]'
+                ? 'text-indigo-200 font-extrabold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-indigo-400 after:shadow-[0_-2px_8px_rgba(192,193,255,0.8)]'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -443,7 +516,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
             onClick={() => setSubTab('favorites')}
             className={`pb-3 relative transition-colors flex items-center gap-1.5 ${
               subTab === 'favorites'
-                ? 'text-indigo-300 font-extrabold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-indigo-400 after:shadow-[0_0_8px_rgba(129,140,248,0.9)]'
+                ? 'text-indigo-200 font-extrabold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-indigo-400 after:shadow-[0_-2px_8px_rgba(192,193,255,0.8)]'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -453,6 +526,18 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 {savedStoryIds.length}
               </span>
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSubTab('crafted')}
+            className={`pb-3 relative transition-colors ${
+              subTab === 'crafted'
+                ? 'text-indigo-200 font-extrabold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-indigo-400 after:shadow-[0_-2px_8px_rgba(192,193,255,0.8)]'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            All Crafted
           </button>
         </div>
 
@@ -477,7 +562,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
       {/* Expanded Duration Filter Panel */}
       {showFiltersDrawer && (
-        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl backdrop-blur-md flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl backdrop-blur-md flex flex-wrap items-center justify-between gap-3 text-xs animate-fade-in">
           <div className="flex items-center gap-2">
             <span className="text-slate-400 font-semibold">Reading Duration:</span>
             {(['all', 'quick', 'medium', 'extended'] as const).map((dur) => (
@@ -514,190 +599,285 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
         </div>
       )}
 
-      {/* Hero Feature Banner (Editor's Pick: The Starry Whales) */}
-      {subTab === 'crafted' && selectedCategory === 'all' && !searchQuery && heroStory && (
-        <section className="relative rounded-3xl overflow-hidden border border-indigo-500/30 shadow-2xl group">
-          <div className="relative h-64 sm:h-80 w-full overflow-hidden bg-slate-950">
-            <img
-              src={heroStory.coverImage}
-              alt={heroStory.title}
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-            />
-            {/* Cinematic Gradient Overlays */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#05051e] via-[#05051e]/60 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#05051e]/80 via-transparent to-black/40" />
-
-            {/* Content Details */}
-            <div className="absolute inset-0 p-6 sm:p-8 flex flex-col justify-end">
-              <div className="space-y-3 max-w-xl">
-                <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-indigo-600 text-white shadow-lg shadow-indigo-600/40 border border-indigo-400">
-                    Editor&apos;s Pick
-                  </span>
-                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-black/60 backdrop-blur-md text-amber-300 border border-amber-500/30">
-                    <Clock className="w-3 h-3" />
-                    <span>{heroStory.audioDurationMinutes || 12} min read • Cosmic</span>
-                  </span>
-                </div>
-
-                <h3 className="text-2xl sm:text-4xl font-bangers tracking-wider text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
-                  {heroStory.title}
-                </h3>
-
-                <p className="text-xs sm:text-sm text-slate-200/90 line-clamp-2 leading-relaxed">
-                  {heroStory.summary}
-                </p>
-
-                <div className="flex items-center gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => onSelectStory(heroStory)}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/40 transition-all hover:scale-105"
-                  >
-                    <Play className="w-4 h-4 fill-current" />
-                    <span>Listen Story</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onSaveStory(heroStory)}
-                    className={`p-2.5 rounded-full border transition-all ${
-                      savedStoryIds.includes(heroStory.id)
-                        ? 'bg-amber-500/20 border-amber-400 text-amber-300'
-                        : 'bg-slate-900/80 border-slate-700 text-slate-300 hover:text-white'
-                    }`}
-                    title="Bookmark Story"
-                  >
-                    <Bookmark className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPreviewStory(heroStory)}
-                    className="p-2.5 rounded-full border border-slate-700 bg-slate-900/80 text-slate-300 hover:text-white hover:border-slate-500 transition-all"
-                    title="Story Details"
-                  >
-                    <Info className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
+      {/* Vocabulary Spark Quick Banner (matching the 5th screenshot feature) */}
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-950/50 via-indigo-950/60 to-purple-950/50 border border-amber-400/40 shadow-xl backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/60 flex items-center justify-center text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)] shrink-0">
+            <Sparkles className="w-5 h-5 animate-pulse" />
           </div>
-        </section>
-      )}
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-300">
+                New Word Spark
+              </span>
+              <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-amber-400/20 text-amber-200 border border-amber-400/40">
+                Ages 3–9
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm font-bold text-white">
+              Discover: <span className="font-bangers text-amber-300 text-base tracking-wider">CONSTELLATION</span> &bull; A group of stars making pictures!
+            </p>
+          </div>
+        </div>
 
-      {/* Main Grid: Stories (Bento-style layout matching screenshots) */}
+        <button
+          type="button"
+          onClick={() => {
+            if (onOpenWordSpark) {
+              onOpenWordSpark(getVocabularyWordById('vocab-constellation'));
+            }
+          }}
+          className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bangers text-xs sm:text-sm tracking-wider shadow-[0_0_15px_rgba(245,158,11,0.4)] active:scale-95 transition-all shrink-0 flex items-center gap-1.5"
+        >
+          <span>LEARN WORD</span>
+          <span>🚀</span>
+        </button>
+      </div>
+
+      {/* Main Bento Grid: Story Cards matching screenshots */}
       <section className="space-y-4">
         {filteredStories.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredStories.map((story) => {
-              const isSaved = savedStoryIds.includes(story.id);
-              const catColors = getCategoryColor(story.category);
-
-              return (
+          <div className="space-y-4">
+            {/* Bento Layout: Hero Card + Adjacent/Subsequent Bento Cards */}
+            {subTab === 'crafted' && selectedCategory === 'all' && !searchQuery ? (
+              <>
+                {/* 1. Editor's Pick: The Starry Whales */}
                 <div
-                  key={story.id}
-                  className="group relative rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-indigo-500/60 shadow-xl transition-all duration-300 hover:scale-[1.01] overflow-hidden flex flex-col justify-between"
+                  onClick={() => onSelectStory(heroStory)}
+                  className="group relative h-72 sm:h-80 w-full rounded-3xl overflow-hidden border border-indigo-500/40 shadow-[0_8px_30px_rgba(0,0,0,0.6)] cursor-pointer bg-slate-950 transition-all hover:scale-[1.01]"
                 >
-                  {/* Image with Tag Overlay */}
-                  <div className="relative h-44 w-full overflow-hidden bg-slate-950">
-                    <img
-                      src={story.coverImage}
-                      alt={story.title}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-black/40" />
+                  <img
+                    src={heroStory.coverImage}
+                    alt={heroStory.title}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#05051e] via-[#05051e]/50 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#05051e]/80 via-transparent to-black/30" />
 
-                    {/* Top Badges */}
-                    <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-1.5">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-md border ${catColors.bg} ${catColors.text} ${catColors.border}`}
-                      >
-                        {story.badge || story.category}
-                      </span>
+                  {/* Top Left: EDITOR'S PICK pill */}
+                  <div className="absolute top-4 left-4">
+                    <span className="px-3 py-1 rounded-full text-xs font-bangers tracking-wider uppercase bg-indigo-600/90 text-white shadow-lg shadow-indigo-600/50 border border-indigo-400 backdrop-blur-md">
+                      EDITOR&apos;S PICK
+                    </span>
+                  </div>
 
-                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-black/70 backdrop-blur-md text-amber-200 border border-amber-500/30">
-                        <Clock className="w-2.5 h-2.5 text-amber-400" />
-                        <span>{story.audioDurationMinutes || 10}m</span>
-                      </span>
-                    </div>
-
-                    {/* Quick Play Button on Hover */}
+                  {/* Top Right: Bookmark + Word Spark badge */}
+                  <div className="absolute top-4 right-4 flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => onSelectStory(story)}
-                      className="absolute inset-0 m-auto w-12 h-12 rounded-full bg-indigo-600/90 text-white flex items-center justify-center shadow-xl opacity-0 group-hover:opacity-100 transition-opacity transform scale-90 group-hover:scale-100 duration-300 hover:bg-indigo-500"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onOpenWordSpark) {
+                          onOpenWordSpark(getVocabularyWordById('vocab-constellation'));
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/30 text-amber-200 border border-amber-400/50 backdrop-blur-md flex items-center gap-1 hover:bg-amber-500/40 transition-all"
+                      title="Word Spark inside this story!"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <span>Spark: Constellation</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSaveStory(heroStory);
+                      }}
+                      className={`p-2 rounded-full backdrop-blur-md border transition-all ${
+                        savedStoryIds.includes(heroStory.id)
+                          ? 'bg-amber-500/30 border-amber-400 text-amber-300'
+                          : 'bg-black/60 border-white/20 text-white hover:border-white/50'
+                      }`}
+                      title="Bookmark"
+                    >
+                      <Bookmark className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Bottom Text Details */}
+                  <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 flex items-end justify-between gap-4">
+                    <div>
+                      <h3 className="text-2xl sm:text-4xl font-bangers tracking-wider text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] mb-1">
+                        {heroStory.title}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-indigo-200 font-medium drop-shadow-md">
+                        {heroStory.audioDurationMinutes || 12} min read &bull; Cosmic
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectStory(heroStory);
+                      }}
+                      className="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-xl shadow-indigo-600/50 transition-all active:scale-95 shrink-0"
                       title="Play story"
                     >
                       <Play className="w-5 h-5 fill-current ml-0.5" />
                     </button>
                   </div>
-
-                  {/* Body Content */}
-                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="text-[11px] text-indigo-300 font-medium">
-                          {story.heroName} • {story.theme}
-                        </span>
-                        {story.rating && (
-                          <span className="flex items-center gap-0.5 text-[11px] font-bold text-amber-300">
-                            <Star className="w-3 h-3 fill-current text-amber-400" />
-                            <span>{story.rating}</span>
-                          </span>
-                        )}
-                      </div>
-
-                      <h4 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors line-clamp-1">
-                        {story.title}
-                      </h4>
-
-                      <p className="text-xs text-slate-300/80 line-clamp-2 mt-1 leading-relaxed">
-                        {story.summary}
-                      </p>
-                    </div>
-
-                    {/* Card Actions */}
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-800/80">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewStory(story)}
-                        className="text-xs font-semibold text-slate-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
-                      >
-                        <Info className="w-3.5 h-3.5" />
-                        <span>Preview</span>
-                      </button>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => onSaveStory(story)}
-                          className={`p-1.5 rounded-lg border text-xs transition-colors ${
-                            isSaved
-                              ? 'bg-amber-950/60 border-amber-500 text-amber-300'
-                              : 'bg-slate-800/60 border-slate-700 text-slate-300 hover:text-white'
-                          }`}
-                          title="Bookmark story"
-                        >
-                          <Bookmark className="w-3.5 h-3.5" />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => onSelectStory(story)}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg font-bold text-xs bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition-all"
-                        >
-                          <Play className="w-3 h-3 fill-current" />
-                          <span>Listen</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
                 </div>
-              );
-            })}
+
+                {/* 2. Secondary Bento Grid (Candy Cloud, Midnight Explorers, Galactic Lullaby, etc.) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {bentoStories.map((story) => {
+                    const isSaved = savedStoryIds.includes(story.id);
+                    const catColors = getCategoryColor(story.category);
+
+                    return (
+                      <div
+                        key={story.id}
+                        onClick={() => onSelectStory(story)}
+                        className="group relative h-64 sm:h-72 rounded-3xl overflow-hidden border border-slate-800 hover:border-indigo-500/60 shadow-[0_8px_25px_rgba(0,0,0,0.5)] cursor-pointer bg-slate-950 transition-all hover:scale-[1.01]"
+                      >
+                        <img
+                          src={story.coverImage}
+                          alt={story.title}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#05051e] via-[#05051e]/40 to-transparent" />
+
+                        {/* Top Badges */}
+                        <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-md border ${catColors.bg} ${catColors.text} ${catColors.border}`}
+                          >
+                            {story.badge || story.category}
+                          </span>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewStory(story);
+                              }}
+                              className="p-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-slate-300 hover:text-white"
+                              title="Details"
+                            >
+                              <Info className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSaveStory(story);
+                              }}
+                              className={`p-1.5 rounded-full backdrop-blur-md border transition-all ${
+                                isSaved
+                                  ? 'bg-amber-500/30 border-amber-400 text-amber-300'
+                                  : 'bg-black/60 border-white/20 text-white hover:border-white/50'
+                              }`}
+                              title="Bookmark"
+                            >
+                              <Bookmark className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Bottom Text */}
+                        <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
+                          <div>
+                            <h4 className="text-xl sm:text-2xl font-bangers tracking-wider text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] mb-0.5">
+                              {story.title}
+                            </h4>
+                            <p className="text-xs text-indigo-200 font-medium drop-shadow-md">
+                              {story.audioDurationMinutes} min read &bull; {story.badge || story.category}
+                            </p>
+                          </div>
+
+                          <div className="w-10 h-10 rounded-full bg-indigo-600/90 group-hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg transition-all shrink-0">
+                            <Play className="w-4 h-4 fill-current ml-0.5" />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              /* Filtered / Search / Favorites Grid */
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredStories.map((story) => {
+                  const isSaved = savedStoryIds.includes(story.id);
+                  const catColors = getCategoryColor(story.category);
+
+                  return (
+                    <div
+                      key={story.id}
+                      onClick={() => onSelectStory(story)}
+                      className="group relative h-64 rounded-3xl overflow-hidden border border-slate-800 hover:border-indigo-500/60 shadow-xl cursor-pointer bg-slate-950 transition-all hover:scale-[1.01]"
+                    >
+                      <img
+                        src={story.coverImage}
+                        alt={story.title}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#05051e] via-[#05051e]/40 to-transparent" />
+
+                      {/* Top Badges */}
+                      <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-md border ${catColors.bg} ${catColors.text} ${catColors.border}`}
+                        >
+                          {story.badge || story.category}
+                        </span>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewStory(story);
+                            }}
+                            className="p-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-slate-300 hover:text-white"
+                            title="Details"
+                          >
+                            <Info className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSaveStory(story);
+                            }}
+                            className={`p-1.5 rounded-full backdrop-blur-md border transition-all ${
+                              isSaved
+                                ? 'bg-amber-500/30 border-amber-400 text-amber-300'
+                                : 'bg-black/60 border-white/20 text-white hover:border-white/50'
+                            }`}
+                            title="Bookmark"
+                          >
+                            <Bookmark className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Bottom Text */}
+                      <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
+                        <div>
+                          <h4 className="text-xl font-bangers tracking-wider text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] mb-0.5">
+                            {story.title}
+                          </h4>
+                          <p className="text-xs text-indigo-200 font-medium drop-shadow-md">
+                            {story.audioDurationMinutes} min read &bull; {story.category}
+                          </p>
+                        </div>
+
+                        <div className="w-9 h-9 rounded-full bg-indigo-600/90 group-hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg transition-all shrink-0">
+                          <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : (
           <div className="p-8 rounded-3xl bg-slate-900/60 border border-slate-800 text-center space-y-3">
@@ -763,7 +943,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                       <Clock className="w-2.5 h-2.5" />
                       {story.audioDurationMinutes}m
                     </span>
-                    <span className="text-[10px] font-medium text-slate-500">•</span>
+                    <span className="text-[10px] font-medium text-slate-500">&bull;</span>
                     <span className="text-[10px] text-indigo-300 font-medium">
                       {story.category}
                     </span>
@@ -818,7 +998,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                         {story.rating}
                       </span>
                     )}
-                    <span className="text-[10px] font-medium text-slate-500">•</span>
+                    <span className="text-[10px] font-medium text-slate-500">&bull;</span>
                     <span className="text-[10px] text-indigo-300 font-medium">
                       {story.audioDurationMinutes}m
                     </span>
@@ -858,7 +1038,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
         </button>
 
         {showSeedsVault && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4 animate-fade-in">
             {filteredSeeds.slice(0, 12).map((seed) => {
               const hero = getHeroById(seed.suggestedHeroId);
               const duration = getSeedDuration(seed);
@@ -935,9 +1115,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
             <div className="p-6 space-y-4">
               <div>
                 <div className="text-xs text-indigo-300 font-medium mb-1">
-                  Hero: {previewStory.heroName} • {previewStory.theme}
+                  Hero: {previewStory.heroName} &bull; {previewStory.theme}
                 </div>
-                <h3 className="text-xl font-bold font-playfair text-white">
+                <h3 className="text-2xl font-bangers tracking-wider text-white">
                   {previewStory.title}
                 </h3>
                 <p className="text-xs text-slate-300 leading-relaxed mt-2">
@@ -959,6 +1139,27 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                   </span>
                 )}
               </div>
+
+              {/* Word Spark in this story */}
+              {previewStory.id === 'story-starry-whales' && (
+                <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 text-amber-200">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span>Includes Word Spark: <strong>CONSTELLATION</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onOpenWordSpark) {
+                        onOpenWordSpark(getVocabularyWordById('vocab-constellation'));
+                      }
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-bold text-[11px]"
+                  >
+                    View Spark
+                  </button>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="flex items-center gap-3 pt-3 border-t border-slate-800">

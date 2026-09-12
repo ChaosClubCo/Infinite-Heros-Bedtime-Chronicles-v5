@@ -8,11 +8,11 @@ import { useSyncOffline } from "@/lib/useSyncOffline";
  * multiple independent instances can each read the same queue on reconnect
  * and race to POST the same batch before any of them clears it.
  */
-interface SyncOfflineState {
+export interface SyncOfflineState {
   isSyncing: boolean;
 }
 
-const SyncOfflineContext = createContext<SyncOfflineState | null>(null);
+export const SyncOfflineContext = createContext<SyncOfflineState | null>(null);
 
 export function SyncOfflineProvider({ children }: { children: React.ReactNode }) {
   const value = useSyncOffline();

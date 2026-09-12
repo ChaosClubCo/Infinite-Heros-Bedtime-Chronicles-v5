@@ -6,6 +6,7 @@ import { DailyAffirmationWidget } from './DailyAffirmationWidget';
 import { StoryGalaxyMap } from './StoryGalaxyMap';
 import { DailyStreakMilestoneCard } from './DailyStreakMilestoneCard';
 import { GoodMorningOverlay } from './GoodMorningOverlay';
+import { QuickStartBedtimeCard } from './QuickStartBedtimeCard';
 import { isExactMilestone, triggerSubtleConfettiShower } from '../utils/confetti';
 import {
   resolveSavedThemes,
@@ -269,6 +270,17 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
           )}
         </div>
       )}
+
+      {/* QUICK-START BEDTIME CARD (Time-of-day & Historical Pattern AI Routine Suggester) */}
+      <QuickStartBedtimeCard
+        onSelectStory={onSelectStory}
+        onOpenGuidedBreathing={onOpenGuidedBreathing || (() => {})}
+        childName={childName}
+        childAge={childAge}
+        completedStories={completedStories}
+        savedStories={activeSavedStories}
+        streakCount={streakCount}
+      />
 
       {/* STORY GALAXY MAP: Interactive Visual Cosmic Constellations & Revisit Hub */}
       <StoryGalaxyMap

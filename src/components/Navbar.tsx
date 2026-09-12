@@ -1,5 +1,6 @@
 import React from 'react';
 import { getAvatarById } from '../data/avatars';
+import { useSyncOfflineStatus } from '../context/SyncOfflineContext';
 import {
   Sparkles,
   BookOpen,
@@ -11,6 +12,8 @@ import {
   Wand2,
   WifiOff,
   Wind,
+  RefreshCw,
+  Cloud,
 } from 'lucide-react';
 
 export type NavTab = 'home' | 'gallery' | 'madlibs' | 'create' | 'library' | 'saved' | 'trophies' | 'settings';
@@ -25,6 +28,7 @@ interface NavbarProps {
   childName?: string;
   childAvatar?: string;
   isOnline?: boolean;
+  isSyncing?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -37,8 +41,23 @@ export const Navbar: React.FC<NavbarProps> = ({
   childName = 'Little Explorer',
   childAvatar = 'fox',
   isOnline = true,
+  isSyncing: isSyncingProp,
 }) => {
   const avatarObj = getAvatarById(childAvatar);
+
+  // Read sync state from context
+  let contextSyncState: { isSyncing: boolean; triggerManualSync?: () => Promise<void> } = {
+    isSyncing: false,
+  };
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    contextSyncState = useSyncOfflineStatus();
+  } catch {
+    // Fallback if rendered outside of SyncOfflineProvider
+  }
+
+  const isSyncing = isSyncingProp !== undefined ? isSyncingProp : contextSyncState.isSyncing;
+  const triggerManualSync = contextSyncState.triggerManualSync;
 
 
   return (
@@ -111,6 +130,35 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden sm:inline">Offline Mode</span>
             </div>
           )}
+
+          {/* Offline Data Syncing Indicator Badge (SyncOfflineContext) */}
+          {isSyncing ? (
+            <div
+              id="navbar-syncing-indicator"
+              role="status"
+              aria-live="polite"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-950/90 via-cyan-950/80 to-purple-950/90 border border-cyan-400/60 text-cyan-300 text-xs font-bold shadow-lg shadow-cyan-500/20 backdrop-blur-md animate-pulse cursor-pointer hover:border-cyan-300 transition-all"
+              title="Syncing offline bedtime data, stories, and journal to server..."
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-cyan-300 animate-spin shrink-0" />
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
+              </span>
+              <span className="hidden sm:inline">Syncing offline data...</span>
+              <span className="sm:hidden">Syncing...</span>
+            </div>
+          ) : isOnline && triggerManualSync ? (
+            <button
+              id="navbar-manual-sync-btn"
+              type="button"
+              onClick={() => triggerManualSync()}
+              className="p-1.5 rounded-xl bg-slate-900/60 hover:bg-slate-800 border border-slate-700/50 hover:border-cyan-500/40 text-slate-400 hover:text-cyan-300 transition-colors hidden sm:flex items-center justify-center"
+              title="All offline data synced with server • Click to refresh sync"
+            >
+              <Cloud className="w-4 h-4" />
+            </button>
+          ) : null}
 
           {/* Bedtime Reading Streak Badge */}
           <div

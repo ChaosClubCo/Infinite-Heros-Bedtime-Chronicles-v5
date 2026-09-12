@@ -16,7 +16,7 @@ export const FEATURED_STORIES: Story[] = [
     audioDurationMinutes: 12,
     rating: 4.9,
     tags: ["Cosmic", "Editor's Pick", "Lullaby"],
-    coverImage: "https://lh3.googleusercontent.com/aida-public/AB6AXuDU01GMHkodjoEALGrW-gPsSWLA43av0ycB6PWWTGFWPyhqoxc75Dv98XXrZylRb_MBUkiZVD1hH6bnl11gQXQzw3uiHT_N_zDaTQdVYcfNTPNgTM0D820i1hGDb9NsRXpziCHmU8w4Sa6_LkgKo-BuV1rMMYKsW3vpWuDX7SALpoO4sg9PaKdHZswEmp-0NUwaPvj6IYVWvHgJ1d9LRbK2UKW39PmknMqZ84ITvTr95XdRCAAYtaUj8bjH1X-DJgYWlS2wsGRp4Hg",
+    coverImage: "https://lh3.googleusercontent.com/aida-public/AB6AXuDOZPy_Q_zcpHWk8c0ZByba0xpzp0ELTwUmG7hbeOmPkbmflh2U8nEiVIWhiQq2TiH8AV2k1ppNYpYkvnN1DVb5pfBKJ-OwofaJHt5HcsuWt5dbHp3WGmPCROFNghkRkxu3MZGZ1jDBYozl0tfA_dkM5XJWCLsSWSyIPR8OH-AksgK8Z5mRXWy4VBNw_-Y6rnCML6CmEKzbQOU62j8emDFu5NbUI2Rhn8_LTD4uAxg8P1SCk-oVWZ87WbrM-YFhzya8VbuUzY3rjCM",
     scenes: [
       {
         id: "scene-sw-1",
@@ -70,6 +70,398 @@ export const FEATURED_STORIES: Story[] = [
         isFinal: true,
         text: "The starry whales circled one last time before resting on a bed of dark velvet space. Their song faded into a gentle whisper: 'Sleep now, little hero. The cosmos is peaceful, and tomorrow waits with open arms.'",
         sleepAffirmation: "Deep, soothing rest until the morning light."
+      }
+    ]
+  },
+  {
+    id: "story-candy-cloud",
+    title: "The Candy Cloud Kingdom",
+    category: "Magical",
+    theme: "imagination",
+    mode: "sleep",
+    ageRange: "4-6",
+    heroId: "hero-2",
+    heroName: "Rowan",
+    summary: "A whimsical journey to a pastel wonderland with trees made of soft pink cotton candy and rivers of warm vanilla milk.",
+    badge: "Dreamy",
+    audioDurationMinutes: 8,
+    rating: 4.8,
+    tags: ["Dreamy", "Magical"],
+    coverImage: "https://lh3.googleusercontent.com/aida-public/AB6AXuCFHlQWyBsvzhpDnJ-y2NgGawqRgRP9YriKsWA_wXu8-jP-nFqIDtYAS745c1Ti9SMwOiPveQzh8y6-lrKlSC-0VB6mFpweRP58KhGKHW1_Epo_cGNNv1adNcMaFLVNNmOcu48V9xETlG6IBvJ2Vose5l25F6rWL4j0B4JJNhMGWkaJPcqIpwjPeNh3QgugRYypNfjxbMWN4W8tCkv9djm_tUMlHRuCrPBOyaon72g-UBkuJrT4xJ37phryKjjnh0LW3f10zFfy_48",
+    scenes: [
+      {
+        id: "scene-cc-1",
+        sceneNumber: 1,
+        totalScenes: 3,
+        text: "In the gentle pastel sunset, where clouds taste like strawberry spun sugar and breezes smell of sweet cinnamon, stands the great Candy Cloud Tree. Its leaves are soft and fluffy like giant pillows.",
+        sleepAffirmation: "Let sweet, happy thoughts fill your imagination.",
+        choices: [
+          {
+            id: "ccc1",
+            text: "Take a restful nap beneath the cotton-candy boughs",
+            action: "nap_tree",
+            nextSceneId: "scene-cc-2"
+          }
+        ]
+      },
+      {
+        id: "scene-cc-2",
+        sceneNumber: 2,
+        totalScenes: 3,
+        text: "Friendly sugar-sparrows flutter down, carrying ribbons of marshmallow fluff to tuck you in. The warm vanilla stream hums a slow, cozy lullaby as soft marshmallow snowflakes drift down.",
+        sleepAffirmation: "Feel every muscle relax into soft comfort.",
+        choices: [
+          {
+            id: "ccc2",
+            text: "Drift away on a pink cloud boat down the honey stream",
+            action: "drift_boat",
+            nextSceneId: "scene-cc-3"
+          }
+        ]
+      },
+      {
+        id: "scene-cc-3",
+        sceneNumber: 3,
+        totalScenes: 3,
+        isFinal: true,
+        text: "The cloud boat comes to rest in a sleepy lagoon of sweet warm dreams. The candy stars above glow with comforting rose-gold light. Goodnight, sweet dreamer.",
+        sleepAffirmation: "Gentle dreams, soft pillows, and sweet rest."
+      }
+    ]
+  },
+  {
+    id: "story-galactic-lullaby",
+    title: "Galactic Lullaby",
+    category: "Cosmic",
+    theme: "comfort",
+    mode: "sleep",
+    ageRange: "2-4",
+    heroId: "hero-1",
+    heroName: "Koda",
+    summary: "A gentle celestial lullaby echoing across the glowing spiral arms of the galaxy, rocking every star and child to sweet sleep.",
+    badge: "Lullaby",
+    audioDurationMinutes: 5,
+    rating: 4.9,
+    tags: ["Cosmic", "Lullaby", "Sleep"],
+    coverImage: "https://lh3.googleusercontent.com/aida-public/AB6AXuALsjGK05LhvtDSF03PYiRoq8KS_xO1zs-BB1GFJb6LPH0LN9ui9y6Byx5Jt__08r-K66Uw1Y0pVkZkyk0SzuZ2yDcqgjPiZpS4O6rslvIzWat9--ZQua8DK9F3neN-sHsGlxfQnnRuGgWJAPun4yC6NBMCpkVitVMtCFBAO3TMubHxhJuBPR9ZUP0Jr0aQbHHnk-8b6bQabXF-sJUuG_dVyXnRz3ZLpRLIY9RRCt0CovAyLaUOM2yWVKaqMOg1zosaGtzm8EW6oZU",
+    scenes: [
+      {
+        id: "scene-gl-1",
+        sceneNumber: 1,
+        totalScenes: 3,
+        text: "Across the quiet cosmos, the Milky Way began to chime with a soft, harmonic chime. Floating on a raft of purple starlight, Koda listened as the stars hummed a bedtime song.",
+        sleepAffirmation: "Listen to the quiet rhythm of your breath.",
+        choices: [
+          {
+            id: "cgl1",
+            text: "Let the celestial chime rock you gently",
+            action: "rock_gently",
+            nextSceneId: "scene-gl-2"
+          }
+        ]
+      },
+      {
+        id: "scene-gl-2",
+        sceneNumber: 2,
+        totalScenes: 3,
+        text: "The comet tails curled up like sleepy kittens, resting on soft pillows of violet cosmic dust. Every planet dimmed its glow, wrapping itself in the peaceful blanket of the night.",
+        sleepAffirmation: "Soft, warm, and surrounded by kind starlight.",
+        choices: [
+          {
+            id: "cgl2",
+            text: "Close your eyes and breathe with the stars",
+            action: "sleep_stars",
+            nextSceneId: "scene-gl-3"
+          }
+        ]
+      },
+      {
+        id: "scene-gl-3",
+        sceneNumber: 3,
+        totalScenes: 3,
+        isFinal: true,
+        text: "The song gently settled into a warm, quiet heartbeat of peace. The entire galaxy was slumbering in deep, peaceful sleep. Sweet dreams, brave traveler.",
+        sleepAffirmation: "Peaceful rest all through the cozy night."
+      }
+    ]
+  },
+  {
+    id: "story-stardust-dreams",
+    title: "Stardust Dreams",
+    category: "Cosmic",
+    theme: "wonder",
+    mode: "sleep",
+    ageRange: "4-6",
+    heroId: "hero-1",
+    heroName: "Nova",
+    summary: "Drift across floating crystal islands where starlight falls like glittering warm rain, turning every quiet thought into sweet dreams.",
+    badge: "Starlight",
+    audioDurationMinutes: 15,
+    rating: 4.9,
+    tags: ["Cosmic", "Starlight", "Wonder"],
+    coverImage: "https://lh3.googleusercontent.com/aida-public/AB6AXuCV0r-13wZoWe6t7ggpXxpGfB5saNFjyr7dOwqsdqUrJRXlg8vx-cq4ShWFAfiNYJkfw333ZJcQM5SkH_ugQBku-kZ4kfEJoe9giVwLDYkM8qTkbrdxBmKu4PNsgTYwYrxzipeeW8E90HvVwteWvCm0t7T7Pk_-VfBxg2huikiYSFnZYSL4FgGsH0i17O1g8ZxnR6SiQ_o9QD7128nPwNXl3Txu6yuQ5L7M5XL2d4_fAmRTz80qJ7i3w7ckN3pC-nJjxdVpAsq-cXg",
+    scenes: [
+      {
+        id: "scene-sd-1",
+        sceneNumber: 1,
+        totalScenes: 3,
+        text: "High above the sleepy earth, glowing crystal islands drift slowly through a river of stardust. Nova stepped onto a bridge made of woven golden rays that felt as soft as velvet.",
+        sleepAffirmation: "Your thoughts are gentle, light, and floating free.",
+        choices: [
+          {
+            id: "csd1",
+            text: "Catch a warm drop of glowing stardust",
+            action: "catch_dust",
+            nextSceneId: "scene-sd-2"
+          }
+        ]
+      },
+      {
+        id: "scene-sd-2",
+        sceneNumber: 2,
+        totalScenes: 3,
+        text: "The stardust dissolved into a soft golden warmth that spread through Nova's fingers all the way to their toes. A gentle cosmic owl cooed from a weeping willow made of pure light.",
+        sleepAffirmation: "Every muscle relaxes into restful comfort.",
+        choices: [
+          {
+            id: "csd2",
+            text: "Lie down on the starlight meadow",
+            action: "lie_meadow",
+            nextSceneId: "scene-sd-3"
+          }
+        ]
+      },
+      {
+        id: "scene-sd-3",
+        sceneNumber: 3,
+        totalScenes: 3,
+        isFinal: true,
+        text: "The sky whispered a gentle bedtime blessing: 'Rest now, child of the stars. The universe holds you safe tonight and always.' Nova closed their eyes, smiling as they dreamed.",
+        sleepAffirmation: "Protected, cherished, and deeply asleep."
+      }
+    ]
+  },
+  {
+    id: "story-midnight-explorers",
+    title: "The Midnight Explorers",
+    category: "Magical",
+    theme: "courage",
+    mode: "classic",
+    ageRange: "6-8",
+    heroId: "hero-3",
+    heroName: "Leo",
+    summary: "When the clock strikes midnight, a secret treehouse opens its mystical doors to reveal an enchanted forest glowing with friendly fireflies.",
+    badge: "Adventure",
+    audioDurationMinutes: 15,
+    rating: 4.8,
+    tags: ["Adventure", "Magical", "Forest"],
+    coverImage: "https://lh3.googleusercontent.com/aida-public/AB6AXuDOCpJ85mKWdeHP35l07o2KAQN5fI-89tZTAssmLDGeqGocl12WUBuXCfMLGOrnhzTHsHM6A3q3HMeRQ1jKg86xGFeQdB_JslN8IrLO9esqhj2RDy14BNYuz3QW789jiwcalpJKP91I2wHPN3ASxaWZet6ZWiO_YnM57eq4QpKFZ7RezyHodcyJL-82hDJHkG3gHlO_DC7I68wjv89d12trcfP9-u1g7WAeiEKE3Ioet68xsvoTK3dkVuoxIMXFhtadpya6k1Vf2Uw",
+    scenes: [
+      {
+        id: "scene-me-1",
+        sceneNumber: 1,
+        totalScenes: 3,
+        text: "Deep in the whispery woods, Leo climbed the winding ladder to the Midnight Treehouse. Inside, lanterns glowed with bioluminescent blue moss that cast tranquil shadows across wooden maps.",
+        sleepAffirmation: "Curiosity and kindness guide your peaceful night.",
+        choices: [
+          {
+            id: "cme1",
+            text: "Look through the brass looking-glass at the firefly valley",
+            action: "look_glass",
+            nextSceneId: "scene-me-2"
+          }
+        ]
+      },
+      {
+        id: "scene-me-2",
+        sceneNumber: 2,
+        totalScenes: 3,
+        text: "Down below, a family of sleepy deer was drinking from a pond where the moon was mirrored in perfect stillness. The forest air was fragrant with fresh pine and sweet lavender blossoms.",
+        sleepAffirmation: "Breathe in the calm scent of the nocturnal forest.",
+        choices: [
+          {
+            id: "cme2",
+            text: "Curl up in the cozy sleeping loft with a warm blanket",
+            action: "curl_loft",
+            nextSceneId: "scene-me-3"
+          }
+        ]
+      },
+      {
+        id: "scene-me-3",
+        sceneNumber: 3,
+        totalScenes: 3,
+        isFinal: true,
+        text: "The treehouse swayed gently like a cradled boat in a calm bay. Leo tucked in snug, listening to the soft rustle of leaves until morning light. Goodnight, brave explorer.",
+        sleepAffirmation: "Safe in your treehouse, resting peacefully."
+      }
+    ]
+  },
+  {
+    id: "story-lunas-lullaby",
+    title: "Luna's Lullaby",
+    category: "Bedtime Calm",
+    theme: "comfort",
+    mode: "sleep",
+    ageRange: "2-4",
+    heroId: "hero-1",
+    heroName: "Koda",
+    summary: "Luna the moon fairy sprinkles sleepy silver dust across sleepy eyes, humming a calm melody of quiet nights and gentle dawn.",
+    badge: "Bedtime Calm",
+    audioDurationMinutes: 5,
+    rating: 4.9,
+    tags: ["Bedtime Calm", "Lullaby", "Sleep"],
+    coverImage: "https://lh3.googleusercontent.com/aida-public/AB6AXuAWuWtbGxPhvhv7rlt-EYRik9minKYAOR0sU9Ko3FWq3PrwbMR1X2X4w2_vkqbQX0DL8xRqjvKfDSHOV1NXF7QV5k1-E0RKNFcZK7p6V6a2WHOhEc5I0YYX1LYtOuDqXATo5vD_ZfEdpgL0loL3kFV9yU-CMXF-vwNfEXs9prYMegOf9NM_mrGIViI9JL5vMAu_ai3sPkG6N-5l99tBe3OfUVpGTosojTtTYzpQx1uIioW_N75MK27FLQDKNa6BaQh8AWxF4eyNxaM",
+    scenes: [
+      {
+        id: "scene-llu-1",
+        sceneNumber: 1,
+        totalScenes: 3,
+        text: "From the silver rim of the crescent moon, Luna smiled down with tender warmth. In her soft hands she held a tiny vial of glowing moonbeams, ready to sprinkle restful slumber.",
+        sleepAffirmation: "You are cradled in moonbeams and sweet comfort.",
+        choices: [
+          {
+            id: "cllu1",
+            text: "Let Luna tuck you in with a velvet cloud blanket",
+            action: "tuck_cloud",
+            nextSceneId: "scene-llu-2"
+          }
+        ]
+      },
+      {
+        id: "scene-llu-2",
+        sceneNumber: 2,
+        totalScenes: 3,
+        text: "Luna's gentle melody floated like a feather on the warm night air: 'Hush now, little one, the stars are watching over you. Close your eyes and dream of magic.'",
+        sleepAffirmation: "Deep, soothing stillness fills your whole room.",
+        choices: [
+          {
+            id: "cllu2",
+            text: "Drift off into sweet dreams",
+            action: "drift_off",
+            nextSceneId: "scene-llu-3"
+          }
+        ]
+      },
+      {
+        id: "scene-llu-3",
+        sceneNumber: 3,
+        totalScenes: 3,
+        isFinal: true,
+        text: "The room filled with peaceful quietude. The moon fairy blew a goodnight kiss, and sleep carried you gently into dreamland.",
+        sleepAffirmation: "Sleep tight, sweet child. Morning will come with joy."
+      }
+    ]
+  },
+  {
+    id: "story-cosmic-whale",
+    title: "The Cosmic Whale",
+    category: "Cosmic",
+    theme: "wonder",
+    mode: "classic",
+    ageRange: "4-6",
+    heroId: "hero-1",
+    heroName: "Nova",
+    summary: "Glide along celestial slipstreams with the great cosmic whale on an adventure through the rings of jewel planets.",
+    badge: "Adventure",
+    audioDurationMinutes: 12,
+    rating: 4.9,
+    tags: ["Cosmic", "Adventure"],
+    coverImage: "https://lh3.googleusercontent.com/aida-public/AB6AXuCCe7_-GIWN57bp80Wd4qfZVP96GAjGAN3tZ2w7CIRu8sw3ni7djD9aZsIGOmBxSEsXYSrhkflbdRM1LOne4erDyu_SPnHA2rdy9rn_4NfTf1Va_gKjwDsi6k4_XuheML2xadOFXyBef8HaKFz4hENOLRMqJCGOD-sE5j0dgHR5zO76ALFWjLy3UMpaMSkNIORnv55Vqs4Fe8hbOMSikCXG8A8CWfC900fEuTNL6FDQ-e7TYZwezP1df2OCg2OJU6uCrhhtTZZ6GN8",
+    scenes: [
+      {
+        id: "scene-cw-1",
+        sceneNumber: 1,
+        totalScenes: 3,
+        text: "The grand cosmic whale glided through rings of golden stardust, its skin shimmering with shades of indigo and amethyst light. It invited you on a gentle voyage across the star-studded sea.",
+        sleepAffirmation: "You are peaceful and weightless among the stars.",
+        choices: [
+          {
+            id: "ccw1",
+            text: "Ride along on its wide, starlit fin",
+            action: "ride_fin",
+            nextSceneId: "scene-cw-2"
+          }
+        ]
+      },
+      {
+        id: "scene-cw-2",
+        sceneNumber: 2,
+        totalScenes: 3,
+        text: "The whale made a gentle loop around Saturn's tranquil ice rings, playing a chime like wind bells in a quiet garden. Everything in space slowed to a peaceful drift.",
+        sleepAffirmation: "Slow down your breath, steady and calm.",
+        choices: [
+          {
+            id: "ccw2",
+            text: "Glide toward the harbor of sweet dreams",
+            action: "harbor_dreams",
+            nextSceneId: "scene-cw-3"
+          }
+        ]
+      },
+      {
+        id: "scene-cw-3",
+        sceneNumber: 3,
+        totalScenes: 3,
+        isFinal: true,
+        text: "Arriving at the warm shores of the Moon Lagoon, the whale nudged your cloud bed safely into the shallows of sleep. Goodnight, cosmic voyager.",
+        sleepAffirmation: "Rest easy, warm and safe till sunrise."
+      }
+    ]
+  },
+  {
+    id: "story-cotton-candy-galaxy",
+    title: "Cotton Candy Galaxy",
+    category: "Magical",
+    theme: "imagination",
+    mode: "sleep",
+    ageRange: "4-6",
+    heroId: "hero-2",
+    heroName: "Rowan",
+    summary: "Float through a dreamy universe of swirling pink strawberry nebulae, marshmallow planets, and sugar-sparkle stardust.",
+    badge: "Dreamland",
+    audioDurationMinutes: 8,
+    rating: 4.8,
+    tags: ["Dreamland", "Magical"],
+    coverImage: "https://lh3.googleusercontent.com/aida-public/AB6AXuAL28pFjm3xE-wH4l0gY5V9S0-fsrxmL3eoLYZLmZYOP_fAdEfn_ISo8zD-FGeMeMIgrp64uuwFHW_sEBof5IVXm0H1R5ShhJEpuEK_luRfW79rVhNKFvZCiUvVqa-UzEwTzbcaG-8xDYCwrRCREuQ49A_C4CXtqxSAIIyclux3o-ig6JIj0uoBz83bCMoajZwVfEXxnS2A1GBlTEqKnx48VOLbKHPGSlLfI9tInM-qmWxwJCu_eKtaK_acZT7lmRXk-cVdAC34obA",
+    scenes: [
+      {
+        id: "scene-ccg-1",
+        sceneNumber: 1,
+        totalScenes: 3,
+        text: "Welcome to the Cotton Candy Galaxy, where giant swirls of pastel spun sugar form quiet constellations and comets leave trails of sweet cherry sparkle.",
+        sleepAffirmation: "Sweet thoughts bring the coziest dreams.",
+        choices: [
+          {
+            id: "cccg1",
+            text: "Bounce gently onto a pink cotton candy cloud",
+            action: "bounce_cloud",
+            nextSceneId: "scene-ccg-2"
+          }
+        ]
+      },
+      {
+        id: "scene-ccg-2",
+        sceneNumber: 2,
+        totalScenes: 3,
+        text: "The cloud catches you like the world's softest pillow. Warm vanilla rain sprinkles down, humming a lullaby as pink and lavender stars twinkle warmly.",
+        sleepAffirmation: "Feel completely comfortable, snug and relaxed.",
+        choices: [
+          {
+            id: "cccg2",
+            text: "Close your eyes in the warm sugar mist",
+            action: "sugar_mist",
+            nextSceneId: "scene-ccg-3"
+          }
+        ]
+      },
+      {
+        id: "scene-ccg-3",
+        sceneNumber: 3,
+        totalScenes: 3,
+        isFinal: true,
+        text: "The galaxy dims its lights to a soothing lavender glow. All the little space bunnies cuddle up on marshmallow dunes. Sleep well in the sweetest galaxy.",
+        sleepAffirmation: "Gentle dreams and deep sweet sleep."
       }
     ]
   },

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Story, StoryScene, AppSettings, CelestialBadge } from '../types';
+import { Story, StoryScene, AppSettings, CelestialBadge, VocabularyWord } from '../types';
 import { getHeroById } from '../data/heroes';
 import {
   VoiceNarrator,
@@ -12,6 +12,8 @@ import { SleepDurationEstimator } from './SleepDurationEstimator';
 import { SleepTimerModal } from './SleepTimerModal';
 import { AmbientWaveVisualizer } from './AmbientWaveVisualizer';
 import { BadgeUnlockCelebrationModal } from './BadgeUnlockCelebrationModal';
+import { VocabularySparkModal } from './VocabularySparkModal';
+import { findVocabularyWordByText, getVocabularyWordById } from '../data/vocabularyWords';
 import confetti from 'canvas-confetti';
 import {
   VolumeX,
@@ -168,6 +170,7 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
   const [isBreathingIn, setIsBreathingIn] = useState(true);
   const [unlockedBadgesToCelebrate, setUnlockedBadgesToCelebrate] = useState<CelestialBadge[]>([]);
   const [showBadgeCelebrationModal, setShowBadgeCelebrationModal] = useState(false);
+  const [activeVocabWord, setActiveVocabWord] = useState<VocabularyWord | null>(null);
   const prevAmbientVolumeRef = useRef<number>(ambientVolume > 0 ? ambientVolume : 0.3);
 
   // AI Character Narrator Voice Selection state
@@ -248,6 +251,12 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
   const parsedSentences = useMemo(() => {
     return parseSceneSentences(currentScene?.text || '', currentScene?.sleepAffirmation);
   }, [currentScene?.text, currentScene?.sleepAffirmation]);
+
+  // Scan current scene for vocabulary spark words
+  const currentSceneVocabWord = useMemo(() => {
+    if (!currentScene?.text) return null;
+    return findVocabularyWordByText(currentScene.text);
+  }, [currentScene?.text]);
 
   // Determine active sentence index by current character offset
   const activeSentenceId = useMemo(() => {
@@ -1265,12 +1274,27 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
             />
 
             {/* Story Paragraph with Follow-Along Highlighting */}
-            {isPlayingNarration && (
-              <div className="mb-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-400/15 text-amber-300 border border-amber-400/30 shadow-sm animate-pulse">
-                <Sparkles className="w-3.5 h-3.5 fill-current" />
-                <span>Follow along with the golden starlight words</span>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              {isPlayingNarration && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-400/15 text-amber-300 border border-amber-400/30 shadow-sm animate-pulse">
+                  <Sparkles className="w-3.5 h-3.5 fill-current" />
+                  <span>Follow along with the golden starlight words</span>
+                </div>
+              )}
+
+              {currentSceneVocabWord && (
+                <button
+                  type="button"
+                  onClick={() => setActiveVocabWord(currentSceneVocabWord)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/25 hover:bg-amber-500/35 border border-amber-400/50 text-amber-200 shadow-sm transition-all active:scale-95 cursor-pointer"
+                  title="Discover this word spark!"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                  <span>Word Spark: <span className="font-bangers tracking-wider text-amber-300 text-sm">{currentSceneVocabWord.word}</span></span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-400/30 text-amber-100">Tap to Learn</span>
+                </button>
+              )}
+            </div>
 
             <div className="text-lg sm:text-2xl text-slate-100 font-nunito leading-relaxed tracking-normal font-medium selection:bg-indigo-500">
               {parsedSentences
@@ -2126,6 +2150,23 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
               <button
                 type="button"
                 onClick={() => {
+                  setActiveVocabWord(
+                    currentSceneVocabWord || getVocabularyWordById('vocab-constellation')
+                  );
+                }}
+                className="w-full py-2.5 rounded-xl font-bold text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/40 flex items-center justify-center gap-2 transition-all active:scale-95"
+              >
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>
+                  {currentSceneVocabWord
+                    ? `View Word Spark: ${currentSceneVocabWord.word} 🌟`
+                    : 'View Word Spark: CONSTELLATION 🌟'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
                   if (unlockedBadgesToCelebrate.length > 0) {
                     setShowBadgeCelebrationModal(true);
                   } else {
@@ -2181,6 +2222,13 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
           }}
         />
       )}
+
+      {/* Vocabulary Spark Modal */}
+      <VocabularySparkModal
+        isOpen={Boolean(activeVocabWord)}
+        word={activeVocabWord}
+        onClose={() => setActiveVocabWord(null)}
+      />
     </div>
   );
 };

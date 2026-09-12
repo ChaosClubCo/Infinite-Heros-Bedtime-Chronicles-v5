@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { Story, UserStats, AppSettings, CelestialBadge, DreamJournalEntry, CompletedStoryRecord, DreamTheme, AgeRange } from './types';
+import { Story, UserStats, AppSettings, CelestialBadge, DreamJournalEntry, CompletedStoryRecord, DreamTheme, AgeRange, VocabularyWord } from './types';
 import { FEATURED_STORIES } from './data/featuredStories';
 import { INITIAL_BADGES, evaluateBadgeUnlocks } from './data/badges';
 import { StarrySky } from './components/StarrySky';
@@ -19,9 +19,12 @@ import { TrophiesView } from './components/TrophiesView';
 import { StoryReader } from './components/StoryReader';
 import { SleepSetupModal } from './components/SleepSetupModal';
 import { GuidedBreathingModal } from './components/GuidedBreathingModal';
+import { VocabularySparkModal } from './components/VocabularySparkModal';
 import { OfflineToast } from './components/OfflineToast';
 import { INITIAL_CHILD_PROFILES } from './data/dreamThemes';
+import { getVocabularyWordById } from './data/vocabularyWords';
 import { useNetworkStatus, cacheStoriesForOffline } from './services/offlineCacheService';
+import { SyncOfflineProvider, useSyncOfflineStatus } from './context/SyncOfflineContext';
 
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -100,7 +103,7 @@ const INITIAL_DREAMS: DreamJournalEntry[] = [
   },
 ];
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<NavTab>('home');
   const [creatorInitialMode] = useState<'classic' | 'madlibs' | 'sleep'>('classic');
   const [activeStory, setActiveStory] = useState<Story | null>(null);
@@ -110,6 +113,7 @@ export const App: React.FC = () => {
   const [showWindDownModal, setShowWindDownModal] = useState(false);
   const [showGuidedBreathingModal, setShowGuidedBreathingModal] = useState(false);
   const [showMadlibsDirect, setShowMadlibsDirect] = useState(false);
+  const [activeWordSpark, setActiveWordSpark] = useState<VocabularyWord | null>(null);
 
   // Network and Service Worker Offline Status
   const {
@@ -119,6 +123,9 @@ export const App: React.FC = () => {
     cachedStoryCount,
     refreshOfflineCache,
   } = useNetworkStatus();
+
+  // Offline Synchronization to Server State (SyncOfflineContext)
+  const { isSyncing } = useSyncOfflineStatus();
 
   // Persistence in localStorage
   const [savedStories, setSavedStories] = useState<Story[]>(() => {
@@ -424,6 +431,7 @@ export const App: React.FC = () => {
         childName={activeChildProfile?.name || settings.childName}
         childAvatar={activeChildProfile?.avatar || settings.childAvatar}
         isOnline={isOnline}
+        isSyncing={isSyncing}
       />
 
       {/* Main Content Area */}
@@ -506,6 +514,9 @@ export const App: React.FC = () => {
                 isOnline={isOnline}
                 onOpenSettings={() => setCurrentTab('settings')}
                 onBack={() => setCurrentTab('home')}
+                onOpenWordSpark={(word) =>
+                  setActiveWordSpark(word || getVocabularyWordById('vocab-constellation'))
+                }
               />
             )}
 
@@ -611,6 +622,13 @@ export const App: React.FC = () => {
         />
       )}
 
+      {/* Vocabulary Spark Modal (Word Discovery & Celebration) */}
+      <VocabularySparkModal
+        isOpen={Boolean(activeWordSpark)}
+        word={activeWordSpark}
+        onClose={() => setActiveWordSpark(null)}
+      />
+
       {/* Unobtrusive Offline & Reconnection Toast Notification */}
       <OfflineToast
         isOnline={isOnline}
@@ -624,5 +642,12 @@ export const App: React.FC = () => {
   );
 };
 
+export const App: React.FC = () => {
+  return (
+    <SyncOfflineProvider>
+      <AppContent />
+    </SyncOfflineProvider>
+  );
+};
 
 export default App;
