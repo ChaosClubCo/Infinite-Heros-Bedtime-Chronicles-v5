@@ -173,3 +173,27 @@
   animation: ambientAudioBar 1.5s ease-in-out infinite 0.35s;
   transform-origin: bottom;
 }
+
+/* ==========================================================================
+   Night-Time Filter Spectrum Shifts (Warm Red/Amber Bedtime Reading)
+   ========================================================================== */
+.night-time-filter-soft {
+  filter: sepia(0.25) hue-rotate(-12deg) saturate(1.15) brightness(0.96);
+  transition: filter 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.night-time-filter-warm {
+  filter: sepia(0.48) hue-rotate(-20deg) saturate(1.28) brightness(0.93) contrast(0.98);
+  transition: filter 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.night-time-filter-amber {
+  filter: sepia(0.68) hue-rotate(-26deg) saturate(1.42) brightness(0.89) contrast(0.97);
+  transition: filter 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.night-time-filter-candlelight {
+  filter: sepia(0.85) hue-rotate(-34deg) saturate(1.55) brightness(0.85) contrast(0.96);
+  transition: filter 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+

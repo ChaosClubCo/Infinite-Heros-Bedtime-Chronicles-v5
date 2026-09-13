@@ -36,6 +36,8 @@ export interface StoryScene {
   isFinal?: boolean;
 }
 
+export type StoryMood = 'Peaceful' | 'Curious' | 'Energizing' | 'Dreamy';
+
 export interface Story {
   id: string;
   title: string;
@@ -49,6 +51,7 @@ export interface Story {
   summary: string;
   coverImage?: string;
   badge?: string;
+  mood?: StoryMood;
   scenes: StoryScene[];
   createdAt?: string;
   isCustom?: boolean;
@@ -76,6 +79,7 @@ export interface StorySeed {
   companionName?: string;
   problem?: string;
   emoji: string;
+  mood?: StoryMood;
 }
 
 export interface CelestialBadge {
@@ -194,6 +198,30 @@ export interface AppSettings {
   childProfiles?: ChildProfile[];
   bookmarkedThemeIds?: string[];
   visualizerColorTheme?: VisualizerColorTheme;
+  nightTimeFilter?: boolean;
+  nightTimeFilterWarmth?: 'soft' | 'warm' | 'amber' | 'candlelight';
+  activeVoiceProfileId?: string;
+}
+
+export type VoiceProfileCategory = 'soothing' | 'animated' | 'cozy-hearth' | 'nurturing';
+
+export interface StoryVoiceProfile {
+  id: string;
+  name: string;
+  category: VoiceProfileCategory;
+  categoryLabel: string;
+  iconEmoji: string;
+  tagline: string;
+  description: string;
+  defaultNarratorId: string;
+  defaultPitch: number;
+  defaultRate: number;
+  stylePrompt: string;
+  bedtimeSuitability: 'sleep' | 'winddown' | 'interactive';
+  samplePhrase: string;
+  color: string;
+  accentBg: string;
+  borderActive: string;
 }
 
 export type DreamArtStyle =

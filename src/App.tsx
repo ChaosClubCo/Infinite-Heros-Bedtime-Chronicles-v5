@@ -47,6 +47,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   activeChildProfileId: 'profile-leo',
   childProfiles: INITIAL_CHILD_PROFILES,
   visualizerColorTheme: 'soundscape',
+  nightTimeFilter: false,
+  nightTimeFilterWarmth: 'warm',
+  activeVoiceProfileId: 'soothing-narrator',
 };
 
 const DEFAULT_COMPLETED_STORIES: CompletedStoryRecord[] = [
@@ -412,10 +415,37 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const nightTimeFilterClass = settings.nightTimeFilter
+    ? settings.nightTimeFilterWarmth === 'candlelight'
+      ? 'night-time-filter-candlelight'
+      : settings.nightTimeFilterWarmth === 'amber'
+      ? 'night-time-filter-amber'
+      : settings.nightTimeFilterWarmth === 'soft'
+      ? 'night-time-filter-soft'
+      : 'night-time-filter-warm'
+    : '';
+
   return (
-    <div className="relative min-h-screen text-slate-100 flex flex-col font-sans selection:bg-indigo-500 bg-[#060413]">
+    <div className={`relative min-h-screen text-slate-100 flex flex-col font-sans selection:bg-indigo-500 bg-[#060413] transition-[filter] duration-700 ${nightTimeFilterClass}`}>
       {/* Background Starry Sky Canvas */}
       <StarrySky />
+
+      {/* Night-Time Amber Spectrum Glow Overlay */}
+      {settings.nightTimeFilter && (
+        <div
+          id="night-time-filter-amber-overlay"
+          aria-hidden="true"
+          className={`pointer-events-none fixed inset-0 z-[99999] transition-all duration-700 select-none ${
+            settings.nightTimeFilterWarmth === 'candlelight'
+              ? 'bg-amber-700/[0.14] mix-blend-multiply'
+              : settings.nightTimeFilterWarmth === 'amber'
+              ? 'bg-amber-600/[0.11] mix-blend-multiply'
+              : settings.nightTimeFilterWarmth === 'soft'
+              ? 'bg-amber-500/[0.05] mix-blend-multiply'
+              : 'bg-amber-500/[0.08] mix-blend-multiply'
+          }`}
+        />
+      )}
 
       {/* Top Navbar */}
       <Navbar
@@ -555,6 +585,12 @@ const AppContent: React.FC = () => {
         <StoryReader
           story={activeStory}
           settings={settings}
+          onUpdateSettings={(newSettings) => {
+            setSettings(newSettings);
+            try {
+              localStorage.setItem('infinite_heroes_settings', JSON.stringify(newSettings));
+            } catch {}
+          }}
           onClose={() => setActiveStory(null)}
           onCompleteStory={handleCompleteStory}
           onToggleSaveStory={handleToggleSaveStory}

@@ -1,10 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { Story, StorySeed, VocabularyWord } from '../types';
+import { Story, StorySeed, VocabularyWord, StoryMood } from '../types';
 import { FEATURED_STORIES } from '../data/featuredStories';
 import { STORY_SEEDS } from '../data/storySeeds';
 import { getVocabularyWordById } from '../data/vocabularyWords';
 import { getHeroById } from '../data/heroes';
 import { generateCustomBedtimeStory } from '../services/aiStoryGenerator';
+import {
+  MOOD_FILTER_ITEMS,
+  getStoryMood,
+  getMoodBadgeInfo,
+} from '../utils/storyMoods';
 import {
   Search,
   Play,
@@ -164,6 +169,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
+  const [selectedMood, setSelectedMood] = useState<StoryMood | 'all'>('all');
   const [subTab, setSubTab] = useState<SubTabOption>('crafted');
   const [previewStory, setPreviewStory] = useState<Story | null>(null);
   const [showFiltersDrawer, setShowFiltersDrawer] = useState(false);
@@ -171,18 +177,29 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   const [selectedDuration, setSelectedDuration] = useState<string>('all');
   const [isListeningVoice, setIsListeningVoice] = useState(false);
 
-  // Hero Story (Editor's pick: The Starry Whales)
-  const heroStory = useMemo(() => {
-    return (
-      FEATURED_STORIES.find((s) => s.id === 'story-starry-whales') ||
-      FEATURED_STORIES.find((s) => s.isEditorPick) ||
-      FEATURED_STORIES[0]
-    );
+  // Pre-calculate count of stories per mood
+  const moodCounts = useMemo(() => {
+    const counts: Record<StoryMood | 'all', number> = {
+      all: FEATURED_STORIES.length,
+      Peaceful: 0,
+      Curious: 0,
+      Energizing: 0,
+      Dreamy: 0,
+    };
+    FEATURED_STORIES.forEach((story) => {
+      const m = getStoryMood(story);
+      if (counts[m] !== undefined) {
+        counts[m]++;
+      }
+    });
+    return counts;
   }, []);
 
-  // Filtered stories according to search query, category, and sub-tab
+  // Filtered stories according to search query, category, mood, and sub-tab
   const filteredStories = useMemo(() => {
     return FEATURED_STORIES.filter((story) => {
+      const storyMood = getStoryMood(story);
+
       // Search matching
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
@@ -191,10 +208,14 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
         story.summary.toLowerCase().includes(q) ||
         story.heroName.toLowerCase().includes(q) ||
         story.category.toLowerCase().includes(q) ||
-        (story.badge && story.badge.toLowerCase().includes(q));
+        (story.badge && story.badge.toLowerCase().includes(q)) ||
+        storyMood.toLowerCase().includes(q);
 
       // Category matching
       const matchesCat = matchesCategory(story.category, selectedCategory);
+
+      // Mood matching
+      const matchesMood = selectedMood === 'all' || storyMood === selectedMood;
 
       // Duration matching
       const duration = story.audioDurationMinutes || 10;
@@ -216,15 +237,31 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
           story.id.includes('moon-owl');
       }
 
-      return matchesSearch && matchesCat && matchesDur && matchesTab;
+      return matchesSearch && matchesCat && matchesMood && matchesDur && matchesTab;
     });
-  }, [searchQuery, selectedCategory, selectedDuration, subTab, savedStoryIds]);
+  }, [searchQuery, selectedCategory, selectedMood, selectedDuration, subTab, savedStoryIds]);
+
+  // Hero Story (Editor's pick or top story for selected mood)
+  const heroStory = useMemo(() => {
+    if (selectedMood !== 'all') {
+      return (
+        filteredStories.find((s) => s.isEditorPick) ||
+        filteredStories[0] ||
+        FEATURED_STORIES[0]
+      );
+    }
+    return (
+      FEATURED_STORIES.find((s) => s.id === 'story-starry-whales') ||
+      FEATURED_STORIES.find((s) => s.isEditorPick) ||
+      FEATURED_STORIES[0]
+    );
+  }, [selectedMood, filteredStories]);
 
   // Bento stories for All Crafted view
   const bentoStories = useMemo(() => {
-    // Exclude the hero story from secondary list when hero banner is shown
+    if (!heroStory) return filteredStories;
     return filteredStories.filter((s) => s.id !== heroStory.id);
-  }, [filteredStories, heroStory.id]);
+  }, [filteredStories, heroStory]);
 
   // Specific groups for UI sections
   const newArrivalStories = useMemo(() => {
@@ -495,6 +532,108 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
         </div>
       </section>
 
+      {/* Bedtime Story Mood Quick-Select Filters */}
+      <section id="library-mood-filter-section" className="space-y-2.5 pt-1">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs uppercase tracking-widest text-slate-400 font-bold">
+              Bedtime Mood
+            </span>
+            <span className="text-[11px] text-slate-500 hidden sm:inline">
+              &bull; Match your little hero&apos;s bedtime energy
+            </span>
+          </div>
+          {selectedMood !== 'all' && (
+            <button
+              type="button"
+              id="library-clear-mood-btn"
+              onClick={() => setSelectedMood('all')}
+              className="inline-flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors"
+            >
+              <X className="w-3 h-3" />
+              <span>Reset Mood</span>
+            </button>
+          )}
+        </div>
+
+        {/* Quick Select Buttons */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {MOOD_FILTER_ITEMS.map((item) => {
+            const isSelected = selectedMood === item.id;
+            const count = moodCounts[item.id];
+
+            return (
+              <button
+                key={item.id}
+                id={`mood-filter-${item.id.toLowerCase()}`}
+                type="button"
+                onClick={() => setSelectedMood((prev) => (prev === item.id ? 'all' : item.id))}
+                className={`relative flex items-center justify-between px-3.5 py-2.5 rounded-2xl border transition-all duration-200 text-left cursor-pointer group ${
+                  isSelected
+                    ? item.pillClass.active
+                    : `${item.pillClass.base} hover:scale-[1.02]`
+                }`}
+                title={`${item.label}: ${item.description}`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-lg shrink-0 group-hover:scale-110 transition-transform">
+                    {item.emoji}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold leading-tight truncate">
+                      {item.label}
+                    </p>
+                    <p
+                      className={`text-[10px] leading-tight truncate ${
+                        isSelected ? 'opacity-90' : 'text-slate-400 group-hover:text-slate-300'
+                      }`}
+                    >
+                      {item.tagline}
+                    </p>
+                  </div>
+                </div>
+
+                <span
+                  className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 border ${
+                    isSelected
+                      ? 'bg-black/20 text-current border-current/30'
+                      : item.pillClass.badge
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Active Mood Announcement Banner */}
+        {selectedMood !== 'all' && (
+          <div
+            id="active-mood-banner"
+            className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-xs animate-fade-in"
+          >
+            <div className="flex items-center gap-2 text-indigo-200">
+              <span className="text-base">{MOOD_FILTER_ITEMS.find((m) => m.id === selectedMood)?.emoji}</span>
+              <span>
+                Showing <strong>{filteredStories.length}</strong>{' '}
+                <span className="font-semibold text-white">{selectedMood}</span> bedtime stories &bull;{' '}
+                <span className="text-indigo-300 text-[11px] hidden sm:inline">
+                  {MOOD_FILTER_ITEMS.find((m) => m.id === selectedMood)?.description}
+                </span>
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedMood('all')}
+              className="text-[11px] font-bold text-indigo-300 hover:text-white underline ml-2 shrink-0"
+            >
+              Show all moods
+            </button>
+          </div>
+        )}
+      </section>
+
       {/* Sub-Navigation Tabs matching screenshots: New Arrivals | Favorites | All Crafted */}
       <div className="flex items-center justify-between border-b border-slate-800/80 pt-2">
         <div className="flex items-center gap-6 sm:gap-8 text-sm font-bold">
@@ -546,56 +685,80 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
           type="button"
           onClick={() => setShowFiltersDrawer((prev) => !prev)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all mb-2 ${
-            showFiltersDrawer || selectedDuration !== 'all'
+            showFiltersDrawer || selectedDuration !== 'all' || selectedMood !== 'all'
               ? 'bg-indigo-950/70 border-indigo-500 text-indigo-200'
               : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-white'
           }`}
-          title="Toggle duration filters"
+          title="Toggle filters"
         >
           <SlidersHorizontal className="w-3 h-3 text-indigo-400" />
           <span>Filters</span>
-          {selectedDuration !== 'all' && (
+          {(selectedDuration !== 'all' || selectedMood !== 'all') && (
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
           )}
         </button>
       </div>
 
-      {/* Expanded Duration Filter Panel */}
+      {/* Expanded Filter Panel (Mood & Duration) */}
       {showFiltersDrawer && (
-        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl backdrop-blur-md flex flex-wrap items-center justify-between gap-3 text-xs animate-fade-in">
-          <div className="flex items-center gap-2">
-            <span className="text-slate-400 font-semibold">Reading Duration:</span>
-            {(['all', 'quick', 'medium', 'extended'] as const).map((dur) => (
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl backdrop-blur-md space-y-3 text-xs animate-fade-in">
+          {/* Mood Selector row in Drawer */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-slate-400 font-semibold min-w-[100px]">Story Mood:</span>
+            {MOOD_FILTER_ITEMS.map((m) => (
               <button
-                key={dur}
+                key={m.id}
                 type="button"
-                onClick={() => setSelectedDuration(dur)}
-                className={`px-3 py-1 rounded-full font-medium transition-all ${
-                  selectedDuration === dur
+                onClick={() => setSelectedMood(m.id)}
+                className={`px-3 py-1 rounded-full font-medium transition-all flex items-center gap-1.5 ${
+                  selectedMood === m.id
                     ? 'bg-indigo-600 text-white shadow-md'
                     : 'bg-slate-800 text-slate-300 hover:text-white'
                 }`}
               >
-                {dur === 'all' && 'All Durations'}
-                {dur === 'quick' && '⚡ Quick (< 8 min)'}
-                {dur === 'medium' && '📖 Standard (8–12 min)'}
-                {dur === 'extended' && '🌌 Extended (13+ min)'}
+                <span>{m.emoji}</span>
+                <span>{m.label}</span>
               </button>
             ))}
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedDuration('all');
-              setSelectedCategory('all');
-              setSearchQuery('');
-            }}
-            className="flex items-center gap-1 text-slate-400 hover:text-rose-400 text-xs font-medium"
-          >
-            <RotateCcw className="w-3 h-3" />
-            <span>Reset filters</span>
-          </button>
+          {/* Reading Duration row in Drawer */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-slate-400 font-semibold min-w-[100px]">Reading Duration:</span>
+              {(['all', 'quick', 'medium', 'extended'] as const).map((dur) => (
+                <button
+                  key={dur}
+                  type="button"
+                  onClick={() => setSelectedDuration(dur)}
+                  className={`px-3 py-1 rounded-full font-medium transition-all ${
+                    selectedDuration === dur
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'bg-slate-800 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  {dur === 'all' && 'All Durations'}
+                  {dur === 'quick' && '⚡ Quick (< 8 min)'}
+                  {dur === 'medium' && '📖 Standard (8–12 min)'}
+                  {dur === 'extended' && '🌌 Extended (13+ min)'}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedDuration('all');
+                setSelectedCategory('all');
+                setSelectedMood('all');
+                setSearchQuery('');
+              }}
+              className="flex items-center gap-1 text-slate-400 hover:text-rose-400 text-xs font-medium ml-auto"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset all filters</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -656,10 +819,20 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                   <div className="absolute inset-0 bg-gradient-to-r from-[#05051e]/80 via-transparent to-black/30" />
 
                   {/* Top Left: EDITOR'S PICK pill */}
-                  <div className="absolute top-4 left-4">
+                  <div className="absolute top-4 left-4 flex items-center gap-2 flex-wrap">
                     <span className="px-3 py-1 rounded-full text-xs font-bangers tracking-wider uppercase bg-indigo-600/90 text-white shadow-lg shadow-indigo-600/50 border border-indigo-400 backdrop-blur-md">
-                      EDITOR&apos;S PICK
+                      {heroStory.isEditorPick ? "EDITOR'S PICK" : heroStory.badge || 'FEATURED'}
                     </span>
+                    {(() => {
+                      const heroMood = getStoryMood(heroStory);
+                      const moodInfo = getMoodBadgeInfo(heroMood);
+                      return (
+                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 border backdrop-blur-md shadow-md ${moodInfo.colorClass.badgeBg}`}>
+                          <span>{moodInfo.emoji}</span>
+                          <span>{heroMood} Mood</span>
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   {/* Top Right: Bookmark + Word Spark badge */}
@@ -743,11 +916,26 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
                         {/* Top Badges */}
                         <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-md border ${catColors.bg} ${catColors.text} ${catColors.border}`}
-                          >
-                            {story.badge || story.category}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap max-w-[70%]">
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-md border ${catColors.bg} ${catColors.text} ${catColors.border}`}
+                            >
+                              {story.badge || story.category}
+                            </span>
+                            {(() => {
+                              const mood = getStoryMood(story);
+                              const info = getMoodBadgeInfo(mood);
+                              return (
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 border backdrop-blur-md shadow-sm ${info.colorClass.badgeBg}`}
+                                  title={`${mood} Mood: ${info.description}`}
+                                >
+                                  <span>{info.emoji}</span>
+                                  <span>{mood}</span>
+                                </span>
+                              );
+                            })()}
+                          </div>
 
                           <div className="flex items-center gap-1.5">
                             <button
@@ -822,11 +1010,26 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
                       {/* Top Badges */}
                       <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-md border ${catColors.bg} ${catColors.text} ${catColors.border}`}
-                        >
-                          {story.badge || story.category}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap max-w-[70%]">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-md border ${catColors.bg} ${catColors.text} ${catColors.border}`}
+                          >
+                            {story.badge || story.category}
+                          </span>
+                          {(() => {
+                            const mood = getStoryMood(story);
+                            const info = getMoodBadgeInfo(mood);
+                            return (
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 border backdrop-blur-md shadow-sm ${info.colorClass.badgeBg}`}
+                                title={`${mood} Mood: ${info.description}`}
+                              >
+                                <span>{info.emoji}</span>
+                                <span>{mood}</span>
+                              </span>
+                            );
+                          })()}
+                        </div>
 
                         <div className="flex items-center gap-1.5">
                           <button
@@ -884,7 +1087,17 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
             <Moon className="w-8 h-8 text-indigo-400 mx-auto opacity-70" />
             <h4 className="text-base font-bold text-white">No stories found</h4>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
-              No bedtime stories match &ldquo;{searchQuery}&rdquo; in this category. Try selecting &ldquo;Show All&rdquo; or resetting filters.
+              No bedtime stories match
+              {selectedMood !== 'all' && (
+                <span className="text-indigo-300 font-semibold"> &ldquo;{selectedMood}&rdquo; mood</span>
+              )}
+              {searchQuery && (
+                <span> and search &ldquo;{searchQuery}&rdquo;</span>
+              )}
+              {selectedCategory !== 'all' && (
+                <span> in {selectedCategory}</span>
+              )}
+              . Try selecting another mood or resetting filters.
             </p>
             <button
               type="button"
@@ -892,6 +1105,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 setSearchQuery('');
                 setSelectedCategory('all');
                 setSelectedDuration('all');
+                setSelectedMood('all');
               }}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-500 transition-colors shadow-md"
             >
@@ -1125,13 +1339,26 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-slate-400">
+              <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
                 <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">
                   Ages: {previewStory.ageRange}
                 </span>
                 <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 capitalize">
                   Mode: {previewStory.mode}
                 </span>
+                {(() => {
+                  const mood = getStoryMood(previewStory);
+                  const info = getMoodBadgeInfo(mood);
+                  return (
+                    <span
+                      className={`px-2.5 py-1 rounded-lg border font-bold flex items-center gap-1.5 ${info.colorClass.badgeBg}`}
+                      title={info.description}
+                    >
+                      <span>{info.emoji}</span>
+                      <span>{mood} Mood</span>
+                    </span>
+                  );
+                })()}
                 {previewStory.rating && (
                   <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-amber-300 flex items-center gap-1">
                     <Star className="w-3 h-3 fill-current" />
