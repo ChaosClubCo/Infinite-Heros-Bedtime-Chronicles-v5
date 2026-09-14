@@ -21,12 +21,6 @@ import {
   X,
   Clock,
   ChevronRight,
-  Moon,
-  Sun,
-  Eye,
-  Sunset,
-  Flame,
-  Sliders,
 } from 'lucide-react';
 
 interface SafetyPersonalizationViewProps {

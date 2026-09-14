@@ -5,22 +5,17 @@ import {
   VOICE_PROFILE_CATEGORIES,
   getVoiceProfileById,
 } from '../data/voiceProfiles';
-import { PRELOADED_NARRATORS, VoiceNarrator } from '../services/audioNarration';
+import { VoiceNarrator } from '../services/audioNarration';
 import {
   Sliders,
   Volume2,
-  VolumeX,
-  Sparkles,
   Moon,
   Bot,
   Check,
   X,
   Gauge,
-  Music,
   ShieldCheck,
-  Play,
   Square,
-  Flame,
   Info,
 } from 'lucide-react';
 
@@ -100,12 +95,6 @@ export const VoiceProfilesSubMenu: React.FC<VoiceProfilesSubMenuProps> = ({
     onSelectProfile(profile, profile.defaultPitch, profile.defaultRate, whisperMode);
     setShowSaveNotice(true);
     setTimeout(() => setShowSaveNotice(false), 2500);
-  };
-
-  const handleApplyCustomTuning = () => {
-    onSelectProfile(activeProfile, customPitch, customRate, whisperMode);
-    setShowSaveNotice(true);
-    setTimeout(() => setShowSaveNotice(false), 2000);
   };
 
   const handleSetDefault = () => {
