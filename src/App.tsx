@@ -585,12 +585,6 @@ const AppContent: React.FC = () => {
         <StoryReader
           story={activeStory}
           settings={settings}
-          onUpdateSettings={(newSettings) => {
-            setSettings(newSettings);
-            try {
-              localStorage.setItem('infinite_heroes_settings', JSON.stringify(newSettings));
-            } catch {}
-          }}
           onClose={() => setActiveStory(null)}
           onCompleteStory={handleCompleteStory}
           onToggleSaveStory={handleToggleSaveStory}

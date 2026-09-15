@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createServer, type Server } from "node:http";
 import WebSocket from "ws";
+import { attachRealtimeWebSocketServer, REALTIME_WS_PATH } from "./ws-server";
+import { createSession, updateSessionStatus, getSession, _resetSessionStoreForTests } from "./session-store";
+import { issueConnectionTicket, _resetConnectionTicketsForTests } from "./connection-tickets";
 
 const { mockGenerateText } = vi.hoisted(() => ({ mockGenerateText: vi.fn() }));
 vi.mock("../ai", () => ({
@@ -14,10 +17,6 @@ vi.mock("../elevenlabs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../elevenlabs")>();
   return { ...actual, generateSpeech: mockGenerateSpeech };
 });
-
-import { attachRealtimeWebSocketServer, REALTIME_WS_PATH } from "./ws-server";
-import { createSession, updateSessionStatus, getSession, _resetSessionStoreForTests } from "./session-store";
-import { issueConnectionTicket, _resetConnectionTicketsForTests } from "./connection-tickets";
 
 let server: Server;
 let port: number;
@@ -46,7 +45,11 @@ async function stopServer() {
     const timer = setTimeout(() => reject(new Error("server.close() timed out")), 4000);
     server.close((err) => {
       clearTimeout(timer);
-      err ? reject(err) : resolve();
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
     });
   });
 }
@@ -68,7 +71,7 @@ type QueuedMessage = { text?: string; binary?: Buffer };
  */
 function createMessageQueue(ws: WebSocket) {
   const buffered: QueuedMessage[] = [];
-  const waiters: Array<(msg: QueuedMessage) => void> = [];
+  const waiters: ((msg: QueuedMessage) => void)[] = [];
 
   ws.on("message", (data, isBinary) => {
     const msg: QueuedMessage = isBinary ? { binary: data as Buffer } : { text: data.toString("utf8") };
