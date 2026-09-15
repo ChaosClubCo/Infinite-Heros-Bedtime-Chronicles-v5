@@ -79,3 +79,4 @@ firebase-debug.*.log
 .snapshots/
 .vercel
 .env*
+!.env.example
