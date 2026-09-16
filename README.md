@@ -73,7 +73,7 @@ cp .env.example .env
 # edit .env and add at minimum AI_INTEGRATIONS_GEMINI_API_KEY
 
 # 3. Start the API
-npm run server:dev
+npm run dev:server
 
 # 4. Start the Expo app in a second terminal
 npm run dev:expo
@@ -120,7 +120,8 @@ Never commit real secrets. `EXPO_PUBLIC_*` values are bundled into the client ap
 
 ```bash
 # API
-npm run server:dev
+npm run dev:server
+npm run server:dev      # if you already exported env vars in your shell
 npm run server:build
 npm run server:prod
 
