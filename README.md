@@ -87,7 +87,7 @@ Use `npm run expo:dev` inside Replit. It injects the Replit-specific Expo host v
 
 ## Environment variables
 
-The full list lives in [`.env.example`](./.env.example). These are the most important values:
+The repo-tracked environment template lives in [`.env.example`](./.env.example). These are the most important values:
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|

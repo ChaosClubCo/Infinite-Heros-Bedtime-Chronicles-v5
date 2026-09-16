@@ -84,4 +84,13 @@ describe("Server index integration", () => {
 
     expect(recordTTS).toHaveBeenCalled();
   });
+
+  it("registers the Gemini image route when AI_INTEGRATIONS_GEMINI_API_KEY is configured", async () => {
+    const res = await request(app)
+      .post("/api/generate-image")
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Prompt is required" });
+  });
 });
