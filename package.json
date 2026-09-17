@@ -122,6 +122,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@expo/ngrok": "^4.1.0",
+    "@react-native/jest-preset": "0.87.1",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/react-native": "^14.0.1",
     "@types/canvas-confetti": "^1.9.0",
