@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence, type Variants } from 'motion/react';
 import { DreamJournalEntry, DreamArtStyle, DreamIllustration } from '../types';
 import {
@@ -11,6 +11,8 @@ import {
   RefreshCw,
   CheckCircle2,
   Wand2,
+  SlidersHorizontal,
+  RotateCcw,
 } from 'lucide-react';
 import { DreamJournalCard } from './DreamJournalCard';
 import {
@@ -93,6 +95,25 @@ export const DreamJournalModal: React.FC<DreamJournalModalProps> = ({
 
   // Lightbox viewer state
   const [lightboxEntry, setLightboxEntry] = useState<DreamJournalEntry | null>(null);
+
+  // Filter State Management
+  const [selectedMoodFilter, setSelectedMoodFilter] = useState<DreamJournalEntry['mood'] | 'all'>('all');
+  const [selectedSleepFilter, setSelectedSleepFilter] = useState<number | 'all'>('all');
+
+  const filteredEntries = useMemo(() => {
+    return entries.filter((entry) => {
+      const matchesMood = selectedMoodFilter === 'all' || entry.mood === selectedMoodFilter;
+      const matchesSleep = selectedSleepFilter === 'all' || entry.sleepRating === selectedSleepFilter;
+      return matchesMood && matchesSleep;
+    });
+  }, [entries, selectedMoodFilter, selectedSleepFilter]);
+
+  const hasActiveFilters = selectedMoodFilter !== 'all' || selectedSleepFilter !== 'all';
+
+  const handleResetFilters = () => {
+    setSelectedMoodFilter('all');
+    setSelectedSleepFilter('all');
+  };
 
   if (!isOpen) return null;
 
@@ -269,6 +290,154 @@ export const DreamJournalModal: React.FC<DreamJournalModalProps> = ({
                     </button>
                   </motion.div>
 
+                  {/* Filter Bar: Mood & Sleep Quality Pill Selectors */}
+                  {entries.length > 0 && (
+                    <motion.div
+                      variants={cardItemVariants}
+                      className="p-3.5 rounded-2xl bg-[#0d0c26]/90 border border-indigo-950/80 shadow-lg shadow-black/30 space-y-3"
+                    >
+                      {/* Filter Bar Header */}
+                      <div className="flex items-center justify-between gap-2 pb-2 border-b border-indigo-950/60">
+                        <div className="flex items-center gap-2">
+                          <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
+                          <span className="text-xs font-semibold text-slate-200">
+                            Filter Dreams
+                          </span>
+                          {hasActiveFilters && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                              Showing {filteredEntries.length} of {entries.length}
+                            </span>
+                          )}
+                        </div>
+
+                        {hasActiveFilters && (
+                          <button
+                            type="button"
+                            onClick={handleResetFilters}
+                            className="flex items-center gap-1 text-[11px] text-purple-400 hover:text-purple-300 transition-colors px-2 py-0.5 rounded-lg hover:bg-purple-950/50"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            <span>Reset Filters</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Mood Filter Pills */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] text-slate-400">
+                          <span className="font-medium text-slate-300">Mood</span>
+                          {selectedMoodFilter !== 'all' && (
+                            <span className="text-[10px] text-indigo-400 capitalize">
+                              {selectedMoodFilter}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedMoodFilter('all')}
+                            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                              selectedMoodFilter === 'all'
+                                ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30 font-semibold'
+                                : 'bg-slate-900/80 text-slate-400 border border-indigo-950 hover:text-slate-200 hover:border-indigo-900'
+                            }`}
+                          >
+                            All Moods
+                          </button>
+                          {moods.map((m) => {
+                            const count = entries.filter((e) => e.mood === m.id).length;
+                            const isSelected = selectedMoodFilter === m.id;
+                            return (
+                              <button
+                                key={m.id}
+                                type="button"
+                                onClick={() =>
+                                  setSelectedMoodFilter(isSelected ? 'all' : m.id)
+                                }
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                                  isSelected
+                                    ? 'bg-purple-900/90 text-purple-100 border border-purple-400 shadow-sm shadow-purple-900/40 font-semibold'
+                                    : 'bg-slate-900/80 text-slate-400 border border-indigo-950 hover:text-slate-200 hover:border-indigo-900'
+                                }`}
+                              >
+                                <span>{m.icon}</span>
+                                <span>{m.label}</span>
+                                <span
+                                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                                    isSelected
+                                      ? 'bg-purple-800 text-purple-200'
+                                      : 'bg-slate-800/80 text-slate-500'
+                                  }`}
+                                >
+                                  {count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Sleep Quality Filter Pills */}
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center justify-between text-[11px] text-slate-400">
+                          <span className="font-medium text-slate-300">Sleep Quality</span>
+                          {selectedSleepFilter !== 'all' && (
+                            <span className="text-[10px] text-amber-400">
+                              {selectedSleepFilter} {selectedSleepFilter === 1 ? 'Star' : 'Stars'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSleepFilter('all')}
+                            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                              selectedSleepFilter === 'all'
+                                ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/30 font-semibold'
+                                : 'bg-slate-900/80 text-slate-400 border border-indigo-950 hover:text-slate-200 hover:border-indigo-900'
+                            }`}
+                          >
+                            All Ratings
+                          </button>
+                          {[5, 4, 3, 2, 1].map((rating) => {
+                            const count = entries.filter((e) => e.sleepRating === rating).length;
+                            const isSelected = selectedSleepFilter === rating;
+                            return (
+                              <button
+                                key={rating}
+                                type="button"
+                                onClick={() =>
+                                  setSelectedSleepFilter(isSelected ? 'all' : rating)
+                                }
+                                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                                  isSelected
+                                    ? 'bg-amber-400/20 text-amber-300 border border-amber-400/80 shadow-sm font-semibold'
+                                    : 'bg-slate-900/80 text-slate-400 border border-indigo-950 hover:text-slate-200 hover:border-indigo-900'
+                                }`}
+                              >
+                                <div className="flex items-center text-amber-400">
+                                  {[...Array(rating)].map((_, i) => (
+                                    <Star key={i} className="w-2.5 h-2.5 fill-current" />
+                                  ))}
+                                </div>
+                                <span className="text-[11px]">{rating}★</span>
+                                <span
+                                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                                    isSelected
+                                      ? 'bg-amber-400/30 text-amber-200'
+                                      : 'bg-slate-800/80 text-slate-500'
+                                  }`}
+                                >
+                                  {count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
                   {entries.length === 0 ? (
                     <motion.div
                       variants={cardItemVariants}
@@ -287,13 +456,34 @@ export const DreamJournalModal: React.FC<DreamJournalModalProps> = ({
                         Record Tonight&apos;s Dream
                       </button>
                     </motion.div>
+                  ) : filteredEntries.length === 0 ? (
+                    <motion.div
+                      variants={cardItemVariants}
+                      className="text-center py-10 px-4 rounded-2xl bg-slate-900/40 border border-indigo-900/30 space-y-3"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-indigo-950/80 border border-indigo-800/40 flex items-center justify-center text-indigo-400 mx-auto">
+                        <SlidersHorizontal className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-slate-200">No matching dreams found</h3>
+                      <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+                        None of your recorded dreams match the selected mood or sleep rating filters.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleResetFilters}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-sm"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Clear Active Filters</span>
+                      </button>
+                    </motion.div>
                   ) : (
                     <motion.div
                       variants={listContainerVariants}
                       className="grid gap-4"
                     >
                       <AnimatePresence mode="popLayout">
-                        {entries.map((entry) => (
+                        {filteredEntries.map((entry) => (
                           <DreamJournalCard
                             key={entry.id}
                             entry={entry}
