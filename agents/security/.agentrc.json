@@ -20,7 +20,7 @@
   "secretPatterns": [
     {
       "id": "openai-key",
-      "regex": "sk-[A-Za-z0-9]{20,}"
+      "regex": "(?:^|[^A-Za-z0-9])sk-[A-Za-z0-9]{20,}"
     },
     {
       "id": "github-token",
