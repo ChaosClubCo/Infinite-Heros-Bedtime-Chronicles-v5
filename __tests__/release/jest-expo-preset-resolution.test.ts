@@ -13,8 +13,8 @@ function readJson<T>(relativePath: string): T {
   return JSON.parse(readText(relativePath)) as T;
 }
 
-function runNode(source: string, extraArgs: string[] = []): ReturnType<typeof spawnSync> {
-  return spawnSync(process.execPath, [...extraArgs, '-e', source], {
+function runNode(source: string): ReturnType<typeof spawnSync> {
+  return spawnSync(process.execPath, ['-e', source], {
     cwd: ROOT,
     encoding: 'utf8',
   });
@@ -25,11 +25,18 @@ describe('jest-expo React Native preset resolution', () => {
     dependencies: Record<string, string>;
     devDependencies: Record<string, string>;
     scripts: Record<string, string>;
+    overrides?: Record<string, string | Record<string, unknown>>;
   }>('package.json');
 
-  it('pins @react-native/jest-preset to the same version as react-native', () => {
+  it('pins RN 0.87 Jest companion packages to the same version as react-native', () => {
     expect(pkg.dependencies['react-native']).toBe('0.87.1');
     expect(pkg.devDependencies['@react-native/jest-preset']).toBe('0.87.1');
+    expect(pkg.devDependencies['@react-native/assets-registry']).toBe('0.87.1');
+  });
+
+  it('overrides hermes-parser so RN 0.87 Flow specs can be transformed', () => {
+    expect(pkg.overrides?.['babel-plugin-syntax-hermes-parser']).toBe('0.36.1');
+    expect(pkg.overrides?.['hermes-parser']).toBe('0.36.1');
   });
 
   it('keeps the jest-expo preset and loads the RN export shim before it', () => {

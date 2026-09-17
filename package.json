@@ -122,6 +122,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@expo/ngrok": "^4.1.0",
+    "@react-native/assets-registry": "0.87.1",
     "@react-native/jest-preset": "0.87.1",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/react-native": "^14.0.1",
@@ -182,6 +183,8 @@
     "minimatch@9": {
       "brace-expansion": "^2.1.4"
     },
-    "nanoid@3": "^3.3.18"
+    "nanoid@3": "^3.3.18",
+    "babel-plugin-syntax-hermes-parser": "0.36.1",
+    "hermes-parser": "0.36.1"
   }
 }
