@@ -124,6 +124,7 @@
     "@expo/ngrok": "^4.1.0",
     "@react-native/assets-registry": "0.87.1",
     "@react-native/jest-preset": "0.87.1",
+    "@react-native/js-polyfills": "0.87.1",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/react-native": "^14.0.1",
     "@types/canvas-confetti": "^1.9.0",
@@ -155,6 +156,20 @@
     "yaml": "^2.8.3"
   },
   "private": true,
+  "expo": {
+    "install": {
+      "exclude": [
+        "react",
+        "react-dom",
+        "@types/react-dom",
+        "react-native",
+        "react-native-keyboard-controller",
+        "react-native-reanimated",
+        "react-native-svg",
+        "react-native-worklets"
+      ]
+    }
+  },
   "overrides": {
     "yaml": "^2.8.3",
     "p-retry": "^4.6.2",

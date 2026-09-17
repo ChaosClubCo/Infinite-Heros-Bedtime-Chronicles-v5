@@ -26,12 +26,14 @@ describe('jest-expo React Native preset resolution', () => {
     devDependencies: Record<string, string>;
     scripts: Record<string, string>;
     overrides?: Record<string, string | Record<string, unknown>>;
+    expo?: { install?: { exclude?: string[] } };
   }>('package.json');
 
   it('pins RN 0.87 Jest companion packages to the same version as react-native', () => {
     expect(pkg.dependencies['react-native']).toBe('0.87.1');
     expect(pkg.devDependencies['@react-native/jest-preset']).toBe('0.87.1');
     expect(pkg.devDependencies['@react-native/assets-registry']).toBe('0.87.1');
+    expect(pkg.devDependencies['@react-native/js-polyfills']).toBe('0.87.1');
   });
 
   it('overrides hermes-parser so RN 0.87 Flow specs can be transformed', () => {
@@ -49,11 +51,26 @@ describe('jest-expo React Native preset resolution', () => {
     );
   });
 
-  it('documents that RN 0.87 no longer exports ./jest-preset', () => {
-    const result = runNode("require('react-native/jest-preset')");
-    expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain('ERR_PACKAGE_PATH_NOT_EXPORTED');
-    expect(result.stderr).toContain('./jest-preset');
+  it('patches RN 0.87 to restore the jest-preset and rn-get-polyfills exports', () => {
+    const patch = readText('patches/react-native+0.87.1.patch');
+    expect(patch).toContain('"./jest-preset": "./jest-preset.js"');
+    expect(patch).toContain('"./rn-get-polyfills": "./rn-get-polyfills.js"');
+    expect(patch).toContain("require('@react-native/jest-preset')");
+    expect(patch).toContain("require('@react-native/js-polyfills')");
+  });
+
+  it('lets jest-expo resolve react-native/jest-preset after the RN export patch', () => {
+    const result = runNode("require('react-native/jest-preset'); process.stdout.write('ok');");
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('ok');
+  });
+
+  it('lets Expo Metro resolve react-native/rn-get-polyfills after the RN export patch', () => {
+    const result = runNode(
+      "const fn = require('react-native/rn-get-polyfills'); if (typeof fn !== 'function' || fn().length < 1) process.exit(2); process.stdout.write('ok');",
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('ok');
   });
 
   it('lets jest-expo resolve react-native/jest-preset through the shim', () => {
@@ -62,5 +79,21 @@ describe('jest-expo React Native preset resolution', () => {
     );
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain('ok');
+  });
+
+  it('excludes the intentional RN 0.87 / React 19.2.8 pins from expo install --check', () => {
+    const excluded = pkg.expo?.install?.exclude ?? [];
+    for (const name of [
+      'react',
+      'react-dom',
+      '@types/react-dom',
+      'react-native',
+      'react-native-keyboard-controller',
+      'react-native-reanimated',
+      'react-native-svg',
+      'react-native-worklets',
+    ]) {
+      expect(excluded).toContain(name);
+    }
   });
 });
