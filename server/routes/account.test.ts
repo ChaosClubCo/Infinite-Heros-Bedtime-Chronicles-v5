@@ -1,6 +1,7 @@
 import express from 'express';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { registerAccountRoutes } from './account';
 
 const mocks = vi.hoisted(() => ({
   deleteAllConversationsForUser: vi.fn(),
@@ -20,8 +21,6 @@ vi.mock('../integrations/chat/storage', () => ({
     deleteAllConversationsForUser: mocks.deleteAllConversationsForUser,
   },
 }));
-
-import { registerAccountRoutes } from './account';
 
 const releaseSha = '0123456789abcdef0123456789abcdef01234567';
 

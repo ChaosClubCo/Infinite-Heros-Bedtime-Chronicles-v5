@@ -197,7 +197,7 @@ if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY &&
 }
 
 // Gemini image generation route
-if (process.env.AI_INTEGRATIONS_GEMINI_API_KEY) {
+if (process.env.AI_INTEGRATIONS_GEMINI_API_KEY || process.env.GEMINI_API_KEY) {
   registerImageRoutes(app);
 }
 ```
@@ -290,7 +290,7 @@ Full list: `.env.example`
 ## Build & Run
 
 ```bash
-npm run server:dev           # tsx server/index.ts (hot reload)
+npm run server:dev           # loads `.env` if present; tsx server/index.ts
 npm run server:build         # esbuild → server_dist/index.js (ESM)
 npm run server:prod          # NODE_ENV=production node server_dist/index.js
 ```

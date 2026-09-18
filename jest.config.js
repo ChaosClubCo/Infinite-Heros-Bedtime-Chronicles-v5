@@ -1,4 +1,7 @@
 /** @type {import('@jest/types').Config.InitialOptions} */
+// RN 0.87 dropped the `react-native/jest-preset` export that jest-expo 55 still requires.
+require('./scripts/rn-jest-preset-shim.cjs');
+
 module.exports = {
   preset: 'jest-expo',
   testMatch: ['**/__tests__/components/**/*.test.{ts,tsx}'],

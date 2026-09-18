@@ -304,10 +304,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   const handleLaunchSeed = (seed: StorySeed) => {
     const hero = getHeroById(seed.suggestedHeroId);
     const customStory = generateCustomBedtimeStory({
-      mode: seed.mode,
-      hero,
+      heroId: seed.suggestedHeroId,
       childName: hero.name,
-      childAge: 5,
+      ageRange: '4-6',
+      mode: seed.mode,
       theme: seed.theme,
       tone: 'cozy and gentle',
     });

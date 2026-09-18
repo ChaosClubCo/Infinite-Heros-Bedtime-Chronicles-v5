@@ -25,11 +25,11 @@ describe("geminiProvider direct AI Studio configuration", () => {
     generateContentMock.mockReset();
     generateContentStreamMock.mockReset();
     ctorArgs.length = 0;
-    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    vi.stubEnv("AI_INTEGRATIONS_GEMINI_API_KEY", "test-key");
   });
   afterEach(() => vi.unstubAllEnvs());
 
-  it("uses GEMINI_API_KEY and no custom base URL", async () => {
+  it("uses AI_INTEGRATIONS_GEMINI_API_KEY and no custom base URL", async () => {
     generateContentMock.mockResolvedValue({ text: "story", usageMetadata: {} });
     const provider = await loadProvider();
     await provider.generateText(REQ);
@@ -37,7 +37,17 @@ describe("geminiProvider direct AI Studio configuration", () => {
     expect(provider.isAvailable()).toBe(true);
   });
 
-  it("rejects generation when GEMINI_API_KEY is missing", async () => {
+  it("falls back to GEMINI_API_KEY for legacy configs", async () => {
+    vi.stubEnv("AI_INTEGRATIONS_GEMINI_API_KEY", "");
+    vi.stubEnv("GEMINI_API_KEY", "legacy-key");
+    generateContentMock.mockResolvedValue({ text: "story", usageMetadata: {} });
+    const provider = await loadProvider();
+    await provider.generateText(REQ);
+    expect(ctorArgs[0]).toEqual({ apiKey: "legacy-key" });
+  });
+
+  it("rejects generation when no Gemini API key is configured", async () => {
+    vi.stubEnv("AI_INTEGRATIONS_GEMINI_API_KEY", "");
     vi.stubEnv("GEMINI_API_KEY", "");
     const provider = await loadProvider();
     expect(provider.isAvailable()).toBe(false);

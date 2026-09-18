@@ -5,7 +5,9 @@ import { CHECK_TIMEOUT_MS } from "../../health-checks";
 const GEMINI_MODELS_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 function getApiKey(): string | undefined {
-  return process.env.GEMINI_API_KEY?.trim() || undefined;
+  return process.env.AI_INTEGRATIONS_GEMINI_API_KEY?.trim()
+    || process.env.GEMINI_API_KEY?.trim()
+    || undefined;
 }
 
 export async function pingGemini(): Promise<boolean> {

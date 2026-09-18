@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { elevenLabsSpeechProvider } from './elevenlabs-provider';
+import { findVoiceBinding } from '../media/provider-bindings';
+import type { PerformanceProfile } from '../../shared/media/schemas';
 
 const { mockGenerateSpeech } = vi.hoisted(() => ({ mockGenerateSpeech: vi.fn() }));
 vi.mock('../elevenlabs', async (importOriginal) => {
@@ -7,10 +10,6 @@ vi.mock('../elevenlabs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../elevenlabs')>();
   return { ...actual, generateSpeech: mockGenerateSpeech };
 });
-
-import { elevenLabsSpeechProvider } from './elevenlabs-provider';
-import { findVoiceBinding } from '../media/provider-bindings';
-import type { PerformanceProfile } from '../../shared/media/schemas';
 
 describe('elevenLabsSpeechProvider', () => {
   beforeEach(() => {

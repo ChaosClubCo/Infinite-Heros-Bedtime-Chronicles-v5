@@ -72,8 +72,9 @@ npm install
 cp .env.example .env
 # edit .env and add at minimum AI_INTEGRATIONS_GEMINI_API_KEY
 
-# 3. Start the API
+# 3. Start the API (loads `.env` automatically)
 npm run server:dev
+# equivalent: npm run dev:server
 
 # 4. Start the Expo app in a second terminal
 npm run dev:expo
@@ -87,7 +88,7 @@ Use `npm run expo:dev` inside Replit. It injects the Replit-specific Expo host v
 
 ## Environment variables
 
-The full list lives in [`.env.example`](./.env.example). These are the most important values:
+The repo-tracked environment template lives in [`.env.example`](./.env.example). That file is the placeholder list for supported variables; the table below highlights the most important ones and is not an exhaustive catalog:
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
@@ -120,7 +121,8 @@ Never commit real secrets. `EXPO_PUBLIC_*` values are bundled into the client ap
 
 ```bash
 # API
-npm run server:dev
+npm run server:dev      # Express API; loads `.env` when present
+npm run dev:server      # same server entry, also loads `.env` when present
 npm run server:build
 npm run server:prod
 

@@ -24,7 +24,9 @@ function validateEnvironment() {
   let imageProviders = 0;
 
   for (const [keyVar, urlVar, name, supportsImage] of providerConfigs) {
-    const hasKey = !!process.env[keyVar];
+    // Gemini remains available when only the legacy GEMINI_API_KEY is set.
+    const hasKey = !!process.env[keyVar]
+      || (keyVar === "AI_INTEGRATIONS_GEMINI_API_KEY" && !!process.env.GEMINI_API_KEY?.trim());
     const hasUrl = !!process.env[urlVar];
     if (hasKey) {
       textProviders++;

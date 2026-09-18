@@ -1,8 +1,8 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 let geminiClient: GoogleGenAI | null = null;
 function getGeminiClient(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) throw new Error("Gemini is not configured. GEMINI_API_KEY is required.");
+  const apiKey = process.env.AI_INTEGRATIONS_GEMINI_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) throw new Error("Gemini is not configured. Set AI_INTEGRATIONS_GEMINI_API_KEY or legacy GEMINI_API_KEY.");
   if (!geminiClient) geminiClient = new GoogleGenAI({ apiKey });
   return geminiClient;
 }
