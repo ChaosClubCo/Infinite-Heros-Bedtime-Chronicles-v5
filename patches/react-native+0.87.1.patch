@@ -1,0 +1,39 @@
+diff --git a/node_modules/react-native/jest-preset.js b/node_modules/react-native/jest-preset.js
+new file mode 100644
+index 0000000..c6bcec9
+--- /dev/null
++++ b/node_modules/react-native/jest-preset.js
+@@ -0,0 +1,7 @@
++'use strict';
++
++/**
++ * RN 0.87 removed the `react-native/jest-preset` export.
++ * jest-expo 55 still requires that path; re-export the published package.
++ */
++module.exports = require('@react-native/jest-preset');
+diff --git a/node_modules/react-native/package.json b/node_modules/react-native/package.json
+index d2e544a..a3543d3 100644
+--- a/node_modules/react-native/package.json
++++ b/node_modules/react-native/package.json
+@@ -54,6 +54,8 @@
+       "default": "./src/react-private-interface.js"
+     },
+     "./setup-env": "./src/setup-env.js",
++    "./jest-preset": "./jest-preset.js",
++    "./rn-get-polyfills": "./rn-get-polyfills.js",
+     "./unstable-internals-do-not-use": {
+       "react-native-unstable-internals": "./src/unstable-internals-do-not-use.d.ts",
+       "types": null,
+diff --git a/node_modules/react-native/rn-get-polyfills.js b/node_modules/react-native/rn-get-polyfills.js
+new file mode 100644
+index 0000000..debbb83
+--- /dev/null
++++ b/node_modules/react-native/rn-get-polyfills.js
+@@ -0,0 +1,7 @@
++'use strict';
++
++/**
++ * RN 0.87 removed the `react-native/rn-get-polyfills` export.
++ * Expo 55 Metro still requires that path; re-export the published package.
++ */
++module.exports = require('@react-native/js-polyfills');

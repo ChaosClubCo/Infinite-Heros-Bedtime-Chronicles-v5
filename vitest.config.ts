@@ -13,6 +13,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Force test mode so importing server/index.ts never triggers its
+    // module-level server.listen(). Vitest sets NODE_ENV=test by default, but
+    // only when it is unset; some hosts export an ambient NODE_ENV/PORT that
+    // would otherwise make the integration test bind a real port and flake.
+    env: { NODE_ENV: 'test' },
     setupFiles: ['__tests__/setup.ts'],
     include: [
       'server/**/*.test.ts',

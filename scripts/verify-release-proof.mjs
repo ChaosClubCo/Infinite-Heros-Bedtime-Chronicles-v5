@@ -103,8 +103,11 @@ export function validateRuntimeConfiguration() {
   const pkgPath = resolve(REPO_ROOT, 'package.json');
   if (existsSync(pkgPath)) {
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-    if (!pkg.engines?.node || !pkg.engines.node.includes('22')) {
-      failures.push(`package.json engines.node should support Node 22 (received "${pkg.engines?.node}")`);
+    const nodeEngine = pkg.engines?.node ?? '';
+    if (!nodeEngine.includes('22')) {
+      failures.push(`package.json engines.node should support Node 22 (received "${nodeEngine}")`);
+    } else if (/(^|[^0-9])20(\.|$)/.test(nodeEngine)) {
+      failures.push(`package.json engines.node should pin Node 22.x only (received "${nodeEngine}")`);
     }
   }
 

@@ -1,21 +1,29 @@
-export interface TextGenerationRequest {
+/**
+ * Portable AI orchestration surface independent of Express or a specific provider SDK.
+ */
+
+export type RuntimeAITaskType = string;
+
+export type RuntimeTextGenerationRequest = {
   systemPrompt: string;
   userPrompt: string;
-}
+};
 
-export interface TextGenerationResponse {
+export type RuntimeTextGenerationResponse = {
   text: string;
   provider: string;
   model: string;
-}
+};
 
-export interface ProviderStatus {
-  provider: string;
+export type RuntimeProviderStatus = {
+  name: string;
   available: boolean;
-  reason?: string;
-}
+};
 
 export interface AIOrchestrator {
-  generateText(taskType: string, request: TextGenerationRequest): Promise<TextGenerationResponse>;
-  getProviderStatuses(): ProviderStatus[];
+  generateText(
+    taskType: RuntimeAITaskType,
+    request: RuntimeTextGenerationRequest,
+  ): Promise<RuntimeTextGenerationResponse>;
+  getProviderStatuses(): RuntimeProviderStatus[];
 }

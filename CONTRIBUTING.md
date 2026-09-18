@@ -208,7 +208,7 @@ npm install
 cp .env.example .env
 # Edit .env — add at minimum AI_INTEGRATIONS_GEMINI_API_KEY
 
-# Start backend
+# Start backend (loads `.env` via --env-file-if-exists)
 npm run server:dev   # Express on http://localhost:5000
 
 # Start frontend (in a separate terminal)

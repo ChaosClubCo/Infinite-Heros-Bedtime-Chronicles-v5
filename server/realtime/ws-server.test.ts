@@ -47,9 +47,9 @@ async function stopServer() {
       clearTimeout(timer);
       if (err) {
         reject(err);
-      } else {
-        resolve();
+        return;
       }
+      resolve();
     });
   });
 }
