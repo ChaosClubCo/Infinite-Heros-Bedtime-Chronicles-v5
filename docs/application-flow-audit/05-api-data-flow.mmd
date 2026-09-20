@@ -1,0 +1,47 @@
+%% API / Data Flow — endpoint groups, safety-guard pipeline, and the one confirmed broken edge.
+flowchart LR
+    classDef working fill:#1e7e34,color:#fff,stroke:#155724
+    classDef broken fill:#b02a37,color:#fff,stroke:#7a1f28
+    classDef untested fill:#6c757d,color:#fff,stroke:#495057
+    classDef security fill:#e8590c,color:#fff,stroke:#a13a08
+
+    Client[Expo client]:::working
+
+    subgraph StoryGen["Story generation (wired end to end)"]
+        S1[POST /api/generate-story]:::working --> S2[AI router: Anthropic->Gemini->OpenAI->OpenRouter chain]:::working
+        S2 --> S3[guardStory: moderate -> regenerate once -> fallback]:::working
+        S3 --> S4[Response]:::working
+    end
+    Client --> S1
+    S4 --> Client
+
+    subgraph Media["Media endpoints (wired)"]
+        M1[POST /api/generate-avatar]:::working
+        M2[POST /api/generate-scene]:::working
+        M3[POST /api/tts]:::working --> M3b[/tmp/tts-cache only --<br/>docs claim an R2 tier that<br/>does not exist in source/]:::broken
+        M4[GET /api/music/:mode]:::working
+        M5[POST /api/generate-video]:::working
+    end
+    Client --> M1 & M2 & M3 & M4 & M5
+
+    subgraph OfflineSync["Offline interaction queue"]
+        O1[lib/sync-queue.ts: queueInteraction]:::working --> O2[POST /api/sync/interactions]:::broken
+        O2 -.->|404: route was never implemented,\nonly ever documented -- git log -S confirms| O3[queue never drains]:::broken
+    end
+    Client --> O1
+
+    subgraph CloudSync["M3 cloud sync (Supabase, opt-in)"]
+        C1[lib/sync/runSync.ts]:::working --> C2[(Supabase sync_records, RLS-scoped)]:::working
+    end
+    Client --> C1
+
+    subgraph Orphaned["Server-built, zero client callers"]
+        direction TB
+        X1[Voice chat: 5 /api/conversations* endpoints]:::untested
+        X2[Realtime media: 3 endpoints + WS upgrade]:::untested
+        X3["GET /api/metrics, /api/ai-providers,\n/api/voices, /api/video-available,\n/api/music-info/:mode"]:::untested
+        X4[POST /api/generate-story-stream<br/>SSE safety-buffering path unexercised]:::untested
+        X5[POST /api/generate-image<br/>Replit-integration image route]:::untested
+    end
+
+    Webhook[GitHub -> POST /api/github/webhook<br/>HMAC-authenticated, not requireAuth]:::working

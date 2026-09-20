@@ -1,0 +1,57 @@
+%% Route / Navigation Map — Expo Router client. See ROUTE-INVENTORY.md for the full table.
+flowchart TD
+    classDef working fill:#1e7e34,color:#fff,stroke:#155724
+    classDef broken fill:#b02a37,color:#fff,stroke:#7a1f28
+    classDef untested fill:#6c757d,color:#fff,stroke:#495057
+    classDef unknown fill:#adb5bd,color:#000,stroke:#6c757d,stroke-dasharray: 4 3
+
+    Root["/"]:::working -->|unconsented| PC["/parental-consent"]:::working
+    Root -->|consented, not onboarded| Welcome["/welcome"]:::working
+    Root -->|consented, onboarded| Tabs["/(tabs) home/create/library/saved/profile"]:::working
+
+    PC -->|agree| Root
+    PC --> Privacy["/privacy"]:::working
+    Privacy --> PC
+
+    Welcome --> Tabs
+    Welcome --> QC["/quick-create (modal)"]:::working
+    QC --> Story["/story"]:::working
+    QC --> SD["/story-details"]:::working
+
+    Tabs --> Settings["/settings"]:::working
+    Tabs --> SeedsGallery["/story-seeds<br/>NOT REGISTERED in app/_layout.tsx<br/>Stack.Protected coverage UNKNOWN"]:::unknown
+    Tabs --> SD
+    Tabs --> Story
+    Tabs --> Madlibs["/madlibs"]:::working
+    Tabs --> Sleep["/sleep-setup"]:::working
+    Tabs --> Trophies["/trophies"]:::working
+
+    SeedsGallery --> SD
+    SD --> Story
+    Madlibs --> Story
+    Sleep --> Story
+    Story --> Completion["/completion"]:::working
+    Completion -->|dismissAll| Tabs
+
+    Settings --> Privacy
+    Settings -->|delete all data| PC
+
+    VoiceChat["/voice-chat<br/>ORPHANED -- zero in-app entry points,<br/>contradicts both CLAUDE.md files'\nclaim of profile-tab reachability"]:::broken
+    Tabs -.->|documented but does not exist| VoiceChat
+
+    subgraph Guard["Stack.Protected guard={isConsented}"]
+        Tabs
+        Welcome
+        QC
+        Settings
+        SD
+        Madlibs
+        Sleep
+        Story
+        Completion
+        Trophies
+        VoiceChat
+    end
+    Root
+    PC
+    Privacy

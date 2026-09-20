@@ -1,0 +1,40 @@
+%% Master Application Flow — high-level overview only.
+%% Drill down: 02 (user flows), 03 (auth), 04 (authz), 05 (api/data), 06 (routes),
+%% 07 (account lifecycle), 08 (jobs/webhooks), 09 (error recovery), 10 (broken overlay).
+flowchart TD
+    classDef working fill:#1e7e34,color:#fff,stroke:#155724
+    classDef broken fill:#b02a37,color:#fff,stroke:#7a1f28
+    classDef untested fill:#6c757d,color:#fff,stroke:#495057
+    classDef security fill:#e8590c,color:#fff,stroke:#a13a08
+    classDef unknown fill:#adb5bd,color:#000,stroke:#6c757d,stroke-dasharray: 4 3
+
+    Actor[Actor: anonymous / anon-Supabase / signed-in parent]:::working
+    Entry[Entry point: cold start, deep link, or reconnect]:::working
+    Route[Expo Router route<br/>see 06-route-navigation-map]:::working
+    UIState[UI state]:::working
+    Action[User/system action]:::working
+    AuthCheck{requireAuth +<br/>AI-provider compliance gate<br/>see 03/04}:::working
+    API[Express /api/* handler<br/>see 05-api-data-flow]:::working
+    ServerLogic[Server logic: validation, safety-guard,<br/>rate limit, idempotency]:::working
+    Downstream[(AI router / ElevenLabs / Sora /<br/>Supabase / Postgres)]:::working
+    Response[HTTP response]:::working
+    ClientState[Client state: AsyncStorage / React Query]:::working
+    NextUI[Next UI state]:::working
+
+    Actor --> Entry --> Route --> UIState --> Action
+    Action -->|non-GET or private GET| AuthCheck
+    Action -->|public GET| API
+    AuthCheck -->|pass| API
+    AuthCheck -->|fail: 401/503| Response
+    API --> ServerLogic --> Downstream --> Response --> ClientState --> NextUI
+    NextUI -.->|loop| UIState
+
+    OfflineQueue[Offline interaction queue drain<br/>POST /api/sync/interactions]:::broken
+    ClientState -.-> OfflineQueue
+    OfflineQueue -->|404: route does not exist| Response
+
+    Consent[COPPA consent gate<br/>see 04-authorization-flow]:::security
+    Entry --> Consent
+    Consent -->|unconsented| Route
+
+    note1["10-broken-flow-overlay.mmd collects every\nBROKEN/SECURITY/UNKNOWN edge found in this audit"]:::unknown

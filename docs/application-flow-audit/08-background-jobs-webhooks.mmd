@@ -1,0 +1,41 @@
+%% Background Jobs / Webhooks / Sync Triggers.
+flowchart TD
+    classDef working fill:#1e7e34,color:#fff,stroke:#155724
+    classDef broken fill:#b02a37,color:#fff,stroke:#7a1f28
+    classDef untested fill:#6c757d,color:#fff,stroke:#495057
+
+    subgraph GH["GitHub webhook"]
+        GH1[GitHub event] --> GH2{X-Hub-Signature-256 HMAC valid?}:::working
+        GH2 -->|no| GH3[401, rejected + logged]:::working
+        GH2 -->|yes| GH4[202 accepted]:::working
+    end
+
+    subgraph SyncTriggers["Cloud-sync triggers (components/SyncManager.tsx)"]
+        T1[App open]:::working --> T5{cloudSyncEnabled AND\nisOnline AND consentOk AND\nsession exists?}:::working
+        T2[Foreground from background]:::working --> T5
+        T3[Reconnect: isOnline false->true]:::working --> T5
+        T4[Sign-in: user?.id changes]:::working --> T5
+        T5 -->|yes| T6[runSync -- coalesced via inFlightSync promise]:::working
+        T5 -->|no| T7[no-op]:::working
+        Completion[app/completion.tsx after story save]:::working --> T6
+    end
+
+    subgraph OfflineDrain["Offline interaction queue drain"]
+        D1[Reconnect detected]:::working --> D2[1.5s cosmetic delay]:::working
+        D2 --> D3[POST /api/sync/interactions]:::broken
+        D3 -.->|route does not exist -- 404 every time| D4[queue never clears;\nlike/unlike/story_completion\nevents accumulate indefinitely]:::broken
+    end
+
+    subgraph TTS["TTS cache (server/routes/tts.ts)"]
+        TT1[POST /api/tts] --> TT2{/tmp/tts-cache hit?}:::working
+        TT2 -->|yes| TT3[serve cached mp3]:::working
+        TT2 -->|no| TT4[ElevenLabs generate]:::working
+        TT4 --> TT5[write /tmp/tts-cache]:::working
+        TT5 --> TT3
+        TT6["No persistent tier exists.\nBoth CLAUDE.md files describe a\nCloudflare R2 backfill (server/r2.ts) as\nlive -- it does not exist anywhere in\nsource. /tmp survives only until the\nnext cold start."]:::broken
+    end
+
+    subgraph Realtime["Realtime-media WS (built, unwired)"]
+        R1[WS upgrade: ticket-based auth]:::untested --> R2[session-store lifecycle]:::untested
+        R3[No client screen opens a session -- entire\nsubsystem is server-complete, UI-absent]:::untested
+    end

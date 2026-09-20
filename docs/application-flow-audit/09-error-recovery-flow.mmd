@@ -1,0 +1,45 @@
+%% Error / Recovery Flow — resilience mechanisms that exist, and the two that silently fail.
+flowchart TD
+    classDef working fill:#1e7e34,color:#fff,stroke:#155724
+    classDef broken fill:#b02a37,color:#fff,stroke:#7a1f28
+    classDef security fill:#e8590c,color:#fff,stroke:#a13a08
+
+    subgraph AIResilience["AI provider fallback (server/ai/router.ts)"]
+        A1[Call provider N]:::working --> A2{Circuit open?<br/>5 failures -> open -> 60s reset}:::working
+        A2 -->|open| A3[Skip to provider N+1]:::working
+        A2 -->|closed| A4[Try, retry once with jitter]:::working
+        A4 -->|success| A5[Return result]:::working
+        A4 -->|fail| A3
+        A3 -->|chain exhausted| A6[Final failure -- caller must handle]:::working
+    end
+
+    subgraph SafetyRecovery["Story safety-guard recovery (server/safety/story-guard.ts)"]
+        B1[moderateStory blocks] --> B2[Regenerate ONCE, stricter prompt]:::working
+        B2 -->|clean| B3[Serve regenerated]:::working
+        B2 -->|still unsafe or throws| B4[Serve known-safe fallback story]:::working
+        B4 --> B5[Child never sees flagged text or raw error]:::working
+    end
+
+    subgraph LoadProtection["Load shedding + idempotency + rate limiting"]
+        C1[Active-request ceiling exceeded] --> C2[503, request rejected before handler runs]:::working
+        C3[Duplicate POST within 5 min, same hash] --> C4[Idempotency cache returns prior result]:::working
+        C5[Per-uid/IP sliding window exceeded] --> C6[429]:::working
+    end
+
+    subgraph AuthRecovery["401 recovery -- the gap"]
+        D1[Any query/mutation returns 401]:::broken --> D2[lib/query-client.ts throws generic Error]:::broken
+        D2 --> D3{Caller has a try/catch?}:::broken
+        D3 -->|background sync, e.g. runSync| D4[Logged + swallowed --\nno re-auth prompt, no user-visible signal]:::broken
+        D3 -->|no| D5[Unhandled -- surfaces as a generic error\nwherever React renders it]:::broken
+    end
+
+    subgraph OfflineRecovery["Offline queue -- the other gap"]
+        E1[syncOfflineInteractions POSTs\nto a route that doesn't exist]:::broken --> E2[404 -> caught -> returns false]:::broken
+        E2 --> E3[Queue never clears -- retried on\nevery future reconnect, forever]:::broken
+    end
+
+    subgraph AccountRecovery["Account-deletion partial failure"]
+        F1[Postgres chat-history delete succeeds]:::security --> F2[Supabase identity delete throws]:::security
+        F2 --> F3[503 to client -- local data deliberately\npreserved so retry stays possible]:::working
+        F2 -.->|but server state is now inconsistent,\nno compensating transaction| F4[chat history gone,\nauth+sync_records still present]:::broken
+    end
