@@ -41,7 +41,7 @@ the same rule (hiding a button is not authorization):
 |---|---|---|
 | "You must be signed in (not anonymous) to delete your account" (`app/settings.tsx` gates the flow behind a signed-in check) | `server/routes/account.ts` independently re-checks `!user \|\| user.isAnonymous → 400` | **Matches** — server-enforced, not client-only |
 | "Parent controls require the PIN" | Nothing server-side — this is a device-level gate with no server-side data at stake | **By design, not a gap** — there is no server resource behind this gate to protect |
-| "COPPA consent required before using the app" | `Stack.Protected` (client-only) + independently, the server's `requireAuth`/compliance gates don't check consent at all — **the server has no COPPA-consent enforcement of its own** | **Gap in kind, not severity**: an attacker who calls the API directly (bypassing the RN client entirely) is not blocked by lack of consent — only by the identity/rate-limit/compliance gates that exist independently. This is consistent with the API having no per-user PII to protect pre-consent (see `CONSENT_DISCLOSURES` item 1: child name/age never leave the device), but it means "consent" is a **UX/legal gate, not a technical access-control boundary** — worth stating explicitly for a COPPA audit trail. |
+| "COPPA consent required before using the app" | `Stack.Protected` (client-only) gates the RN client's UI, but is **inconsistent server-side, not uniformly absent as an earlier draft of this row claimed**: `server/routes/realtime-media.ts` (session creation) genuinely validates a scoped, versioned `consentArtifact` (`consentArtifact.scope !== "realtime-media"` → 403; a stale `consentRecordVersion` → 403) — real server-side consent enforcement exists for that one route. Story generation, media generation, and every other endpoint have **no equivalent check** — `requireAuth`/`requiresAiProviderCompliance` verify identity and AI-provider attestations, never consent state. | **Inconsistent, not absent.** An attacker calling `/api/generate-story` directly (bypassing the RN client) is not blocked by lack of consent, while the same attack against realtime-media session creation is. This inconsistency is itself worth a maintainer decision (extend the realtime-media pattern everywhere, or accept consent as UX-only outside that one route) — and it means the previous version of this document's claim that "the server has no COPPA-consent enforcement of its own" was simply wrong. See also FLOW-BREAK-008: the premise that pre-consent API calls carry no meaningful PII doesn't hold either — a child's name, once supplied, reaches third-party AI providers regardless of consent state. |
 
 ## SECURITY_CONCERN (informational — none rise to a confirmed vulnerability)
 
@@ -61,3 +61,14 @@ the same rule (hiding a button is not authorization):
    injection on Vercel/Cloudflare — flagged as `UNKNOWN`, not confirmed broken.
 
 No IDOR, missing ownership check, or client-only server guard was found in this pass.
+
+**Correction to an earlier draft of this document**: this document previously stated flatly that
+"child name/age never leave the device" (citing `CONSENT_DISCLOSURES` item 1 at face value) and
+that "the server has no COPPA-consent enforcement of its own." Both claims were wrong — verified
+against source, not just the disclosure text or a surface reading of the route list. See
+`FLOW-BREAKS.md` FLOW-BREAK-008 (the child's name is sent to third-party AI providers in story/
+suggestion prompts, contradicting the disclosure) and the corrected "COPPA consent required"
+row above (realtime-media does enforce a real server-side consent artifact). This is exactly the
+kind of gap a static-analysis audit should catch by reading the actual code paths rather than
+trusting a document's stated intent — flagged here as a reminder to treat every claim in this
+audit itself with the same scrutiny it applies to the app's own docs.

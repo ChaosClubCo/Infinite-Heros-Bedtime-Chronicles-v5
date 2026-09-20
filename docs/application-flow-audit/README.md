@@ -69,8 +69,8 @@ interaction, multi-device sync races, production API probing), it's marked `UNTE
 | `API-INVENTORY.md` | Full endpoint table + documentation-discrepancy list |
 | `AUTHORIZATION-MATRIX.md` | Resource × action matrix (reflects the actual no-RBAC, ownership-based model) |
 | `STATE-MACHINES.md` | Six state machines with state/event/guard/transition tables |
-| `FLOW-COVERAGE.md` | 26-row traced-edge matrix with status and evidence |
-| `FLOW-BREAKS.md` | 7 confirmed defects, full severity/repro/root-cause/fix register |
+| `FLOW-COVERAGE.md` | 27-row traced-edge matrix with status and evidence |
+| `FLOW-BREAKS.md` | 8 confirmed defects, full severity/repro/root-cause/fix register |
 | `TEST-GAPS.md` | Real executed test evidence, gap analysis, what this audit added and why |
 | `AUDIT-SUMMARY.md` | Final 12-point deliverable summary |
 
@@ -82,9 +82,12 @@ Every diagram uses the same four-color convention: **green = VERIFIED_WORKING**,
 
 ## What this PR changed in the application itself
 
-Two zero-behavior-risk fixes only (see `TEST-GAPS.md` for full justification):
-`.nvmrc` (missing Node-version pin), two comment lines in `.env.example`, and one new test file
-(`__tests__/components/ConsentContext.test.tsx`). No route, API, or business-logic behavior was
-changed. The 7 confirmed application-behavior defects in `FLOW-BREAKS.md` are documented with
-proposed fixes but intentionally not implemented here — see `AUDIT-SUMMARY.md` "Scope note" for
-why.
+Two zero-behavior-risk fixes plus a required CI fix (see `TEST-GAPS.md` for full justification):
+`.nvmrc` (missing Node-version pin), two comment lines in `.env.example`, one new test file
+(`__tests__/components/ConsentContext.test.tsx`), and a regenerated `package-lock.json` (the repo
+had none; CI's `npm ci` cannot run without one — see the PR's comment history for why this took
+three attempts to get right). No route, API, or business-logic behavior was changed. The 8
+confirmed application-behavior defects in `FLOW-BREAKS.md` — including FLOW-BREAK-008, a real
+mismatch between the parent-facing consent disclosure and what the server actually does with a
+child's name — are documented with proposed fixes but intentionally not implemented here; several
+require a product or legal decision this audit isn't positioned to make unilaterally.

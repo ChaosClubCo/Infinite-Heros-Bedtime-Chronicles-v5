@@ -16,12 +16,14 @@ flowchart TD
         CG2 -.->|coverage of unregistered screens is UNKNOWN| CG3
     end
 
-    subgraph ServerGate["Server-side gates (apply regardless of client consent state)"]
+    subgraph ServerGate["Server-side gates -- consent enforcement is INCONSISTENT, not uniformly absent (corrected)"]
         direction TD
-        SG1{requireAuth<br/>identity only, no consent check}:::working
+        SG1{requireAuth<br/>identity only}:::working
         SG2{requiresAiProviderCompliance<br/>env-attestation fail-closed}:::working
         SG3[Rate limiter -- per-uid when authed,<br/>per-IP anonymous fallback]:::working
+        SG4[realtime-media session creation ONLY:<br/>validates a scoped, versioned consentArtifact<br/>-- real server-side COPPA enforcement exists here]:::unknown
         SG1 --> SG2 --> SG3
+        SG3 -.->|realtime-media route only| SG4
     end
 
     subgraph Ownership["Per-resource ownership checks (no roles anywhere)"]
@@ -33,7 +35,7 @@ flowchart TD
         O5[AI generation endpoints:<br/>no shared resource -- identity + rate limit only]:::working
     end
 
-    ClientGate -.->|does NOT gate the API| ServerGate
+    ClientGate -.->|does NOT gate the API except\nfor the one realtime-media exception above| ServerGate
     ServerGate --> Ownership
 
     PIN[Parent-controls PIN lockout<br/>lib/storage.ts -- entirely client-side,<br/>no server resource behind it]:::working
@@ -42,4 +44,7 @@ flowchart TD
     ServerGate --> Anon
     Anon --> Ownership
 
-    note1["No IDOR, missing ownership check, or\nclient-only server guard found in this pass."]:::working
+    B008[FLOW-BREAK-008 (P0):<br/>childName is NOT stripped before AI-provider<br/>prompts, contradicting CONSENT_DISCLOSURES --<br/>the premise that pre-consent calls carry no\nmeaningful PII does not hold]:::broken
+    O5 -.-> B008
+
+    note1["No IDOR, missing ownership check, or\nclient-only server guard found in this pass\n(that finding still holds -- FLOW-BREAK-008 is a\nconsent-disclosure defect, not an authz/IDOR one)."]:::working

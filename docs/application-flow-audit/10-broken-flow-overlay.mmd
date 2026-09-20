@@ -6,13 +6,15 @@ flowchart TD
     classDef unknown fill:#adb5bd,color:#000,stroke:#6c757d,stroke-dasharray: 4 3
     classDef untested fill:#6c757d,color:#fff,stroke:#495057
 
-    B001["FLOW-BREAK-001 (P0)<br/>POST /api/sync/interactions does not exist.<br/>Offline like/unlike/story_completion queue\nhas never drained. Documented as a\nworking log-and-echo stub in BOTH CLAUDE.md\nfiles and docs/API.md -- confirmed via\ngit log -S that it never entered server/routes.ts."]:::broken
+    B008["FLOW-BREAK-008 (P0 -- most severe finding)<br/>Consent disclosure says the child's name never\nleaves the device. server/prompts.ts inserts it\ndirectly into story/suggestion prompts sent to\nthird-party AI providers. Confirmed, reachable\nvia the ordinary story-creation flow."]:::broken
+
+    B001["FLOW-BREAK-001 (P1, downgraded from an\ninitial P0)<br/>POST /api/sync/interactions does not exist.<br/>Offline like/unlike/story_completion queue\nhas never drained. Documented as a\nworking log-and-echo stub in BOTH CLAUDE.md\nfiles and docs/API.md -- confirmed via\ngit log -S that it never entered server/routes.ts."]:::broken
 
     B002["FLOW-BREAK-002 (P1)<br/>/story-seeds has no Stack.Screen registration\nin app/_layout.tsx -- neither inside nor\noutside Stack.Protected. Reachable, but its\nCOPPA-guard coverage is unverified."]:::unknown
 
     B003["FLOW-BREAK-003 (P1)<br/>Double story-save: completion-mount auto-save\n+ 'Save to Memory Jar' button create two\nindependent CachedStory records for one story,\nsilently inflating story-count badges\n(bookworm/legend/classic-champion etc)."]:::broken
 
-    B004["FLOW-BREAK-004 (P2)<br/>Deleting a story/profile only stamps a local\ntombstone -- no immediate runSync(). A device\nthat goes offline before the next sync trigger\ncan let last-write-wins RESURRECT the\n'deleted' record from another synced device."]:::broken
+    B004["FLOW-BREAK-004 (P3, corrected)<br/>Deleting a story/profile only stamps a local\ntombstone -- no immediate runSync(). This is a\nPROPAGATION-LATENCY gap only: stampEntityTombstone()\nstamps a fresh Date.now(), so reconcile()'s newer-wins\nrule means the tombstone reliably beats a stale live\ncopy -- it cannot resurrect a deleted record."]:::broken
 
     B005["FLOW-BREAK-005 (P2)<br/>deleteStory() never removes the story's id from\nFAVORITES_KEY/READ_STORIES_KEY or their sync-meta\nsidecar -- orphaned favorite/read markers for a\nnonexistent story keep re-propagating via cloud sync."]:::broken
 
@@ -28,6 +30,7 @@ flowchart TD
 
     U001["9 orphaned server endpoints incl. the entire\nvoice-chat + realtime-media subsystems --\nbuilt, tested, zero UI wiring."]:::untested
 
+    B008 -.->|same root cause as| D001
     B001 --> B004
     B004 --> B005
     B003 -.-> B004

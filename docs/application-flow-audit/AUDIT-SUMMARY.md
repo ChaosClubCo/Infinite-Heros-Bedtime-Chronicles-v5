@@ -1,13 +1,22 @@
 # Audit Summary
 
 TL;DR: The application's core loop (consent → create → play → complete → badge → optional cloud
-sync) is well-built and, at the unit level, well-tested. This audit found **7 confirmed
-cross-file lifecycle defects** that unit tests structurally can't catch (each function involved
-is individually correct), the most significant being that **the offline interaction sync queue
-has never worked in production** — it 404s on every drain attempt because the server endpoint it
-targets was documented but never implemented. It also found that both of the repository's own
+sync) is well-built and, at the unit level, well-tested. This audit found **8 confirmed
+defects**, most of them cross-file lifecycle interactions that unit tests structurally can't
+catch (each function involved is individually correct). The single most significant is
+**FLOW-BREAK-008**: the parent-facing COPPA consent disclosure states the child's name never
+leaves the device, but story-generation and suggestion prompts include it verbatim when supplied,
+sending it to third-party AI providers — a real gap between a specific written privacy promise
+and actual behavior, not a theoretical one. (An earlier draft of this audit rated **the offline
+interaction sync queue never working in production** as the top/P0 finding; a review pass
+correctly downgraded that to P1 — its own user-impact write-up describes no current user-visible
+consequence, which doesn't square with a P0/release-blocker label — and surfaced FLOW-BREAK-008
+as the finding that actually warrants it.) This audit also found that both of the repository's own
 `CLAUDE.md` files have drifted meaningfully from source (stale directory paths, a described-as-
-live persistence tier that doesn't exist, an undocumented production-gating compliance layer).
+live persistence tier that doesn't exist, an undocumented production-gating compliance layer), and
+this document itself went through one correction pass after external review caught real errors —
+see the note at the end of each affected section below rather than treating this as a polished,
+first-draft-correct output.
 
 ## 1. Master application map
 
@@ -35,34 +44,46 @@ IDOR, missing ownership check, or client-only server guard was found.
 ## 3. API / data map
 
 See `05-api-data-flow.mmd` and `API-INVENTORY.md`. Story generation, media generation, and TTS
-are fully wired end to end with a real child-safety moderation pipeline. **Two entire server
-subsystems (voice chat, realtime media) are production-complete and tested but have zero client
-UI wiring** — significant unused surface area, not a bug per se, but worth a product decision on
-whether to ship the UI, remove the server code, or leave it staged. The cloud-sync engine
+are fully wired end to end with a real child-safety moderation pipeline — but see FLOW-BREAK-008
+above: the story-generation prompt path also does something its own consent disclosure says it
+doesn't. **Two entire server subsystems (voice chat, realtime media) are tested and have zero
+client UI wiring, but "production-complete" overstates voice chat specifically — corrected after
+review**: `POST /api/conversations` and `POST /api/conversations/:id/messages` (the latter
+accepting up to 25MB of audio and invoking paid OpenAI transcription/chat calls) have no
+`rateLimited()` wrapper, per `API-INVENTORY.md`'s own table. Shipping this subsystem's UI without
+first adding rate limiting would open a real abuse/cost path, not just a "add the UI" product
+decision. Realtime media, by contrast, is both rate-limited and consent-checked
+(`AUTHORIZATION-MATRIX.md`) — closer to actually production-ready. The cloud-sync engine
 (`lib/sync/*`) correctly implements last-write-wins reconciliation with tombstone propagation —
-also thoroughly tested — but has two real trigger-timing gaps (FLOW-BREAK-004, FLOW-BREAK-005).
+also thoroughly tested — and has one real trigger-timing latency gap (FLOW-BREAK-004, corrected
+after review to *not* be a data-loss/resurrection defect — see below) plus one real cleanup gap
+(FLOW-BREAK-005).
 
 ## 4. Broken-flow map
 
-See `10-broken-flow-overlay.mmd` and `FLOW-BREAKS.md` for the full register. Summary table:
+See `10-broken-flow-overlay.mmd` and `FLOW-BREAKS.md` for the full register (which has a severity-
+ordered index at the top — IDs below are stable/assigned-in-order, not severity-order). Summary
+table, this time sorted by actual severity:
 
 | ID | Severity | One-line summary |
 |---|---|---|
-| FLOW-BREAK-001 | P0 | Offline interaction queue's server endpoint was never implemented — never drains |
+| FLOW-BREAK-008 | **P0** | Consent disclosure says the child's name never leaves the device; story-generation prompts include it |
+| FLOW-BREAK-001 | P1 | Offline interaction queue's server endpoint was never implemented — never drains (downgraded from an initial P0; see TL;DR) |
 | FLOW-BREAK-002 | P1 | `/story-seeds` has no `Stack.Screen` registration — COPPA-guard coverage unverified |
 | FLOW-BREAK-003 | P1 | Completing a story can silently create two saved records, inflating badge counts |
-| FLOW-BREAK-004 | P2 | Deletions aren't pushed synchronously — resurrection race across synced devices |
 | FLOW-BREAK-005 | P2 | Deleting a story orphans its favorite/read-tracking entries |
-| FLOW-BREAK-006 | P3 | Account deletion isn't fully transactional across Postgres + Supabase Auth |
 | FLOW-BREAK-007 | P2 | `/voice-chat` is orphaned; contradicts both `CLAUDE.md` files' reachability claim |
+| FLOW-BREAK-004 | P3 | Deletions only propagate to other synced devices on the next sync trigger — a latency gap, **not** the resurrection defect an earlier draft claimed (corrected after review; a fresh tombstone timestamp always beats a stale live copy) |
+| FLOW-BREAK-006 | P3 | Account deletion isn't fully transactional across Postgres + Supabase Auth (proposed fix corrected after review — see `FLOW-BREAKS.md`, the original suggestion would have broken retry-safety) |
 
 ## 5. Flow coverage %
 
-Of the 26 traced edges in `FLOW-COVERAGE.md`, counting each row's `Status` column exactly once:
-**14/26 (54%) VERIFIED_WORKING**, **6/26 (23%) VERIFIED_BROKEN**, **1/26 (4%) PARTIALLY_WORKING**,
-**2/26 (8%) ORPHANED**, **1/26 (4%) SPEC_UNKNOWN**, **2/26 (8%) SECURITY_CONCERN** (informational).
-These six figures sum to 26/100%. (An earlier draft of this line double-counted and misstated
-these totals — corrected after review; see `FLOW-COVERAGE.md`'s "Coverage summary" for the
+Of the 27 traced edges in `FLOW-COVERAGE.md` (26 originally, plus F-27 added for FLOW-BREAK-008),
+counting each row's `Status` column exactly once: **14/27 (52%) VERIFIED_WORKING**,
+**7/27 (26%) VERIFIED_BROKEN**, **1/27 (4%) PARTIALLY_WORKING**, **2/27 (7%) ORPHANED**,
+**1/27 (4%) SPEC_UNKNOWN**, **2/27 (7%) SECURITY_CONCERN** (informational). These six figures sum
+to 27/100%. (An earlier draft of this line double-counted and misstated these totals against a
+26-row matrix — corrected after review; see `FLOW-COVERAGE.md`'s "Coverage summary" for the
 row-by-row count.) This is a **traced-edge**
 sample focused on the highest-risk paths (auth, consent, destructive actions, data lifecycle,
 API surface) — not a literal enumeration of every possible transition, per the audit's own
@@ -70,17 +91,18 @@ API surface) — not a literal enumeration of every possible transition, per the
 
 ## 6. Verified broken transitions
 
-The 6 `VERIFIED_BROKEN` rows in `FLOW-COVERAGE.md`, correctly mapped (an earlier draft mispaired
+The 7 `VERIFIED_BROKEN` rows in `FLOW-COVERAGE.md`, correctly mapped (an earlier draft mispaired
 these — corrected after review):
 
 | Row | Maps to |
 |---|---|
 | F-09 (double story-save) | FLOW-BREAK-003 |
 | F-11 (offline sync queue 404s) | FLOW-BREAK-001 |
-| F-13 (delete not pushed synchronously) | FLOW-BREAK-004 |
+| F-13 (delete not pushed synchronously) | FLOW-BREAK-004 — latency gap only, see the corrected write-up in `FLOW-BREAKS.md` |
 | F-14 (favorites/read orphaned on delete) | FLOW-BREAK-005 |
 | F-19 (401 silent-fail) | `SECURITY_CONCERN-1` (informational — not a numbered `FLOW-BREAK`) |
 | F-23 (R2 tier doesn't exist) | doc-drift item (not a numbered `FLOW-BREAK`) |
+| F-27 (child's name reaches AI providers despite the consent disclosure) | **FLOW-BREAK-008 — the most severe confirmed finding in this audit** |
 
 `FLOW-BREAK-007` (orphaned `/voice-chat`) is represented in the coverage matrix by F-06/F-24,
 tagged `ORPHANED` rather than `VERIFIED_BROKEN` — it has no row of its own in the six above.
@@ -98,6 +120,9 @@ vulnerability in this pass):
    but a future endpoint could mis-assume "authenticated" means "real parent."
 3. Dev-mode IP-anonymous auth-bypass blast radius depends on `NODE_ENV` being correct at every
    deploy target — not independently verified against actual deploy configuration (`UNKNOWN`).
+
+These are informational design tradeoffs, distinct from FLOW-BREAK-008 (§4), which is a confirmed
+defect — a specific written privacy claim that doesn't match server behavior — not a tradeoff.
 
 ## 8. Untested transitions
 
@@ -120,9 +145,12 @@ or genuinely unused surface area worth a product decision.
 ## 10. Top root causes
 
 1. **Documentation and implementation diverged silently over time**, in both directions — a
-   documented feature (`/api/sync/interactions`) that was never built, and a built feature
-   (`server/compliance.ts`, the real server directory structure) that was never documented. This
-   is the root cause behind FLOW-BREAK-001 and the entire doc-drift list.
+   documented feature (`/api/sync/interactions`) that was never built, a built feature
+   (`server/compliance.ts`, the real server directory structure) that was never documented, and —
+   most seriously — a **parent-facing legal disclosure** (`CONSENT_DISCLOSURES[0]`: the child's
+   name never leaves the device) that was never cross-checked against the prompt-building code
+   that actually runs (FLOW-BREAK-008). This is the same root cause wearing three different hats;
+   the third instance carries real compliance weight that the first two don't.
 2. **No single-responsibility "this story is done" event.** Story completion triggers four
    independent, uncoordinated side effects (auto-save, manual save, offline-queue enqueue,
    cloud-sync push) with no shared idempotency key — root cause of FLOW-BREAK-003 and part of why
@@ -162,3 +190,15 @@ or genuinely unused surface area worth a product decision.
   matrix; a filterable interactive explorer (pan/zoom/filter-by-actor/subsystem/status) can be
   built as a follow-up Claude Artifact on request, but wasn't assumed as in-scope for a repo-
   committed audit deliverable.
+- **FLOW-BREAK-008 needs human — likely legal — review, not just an engineering fix.** This audit
+  can confirm the code-vs-disclosure mismatch precisely, but cannot determine on its own whether
+  the correct remedy is changing the code to match the promise, changing the promise (with a
+  `CONSENT_VERSION` bump forcing re-consent) to match the code, or something else entirely (e.g. a
+  provider-level data-processing agreement that already covers this and makes the current
+  disclosure text merely imprecise rather than false) — that last possibility wasn't verified and
+  is exactly the kind of external-agreement fact this audit's method (source + tests only) cannot
+  see.
+- **This document itself was reviewed and corrected once** (by Copilot's and Codex's automated PR
+  review, both verified against source before accepting) — a second independent pass might still
+  find more. Treat "reviewed once and corrected" as evidence of a good-faith, checked audit, not
+  as proof of zero remaining errors.

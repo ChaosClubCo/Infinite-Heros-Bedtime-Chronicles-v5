@@ -8,7 +8,7 @@ environment on 2026-09-20 (Node v22.22.2, npm 10.9.7 — satisfies `engines.node
 
 | Command | Exit code | Result |
 |---|---|---|
-| `npm install` | 0 | Success — 1919 packages, 1m54s. `node_modules`/`package-lock.json` were both absent beforehand (see `AUDIT-SUMMARY.md` for why a regenerated lockfile was **not** committed). |
+| `npm install` | 0 | Success — 1919 packages, 1m54s. `node_modules`/`package-lock.json` were both absent beforehand. (A regenerated `package-lock.json` **was** ultimately committed to this PR, after two false starts — see the PR's own comment history: the first regeneration was incomplete under a warm cache, the second was generated with npm 10.x while CI validates with npm 11 via an `npm install --global npm@11` step. The final lockfile was generated and cold-verified with npm 11 specifically.) |
 | `npm run typecheck` | 0 | Clean |
 | `npm run lint` | 0 | Clean |
 | `npm test` (vitest) | **1** | 77 files passed, **1 file errored before any assertion ran** (`ENOENT: .nvmrc`); 860/860 individual tests that did run, passed |
