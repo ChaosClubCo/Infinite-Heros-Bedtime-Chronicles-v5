@@ -1,0 +1,69 @@
+%% Authentication Flow — Supabase identity lifecycle, independent of COPPA consent (see 04).
+stateDiagram-v2
+    classDef working fill:#1e7e34,color:#fff,stroke:#155724
+    classDef broken fill:#b02a37,color:#fff,stroke:#7a1f28
+    classDef untested fill:#6c757d,color:#fff,stroke:#495057
+    classDef security fill:#e8590c,color:#fff,stroke:#a13a08
+    classDef unknown fill:#adb5bd,color:#000,stroke:#6c757d
+
+    [*] --> NoSession
+    NoSession --> AnonymousSupabase: getIdToken() first needs a\ntoken -> signInAnonymously()
+    NoSession --> SignedIn: explicit sign-up/sign-in\n(lib/AuthContext.tsx)
+    AnonymousSupabase --> SignedIn: user explicitly signs up later\n(session merge behavior UNKNOWN\nfrom static source)
+
+    state AnonymousSupabase {
+        [*] --> HasAnonJWT
+        HasAnonJWT --> HasAnonJWT: requireAuth accepts this JWT\nfor every endpoint except\nDELETE /api/account
+    }
+
+    state SignedIn {
+        [*] --> HasRealJWT
+        HasRealJWT --> TokenRefreshing: Supabase SDK autoRefreshToken\n(foreground; background behavior UNKNOWN)
+        TokenRefreshing --> HasRealJWT
+        HasRealJWT --> HasRealJWT: can call DELETE /api/account
+    }
+
+    SignedIn --> NoSession: signOut() (lib/AuthContext.tsx)\ndoes NOT clear AsyncStorage app data
+    AnonymousSupabase --> NoSession: signOut()
+
+    state "Server: requireAuth (server/auth.ts)" as ServerGate {
+        [*] --> CheckSupabaseConfigured
+        CheckSupabaseConfigured --> Prod503: unconfigured AND NODE_ENV=production
+        CheckSupabaseConfigured --> DevAnonFallback: unconfigured AND NOT production
+        CheckSupabaseConfigured --> CheckBearer: configured
+        CheckBearer --> Reject401: missing/malformed/>4096 chars
+        CheckBearer --> VerifyToken: present
+        VerifyToken --> Reject401: Supabase 401/403
+        VerifyToken --> Reject503: Supabase 429/500/thrown error\n(deliberately retryable, not a logout)
+        VerifyToken --> Accept: valid -> req.user={uid,isAnonymous}
+    }
+
+    class Prod503,Reject401,Reject503,Accept,CheckBearer,VerifyToken,CheckSupabaseConfigured working
+    class DevAnonFallback security
+
+    note right of DevAnonFallback
+        SECURITY_CONCERN (informational):
+        req.user = {uid: req.ip, isAnonymous:true}
+        when Supabase env vars are unset AND
+        NODE_ENV != production. Blast radius
+        depends entirely on NODE_ENV being set
+        correctly at every deploy target -- not
+        independently verified in this audit (UNKNOWN).
+    end note
+
+    state "Client: 401 on any query/mutation" as ClientSide {
+        [*] --> ThrownError
+        ThrownError --> SilentlyCaught: e.g. lib/sync/runSync.ts\nlogs + returns false
+    }
+    class ThrownError,SilentlyCaught broken
+
+    note right of ClientSide
+        No screen anywhere subscribes to a 401 and
+        redirects to re-authentication -- confirmed by
+        a repo-wide grep for 401/expired/re-auth/
+        session expired returning zero matches.
+        Low blast radius today (most flows are
+        anonymous-tolerant) but a real UX gap.
+    end note
+
+    Accept --> [*]

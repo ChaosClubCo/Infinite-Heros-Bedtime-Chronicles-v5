@@ -1,0 +1,60 @@
+%% User Flow Map — golden paths + alternates for the four core journeys.
+flowchart TD
+    classDef working fill:#1e7e34,color:#fff,stroke:#155724
+    classDef broken fill:#b02a37,color:#fff,stroke:#7a1f28
+    classDef untested fill:#6c757d,color:#fff,stroke:#495057
+    classDef security fill:#e8590c,color:#fff,stroke:#a13a08
+
+    subgraph J1["Journey: Onboarding"]
+        direction TD
+        A1[Cold start] --> A2{Consent record valid?}:::working
+        A2 -->|no| A3[/parental-consent<br/>arithmetic gate]:::working
+        A3 --> A4{3 wrong answers?}:::working
+        A4 -->|yes| A5[Escalating lockout 30s*2^n]:::working
+        A5 --> A3
+        A4 -->|no, correct| A6[Disclosures shown -> Agree]:::working
+        A6 --> A7[/welcome]:::working
+        A2 -->|yes, onboarded=false| A7
+        A7 --> A8[/quick-create modal]:::working
+        A2 -->|yes, onboarded=true| A9[/(tabs) home]:::working
+        A8 --> A10[/story]:::working
+    end
+
+    subgraph J2["Journey: Create & play a story"]
+        direction TD
+        B1[Create tab: pick hero/theme] --> B2[/story-details or /madlibs or /sleep-setup]:::working
+        B2 --> B3[POST /api/generate-story]:::working
+        B3 -->|success| B4[/story: play scenes + narration + choices]:::working
+        B3 -->|failure| B2
+        B4 --> B5[/completion]:::working
+        B5 --> B6[auto-save #1: saveStoryWithProfile]:::working
+        B5 --> B7[updateStreak + checkAndAwardBadges]:::working
+        B5 --> B8[queueInteraction story_completion]:::broken
+        B5 --> B9[runSync -- best effort cloud sync]:::working
+        B5 --> B10{tap Save to Memory Jar?}:::broken
+        B10 -->|yes| B11[auto-save #2: independent saveStory call<br/>DUPLICATE RECORD -- inflates badge counts]:::broken
+        B8 -.->|POST api/sync/interactions -- route does not exist, 404| B12[queue never drains]:::broken
+    end
+
+    subgraph J3["Journey: Library / Saved / Replay"]
+        direction TD
+        C1[/(tabs)/library or /saved] --> C2[tap a saved story]
+        C2 --> C3[/story replayJson params]:::working
+        C1 --> C4{delete a story}:::broken
+        C4 --> C5[deleteStory: tombstones STORIES_KEY only]:::broken
+        C5 -.->|no immediate runSync call| C6[favorites/read entries for the\ndeleted id are never cleaned up]:::broken
+    end
+
+    subgraph J4["Journey: Parent controls / destructive actions"]
+        direction TD
+        D1[/settings] --> D2[PIN-gated Parent Controls]:::working
+        D2 --> D3{Delete all data}:::security
+        D3 --> D4[purgeCloudData: DELETE /api/account first]:::working
+        D4 -->|success| D5[clearAllData + signOut]:::working
+        D4 -->|failure| D6[local data preserved, error shown]:::working
+        D3 --> D7[/parental-consent re-shown next launch]:::working
+    end
+
+    J1 --> J2
+    J2 --> J3
+    J1 --> J4

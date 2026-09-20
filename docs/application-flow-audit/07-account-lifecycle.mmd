@@ -1,0 +1,51 @@
+%% Account Lifecycle — anonymous -> signed-in -> destructive actions.
+stateDiagram-v2
+    classDef working fill:#1e7e34,color:#fff,stroke:#155724
+    classDef broken fill:#b02a37,color:#fff,stroke:#7a1f28
+    classDef security fill:#e8590c,color:#fff,stroke:#a13a08
+    classDef unknown fill:#adb5bd,color:#000,stroke:#6c757d
+
+    [*] --> Anonymous
+    Anonymous --> AnonSupabaseSession: first API call needing a token\n(signInAnonymously)
+    AnonSupabaseSession --> SignedInParent: explicit sign-up/sign-in
+    Anonymous --> SignedInParent: explicit sign-up/sign-in
+
+    state SignedInParent {
+        [*] --> Active
+        Active --> DeletingStory: user deletes one story
+        DeletingStory --> Active: deleteStory() tombstones\nSTORIES_KEY only -- no immediate\nrunSync(), no favorites/read cleanup
+        Active --> DeletingProfile: user deletes a child profile
+        DeletingProfile --> Active: same lag-before-sync pattern
+    }
+
+    class DeletingStory,DeletingProfile broken
+
+    SignedInParent --> DeleteAllDataFlow: Settings -> Parent Controls\n-> Delete All Data
+    state DeleteAllDataFlow {
+        [*] --> Confirming
+        Confirming --> CallingServer: confirmDestructive() dialog accepted
+        CallingServer --> ServerDeleting: DELETE /api/account
+        state ServerDeleting {
+            [*] --> DeleteChatHistory
+            DeleteChatHistory --> DeleteSupabaseIdentity: if DATABASE_URL set,\nPostgres voice-chat rows first
+            DeleteSupabaseIdentity --> Cascade: auth.users FK ON DELETE CASCADE\nremoves sync_records
+        }
+        ServerDeleting --> ReceiptOK: all steps succeed
+        ServerDeleting --> PartialFailure: deleteAuthenticatedUser() throws\nAFTER chat history already deleted --\nNOT ROLLED BACK
+        ReceiptOK --> ClientWipe: purgeCloudData() validates\nServerDeletionReceipt shape
+        ClientWipe --> [*]: clearAllData() + signOut()\n-> next launch shows /parental-consent
+        PartialFailure --> [*]: 503 returned, client\ndeliberately preserves local data\n(retry stays possible)
+    }
+    class PartialFailure broken
+    class ReceiptOK,ClientWipe,Confirming,CallingServer,DeleteChatHistory,DeleteSupabaseIdentity,Cascade working
+
+    note right of PartialFailure
+        Not fully transactional: if the Supabase
+        identity delete throws after the Postgres
+        chat-history delete already succeeded,
+        server state is inconsistent (chat history
+        gone, auth+sync_records still present).
+        No compensating transaction exists.
+    end note
+
+    DeleteAllDataFlow --> [*]: account gone

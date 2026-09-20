@@ -1,0 +1,45 @@
+%% Authorization Flow — no RBAC exists; enforcement is ownership + a client-side COPPA gate.
+%% See AUTHORIZATION-MATRIX.md for the full resource x action table.
+flowchart TD
+    classDef working fill:#1e7e34,color:#fff,stroke:#155724
+    classDef broken fill:#b02a37,color:#fff,stroke:#7a1f28
+    classDef untested fill:#6c757d,color:#fff,stroke:#495057
+    classDef security fill:#e8590c,color:#fff,stroke:#a13a08
+    classDef unknown fill:#adb5bd,color:#000,stroke:#6c757d,stroke-dasharray: 4 3
+
+    subgraph ClientGate["Client-side COPPA gate (UX/legal boundary, not an API access-control boundary)"]
+        direction TD
+        CG1[isConsented state<br/>lib/ConsentContext.tsx]:::working
+        CG2[Stack.Protected guard<br/>app/_layout.tsx]:::working
+        CG3[/story-seeds screen file exists<br/>but has NO Stack.Screen registration/]:::unknown
+        CG1 --> CG2
+        CG2 -.->|coverage of unregistered screens is UNKNOWN| CG3
+    end
+
+    subgraph ServerGate["Server-side gates (apply regardless of client consent state)"]
+        direction TD
+        SG1{requireAuth<br/>identity only, no consent check}:::working
+        SG2{requiresAiProviderCompliance<br/>env-attestation fail-closed}:::working
+        SG3[Rate limiter -- per-uid when authed,<br/>per-IP anonymous fallback]:::working
+        SG1 --> SG2 --> SG3
+    end
+
+    subgraph Ownership["Per-resource ownership checks (no roles anywhere)"]
+        direction TD
+        O1[DELETE /api/account:<br/>req.user.uid only, rejects isAnonymous]:::working
+        O2[Voice-chat conversations:<br/>userId = req.user.uid on every query]:::working
+        O3[Realtime-media sessions:<br/>ownerId === req.user.uid]:::working
+        O4[Cloud sync rows:<br/>Supabase RLS scoped to session]:::working
+        O5[AI generation endpoints:<br/>no shared resource -- identity + rate limit only]:::working
+    end
+
+    ClientGate -.->|does NOT gate the API| ServerGate
+    ServerGate --> Ownership
+
+    PIN[Parent-controls PIN lockout<br/>lib/storage.ts -- entirely client-side,<br/>no server resource behind it]:::working
+
+    Anon[Anonymous Supabase JWT<br/>satisfies every gate except O1]:::security
+    ServerGate --> Anon
+    Anon --> Ownership
+
+    note1["No IDOR, missing ownership check, or\nclient-only server guard found in this pass."]:::working

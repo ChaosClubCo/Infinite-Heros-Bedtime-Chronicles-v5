@@ -1,0 +1,33 @@
+%% Broken-Flow Overlay — every VERIFIED_BROKEN / SECURITY_CONCERN / SPEC_UNKNOWN edge
+%% found across this audit, in one place. Cross-reference FLOW-BREAKS.md for IDs.
+flowchart TD
+    classDef broken fill:#b02a37,color:#fff,stroke:#7a1f28,stroke-width:2px
+    classDef security fill:#e8590c,color:#fff,stroke:#a13a08,stroke-width:2px
+    classDef unknown fill:#adb5bd,color:#000,stroke:#6c757d,stroke-dasharray: 4 3
+    classDef untested fill:#6c757d,color:#fff,stroke:#495057
+
+    B001["FLOW-BREAK-001 (P0)<br/>POST /api/sync/interactions does not exist.<br/>Offline like/unlike/story_completion queue\nhas never drained. Documented as a\nworking log-and-echo stub in BOTH CLAUDE.md\nfiles and docs/API.md -- confirmed via\ngit log -S that it never entered server/routes.ts."]:::broken
+
+    B002["FLOW-BREAK-002 (P1)<br/>/story-seeds has no Stack.Screen registration\nin app/_layout.tsx -- neither inside nor\noutside Stack.Protected. Reachable, but its\nCOPPA-guard coverage is unverified."]:::unknown
+
+    B003["FLOW-BREAK-003 (P1)<br/>Double story-save: completion-mount auto-save\n+ 'Save to Memory Jar' button create two\nindependent CachedStory records for one story,\nsilently inflating story-count badges\n(bookworm/legend/classic-champion etc)."]:::broken
+
+    B004["FLOW-BREAK-004 (P2)<br/>Deleting a story/profile only stamps a local\ntombstone -- no immediate runSync(). A device\nthat goes offline before the next sync trigger\ncan let last-write-wins RESURRECT the\n'deleted' record from another synced device."]:::broken
+
+    B005["FLOW-BREAK-005 (P2)<br/>deleteStory() never removes the story's id from\nFAVORITES_KEY/READ_STORIES_KEY or their sync-meta\nsidecar -- orphaned favorite/read markers for a\nnonexistent story keep re-propagating via cloud sync."]:::broken
+
+    B006["FLOW-BREAK-006 (P3)<br/>DELETE /api/account is not fully transactional:\nif the Supabase identity delete throws after the\nPostgres chat-history delete already succeeded,\nthat partial deletion is not rolled back."]:::broken
+
+    B007["FLOW-BREAK-007 (P2)<br/>/voice-chat is orphaned (zero in-app nav) and\ncontradicts both CLAUDE.md files' claim that it's\nreachable from the profile tab. Screen is an\nintentional 'unavailable' placeholder, so low\nuser impact, but a real doc/code mismatch."]:::broken
+
+    S001["SECURITY_CONCERN-1<br/>No client-side 401 recovery UX anywhere --\nsurfaces as a generic swallowed/thrown Error."]:::security
+    S002["SECURITY_CONCERN-2<br/>Anonymous Supabase JWTs satisfy requireAuth\nfor every endpoint except DELETE /api/account --\nby design, but a future endpoint could\nmis-assume 'authenticated' means 'real parent'."]:::security
+    S003["SECURITY_CONCERN-3<br/>Dev-mode IP-anonymous auth-bypass blast radius\ndepends entirely on NODE_ENV being correctly set\nat every deploy target -- not independently\nverified in this audit (UNKNOWN)."]:::security
+
+    D001["Doc drift: server/replit_integrations/ does not\nexist (real path server/integrations/); server/r2.ts\n/ R2 TTS tier does not exist at all; CORS\nVercel-preview matching not implemented;\nundocumented server/compliance.ts gate."]:::unknown
+
+    U001["9 orphaned server endpoints incl. the entire\nvoice-chat + realtime-media subsystems --\nbuilt, tested, zero UI wiring."]:::untested
+
+    B001 --> B004
+    B004 --> B005
+    B003 -.-> B004
