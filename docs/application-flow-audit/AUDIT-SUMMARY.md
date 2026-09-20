@@ -25,8 +25,11 @@ See `03-authentication-flow.mmd` and `AUTHORIZATION-MATRIX.md`. Supabase is the 
 provider; `requireAuth` is a single global gate (not scattered per-route), and its behavior is
 exhaustively tested (`server/auth.test.ts`). Two independent COPPA-consent enforcement layers
 exist (cold-start `resolveLaunchRoute()` and the always-mounted `Stack.Protected` guard) and both
-fail closed on any error — now both covered by tests (the second layer's test,
-`ConsentContext.test.tsx`, is new in this PR). Authorization is ownership-based throughout; no
+fail closed on any error. The first layer is thoroughly tested (`lib/launch-gate.test.ts`); the
+second layer's own reactive state is now also tested (`ConsentContext.test.tsx`, new in this
+PR), though that test covers the context's state machine, not `Stack.Protected`'s navigator-level
+enforcement itself — see `TEST-GAPS.md` for the precise scope. Authorization is ownership-based
+throughout; no
 IDOR, missing ownership check, or client-only server guard was found.
 
 ## 3. API / data map
@@ -55,18 +58,36 @@ See `10-broken-flow-overlay.mmd` and `FLOW-BREAKS.md` for the full register. Sum
 
 ## 5. Flow coverage %
 
-Of the 26 traced edges in `FLOW-COVERAGE.md`: **17/26 (65%) VERIFIED_WORKING**,
-**6/26 (23%) VERIFIED_BROKEN**, **1/26 (4%) PARTIALLY_WORKING**, **2/26 (8%) ORPHANED**,
-**1/26 (4%) SPEC_UNKNOWN** (rows can carry more than one tag, e.g. a broken edge that's also a
-security-informational item, so percentages don't sum to a clean 100). This is a **traced-edge**
+Of the 26 traced edges in `FLOW-COVERAGE.md`, counting each row's `Status` column exactly once:
+**14/26 (54%) VERIFIED_WORKING**, **6/26 (23%) VERIFIED_BROKEN**, **1/26 (4%) PARTIALLY_WORKING**,
+**2/26 (8%) ORPHANED**, **1/26 (4%) SPEC_UNKNOWN**, **2/26 (8%) SECURITY_CONCERN** (informational).
+These six figures sum to 26/100%. (An earlier draft of this line double-counted and misstated
+these totals — corrected after review; see `FLOW-COVERAGE.md`'s "Coverage summary" for the
+row-by-row count.) This is a **traced-edge**
 sample focused on the highest-risk paths (auth, consent, destructive actions, data lifecycle,
 API surface) — not a literal enumeration of every possible transition, per the audit's own
 "practical equivalence-class coverage over exhaustive enumeration" instruction.
 
 ## 6. Verified broken transitions
 
-The 6 `VERIFIED_BROKEN` rows in `FLOW-COVERAGE.md` (F-09, F-11, F-13, F-14, F-19, F-23),
-corresponding to FLOW-BREAK-001, 003, 004, 005, 007, and the R2-tier doc-drift item.
+The 6 `VERIFIED_BROKEN` rows in `FLOW-COVERAGE.md`, correctly mapped (an earlier draft mispaired
+these — corrected after review):
+
+| Row | Maps to |
+|---|---|
+| F-09 (double story-save) | FLOW-BREAK-003 |
+| F-11 (offline sync queue 404s) | FLOW-BREAK-001 |
+| F-13 (delete not pushed synchronously) | FLOW-BREAK-004 |
+| F-14 (favorites/read orphaned on delete) | FLOW-BREAK-005 |
+| F-19 (401 silent-fail) | `SECURITY_CONCERN-1` (informational — not a numbered `FLOW-BREAK`) |
+| F-23 (R2 tier doesn't exist) | doc-drift item (not a numbered `FLOW-BREAK`) |
+
+`FLOW-BREAK-007` (orphaned `/voice-chat`) is represented in the coverage matrix by F-06/F-24,
+tagged `ORPHANED` rather than `VERIFIED_BROKEN` — it has no row of its own in the six above.
+Likewise `FLOW-BREAK-002` (`/story-seeds` registration) maps to F-05 (`SPEC_UNKNOWN`) and
+`FLOW-BREAK-006` (account-deletion non-atomicity) maps to F-16 (`PARTIALLY_WORKING`) — not every
+confirmed break is tagged `VERIFIED_BROKEN`; several are more precisely `SPEC_UNKNOWN`,
+`PARTIALLY_WORKING`, or `ORPHANED` depending on what was actually observed.
 
 ## 7. Security-sensitive transitions
 

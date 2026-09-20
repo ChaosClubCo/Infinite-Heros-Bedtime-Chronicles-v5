@@ -10,7 +10,7 @@ the actually-executed evidence in `TEST-GAPS.md`), not an assumption.
 | F-01 | Anonymous | Cold start | Launch app, no consent record | `/parental-consent` | `app/index.tsx` | — | none | Route to consent gate | Matches | VERIFIED_WORKING | `lib/launch-gate.ts` | `lib/launch-gate.test.ts` | — |
 | F-02 | Anonymous | `/parental-consent` | 3 wrong arithmetic answers | Escalating lockout | `app/parental-consent.tsx` | — | none | 30s×2^n lockout | Matches | VERIFIED_WORKING | source read | none (UI timer logic) | — |
 | F-03 | Anonymous | Gate passed | Tap "I agree" | Consent recorded, route to `/welcome` or `/(tabs)` | `app/parental-consent.tsx` | — | none | AsyncStorage write + context flip | Matches | VERIFIED_WORKING | `lib/consent-record.ts` | `lib/consent-record.test.ts`, `ConsentContext.test.tsx` (new) | — |
-| F-04 | Consented, restored nav state | Deep link to a protected route pre-consent | Attempt to mount | Blocked | `app/_layout.tsx` `Stack.Protected` | — | client-only | Screen unmountable | Matches (by construction) | VERIFIED_WORKING | `lib/ConsentContext.tsx` seeded before render | `ConsentContext.test.tsx` (new) | — |
+| F-04 | Consented, restored nav state | Deep link to a protected route pre-consent | Attempt to mount | Blocked | `app/_layout.tsx` `Stack.Protected` | — | client-only | Screen unmountable | Matches (by construction — Expo Router's `Stack.Protected` guard mechanism, not custom app logic) | VERIFIED_WORKING | `lib/ConsentContext.tsx` seeded before render | `ConsentContext.test.tsx` (new) covers the *context's own* state machine (fail-closed load, `markConsented`/`markUnconsented`) only — it does not mount `app/_layout.tsx` or assert that `Stack.Protected` actually excludes a screen; that navigator-level behavior remains untested | — |
 | F-05 | Any | `/(tabs)` home | Tap story-seed gallery | `/story-seeds` | `app/story-seeds.tsx` | — | client-only | Registered `Stack.Screen` inside guard | **No registration exists** | SPEC_UNKNOWN | `app/_layout.tsx` read in full | none | FLOW-BREAK-002 |
 | F-06 | Any | `/(tabs)/profile` | Look for voice chat | `/voice-chat` | — | — | client-only | Documented nav entry | No entry exists | ORPHANED | grep, full file read | `__tests__/release/voice-containment.test.ts` (adjacent, not this) | FLOW-BREAK-007 |
 | F-07 | Any authenticated | Wizard screen | Submit story params | `POST /api/generate-story` | `app/story.tsx` | `/api/generate-story` | yes | Story returned, safety-guarded | Matches | VERIFIED_WORKING | `server/routes/story.ts`, `server/safety/story-guard.ts` | `server/safety/story-guard.test.ts`, `__tests__/integration/api-routes.test.ts` | — |
@@ -38,9 +38,11 @@ the actually-executed evidence in `TEST-GAPS.md`), not an assumption.
 
 - **26 flow edges enumerated** across the 10 diagrams (representative of the highest-value/
   highest-risk paths, not literally every possible transition — see `README.md` "Method").
-- **17 VERIFIED_WORKING**, **6 VERIFIED_BROKEN**, **1 PARTIALLY_WORKING**, **2 ORPHANED**,
-  **1 SPEC_UNKNOWN**, **3 SECURITY_CONCERN** (informational; some rows carry more than one tag,
-  hence totals exceed 26).
+- Counting each row's `Status` column exactly once: **14 VERIFIED_WORKING**, **6 VERIFIED_BROKEN**,
+  **1 PARTIALLY_WORKING**, **2 ORPHANED**, **1 SPEC_UNKNOWN**, **2 SECURITY_CONCERN** (F-18, F-21
+  — informational). These sum to 26. (F-19 is `VERIFIED_BROKEN`, not `SECURITY_CONCERN`, even
+  though its Issue ID cross-references `SECURITY_CONCERN-1` in `AUTHORIZATION-MATRIX.md` — that
+  column names the related write-up, not this row's status.)
 - Of the 6 confirmed breaks, **5 already have a clear proposed fix and required test** documented
   in `FLOW-BREAKS.md`; none were fixed in this PR (see `README.md` "Scope" for why).
 - The single largest positive finding: **core safety, auth, consent, badge, and sync-reconcile

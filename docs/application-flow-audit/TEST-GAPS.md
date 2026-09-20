@@ -54,13 +54,22 @@ storage read rejects, and both `markConsented`/`markUnconsented` in-memory trans
 (the exact mechanism `app/parental-consent.tsx` and `app/settings.tsx`'s delete-all-data flow
 depend on).
 
+**Scope of this coverage, precisely** (a review caught this being overstated in an earlier draft):
+these tests verify `ConsentContext`'s own state machine — the *input* `Stack.Protected` reads.
+They do not mount `app/_layout.tsx` or assert that `Stack.Protected` actually excludes a screen
+from the navigator when `isConsented` is false; that navigator-level enforcement is a separate,
+still-untested claim (see `FLOW-COVERAGE.md` F-04). The underlying mechanism is Expo Router's own
+`Stack.Protected` primitive rather than custom app logic, which is why `FLOW-COVERAGE.md` still
+marks that row `VERIFIED_WORKING` "by construction" — but that's a source-reading conclusion, not
+something this test suite confirms.
+
 ## Gap findings (flows this audit traced, against what's actually tested)
 
 | Flow | Has automated test? | Evidence |
 |---|---|---|
 | `requireAuth` middleware 401/503 behavior | **Yes — thorough** | `server/auth.test.ts` exercises dev-anonymous pass-through, prod fail-closed 503, malformed/oversized/missing token → 401, valid/invalid/anonymous token, and upstream 429/500/thrown-error → retryable 503 |
 | COPPA consent gate — `lib/launch-gate.ts` decision logic | **Yes — thorough** | `lib/launch-gate.test.ts`: migration-first ordering, consent-before-onboarding priority, fail-safe-to-consent on any read failure |
-| COPPA consent gate — `Stack.Protected` guard layer (`lib/ConsentContext.tsx`) | **Yes — added by this audit** | `__tests__/components/ConsentContext.test.tsx` (new, 6 tests, all passing) |
+| COPPA consent gate — `Stack.Protected` guard layer (`lib/ConsentContext.tsx`) | **Partial — added by this audit** | `__tests__/components/ConsentContext.test.tsx` (new, 6 tests, all passing) covers `ConsentContext`'s own reactive state (fail-closed load, `markConsented`/`markUnconsented`) — the input `Stack.Protected` reads. It does **not** mount `app/_layout.tsx` or assert that `Stack.Protected` actually excludes a screen from the navigator; that would need Expo Router navigator-testing utilities not currently set up in this repo. Narrowed after review feedback — see `FLOW-COVERAGE.md` F-04. |
 | `/story-seeds` Stack.Screen registration (FLOW-BREAK-002) | **No — and intentionally not added here** | Would require Expo Router navigator-level testing utilities not currently set up in this repo, and the right assertion depends on a maintainer decision (register the screen vs. confirm current behavior is acceptable) this audit isn't positioned to make. Documented as an explicit untested justification, not silently skipped. |
 | Double story-save on completion (FLOW-BREAK-003) | **No** | Would require asserting `app/completion.tsx`'s mount effect + `handleSaveToJar` produce exactly one record — not covered by any existing test, and not added here because fixing the underlying behavior first (a product decision) would be needed to know what the test should assert |
 | Story deletion → favorites/read cleanup (FLOW-BREAK-005) | **No** | `lib/storage.test.ts` tests `deleteStory` and favorites independently, never their interaction |
