@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AppSettings, ChildProfile } from '../types';
 import { INITIAL_CHILD_PROFILES, VOICE_PROFILES } from '../data/dreamThemes';
 import { CHILD_AVATARS, getAvatarById } from '../data/avatars';
+import { NarratorVoiceDropdown, getNarratorVoiceProfile } from './NarratorVoiceDropdown';
 import {
   ShieldCheck,
   Users,
@@ -71,6 +72,9 @@ export const SafetyPersonalizationView: React.FC<SafetyPersonalizationViewProps>
   const [autoFadeToAmbient, setAutoFadeToAmbient] = useState<boolean>(
     settings.autoFadeToAmbient !== undefined ? settings.autoFadeToAmbient : true
   );
+  const [narratorVoice, setNarratorVoice] = useState<string>(
+    settings.narratorVoice || 'moonbeam'
+  );
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -91,9 +95,20 @@ export const SafetyPersonalizationView: React.FC<SafetyPersonalizationViewProps>
       activeVoiceId: activeVoiceId,
       activeChildProfileId: activeProfileId,
       childProfiles: profiles,
+      narratorVoice: narratorVoice,
       ...partial,
     };
     onSaveSettings(updated);
+  };
+
+  const handleSelectNarratorVoice = (voiceId: string) => {
+    setNarratorVoice(voiceId);
+    persistSettings({
+      narratorVoice: voiceId,
+      activeVoiceProfileId: voiceId,
+    });
+    const profile = getNarratorVoiceProfile(voiceId);
+    showToast(`Default narrator set to ${profile.name}`);
   };
 
   const handleSelectProfile = (profile: ChildProfile) => {
@@ -242,16 +257,29 @@ export const SafetyPersonalizationView: React.FC<SafetyPersonalizationViewProps>
             </div>
           </section>
 
-          {/* Section 2: Voice Synthesis */}
+          {/* Section 2: Narrator & Voice Synthesis */}
           <section className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800/90 shadow-xl backdrop-blur-xl space-y-5">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
-                <h2 className="text-xl font-playfair font-bold text-amber-300">Voice Synthesis</h2>
+                <h2 className="text-xl font-playfair font-bold text-amber-300">Narrator &amp; Voice Synthesis</h2>
                 <p className="text-xs text-slate-400 font-light mt-0.5">
-                  Create a personalized voice profile so stories are read in your reassuring tone.
+                  Select your default bedtime story narrator voice profile or manage personalized family voice clones.
                 </p>
               </div>
               <Mic className="w-5 h-5 text-amber-400" />
+            </div>
+
+            {/* Narrator Voice Profile Dropdown Component */}
+            <NarratorVoiceDropdown
+              value={narratorVoice}
+              onChange={handleSelectNarratorVoice}
+            />
+
+            <div className="pt-2 border-t border-slate-800/80">
+              <div className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-2">
+                <Users className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Personalized Family Voice Synthesis</span>
+              </div>
             </div>
 
             {/* Active Voice Status Card */}

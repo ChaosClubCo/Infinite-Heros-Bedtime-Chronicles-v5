@@ -419,7 +419,15 @@ export class VoiceNarrator {
       const utterance = new SpeechSynthesisUtterance(text);
       
       const narrator =
-        PRELOADED_NARRATORS.find((n) => n.id === options.voiceId || (options.voiceId === 'moonbeam' && n.id === 'luna') || (options.voiceId === 'voice-moonbeam' && n.id === 'luna')) ||
+        PRELOADED_NARRATORS.find((n) =>
+          n.id === options.voiceId ||
+          ((options.voiceId === 'moonbeam' || options.voiceId === 'voice-moonbeam') && n.id === 'luna') ||
+          (options.voiceId === 'starlight-guide' && n.id === 'stella') ||
+          (options.voiceId === 'forest-whisperer' && n.id === 'zephyr') ||
+          (options.voiceId === 'cozy-hearth' && n.id === 'orion') ||
+          (options.voiceId === 'wise-hearth' && n.id === 'barnaby') ||
+          (options.voiceId === 'playful-dreamer' && n.id === 'pip')
+        ) ||
         PRELOADED_NARRATORS[0];
 
       const baseSpeed = options.speedRate || 0.85;

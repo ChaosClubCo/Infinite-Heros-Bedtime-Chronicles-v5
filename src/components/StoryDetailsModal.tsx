@@ -141,6 +141,9 @@ export const StoryDetailsModal: React.FC<StoryDetailsModalProps> = ({
   if (!isOpen || !currentStory) return null;
 
   const hero = getHeroById(currentStory.heroId);
+  const readTimeMinutes = currentStory.audioDurationMinutes && currentStory.audioDurationMinutes > 0
+    ? currentStory.audioDurationMinutes
+    : 10;
 
   const startPreviewSpeech = (volumeLevel: number = previewVolume) => {
     const previewText = `${currentStory.title}. Bedtime story about ${hero.name}. ${currentStory.summary}`;
@@ -242,7 +245,7 @@ export const StoryDetailsModal: React.FC<StoryDetailsModalProps> = ({
           </button>
 
           {/* Top badges */}
-          <div className="absolute top-4 left-4 flex items-center gap-2">
+          <div className="absolute top-4 left-4 flex flex-wrap items-center gap-2">
             {currentStory.badge ? (
               <span className="px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-400/90 text-slate-950 shadow-md">
                 {currentStory.badge}
@@ -252,9 +255,16 @@ export const StoryDetailsModal: React.FC<StoryDetailsModalProps> = ({
                 {currentStory.theme}
               </span>
             )}
-            <span className="flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-medium bg-slate-950/70 text-slate-200 border border-slate-700/60 backdrop-blur-sm">
-              <Clock className="w-3 h-3 text-indigo-400" />
-              <span>{currentStory.audioDurationMinutes || 10} min</span>
+            {/* Small visual indicator badge for estimated read time to help parents plan bedtime routine */}
+            <span
+              id="story-estimated-read-time-badge"
+              data-testid="story-estimated-read-time-badge"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-slate-950/85 text-amber-300 border border-amber-400/40 backdrop-blur-md shadow-sm"
+              title={`Estimated read time: ${readTimeMinutes} minutes to help plan your bedtime routine`}
+              aria-label={`Estimated read time: ${readTimeMinutes} minutes`}
+            >
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <span>{readTimeMinutes} min read</span>
             </span>
           </div>
 
@@ -263,10 +273,20 @@ export const StoryDetailsModal: React.FC<StoryDetailsModalProps> = ({
             <h2 id="story-details-title" className="text-2xl sm:text-3xl font-bold font-playfair text-white tracking-wide leading-tight">
               {currentStory.title}
             </h2>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex flex-wrap items-center gap-2 mt-1.5">
               <span className="text-xs text-indigo-300 font-medium">Hero: {hero.name} ({hero.title})</span>
               <span className="text-slate-500">•</span>
               <span className="text-xs text-slate-400 capitalize">{currentStory.category}</span>
+              <span className="text-slate-500">•</span>
+              <span
+                id="bedtime-routine-read-time-pill"
+                data-testid="bedtime-routine-read-time-pill"
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-indigo-950/70 text-amber-300 border border-amber-400/30 backdrop-blur-sm"
+                title={`Bedtime routine: ~${readTimeMinutes} minutes`}
+              >
+                <Clock className="w-3 h-3 text-amber-400" />
+                <span>{readTimeMinutes} min bedtime routine</span>
+              </span>
             </div>
           </div>
         </div>
@@ -277,9 +297,20 @@ export const StoryDetailsModal: React.FC<StoryDetailsModalProps> = ({
           {/* Summary Section with Preview and Dedicated Volume Slider */}
           <div className="p-4 rounded-2xl bg-slate-900/40 border border-indigo-950 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Story Summary
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Story Summary
+                </h3>
+                <span
+                  id="summary-estimated-read-time-indicator"
+                  data-testid="summary-estimated-read-time-indicator"
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-amber-400/10 text-amber-300 border border-amber-400/30"
+                  title="Estimated read time to help parents plan their bedtime routine"
+                >
+                  <Clock className="w-3 h-3 text-amber-400" />
+                  <span>{readTimeMinutes} min read</span>
+                </span>
+              </div>
 
               {/* Preview Controls Group */}
               <div className="flex items-center gap-2">
@@ -481,7 +512,7 @@ export const StoryDetailsModal: React.FC<StoryDetailsModalProps> = ({
             className="flex-1 py-3 px-5 rounded-2xl font-bold text-xs sm:text-sm bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-lg shadow-amber-400/20 transition-all flex items-center justify-center gap-2 font-jakarta"
           >
             <Play className="w-4 h-4 fill-current" />
-            <span>Listen Now ({currentStory.title})</span>
+            <span>Listen Now ({currentStory.title} • {readTimeMinutes} min)</span>
           </button>
 
           {onToggleSave && (

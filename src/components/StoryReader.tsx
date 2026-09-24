@@ -129,6 +129,7 @@ export const READING_SPEED_OPTIONS = [
 interface StoryReaderProps {
   story: Story;
   settings: AppSettings;
+  onUpdateSettings?: (newSettings: AppSettings) => void;
   onClose: () => void;
   onCompleteStory: (storyId: string) => CelestialBadge[] | void;
   onToggleSaveStory: (story: Story) => void;
@@ -177,6 +178,11 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
   const [selectedNarratorId, setSelectedNarratorId] = useState<string>(() => {
     const initial = settings.narratorVoice;
     if (initial === 'moonbeam' || initial === 'voice-moonbeam') return 'luna';
+    if (initial === 'starlight-guide') return 'stella';
+    if (initial === 'forest-whisperer') return 'zephyr';
+    if (initial === 'cozy-hearth') return 'orion';
+    if (initial === 'wise-hearth') return 'barnaby';
+    if (initial === 'playful-dreamer') return 'pip';
     if (PRELOADED_NARRATORS.some((n) => n.id === initial)) return initial;
     return 'luna';
   });
