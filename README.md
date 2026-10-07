@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-08-28 -->
+<!-- Last verified: 2026-10-07 -->
 # Infinity Heroes: Bedtime Chronicles
 
 ![Node 22.x](https://img.shields.io/badge/node-22.x-339933)
@@ -40,7 +40,7 @@ For the full system design, see [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 
 | Layer | Technology | Version / Notes |
 |------|------------|-----------------|
-| Client | Expo + React Native + React | `expo ~55.0.30`, `react-native 0.83.10`, `react 19.2.0` |
+| Client | Expo + React Native + React | `expo ~55.0.30`, `react-native 0.87.1`, `react 19.2.8` |
 | Routing | Expo Router | `~55.0.18` |
 | Backend | Express | `^5.0.1` |
 | Language | TypeScript | `~5.9.2`, strict mode |
@@ -54,8 +54,8 @@ For the full system design, see [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 
 ## Prerequisites
 
-- Node.js `>=20.19 <21` or `>=22.15 <23`
-- npm `11.x`
+- Node.js `>=22.15 <23`
+- npm compatible with the committed lockfile
 - At least one AI provider key; Gemini is the simplest starting point
 - Optional: ElevenLabs key for narration, Supabase project for auth/cloud sync, PostgreSQL for voice chat
 - Optional accounts: Cloudflare for target web/API hosting and KV/R2, Expo/EAS for mobile builds, Sentry for error tracking
@@ -70,7 +70,7 @@ npm install
 
 # 2. Configure environment
 cp .env.example .env
-# edit .env and add at minimum AI_INTEGRATIONS_GEMINI_API_KEY
+# edit .env and add at minimum GEMINI_API_KEY
 
 # 3. Start the API (loads `.env` automatically)
 npm run server:dev
@@ -78,13 +78,9 @@ npm run server:dev
 
 # 4. Start the Expo app in a second terminal
 npm run dev:expo
-# or outside this local-web flow:
-# npx expo start
+# or:
+npm run expo:dev
 ```
-
-### Replit dev flow
-
-Use `npm run expo:dev` inside Replit. It injects the Replit-specific Expo host variables automatically.
 
 ## Environment variables
 
@@ -92,10 +88,12 @@ The repo-tracked environment template lives in [`.env.example`](./.env.example).
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
-| `AI_INTEGRATIONS_GEMINI_API_KEY` | Recommended | Primary image provider and a text fallback | `AIzaSy-example` |
-| `AI_INTEGRATIONS_ANTHROPIC_API_KEY` | Recommended | Primary story-generation provider | `sk-ant-example` |
-| `AI_INTEGRATIONS_OPENAI_API_KEY` | Optional | Text/image fallback and voice-chat dependency | `sk-proj-example` |
-| `AI_INTEGRATIONS_OPENROUTER_API_KEY` | Optional | Extra text fallbacks | `sk-or-v1-example` |
+| `GEMINI_API_KEY` | Recommended | Gemini text/image provider credential; canonical for Google AI Studio / Gemini API access | `AIzaSy-example` |
+| `ANTHROPIC_API_KEY` | Recommended | Anthropic story-generation provider credential | `sk-ant-example` |
+| `OPENAI_API_KEY` | Optional | OpenAI text/image fallback, voice chat, and video dependency | `sk-proj-example` |
+| `OPENROUTER_API_KEY` | Optional | OpenRouter credential for xAI/Mistral/Cohere/Llama fallbacks | `sk-or-v1-example` |
+| `ANTHROPIC_BASE_URL` | Optional | Custom Anthropic-compatible gateway; omit for the canonical provider endpoint | `https://gateway.example/anthropic` |
+| `OPENROUTER_BASE_URL` | Optional | Custom OpenRouter-compatible gateway; omit for `https://openrouter.ai/api/v1` | `https://gateway.example/openrouter` |
 | `ELEVENLABS_API_KEY` | Optional | Narration audio generation | `sk_12345example` |
 | `DATABASE_URL` | Optional | PostgreSQL connection string for voice chat and migrations | `postgresql://postgres.example:<password>@host:6543/postgres` |
 | `SUPABASE_URL` | Optional | Server-side Supabase project URL | `https://example.supabase.co` |
@@ -107,7 +105,6 @@ The repo-tracked environment template lives in [`.env.example`](./.env.example).
 | `CLOUDFLARE_ACCOUNT_ID` | Optional | Enables KV and R2 integrations | `0123456789abcdef` |
 | `CLOUDFLARE_KV_NAMESPACE_ID` | Optional | Persistent rate-limit/idempotency state | `ed09afa77f9243bbb08f3dbe34df1e70` |
 | `CLOUDFLARE_R2_BUCKET` | Optional | Durable TTS cache bucket | `infinity-heroes-tts` |
-| `OPENAI_API_KEY` | Optional | Direct Sora/video integration key | `sk-proj-example` |
 | `GITHUB_WEBHOOK_SECRET` | Optional | HMAC secret for `/api/github/webhook` | `ghs_example_secret` |
 | `COPILOT_MCP_SUPABASE_PROJECT_REF` | Optional, agents only | Non-production Supabase project ref used by the read-only repository agent MCP | `abcdefghijklmnopqrst` |
 | `COPILOT_MCP_SUPABASE_ACCESS_TOKEN` | Optional, agents only | Server-only development token for project-scoped Supabase MCP access; never expose via `EXPO_PUBLIC_*` | `sbp_example` |
@@ -128,7 +125,7 @@ npm run server:prod
 
 # Expo
 npm run dev:expo
-npm run expo:dev          # Replit-specific
+npm run expo:dev        # local Expo start
 npm run expo:static:build
 
 # Quality gates

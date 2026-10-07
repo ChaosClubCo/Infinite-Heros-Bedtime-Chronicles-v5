@@ -13,35 +13,33 @@ import * as path from "path";
 const log = logger.info.bind(logger);
 
 function validateEnvironment() {
-  const providerConfigs: [string, string, string, boolean][] = [
-    ["AI_INTEGRATIONS_GEMINI_API_KEY", "AI_INTEGRATIONS_GEMINI_BASE_URL", "Gemini", true],
-    ["AI_INTEGRATIONS_OPENAI_API_KEY", "AI_INTEGRATIONS_OPENAI_BASE_URL", "OpenAI (integrations)", true],
-    ["AI_INTEGRATIONS_ANTHROPIC_API_KEY", "AI_INTEGRATIONS_ANTHROPIC_BASE_URL", "Anthropic Claude", false],
-    ["AI_INTEGRATIONS_OPENROUTER_API_KEY", "AI_INTEGRATIONS_OPENROUTER_BASE_URL", "OpenRouter (xAI, Mistral, Cohere, Meta Llama)", false],
+  const providerConfigs: Array<{
+    keyVar: string;
+    urlVar?: string;
+    name: string;
+    supportsImage: boolean;
+  }> = [
+    { keyVar: "GEMINI_API_KEY", name: "Gemini", supportsImage: true },
+    { keyVar: "OPENAI_API_KEY", name: "OpenAI", supportsImage: true },
+    { keyVar: "ANTHROPIC_API_KEY", urlVar: "ANTHROPIC_BASE_URL", name: "Anthropic Claude", supportsImage: false },
+    { keyVar: "OPENROUTER_API_KEY", urlVar: "OPENROUTER_BASE_URL", name: "OpenRouter (xAI, Mistral, Cohere, Meta Llama)", supportsImage: false },
   ];
 
   let textProviders = 0;
   let imageProviders = 0;
 
-  for (const [keyVar, urlVar, name, supportsImage] of providerConfigs) {
-    // Gemini remains available when only the legacy GEMINI_API_KEY is set.
-    const hasKey = !!process.env[keyVar]
-      || (keyVar === "AI_INTEGRATIONS_GEMINI_API_KEY" && !!process.env.GEMINI_API_KEY?.trim());
-    const hasUrl = !!process.env[urlVar];
+  for (const { keyVar, urlVar, name, supportsImage } of providerConfigs) {
+    const hasKey = !!process.env[keyVar]?.trim();
+    const hasUrl = urlVar ? !!process.env[urlVar]?.trim() : false;
     if (hasKey) {
       textProviders++;
       if (supportsImage) imageProviders++;
-      if (hasUrl) {
+      if (hasUrl && urlVar) {
         log(`[Env] INFO: ${name} custom base URL configured (${urlVar})`);
       }
-    } else if (hasUrl) {
+    } else if (hasUrl && urlVar) {
       log(`[Env] WARNING: ${name} base URL is set but ${keyVar} is missing`);
     }
-  }
-
-  if (process.env.OPENAI_API_KEY) {
-    textProviders++;
-    imageProviders++;
   }
 
   if (!process.env.ELEVENLABS_API_KEY) {
@@ -59,7 +57,7 @@ function validateEnvironment() {
   }
 
   if (!isAuthEnabled()) {
-    log("[Env] WARNING: FIREBASE_SERVICE_ACCOUNT_KEY not set — authentication is DISABLED (dev mode)");
+    log("[Env] WARNING: Supabase server auth is not configured — authentication is DISABLED (dev mode)");
   }
 
   log(`[Env] Environment validation complete (${textProviders} text providers, ${imageProviders} image providers)`);
@@ -90,16 +88,6 @@ function setupCors(app: express.Application) {
 
     origins.add("https://bedtime-chronicles.com");
     origins.add("https://www.bedtime-chronicles.com");
-
-    if (process.env.REPLIT_DEV_DOMAIN) {
-      origins.add(`https://${process.env.REPLIT_DEV_DOMAIN}`);
-    }
-
-    if (process.env.REPLIT_DOMAINS) {
-      process.env.REPLIT_DOMAINS.split(",").forEach((d) => {
-        origins.add(`https://${d.trim()}`);
-      });
-    }
 
     const origin = req.header("origin");
 

@@ -32,8 +32,9 @@ describe('anthropicProvider', () => {
     createMock.mockReset();
     streamMock.mockReset();
     ctorArgs.length = 0;
-    vi.stubEnv('AI_INTEGRATIONS_ANTHROPIC_API_KEY', 'test-key');
-    vi.stubEnv('AI_INTEGRATIONS_ANTHROPIC_BASE_URL', undefined);
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-key');
+    vi.stubEnv('ANTHROPIC_BASE_URL', undefined);
+    vi.stubEnv('AI_INTEGRATIONS_ANTHROPIC_API_KEY', undefined);
   });
 
   afterEach(() => {
@@ -54,19 +55,19 @@ describe('anthropicProvider', () => {
   });
 
   describe('isAvailable', () => {
-    it('is true when the API key is set', () => {
+    it('is true when ANTHROPIC_API_KEY is set', () => {
       expect(anthropicProvider.isAvailable()).toBe(true);
     });
 
-    it('is false without the API key', () => {
-      vi.stubEnv('AI_INTEGRATIONS_ANTHROPIC_API_KEY', undefined);
+    it('is false without ANTHROPIC_API_KEY', () => {
+      vi.stubEnv('ANTHROPIC_API_KEY', undefined);
       expect(anthropicProvider.isAvailable()).toBe(false);
     });
   });
 
   describe('generateText', () => {
     it('throws when not configured', async () => {
-      vi.stubEnv('AI_INTEGRATIONS_ANTHROPIC_API_KEY', undefined);
+      vi.stubEnv('ANTHROPIC_API_KEY', undefined);
       await expect(anthropicProvider.generateText(REQ)).rejects.toThrow('Anthropic not configured');
     });
 
@@ -76,8 +77,8 @@ describe('anthropicProvider', () => {
       expect(ctorArgs[0]).toEqual({ apiKey: 'test-key', baseURL: undefined });
     });
 
-    it('passes the base URL when configured', async () => {
-      vi.stubEnv('AI_INTEGRATIONS_ANTHROPIC_BASE_URL', 'https://proxy.example');
+    it('passes ANTHROPIC_BASE_URL when configured', async () => {
+      vi.stubEnv('ANTHROPIC_BASE_URL', 'https://proxy.example');
       createMock.mockResolvedValue(mockMessage());
       await anthropicProvider.generateText(REQ);
       expect(ctorArgs[0]).toEqual({ apiKey: 'test-key', baseURL: 'https://proxy.example' });
@@ -120,7 +121,7 @@ describe('anthropicProvider', () => {
 
   describe('generateTextStream', () => {
     it('throws when not configured', async () => {
-      vi.stubEnv('AI_INTEGRATIONS_ANTHROPIC_API_KEY', undefined);
+      vi.stubEnv('ANTHROPIC_API_KEY', undefined);
       const stream = anthropicProvider.generateTextStream!(REQ);
       await expect(stream.next()).rejects.toThrow('Anthropic not configured');
     });

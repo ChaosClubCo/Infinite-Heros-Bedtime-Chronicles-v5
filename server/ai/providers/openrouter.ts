@@ -2,17 +2,26 @@ import OpenAI from "openai";
 import type { AIProvider, ProviderName, TextGenerationRequest, TextGenerationResponse, StreamingTextChunk } from "../types";
 import { CHECK_TIMEOUT_MS } from "../../health-checks";
 
+const DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+
 export const OPENROUTER_PRIVACY_ROUTING = Object.freeze({
   zdr: true,
   data_collection: "deny" as const,
 });
 
+function getApiKey(): string | undefined {
+  return process.env.OPENROUTER_API_KEY?.trim() || undefined;
+}
+
+function getBaseUrl(): string {
+  return process.env.OPENROUTER_BASE_URL?.trim() || DEFAULT_OPENROUTER_BASE_URL;
+}
+
 export async function pingOpenRouter(): Promise<boolean> {
-  const apiKey = process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY;
+  const apiKey = getApiKey();
   if (!apiKey) return false;
-  const baseURL = process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
   try {
-    const res = await fetch(`${baseURL}/models`, {
+    const res = await fetch(`${getBaseUrl().replace(/\/$/, "")}/models`, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
       },
@@ -25,10 +34,9 @@ export async function pingOpenRouter(): Promise<boolean> {
 }
 
 function getClient(): OpenAI | null {
-  const apiKey = process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY;
-  const baseURL = process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL;
+  const apiKey = getApiKey();
   if (!apiKey) return null;
-  return new OpenAI({ apiKey, baseURL: baseURL || undefined });
+  return new OpenAI({ apiKey, baseURL: getBaseUrl() });
 }
 
 const PROVIDER_MODELS: Record<string, { model: string; providerName: ProviderName; displayName: string }> = {
@@ -94,7 +102,7 @@ function createOpenRouterProvider(providerKey: string): AIProvider {
     capabilities: { text: true, image: false, streaming: true },
 
     isAvailable(): boolean {
-      return !!process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY;
+      return !!getApiKey();
     },
 
     async generateText(req: TextGenerationRequest): Promise<TextGenerationResponse> {

@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-26 -->
+<!-- Last verified: 2026-10-07 -->
 # AUDIO-TTS-AGENT.md — Audio & Text-to-Speech Expert
 
 Specialized agent context for all work touching ElevenLabs TTS, voice chat, background music, and the audio playback system.
@@ -10,12 +10,13 @@ Specialized agent context for all work touching ElevenLabs TTS, voice chat, back
 This agent is authoritative for:
 - `server/elevenlabs.ts` — Voice definitions, TTS generation, ElevenLabs API integration
 - `server/suno.ts` — Background music file serving
-- `server/replit_integrations/audio/` — Voice chat audio processing
+- `server/integrations/audio/` — Voice chat audio processing
+- `src/integrations/audio/` — Web voice recording/streaming/playback helpers
 - `assets/music/` — Background music MP3 files (per mode)
 - TTS cache management (`/tmp/tts-cache`)
-- Audio playback on the client (`expo-av`)
+- Audio playback on the client
 - Voice selection UI in settings
-- `app/story.tsx` audio logic (~49KB, most complex screen)
+- `app/story.tsx` audio composition
 
 ---
 
@@ -25,7 +26,7 @@ This agent is authoritative for:
 
 ElevenLabs uses the `eleven_multilingual_v2` model with MP3 output at 44.1 kHz / 128 kbps.
 
-The API key is sourced from the Replit ElevenLabs connector (include_secrets) rather than a direct `ELEVENLABS_API_KEY` env var. Direct key fallback: `ELEVENLABS_API_KEY` env var if set.
+The server reads `ELEVENLABS_API_KEY` directly from the deployment environment. It is a server-only secret and must never be exposed through an `EXPO_PUBLIC_*` variable.
 
 ### Voice Catalog (`server/elevenlabs.ts`)
 
@@ -74,7 +75,6 @@ When a non-sleep voice is used in sleep mode, the TTS parameters are adjusted dy
 - `use_speaker_boost` disabled
 
 ```typescript
-// Applied in server/elevenlabs.ts when storyMode === 'sleep'
 const sleepOverrides = {
   stability: Math.min(voiceSettings.stability + 0.2, 1.0),
   style: Math.max(voiceSettings.style - 0.3, 0),
@@ -94,7 +94,6 @@ Files are stored in `/tmp/tts-cache` with a hex-hash filename.
 
 ### Security: Filename Validation (Mandatory)
 ```typescript
-// GET /api/tts-audio/:file
 if (!/^[a-f0-9]+\.mp3$/.test(filename)) {
   return res.status(400).json({ error: 'Invalid filename' });
 }
@@ -121,60 +120,27 @@ Music files are served as static MP3 streams with appropriate `Content-Type: aud
 
 ---
 
-## Voice Chat System (`server/replit_integrations/audio/`)
+## Voice Chat System (`server/integrations/audio/`)
 
 Voice chat uses:
-- **STT:** `gpt-4o-mini-transcribe` — detects audio format via magic bytes before transcription
-- **Response:** `gpt-4o-audio-preview` — generates audio responses for voice conversations
+- **STT:** OpenAI `gpt-4o-mini-transcribe`, after server-side audio format detection.
+- **Text response:** `VOICE_CHAT_TEXT_MODEL` when configured, otherwise `gpt-4o-mini`.
+- **Child safety:** input sanitization, bounded history, output moderation, then persistence/return of the approved transcript.
+- **Playback:** the web voice stack under `src/integrations/audio/` can consume SSE transcript/audio events and uses `public/audio-playback-worklet.js` for PCM playback.
 
-Voice chat routes are only registered when:
+Voice chat routes are only registered when the feature/compliance gates pass and both of these runtime dependencies exist:
 ```typescript
-process.env.AI_INTEGRATIONS_OPENAI_API_KEY &&
-process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
+process.env.OPENAI_API_KEY &&
 process.env.DATABASE_URL
 ```
 
-Voice chat conversation history is stored in PostgreSQL (`conversations` + `messages` tables).
-
-**Note:** The voice chat backend is fully wired up. The mobile UI screen (`app/voice-chat.tsx`) does not exist yet — it is a known in-progress item.
+Voice chat conversation history is stored in PostgreSQL (`conversations` + `messages` tables) and scoped to the authenticated Supabase user.
 
 ---
 
 ## Client Audio Playback
 
-Client-side audio uses `expo-av`:
-
-```typescript
-import { Audio } from 'expo-av';
-
-// Load and play TTS audio
-const { sound } = await Audio.Sound.createAsync({ uri: audioUrl });
-await sound.playAsync();
-
-// Control playback speed (settings.audioSpeed)
-await sound.setRateAsync(settings.audioSpeed, true);
-
-// Control volume (settings.audioVolume / 100)
-await sound.setVolumeAsync(settings.audioVolume / 100);
-```
-
-Always unload sounds when the component unmounts to prevent memory leaks:
-```typescript
-useEffect(() => {
-  return () => { sound?.unloadAsync(); };
-}, [sound]);
-```
-
-### Audio Session Configuration
-
-iOS requires audio session configuration for background playback:
-```typescript
-await Audio.setAudioModeAsync({
-  allowsRecordingIOS: false,
-  playsInSilentModeIOS: true,
-  staysActiveInBackground: true,
-});
-```
+The native client uses the app's current Expo audio implementation; the web integration uses an AudioWorklet-based PCM playback path. Always release audio resources when the owning component unmounts to avoid leaked contexts/sounds.
 
 ---
 
@@ -194,11 +160,12 @@ Audio settings live in `SettingsContext`:
 
 ## What This Agent Must Flag for Human Review
 
-- Changes to ElevenLabs voice IDs in `server/elevenlabs.ts` (breaking change for active users)
+- Changes to ElevenLabs voice IDs in `server/elevenlabs.ts`
 - Changes to TTS filename validation regex
-- Changes to voice chat routes that affect database writes
-- Audio format changes that could break existing cached files
+- Changes to voice chat routes that affect database writes or retention
+- Audio format changes that could break cached or streamed audio
 - New `assets/music/` files (licensing must be verified)
+- Any attempt to expose `OPENAI_API_KEY` or `ELEVENLABS_API_KEY` to the client
 
 ---
 

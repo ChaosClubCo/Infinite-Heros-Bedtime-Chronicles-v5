@@ -1,8 +1,10 @@
 # Provider Outage Runbook
 
+<!-- Last verified: 2026-10-07 -->
+
 ## Detection
 
-**Health check:** `GET /api/health` returns `{ aiProvidersAvailable, ttsAvailable, features }`
+**Health check:** `GET /api/health` returns provider availability and feature state.
 
 **Log signals (grep pino JSON logs):**
 ```bash
@@ -32,10 +34,10 @@ grep "All providers failed" logs.json
 
 | Severity | Condition | Impact |
 |----------|-----------|--------|
-| **P1 — Critical** | All text providers down (`aiProvidersAvailable: false`) | Story generation completely unavailable |
+| **P1 — Critical** | All text providers down | Story generation completely unavailable |
 | **P1 — Critical** | Both image providers down (Gemini + OpenAI) | Avatar and scene generation unavailable |
 | **P2 — Degraded** | One or more text providers down, fallback working | Increased latency, circuit breaker handling it |
-| **P3 — Minor** | TTS down (`ttsAvailable: false`) | Stories still work, narration unavailable |
+| **P3 — Minor** | TTS down | Stories still work, narration unavailable |
 | **P3 — Minor** | Single non-primary provider down | Minimal impact, fallback chain skips it |
 
 ---
@@ -44,13 +46,13 @@ grep "All providers failed" logs.json
 
 The system handles most single-provider outages automatically:
 
-1. **Circuit breaker** opens after 5 consecutive failures per provider (configurable via code)
-2. Open circuit **skips** the failed provider for 60 seconds
-3. **Fallback chain** routes to the next available provider
-4. After 60s, circuit goes **half-open** and allows one test request
-5. If test succeeds, circuit **closes** (recovered); if fails, re-opens
+1. **Circuit breaker** opens after repeated failures per provider.
+2. Open circuit **skips** the failed provider temporarily.
+3. **Fallback chain** routes to the next available provider.
+4. A later probe/request tests recovery.
+5. Successful recovery closes the circuit.
 
-**No manual action needed** unless multiple providers fail simultaneously.
+**No manual action is normally needed** unless multiple providers fail simultaneously or a credential/configuration issue is suspected.
 
 ---
 
@@ -58,31 +60,28 @@ The system handles most single-provider outages automatically:
 
 ### Disable a specific provider
 
-Remove or empty the provider's env vars and restart the server:
+Remove or empty the canonical provider env var and restart/redeploy the server:
 
 ```bash
 # Anthropic
-unset AI_INTEGRATIONS_ANTHROPIC_API_KEY
-unset AI_INTEGRATIONS_ANTHROPIC_BASE_URL
+unset ANTHROPIC_API_KEY
+unset ANTHROPIC_BASE_URL       # only if a custom gateway was configured
 
 # Gemini
-unset AI_INTEGRATIONS_GEMINI_API_KEY
-unset AI_INTEGRATIONS_GEMINI_BASE_URL
+unset GEMINI_API_KEY
 
-# OpenAI (integrations)
-unset AI_INTEGRATIONS_OPENAI_API_KEY
-unset AI_INTEGRATIONS_OPENAI_BASE_URL
+# OpenAI
+unset OPENAI_API_KEY
 
 # OpenRouter (disables xAI, Mistral, Cohere, Meta-Llama)
-unset AI_INTEGRATIONS_OPENROUTER_API_KEY
-unset AI_INTEGRATIONS_OPENROUTER_BASE_URL
+unset OPENROUTER_API_KEY
+unset OPENROUTER_BASE_URL      # only if a custom gateway was configured
 
 # ElevenLabs TTS
 unset ELEVENLABS_API_KEY
-
-# Direct OpenAI (video/Sora + fallback text)
-unset OPENAI_API_KEY
 ```
+
+Do not restore retired `AI_INTEGRATIONS_*` variables as an outage workaround. They are no longer part of the runtime contract.
 
 ### Check configured providers
 
@@ -94,25 +93,20 @@ curl -s http://localhost:5000/api/ai-providers | jq .
 ### Disable features under load
 
 ```bash
-# Disable video generation
 export FEATURE_VIDEO_ENABLED=false
-
-# Disable voice chat
 export FEATURE_VOICE_CHAT_ENABLED=false
+export FEATURE_REALTIME_MEDIA_ENABLED=false
 ```
 
 ---
 
 ## Recovery Verification
 
-1. **Health check:** `curl /api/health` — confirm `aiProvidersAvailable: true`
-2. **Provider list:** `curl /api/ai-providers` — verify the recovered provider shows `available: true`
-3. **Test generation:** Send a test story request and verify the response includes the recovered provider
-4. **Check logs:** Look for successful calls on the recovered provider:
-   ```bash
-   grep '"provider":"gemini"' logs.json | grep '"msg":"story generated"' | tail -5
-   ```
-5. **Circuit state:** After a successful call, the circuit breaker auto-closes — no manual reset needed
+1. **Health check:** confirm the relevant provider/feature is available.
+2. **Provider list:** `curl /api/ai-providers` and verify the recovered provider reports `available: true`.
+3. **Representative request:** run a story/image/TTS/voice request for the affected path.
+4. **Check logs:** verify successful calls on the recovered provider.
+5. **Circuit state:** confirm normal traffic resumes without repeated fallback/open-circuit events.
 
 ---
 
@@ -120,18 +114,18 @@ export FEATURE_VOICE_CHAT_ENABLED=false
 
 | Condition | Action |
 |-----------|--------|
-| Single provider down < 30min | Monitor, circuit breaker handles it |
-| Single provider down > 30min | Check provider status page, consider removing env var |
-| Multiple text providers down | **P1** — check all status pages, prepare to communicate downtime |
-| All text providers down | **P1** — immediate response needed, consider static fallback stories |
-| TTS down > 1hr | Check ElevenLabs status, stories still functional without narration |
+| Single provider down < 30min | Monitor; circuit breaker/fallback handles it |
+| Single provider down > 30min | Check provider status page and credential validity |
+| Multiple text providers down | **P1** — inspect common network/configuration dependencies and provider status |
+| All text providers down | **P1** — disable affected generation flows or use approved static fallback content |
+| TTS down > 1hr | Check ElevenLabs status; stories remain functional without narration |
 
 ---
 
 ## Post-Incident
 
-1. Record incident in project log: date, duration, affected providers, user impact
-2. Review circuit breaker thresholds — were they appropriate?
-3. Review fallback chain ordering — should a more reliable provider be promoted?
-4. Check if the outage exposed gaps in monitoring or alerting
-5. Update this runbook if the response process could be improved
+1. Record incident date, duration, affected providers, and user impact.
+2. Review circuit-breaker thresholds and fallback ordering.
+3. Check whether the outage exposed monitoring or alerting gaps.
+4. Verify no secret values appeared in logs or incident notes.
+5. Update this runbook when the response procedure changes.

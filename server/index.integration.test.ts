@@ -19,11 +19,6 @@ vi.mock("./auth", () => ({
   isAuthEnabled: vi.fn(() => true),
 }));
 
-// Spread the real module so every export the route modules import (e.g.
-// recordContentBlock / recordSafetyLlm / recordRegeneration used by guardStory)
-// is present — a partial mock leaves those undefined and breaks route loading.
-// Only getMetrics (drives the "every 20th request" alerting) and recordTTS
-// (asserted below) are overridden.
 vi.mock("./metrics", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./metrics")>();
   return {
@@ -36,9 +31,6 @@ vi.mock("./metrics", async (importOriginal) => {
   };
 });
 
-// The TTS test hits the real tts route → generateSpeech(); mock ElevenLabs so it
-// never calls the network. Spread the real module to keep VOICE_MAP / MODE_*
-// (also imported by the route) intact.
 vi.mock("./elevenlabs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./elevenlabs")>();
   return {
@@ -51,7 +43,8 @@ describe("Server index integration", () => {
   let app: Express;
 
   beforeAll(async () => {
-    vi.stubEnv("AI_INTEGRATIONS_GEMINI_API_KEY", "mock-gemini-key");
+    vi.stubEnv("GEMINI_API_KEY", "mock-gemini-key");
+    vi.stubEnv("AI_INTEGRATIONS_GEMINI_API_KEY", undefined);
     vi.stubEnv("DATABASE_URL", "");
     vi.stubEnv("ELEVENLABS_API_KEY", "mock-elevenlabs-key");
     app = await createApp();
@@ -68,7 +61,6 @@ describe("Server index integration", () => {
     const res = await request(app).get("/api/health");
     expect(res.status).toBe(200);
 
-    // Wait for the 'finish' event listener to run
     await new Promise((resolve) => setTimeout(resolve, 50));
 
     expect(checkAlertThresholds).toHaveBeenCalledTimes(1);
@@ -85,7 +77,7 @@ describe("Server index integration", () => {
     expect(recordTTS).toHaveBeenCalled();
   });
 
-  it("registers the Gemini image route when AI_INTEGRATIONS_GEMINI_API_KEY is configured", async () => {
+  it("registers the Gemini image route when GEMINI_API_KEY is configured", async () => {
     const res = await request(app)
       .post("/api/generate-image")
       .send({});

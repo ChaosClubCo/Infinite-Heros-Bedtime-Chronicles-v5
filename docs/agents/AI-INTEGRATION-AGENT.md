@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-26 -->
+<!-- Last verified: 2026-10-07 -->
 # AI-INTEGRATION-AGENT.md — AI Provider Router Expert
 
 Specialized agent context for all work touching the multi-provider AI routing system, prompt engineering, and provider integrations.
@@ -35,7 +35,7 @@ Route Handler
                     └── cohere provider     (via OpenRouter)
 ```
 
-**Critical rule:** All AI calls must go through `server/ai/index.ts`. Never call provider SDKs directly from route handlers.
+**Critical rule:** All application AI calls should go through `server/ai/index.ts`. Provider SDK usage is isolated to provider/integration modules, not ordinary route handlers.
 
 ---
 
@@ -70,7 +70,6 @@ Falls back to `["gemini", "openai"]` — always define a task type.
 ```typescript
 import { generateText, generateImage } from '@/server/ai/index';
 
-// Text generation
 const storyText = await generateText({
   task: 'story',
   prompt: buildStoryPrompt(params),
@@ -78,7 +77,6 @@ const storyText = await generateText({
   maxTokens: 2000,
 });
 
-// Image generation
 const imageDataUri = await generateImage({
   task: 'scene',
   prompt: buildScenePrompt(params),
@@ -98,7 +96,6 @@ The AIRouter handles provider selection and fallback automatically. Callers must
 `CHILD_SAFETY_RULES` **must** be included in every story generation system prompt. Never remove or bypass it.
 
 ```typescript
-// Example — always prepend CHILD_SAFETY_RULES
 const systemPrompt = `${CHILD_SAFETY_RULES}
 
 You are a creative children's story writer...`;
@@ -109,8 +106,8 @@ You are a creative children's story writer...`;
 All user-provided strings **must** pass through `sanitizeString()` before inclusion:
 
 ```typescript
-const safeName = sanitizeString(heroName);          // 500 char limit
-const safeScene = sanitizeString(sceneText, 2000);  // higher limit for scene text
+const safeName = sanitizeString(heroName);
+const safeScene = sanitizeString(sceneText, 2000);
 const prompt = `Write a story about ${safeName} in ${safeScene}...`;
 ```
 
@@ -125,7 +122,6 @@ const prompt = `Write a story about ${safeName} in ${safeScene}...`;
 
 ## Art Styles for Scene Illustration
 
-12 randomized styles (select randomly per scene request):
 ```typescript
 const ART_STYLES = [
   'watercolor', 'cel-shaded', 'paper cutout', 'gouache',
@@ -185,15 +181,14 @@ AI must return this JSON structure for story generation:
 1. Create `server/ai/providers/<name>.ts` following the existing provider interface in `server/ai/types.ts`.
 2. Register the provider in `server/ai/index.ts`.
 3. Add it to the appropriate fallback chain in `server/ai/router.ts` `DEFAULT_CHAINS`.
-4. Add the API key env var to `.env.example` and `README.md`.
+4. Add the server-only API key env var to `.env.example` and `README.md`.
 5. Update `docs/ARCHITECTURE.md` AI routing section.
 
 ```typescript
-// server/ai/types.ts interface
 interface AIProvider {
   name: string;
   generateText(params: TextGenerationParams): Promise<string>;
-  generateImage?(params: ImageGenerationParams): Promise<string>; // optional
+  generateImage?(params: ImageGenerationParams): Promise<string>;
   isAvailable(): boolean;
 }
 ```
@@ -213,16 +208,19 @@ Each `ProviderStatus` includes `name`, `available` (boolean), and `model`.
 
 ## Environment Variables
 
-```
-AI_INTEGRATIONS_GEMINI_API_KEY=
-AI_INTEGRATIONS_OPENAI_API_KEY=
-AI_INTEGRATIONS_ANTHROPIC_API_KEY=
-AI_INTEGRATIONS_OPENROUTER_API_KEY=
-AI_INTEGRATIONS_OPENAI_BASE_URL=     # Required for voice chat connector
-OPENAI_API_KEY=                       # Direct key for Sora video generation
+```text
+GEMINI_API_KEY=
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+ANTHROPIC_BASE_URL=        # Optional custom Anthropic-compatible gateway
+OPENROUTER_API_KEY=
+OPENROUTER_BASE_URL=       # Optional custom OpenRouter-compatible gateway
+ELEVENLABS_API_KEY=        # Narration/TTS
 ```
 
-Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. All keys are **server-side only** — never expose in client code or `EXPO_PUBLIC_*` vars.
+At least one text-provider credential must be configured for generation; Gemini is the simplest baseline for a Google AI Studio migration. All provider credentials are **server-side only**. Never expose them in client code or `EXPO_PUBLIC_*` variables.
+
+`GEMINI_API_KEY` uses the canonical Gemini API endpoint. Do not reintroduce `AI_INTEGRATIONS_*` or a Replit proxy URL as a fallback. OpenAI likewise uses `OPENAI_API_KEY` directly. Optional base URLs remain available only for provider-neutral Anthropic/OpenRouter gateway deployments.
 
 ---
 
@@ -232,7 +230,9 @@ Minimum required: `AI_INTEGRATIONS_GEMINI_API_KEY`. All keys are **server-side o
 - Changes to provider priority order in `DEFAULT_CHAINS`
 - New AI providers that process child-generated content
 - Prompt changes that remove safety guardrails
-- Any code that calls AI provider SDKs directly from route handlers
+- Any code that calls AI provider SDKs directly from ordinary route handlers
+- Any attempt to expose provider API keys to the client
+- Any attempt to restore retired `AI_INTEGRATIONS_*` configuration
 
 ---
 

@@ -2,26 +2,37 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { AIProvider, TextGenerationRequest, TextGenerationResponse, StreamingTextChunk } from "../types";
 import { CHECK_TIMEOUT_MS } from "../../health-checks";
 
-function getClient(): Anthropic | null {
-  const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
-  const baseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
-  if (!apiKey) return null;
-  return new Anthropic({ apiKey, baseURL: baseURL || undefined });
+const ANTHROPIC_MODELS_URL = "https://api.anthropic.com/v1/models";
+
+function getApiKey(): string | undefined {
+  return process.env.ANTHROPIC_API_KEY?.trim() || undefined;
 }
 
-/**
- * Cheap reachability probe for health checks: lists available models rather
- * than generating text, so it costs nothing and still validates the API key.
- */
+function getBaseUrl(): string | undefined {
+  return process.env.ANTHROPIC_BASE_URL?.trim() || undefined;
+}
+
+function getClient(): Anthropic | null {
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+  return new Anthropic({ apiKey, baseURL: getBaseUrl() });
+}
+
+/** Cheap reachability probe for health checks without generating content. */
 export async function pingAnthropic(): Promise<boolean> {
-  const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+  const apiKey = getApiKey();
   if (!apiKey) return false;
-  const baseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL || "https://api.anthropic.com";
-  const res = await fetch(`${baseURL}/v1/models`, {
-    headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
-  });
-  return res.ok;
+  const baseURL = getBaseUrl();
+  const modelsUrl = baseURL ? `${baseURL.replace(/\/$/, "")}/v1/models` : ANTHROPIC_MODELS_URL;
+  try {
+    const res = await fetch(modelsUrl, {
+      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+      signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 export const anthropicProvider: AIProvider = {
@@ -31,7 +42,7 @@ export const anthropicProvider: AIProvider = {
   capabilities: { text: true, image: false, streaming: true },
 
   isAvailable(): boolean {
-    return !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+    return !!getApiKey();
   },
 
   async generateText(req: TextGenerationRequest): Promise<TextGenerationResponse> {
