@@ -117,10 +117,6 @@ if (existsSync(patchesDir)) {
 section('Required environment variables');
 
 const aiProviderKeys = [
-  'AI_INTEGRATIONS_GEMINI_API_KEY',
-  'AI_INTEGRATIONS_OPENAI_API_KEY',
-  'AI_INTEGRATIONS_ANTHROPIC_API_KEY',
-  'AI_INTEGRATIONS_OPENROUTER_API_KEY',
   'GEMINI_API_KEY',
   'OPENAI_API_KEY',
   'ANTHROPIC_API_KEY',
@@ -142,7 +138,7 @@ if (missingAiKeys.length === aiProviderKeys.length) {
 }
 
 const optionalKeys = [
-  { key: 'ELEVENLABS_API_KEY', feature: 'TTS narration (optional — Replit connector fallback available)' },
+  { key: 'ELEVENLABS_API_KEY', feature: 'TTS narration' },
   { key: 'DATABASE_URL', feature: 'Voice chat / conversation history' },
   { key: 'OPENAI_API_KEY', feature: 'Video generation via Sora' },
 ];
