@@ -31,7 +31,6 @@ export default defineConfig({
       provider: 'v8',
       include: ['server/**/*.ts', 'lib/**/*.ts', 'shared/media/**/*.ts'],
       exclude: [
-        'server/replit_integrations/**',
         'server/templates/**',
         '**/*.test.ts',
         '**/index.ts',
