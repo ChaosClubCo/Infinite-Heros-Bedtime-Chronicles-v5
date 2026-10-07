@@ -125,7 +125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }, 'voice chat requested but fail-closed release requirements were not met');
   }
 
-  if (process.env.AI_INTEGRATIONS_GEMINI_API_KEY || process.env.GEMINI_API_KEY) {
+  if (process.env.GEMINI_API_KEY) {
     registerImageRoutes(app);
     logger.info('Gemini image generation route registered');
   }
