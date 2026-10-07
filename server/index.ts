@@ -13,12 +13,12 @@ import * as path from "path";
 const log = logger.info.bind(logger);
 
 function validateEnvironment() {
-  const providerConfigs: Array<{
+  const providerConfigs: {
     keyVar: string;
     urlVar?: string;
     name: string;
     supportsImage: boolean;
-  }> = [
+  }[] = [
     { keyVar: "GEMINI_API_KEY", name: "Gemini", supportsImage: true },
     { keyVar: "OPENAI_API_KEY", name: "OpenAI", supportsImage: true },
     { keyVar: "ANTHROPIC_API_KEY", urlVar: "ANTHROPIC_BASE_URL", name: "Anthropic Claude", supportsImage: false },
