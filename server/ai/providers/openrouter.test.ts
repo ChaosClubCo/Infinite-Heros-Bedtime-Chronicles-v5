@@ -43,8 +43,9 @@ describe('openrouter providers', () => {
   beforeEach(() => {
     chatCreateMock.mockReset();
     ctorArgs.length = 0;
-    vi.stubEnv('AI_INTEGRATIONS_OPENROUTER_API_KEY', 'router-key');
-    vi.stubEnv('AI_INTEGRATIONS_OPENROUTER_BASE_URL', undefined);
+    vi.stubEnv('OPENROUTER_API_KEY', 'router-key');
+    vi.stubEnv('OPENROUTER_BASE_URL', undefined);
+    vi.stubEnv('AI_INTEGRATIONS_OPENROUTER_API_KEY', undefined);
   });
 
   afterEach(() => {
@@ -67,14 +68,14 @@ describe('openrouter providers', () => {
       expect(provider.generateImage).toBeUndefined();
     });
 
-    it('availability is keyed to the shared OpenRouter key', () => {
+    it('availability is keyed to OPENROUTER_API_KEY', () => {
       expect(provider.isAvailable()).toBe(true);
-      vi.stubEnv('AI_INTEGRATIONS_OPENROUTER_API_KEY', undefined);
+      vi.stubEnv('OPENROUTER_API_KEY', undefined);
       expect(provider.isAvailable()).toBe(false);
     });
 
     it('throws a provider-specific error when OpenRouter is not configured', async () => {
-      vi.stubEnv('AI_INTEGRATIONS_OPENROUTER_API_KEY', undefined);
+      vi.stubEnv('OPENROUTER_API_KEY', undefined);
       await expect(provider.generateText(REQ)).rejects.toThrow(
         `${displayName} not configured (requires OpenRouter)`
       );
@@ -105,7 +106,10 @@ describe('openrouter providers', () => {
         text: 'a story',
         provider: name,
         model,
-        usage: { inputTokens: 5, outputTokens: 15 },
+        usage: {
+          inputTokens: 5,
+          outputTokens: 15,
+        },
       });
     });
 
@@ -133,17 +137,20 @@ describe('openrouter providers', () => {
     });
   });
 
-  it('passes the OpenRouter key and base URL to the client', async () => {
-    vi.stubEnv('AI_INTEGRATIONS_OPENROUTER_BASE_URL', 'https://openrouter.example');
+  it('uses the canonical OpenRouter base URL by default', async () => {
+    chatCreateMock.mockResolvedValue(mockCompletion());
+    await xaiProvider.generateText(REQ);
+    expect(ctorArgs[0]).toEqual({
+      apiKey: 'router-key',
+      baseURL: 'https://openrouter.ai/api/v1',
+    });
+  });
+
+  it('passes OPENROUTER_BASE_URL when configured', async () => {
+    vi.stubEnv('OPENROUTER_BASE_URL', 'https://openrouter.example');
     chatCreateMock.mockResolvedValue(mockCompletion());
     await xaiProvider.generateText(REQ);
     expect(ctorArgs[0]).toEqual({ apiKey: 'router-key', baseURL: 'https://openrouter.example' });
-  });
-
-  it('omits the base URL when not configured', async () => {
-    chatCreateMock.mockResolvedValue(mockCompletion());
-    await xaiProvider.generateText(REQ);
-    expect(ctorArgs[0]).toEqual({ apiKey: 'router-key', baseURL: undefined });
   });
 
   describe('pingOpenRouter', () => {
@@ -154,13 +161,13 @@ describe('openrouter providers', () => {
     });
 
     it('returns false if API key is missing', async () => {
-      vi.stubEnv('AI_INTEGRATIONS_OPENROUTER_API_KEY', '');
+      vi.stubEnv('OPENROUTER_API_KEY', '');
       const result = await pingOpenRouter();
       expect(result).toBe(false);
     });
 
     it('makes a fetch request with Authorization header and returns true on success', async () => {
-      vi.stubEnv('AI_INTEGRATIONS_OPENROUTER_API_KEY', 'router-secret');
+      vi.stubEnv('OPENROUTER_API_KEY', 'router-secret');
       const fetchMock = vi.fn().mockResolvedValue({ ok: true });
       global.fetch = fetchMock as unknown as typeof fetch;
 
@@ -177,8 +184,8 @@ describe('openrouter providers', () => {
       );
     });
 
-    it('returns false if fetch fails or throws', async () => {
-      vi.stubEnv('AI_INTEGRATIONS_OPENROUTER_API_KEY', 'router-secret');
+    it('returns false if fetch fails', async () => {
+      vi.stubEnv('OPENROUTER_API_KEY', 'router-secret');
       global.fetch = vi.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
 
       const result = await pingOpenRouter();
