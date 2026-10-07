@@ -49,19 +49,27 @@ describe('toolchain and local env setup', () => {
     expect(readme).toContain('npm run server:dev');
   });
 
-  it('treats AI_INTEGRATIONS_GEMINI_API_KEY as canonical with a legacy GEMINI_API_KEY fallback', () => {
-    expect(listedEnvKeys(envExample)).toContain('AI_INTEGRATIONS_GEMINI_API_KEY');
-    expect(envExample).toContain('legacy GEMINI_API_KEY');
-    expect(geminiProvider).toContain('process.env.AI_INTEGRATIONS_GEMINI_API_KEY');
+  it('treats GEMINI_API_KEY as the only Gemini server secret', () => {
+    const exampleKeys = listedEnvKeys(envExample);
+    expect(exampleKeys).toContain('GEMINI_API_KEY');
+    expect(exampleKeys).not.toContain('AI_INTEGRATIONS_GEMINI_API_KEY');
     expect(geminiProvider).toContain('process.env.GEMINI_API_KEY');
-    expect(routes).toContain('process.env.AI_INTEGRATIONS_GEMINI_API_KEY || process.env.GEMINI_API_KEY');
+    expect(geminiProvider).not.toContain('AI_INTEGRATIONS_GEMINI_API_KEY');
+    expect(routes).toContain('if (process.env.GEMINI_API_KEY)');
+    expect(routes).not.toContain('AI_INTEGRATIONS_GEMINI_API_KEY');
   });
 
-  it('keeps README as a highlight table and documents production/dev vars in .env.example', () => {
+  it('documents only provider-neutral server credentials in .env.example', () => {
     expect(readme.toLowerCase()).not.toMatch(/full environment-variable list/);
     expect(readme).toContain('not an exhaustive catalog');
     const exampleKeys = listedEnvKeys(envExample);
     for (const key of [
+      'GEMINI_API_KEY',
+      'OPENAI_API_KEY',
+      'ANTHROPIC_API_KEY',
+      'OPENROUTER_API_KEY',
+      'ANTHROPIC_BASE_URL',
+      'OPENROUTER_BASE_URL',
       'VOICE_CHAT_TRANSCRIPT_RETENTION_DAYS',
       'RATE_LIMIT_WINDOW_MS',
       'RATE_LIMIT_MAX',
@@ -70,12 +78,9 @@ describe('toolchain and local env setup', () => {
       'FEATURE_REALTIME_MEDIA_ENABLED',
       'TTS_CACHE_MAX_AGE_MS',
       'TTS_CACHE_MAX_SIZE_BYTES',
-      'AI_INTEGRATIONS_GEMINI_BASE_URL',
-      'AI_INTEGRATIONS_OPENAI_BASE_URL',
-      'AI_INTEGRATIONS_ANTHROPIC_BASE_URL',
-      'AI_INTEGRATIONS_OPENROUTER_BASE_URL',
     ]) {
       expect(exampleKeys).toContain(key);
     }
+    expect(exampleKeys.some((key) => key.startsWith('AI_INTEGRATIONS_'))).toBe(false);
   });
 });
