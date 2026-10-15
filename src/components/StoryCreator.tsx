@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Story, StoryMode, ContentTheme, AgeRange } from '../types';
 import { HEROES, getHeroById } from '../data/heroes';
 import { HeroSelector } from './HeroSelector';
 import { SleepDurationEstimator } from './SleepDurationEstimator';
 import { MADLIBS_TEMPLATES } from '../data/madlibsTemplates';
 import { generateCustomBedtimeStory } from '../services/aiStoryGenerator';
+import { ambientSoundEngine } from '../services/audioNarration';
 import {
   Sparkles,
   Compass,
@@ -22,6 +23,9 @@ import {
   Flame,
   Train,
   Volume2,
+  Play,
+  Square,
+  Music,
 } from 'lucide-react';
 
 interface StoryCreatorProps {
@@ -48,6 +52,23 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({
   const [selectedAmbientSound, setSelectedAmbientSound] = useState<string>('ocean');
   const [ambientLoopMinutes, setAmbientLoopMinutes] = useState<number>(30);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPreviewingMusic, setIsPreviewingMusic] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      ambientSoundEngine.stopAmbient();
+    };
+  }, []);
+
+  const handleToggleModeMusicPreview = () => {
+    if (isPreviewingMusic) {
+      ambientSoundEngine.stopAmbient();
+      setIsPreviewingMusic(false);
+    } else {
+      ambientSoundEngine.playAmbient(activeMode, 0.35);
+      setIsPreviewingMusic(true);
+    }
+  };
 
   // MadLibs State
   const [selectedMadLibIndex, setSelectedMadLibIndex] = useState(0);
@@ -179,7 +200,10 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({
         <button
           type="button"
           id="mode-tab-sleep"
-          onClick={() => setActiveMode('sleep')}
+          onClick={() => {
+            setActiveMode('sleep');
+            if (isPreviewingMusic) ambientSoundEngine.playAmbient('sleep', 0.35);
+          }}
           className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeMode === 'sleep'
               ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
@@ -188,6 +212,21 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({
         >
           <Moon className="w-4 h-4" />
           <span>Sleep Journey</span>
+        </button>
+
+        <button
+          type="button"
+          id="mode-music-preview-btn"
+          onClick={handleToggleModeMusicPreview}
+          className={`flex items-center gap-1.5 py-3 px-3.5 rounded-xl text-xs font-bold border transition-all shrink-0 ${
+            isPreviewingMusic
+              ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-sm'
+              : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:text-white hover:border-slate-600'
+          }`}
+          title={`Preview ${activeMode} mode background music (${activeMode}.mp3)`}
+        >
+          {isPreviewingMusic ? <Square className="w-3.5 h-3.5 fill-current" /> : <Music className="w-3.5 h-3.5 text-amber-400" />}
+          <span className="hidden sm:inline">{isPreviewingMusic ? 'Stop Music' : 'Theme Music'}</span>
         </button>
       </div>
 
@@ -370,12 +409,14 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({
                   <Volume2 className="w-3.5 h-3.5 text-purple-400" />
                   <span>Choose Ambient Soundscape For Drift-Off</span>
                 </label>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
                   {[
                     { id: 'ocean', label: 'Ocean', icon: Waves },
                     { id: 'rain', label: 'Rain', icon: CloudRain },
                     { id: 'wind', label: 'Breeze', icon: Wind },
+                    { id: 'crickets', label: 'Crickets', icon: Sparkles },
                     { id: 'fire', label: 'Hearth', icon: Flame },
+                    { id: 'sleep', label: 'Lullaby', icon: Music },
                     { id: 'train', label: 'Train', icon: Train },
                     { id: 'none', label: 'Quiet', icon: Moon },
                   ].map((s) => {
@@ -385,7 +426,16 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({
                       <button
                         key={s.id}
                         type="button"
-                        onClick={() => setSelectedAmbientSound(s.id)}
+                        onClick={() => {
+                          setSelectedAmbientSound(s.id);
+                          if (s.id !== 'none') {
+                            ambientSoundEngine.playAmbient(s.id, 0.35);
+                            setIsPreviewingMusic(true);
+                          } else {
+                            ambientSoundEngine.stopAmbient();
+                            setIsPreviewingMusic(false);
+                          }
+                        }}
                         className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-xs font-medium transition-all ${
                           isSelected
                             ? 'bg-purple-600 border-purple-400 text-white shadow-md'

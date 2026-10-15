@@ -69,6 +69,68 @@ describe('CircuitBreaker', () => {
     vi.useRealTimers();
   });
 
+  it('blocks calls until the exact reset timeout and then recovers', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+      const resetTimeoutMs = 1000;
+      const provider = vi.fn().mockResolvedValue('recovered');
+
+      for (let i = 0; i < 3; i++) {
+        await expect(breaker.execute(() => Promise.reject(new Error('fail')))).rejects.toThrow('fail');
+      }
+      expect(breaker.getState()).toBe('open');
+
+      vi.advanceTimersByTime(resetTimeoutMs - 1);
+      expect(breaker.getState()).toBe('open');
+      await expect(breaker.execute(provider)).rejects.toThrow(/circuit is open/i);
+      expect(provider).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      await expect(breaker.execute(provider)).resolves.toBe('recovered');
+      expect(provider).toHaveBeenCalledTimes(1);
+      expect(breaker.getState()).toBe('closed');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('restarts the full reset timeout after a failed half-open probe', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+      const resetTimeoutMs = 1000;
+      const probeError = new Error('recovery failed');
+      const failedProbe = vi.fn().mockRejectedValue(probeError);
+      const provider = vi.fn().mockResolvedValue('recovered');
+
+      for (let i = 0; i < 3; i++) {
+        await expect(breaker.execute(() => Promise.reject(new Error('fail')))).rejects.toThrow('fail');
+      }
+      expect(breaker.getState()).toBe('open');
+
+      vi.advanceTimersByTime(resetTimeoutMs + 500);
+      expect(breaker.getState()).toBe('half-open');
+      await expect(breaker.execute(failedProbe)).rejects.toBe(probeError);
+      expect(failedProbe).toHaveBeenCalledTimes(1);
+      expect(breaker.getState()).toBe('open');
+      await expect(breaker.execute(provider)).rejects.toThrow(/circuit is open/i);
+      expect(provider).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(resetTimeoutMs - 1);
+      expect(breaker.getState()).toBe('open');
+      await expect(breaker.execute(provider)).rejects.toThrow(/circuit is open/i);
+      expect(provider).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      await expect(breaker.execute(provider)).resolves.toBe('recovered');
+      expect(provider).toHaveBeenCalledTimes(1);
+      expect(breaker.getState()).toBe('closed');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('resets failure count on success', async () => {
     await breaker.execute(() => Promise.reject(new Error('fail'))).catch(() => {});
     await breaker.execute(() => Promise.reject(new Error('fail'))).catch(() => {});

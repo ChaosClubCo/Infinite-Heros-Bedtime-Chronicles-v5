@@ -28,9 +28,9 @@
     "preflight": "node scripts/preflight.js",
     "dev:server": "NODE_ENV=development node --env-file-if-exists=.env --import tsx server/index.ts",
     "dev:expo": "EXPO_PUBLIC_API_URL=http://localhost:5000 npx expo start --web",
-    "dev": "vite --host 0.0.0.0 --port 3000",
-    "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 3000",
+    "dev": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite --host 0.0.0.0 --port 3000",
+    "build": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite build",
+    "preview": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite preview --host 0.0.0.0 --port 3000",
     "expo:check": "npx expo install --check",
     "expo:build:ci": "npx expo export --platform web --output-dir static-build",
     "verify:sync": "node --import tsx scripts/verify-sync.ts",
@@ -43,7 +43,7 @@
     "verify:expo57-readiness": "node scripts/verify-expo57-readiness.mjs"
   },
   "engines": {
-    "node": ">=22.15.0 <23"
+    "node": ">=22"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",

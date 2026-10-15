@@ -42,10 +42,19 @@ export const HeroCard: React.FC<HeroCardProps> = ({
         }`}
       >
         <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-900 font-bold shrink-0 shadow-md"
+          className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-900 font-bold shrink-0 shadow-md overflow-hidden relative"
           style={{ backgroundColor: hero.color }}
         >
-          {getHeroIcon(hero.icon)}
+          {hero.avatarImage ? (
+            <img
+              src={hero.avatarImage}
+              alt={hero.name}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            getHeroIcon(hero.icon)
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold text-white truncate">{hero.name}</div>
@@ -73,11 +82,30 @@ export const HeroCard: React.FC<HeroCardProps> = ({
 
       <div className="relative z-10">
         <div className="flex items-start justify-between gap-3 mb-3">
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-slate-950 font-bold shadow-lg transition-transform group-hover:scale-105"
-            style={{ backgroundColor: hero.color }}
-          >
-            {getHeroIcon(hero.icon)}
+          <div className="relative">
+            <div
+              className="w-14 h-14 rounded-xl flex items-center justify-center text-slate-950 font-bold shadow-lg transition-transform group-hover:scale-105 overflow-hidden border border-white/15"
+              style={{ backgroundColor: hero.color }}
+            >
+              {hero.avatarImage ? (
+                <img
+                  src={hero.avatarImage}
+                  alt={hero.name}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                getHeroIcon(hero.icon)
+              )}
+            </div>
+            {hero.avatarImage && (
+              <span
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg flex items-center justify-center text-slate-950 shadow-md border border-slate-900"
+                style={{ backgroundColor: hero.color }}
+              >
+                {getHeroIcon(hero.icon)}
+              </span>
+            )}
           </div>
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-700">
             <Zap className="w-3 h-3 text-amber-400" />

@@ -1,7 +1,7 @@
 export type StoryMode = "classic" | "madlibs" | "sleep";
 export type ContentTheme = "courage" | "kindness" | "friendship" | "wonder" | "imagination" | "comfort";
 export type AgeRange = "2-4" | "4-6" | "6-8" | "8-10";
-export type AmbientSoundTrack = 'ocean' | 'rain' | 'forest' | 'wind' | 'lullaby' | 'whitenoise' | 'crickets' | 'fire' | 'train' | 'none';
+export type AmbientSoundTrack = 'ocean' | 'rain' | 'forest' | 'wind' | 'lullaby' | 'whitenoise' | 'crickets' | 'fire' | 'train' | 'classic' | 'sleep' | 'madlibs' | 'none';
 
 export interface Hero {
   id: string;
@@ -14,6 +14,7 @@ export interface Hero {
   gradient: [string, string];
   constellation: string;
   avatarBg: string;
+  avatarImage?: string;
 }
 
 export interface StoryChoice {
@@ -193,6 +194,7 @@ export interface AppSettings {
   madlibSillyMode?: boolean;
   volumeNormalization?: boolean;
   autoFadeToAmbient?: boolean;
+  autoFadeDurationSeconds?: number;
   activeVoiceId?: string;
   activeChildProfileId?: string;
   childProfiles?: ChildProfile[];

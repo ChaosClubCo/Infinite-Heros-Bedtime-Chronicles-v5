@@ -170,9 +170,23 @@ export const BedtimeChroniclesHome: React.FC<BedtimeChroniclesHomeProps> = ({
       
       {/* Top Header matching Image 1: 'Bedtime Chronicles' + Search + Child Avatar */}
       <header className="flex items-center justify-between pt-2 pb-2 border-b border-indigo-950/40">
-        <h1 className="text-2xl sm:text-3xl font-playfair font-semibold tracking-wide text-white">
-          Bedtime Chronicles
-        </h1>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl overflow-hidden border border-amber-400/50 shadow-lg shadow-amber-500/20 shrink-0 bg-indigo-950">
+            <img
+              src="/assets/images/splash-icon.png"
+              alt="Bedtime Chronicles Star-Shield Emblem"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-playfair font-semibold tracking-wide text-white">
+              Bedtime Chronicles
+            </h1>
+            <p className="text-[11px] text-indigo-300/80 hidden sm:block">
+              Celestial Guardians &bull; Calming Soundscapes &bull; Starlit Tales
+            </p>
+          </div>
+        </div>
 
         <div className="flex items-center gap-3">
           <button

@@ -189,7 +189,11 @@ export const SleepSetupModal: React.FC<SleepSetupModalProps> = ({
               <option value="ocean">Ocean Waves (Calming tide)</option>
               <option value="rain">Gentle Rain (Tapping on glass)</option>
               <option value="wind">Night Breeze (Soft trees)</option>
+              <option value="crickets">Night Crickets (Starlit meadow)</option>
               <option value="fire">Cozy Hearth (Warm crackle)</option>
+              <option value="sleep">Sleep Lullaby Music (Dreamy melody)</option>
+              <option value="classic">Classic Story Music (Celestial harp)</option>
+              <option value="madlibs">Mad Libs Music (Playful music box)</option>
               <option value="train">Night Train (Rhythmic chug)</option>
             </select>
           </div>

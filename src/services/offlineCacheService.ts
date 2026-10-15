@@ -21,7 +21,19 @@ export function registerServiceWorker(): Promise<ServiceWorkerRegistration | nul
     return Promise.resolve(null);
   }
 
-  // Avoid registering in development if not supported or disabled
+  // Avoid registering in development so Vite module requests are never intercepted by SW cache
+  if (import.meta.env?.DEV) {
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((registrations) => {
+        registrations.forEach((registration) => {
+          registration.unregister().catch(() => {});
+        });
+      })
+      .catch(() => {});
+    return Promise.resolve(null);
+  }
+
   return navigator.serviceWorker
     .register('/sw.js')
     .then((registration) => {

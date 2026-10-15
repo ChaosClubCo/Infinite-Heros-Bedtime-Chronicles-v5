@@ -15,6 +15,8 @@ import {
   Square,
   Activity,
   Disc,
+  Moon,
+  Clock,
 } from 'lucide-react';
 import { AmbientSoundTrack, VisualizerColorTheme } from '../types';
 import { ambientSoundEngine } from '../services/audioNarration';
@@ -29,6 +31,9 @@ interface WindDownAudioVisualizerProps {
   isPreviewPlaying: boolean;
   onTogglePreview: () => void;
   onVolumeChange: (volume: number) => void;
+  remainingSeconds?: number;
+  totalSeconds?: number;
+  isTimerRunning?: boolean;
   className?: string;
 }
 
@@ -164,6 +169,45 @@ const SOUNDSCAPE_CONFIGS: Record<string, SoundscapeVisualConfig> = {
     waveFormStyle: 'pulse',
     barCount: 24,
   },
+  sleep: {
+    id: 'sleep',
+    name: 'Sleep Lullaby',
+    icon: Moon,
+    tagline: 'Dreamy ambient sleep music',
+    primaryColor: '#a855f7', // purple-500
+    secondaryColor: '#818cf8', // indigo-400
+    accentGlow: 'rgba(168, 85, 247, 0.45)',
+    bgGradient: 'radial-gradient(ellipse at 50% 120%, rgba(147, 51, 234, 0.35) 0%, rgba(79, 70, 229, 0.15) 50%, rgba(10, 8, 30, 0.95) 100%)',
+    particleType: 'notes',
+    waveFormStyle: 'gentle',
+    barCount: 24,
+  },
+  classic: {
+    id: 'classic',
+    name: 'Classic Theme',
+    icon: Music2,
+    tagline: 'Celestial adventure harp',
+    primaryColor: '#fbbf24', // amber-400
+    secondaryColor: '#818cf8', // indigo-400
+    accentGlow: 'rgba(251, 191, 36, 0.45)',
+    bgGradient: 'radial-gradient(ellipse at 50% 120%, rgba(245, 158, 11, 0.35) 0%, rgba(99, 102, 241, 0.15) 50%, rgba(10, 8, 30, 0.95) 100%)',
+    particleType: 'notes',
+    waveFormStyle: 'shimmer',
+    barCount: 26,
+  },
+  madlibs: {
+    id: 'madlibs',
+    name: 'Mad Libs Melody',
+    icon: Sparkles,
+    tagline: 'Playful bedtime music box',
+    primaryColor: '#f472b6', // pink-400
+    secondaryColor: '#fbbf24', // amber-400
+    accentGlow: 'rgba(244, 114, 182, 0.45)',
+    bgGradient: 'radial-gradient(ellipse at 50% 120%, rgba(236, 72, 153, 0.3) 0%, rgba(245, 158, 11, 0.15) 50%, rgba(10, 8, 30, 0.95) 100%)',
+    particleType: 'notes',
+    waveFormStyle: 'shimmer',
+    barCount: 28,
+  },
   none: {
     id: 'none',
     name: 'Silent Night',
@@ -193,11 +237,26 @@ export const WindDownAudioVisualizer: React.FC<WindDownAudioVisualizerProps> = (
   isPreviewPlaying,
   onTogglePreview,
   onVolumeChange,
+  remainingSeconds,
+  totalSeconds,
+  isTimerRunning = false,
   className = '',
 }) => {
   const [displayMode, setDisplayMode] = useState<VisualizerDisplayMode>('wave');
   const [ripples, setRipples] = useState<RipplePoint[]>([]);
   const [animationTick, setAnimationTick] = useState(0);
+
+  const formattedCountdown = useMemo(() => {
+    if (remainingSeconds === undefined || remainingSeconds < 0) return null;
+    const mins = Math.floor(remainingSeconds / 60);
+    const secs = remainingSeconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }, [remainingSeconds]);
+
+  const timerProgressPercent = useMemo(() => {
+    if (remainingSeconds === undefined || !totalSeconds || totalSeconds <= 0) return 100;
+    return Math.min(100, Math.max(0, (remainingSeconds / totalSeconds) * 100));
+  }, [remainingSeconds, totalSeconds]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const soundConfig = SOUNDSCAPE_CONFIGS[ambientSound] || SOUNDSCAPE_CONFIGS.none;
@@ -231,7 +290,7 @@ export const WindDownAudioVisualizer: React.FC<WindDownAudioVisualizerProps> = (
 
   // Handle interactive touch/click to generate starlight ripples & playful interaction
   const handleInteraction = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || typeof containerRef.current.getBoundingClientRect !== 'function') return;
     const rect = containerRef.current.getBoundingClientRect();
     let clientX = 0;
     let clientY = 0;
@@ -400,6 +459,20 @@ export const WindDownAudioVisualizer: React.FC<WindDownAudioVisualizerProps> = (
                 <span className="flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-amber-400/20 border border-amber-400/40 text-[9px] font-mono text-amber-300 animate-pulse">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                   LIVE
+                </span>
+              )}
+              {formattedCountdown && ambientSound !== 'none' && (
+                <span
+                  id="visualizer-countdown-pill"
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-mono font-bold transition-colors ${
+                    isTimerRunning
+                      ? 'bg-indigo-950/90 border-amber-400/60 text-amber-300 shadow-sm'
+                      : 'bg-slate-900/80 border-slate-700/70 text-slate-300'
+                  }`}
+                  title="Remaining ambient soundscape playback time"
+                >
+                  <Clock className={`w-2.5 h-2.5 ${isTimerRunning ? 'text-amber-400 animate-spin' : 'text-indigo-400'}`} style={{ animationDuration: '8s' }} />
+                  <span>{formattedCountdown}</span>
                 </span>
               )}
             </div>
@@ -772,13 +845,19 @@ export const WindDownAudioVisualizer: React.FC<WindDownAudioVisualizerProps> = (
             {isPreviewPlaying ? (
               <>
                 <Square className="w-3 h-3 fill-current" />
-                <span className="text-[11px] font-bold tracking-wide">Playing</span>
+                <span className="text-[11px] font-bold tracking-wide">
+                  {formattedCountdown ? `Playing • ${formattedCountdown}` : 'Playing'}
+                </span>
               </>
             ) : (
               <>
                 <Play className="w-3 h-3 fill-current text-amber-400" />
                 <span className="text-[11px] font-bold tracking-wide">
-                  {ambientSound === 'none' ? 'Silent Night' : 'Listen'}
+                  {ambientSound === 'none'
+                    ? 'Silent Night'
+                    : formattedCountdown
+                    ? `Listen (${formattedCountdown})`
+                    : 'Listen'}
                 </span>
               </>
             )}
@@ -790,6 +869,20 @@ export const WindDownAudioVisualizer: React.FC<WindDownAudioVisualizerProps> = (
           <span>✨ Tap canvas for starlight waves & ripples</span>
         </div>
       </div>
+
+      {/* Subtle Countdown Horizon Progress Bar across the footer border */}
+      {formattedCountdown && ambientSound !== 'none' && (
+        <div className="relative z-20 w-full h-1 bg-slate-950 overflow-hidden">
+          <div
+            className="h-full transition-all duration-500 rounded-r-full"
+            style={{
+              width: `${timerProgressPercent}%`,
+              background: `linear-gradient(to right, ${primaryColor}, #fbbf24)`,
+              boxShadow: isTimerRunning ? `0 0 8px ${primaryColor}` : 'none',
+            }}
+          />
+        </div>
+      )}
 
       {/* Real-time Intensity & Decibel Meter Bar */}
       <div className="relative z-20 px-3.5 py-2 bg-slate-950/90 border-t border-indigo-950/80 flex items-center justify-between gap-3 text-xs">

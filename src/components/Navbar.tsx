@@ -69,8 +69,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={() => onSelectTab('home')}
           className="flex items-center gap-3 cursor-pointer group"
         >
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-amber-400 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 group-hover:scale-105 transition-transform">
-            <Sparkles className="w-5 h-5 fill-current" />
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-amber-400 p-0.5 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 group-hover:scale-105 transition-transform overflow-hidden">
+            <img
+              src="/assets/images/splash-icon.png"
+              alt="Infinite Heroes Star-Shield Emblem"
+              className="w-full h-full object-cover rounded-[14px]"
+            />
           </div>
           <div>
             <div className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
