@@ -194,6 +194,7 @@ export interface AppSettings {
   madlibSillyMode?: boolean;
   volumeNormalization?: boolean;
   autoFadeToAmbient?: boolean;
+  autoFadeDurationSeconds?: number;
   activeVoiceId?: string;
   activeChildProfileId?: string;
   childProfiles?: ChildProfile[];
