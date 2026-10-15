@@ -42,6 +42,28 @@ describe('toolchain and local env setup', () => {
     expect(runtime.failures.filter((failure) => failure.includes('.nvmrc') || failure.includes('engines.node'))).toEqual([]);
   });
 
+  it('provides the Security Agent Node and npm ci prerequisites', () => {
+    const workflow = readText('.github/workflows/agent-security.yml');
+    const lock = readJson<{
+      lockfileVersion: number;
+      packages: Record<string, {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      }>;
+    }>('package-lock.json');
+    const manifest = readJson<{
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    }>('package.json');
+
+    expect(workflow).toContain("node-version-file: '.nvmrc'");
+    expect(nvmrc === '22' || nvmrc.startsWith('22.')).toBe(true);
+    expect(workflow).toContain('run: npm ci');
+    expect(lock.lockfileVersion).toBe(3);
+    expect(lock.packages[''].dependencies).toEqual(manifest.dependencies);
+    expect(lock.packages[''].devDependencies).toEqual(manifest.devDependencies);
+  });
+
   it('loads the copied .env from both documented API start scripts', () => {
     expect(pkg.scripts['server:dev']).toContain('--env-file-if-exists=.env');
     expect(pkg.scripts['dev:server']).toContain('--env-file-if-exists=.env');
