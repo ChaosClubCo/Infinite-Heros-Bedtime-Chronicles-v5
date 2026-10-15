@@ -154,12 +154,13 @@ The project uses **Vitest v4** with **1,453 tests (1,401 Vitest across 83 files 
 
 ```bash
 npm test                    # Run all tests (single run)
+npm run test:components     # Run React Native component tests
 npm run test:watch          # Watch mode
 npm run test:coverage       # With coverage report
 ```
 
 **Requirements for PRs:**
-- All existing tests must pass (`npm test`)
+- All existing tests must pass (`npm test` and `npm run test:components`)
 - PRs touching server logic or shared utilities must include unit tests
 - Target: ≥80% branch coverage for changed files
 - Zero lint errors (`npm run lint`)
@@ -196,7 +197,7 @@ All changes go in `docs/CHANGELOG.md` under `[Unreleased]` before each release.
 
 ## Local Development Setup
 
-See [README.md](./README.md#quick-start) for the full setup guide.
+See [README.md](./README.md#quickstart) for the full setup guide.
 
 **Quick reference:**
 
@@ -206,16 +207,16 @@ npm install
 
 # Copy and configure environment
 cp .env.example .env
-# Edit .env — add at minimum AI_INTEGRATIONS_GEMINI_API_KEY
+# Edit .env — set GEMINI_API_KEY (or another supported provider key)
 
 # Start backend (loads `.env` via --env-file-if-exists)
 npm run server:dev   # Express on http://localhost:5000
 
-# Start frontend (in a separate terminal)
-npm run expo:dev     # Expo dev server
+# Start frontend in a separate terminal
+npm run dev:expo     # Expo web dev server
 ```
 
-**Replit development:** Use the run button or `npm run expo:dev` — it sets the correct `EXPO_PACKAGER_PROXY_URL` and `REPLIT_DEV_DOMAIN` automatically.
+`npm run expo:dev` is the Expo native-device workflow; `npm run dev:expo` starts Expo for web. The scripts set `EXPO_PUBLIC_API_URL` to localhost.
 
 **Database (optional):** Required only for voice chat. Set `DATABASE_URL` and run `npm run db:push` to create tables.
 
@@ -236,7 +237,7 @@ Follow [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
 1. **Changelog** — move all `[Unreleased]` sections in `docs/CHANGELOG.md` under a single new version header `[x.y.z] — YYYY-MM-DD`
 2. **Version bump** — update `version` in `package.json`
 3. **Tag** — `git tag v<x.y.z> && git push origin v<x.y.z>`
-4. **Server deploy** — follow `docs/operations/DEPLOYMENT.md` (Replit push-to-deploy or Vercel)
+4. **Web/API deploy** — follow [DEPLOY.md](./DEPLOY.md) and its release admission gate. Cloudflare is the target but is not certified yet; Vercel repo deployments are disabled, so do not treat either platform as an available new-revision deployment path.
 5. **Mobile build** — `eas build --platform android --profile production` (see `docs/operations/DEPLOYMENT.md`)
 6. **Play Store** — upload the `.aab` to the Google Play Console internal track, promote through alpha → beta → production
 
