@@ -43,6 +43,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   madlibSillyMode: false,
   volumeNormalization: true,
   autoFadeToAmbient: true,
+  autoFadeDurationSeconds: 60,
   activeVoiceId: 'voice-moms-voice',
   activeChildProfileId: 'profile-leo',
   childProfiles: INITIAL_CHILD_PROFILES,
