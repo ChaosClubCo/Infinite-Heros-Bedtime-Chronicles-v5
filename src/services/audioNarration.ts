@@ -1,20 +1,44 @@
-// Audio synthesis engine for ambient soundscapes and speech narration
+// Audio synthesis & asset playback engine for ambient soundscapes, story mode music, and speech narration
+
+export const AUDIO_ASSET_URLS: Record<string, string> = {
+  ocean: '/assets/sounds/ocean.wav',
+  rain: '/assets/sounds/rain.wav',
+  wind: '/assets/sounds/wind.wav',
+  crickets: '/assets/sounds/crickets.wav',
+  forest: '/assets/sounds/crickets.wav',
+  fire: '/assets/sounds/fire.wav',
+  classic: '/assets/music/classic.mp3',
+  sleep: '/assets/music/sleep.mp3',
+  lullaby: '/assets/music/sleep.mp3',
+  madlibs: '/assets/music/madlibs.mp3',
+};
 
 class AmbientSoundEngine {
   private ctx: AudioContext | null = null;
   private noiseNode: AudioNode | null = null;
   private gainNode: GainNode | null = null;
+  private audioElement: HTMLAudioElement | null = null;
   private isPlaying = false;
   private currentSound: string = 'none';
 
   private initContext() {
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      this.ctx = new AudioCtx();
+      if (AudioCtx) {
+        this.ctx = new AudioCtx();
+      }
     }
-    if (this.ctx.state === 'suspended') {
+    if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+  }
+
+  public getCurrentSound(): string {
+    return this.currentSound;
+  }
+
+  public getIsPlaying(): boolean {
+    return this.isPlaying;
   }
 
   public playAmbient(sound: string, volume: number = 0.3) {
@@ -24,18 +48,42 @@ class AmbientSoundEngine {
       return;
     }
 
+    const clampedVolume = Math.min(Math.max(volume, 0), 1);
+    this.currentSound = sound;
+    this.isPlaying = true;
+
+    // 1. Play real uploaded audio asset if mapped in AUDIO_ASSET_URLS
+    const assetUrl = AUDIO_ASSET_URLS[sound];
+    if (assetUrl && typeof window !== 'undefined' && typeof Audio !== 'undefined') {
+      try {
+        const audio = new Audio(assetUrl);
+        audio.loop = true;
+        audio.volume = clampedVolume;
+        this.audioElement = audio;
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(() => {
+            // If browser autoplay policy blocks HTMLAudioElement before gesture, fallback to procedural synth
+          });
+        }
+      } catch {
+        // Ignore and allow procedural synthesis fallback
+      }
+    }
+
+    // 2. Initialize Web Audio context for subtle harmonic layering or fallback
     try {
       this.initContext();
       if (!this.ctx) return;
 
-      this.currentSound = sound;
-      this.isPlaying = true;
       this.gainNode = this.ctx.createGain();
-      this.gainNode.gain.setValueAtTime(Math.min(Math.max(volume, 0), 1) * 0.25, this.ctx.currentTime);
+      // Keep procedural layer whisper-soft when a real audio file is playing
+      const synthScale = assetUrl ? 0.04 : 0.25;
+      this.gainNode.gain.setValueAtTime(clampedVolume * synthScale, this.ctx.currentTime);
       this.gainNode.connect(this.ctx.destination);
 
       // Synthesize soothing ambient audio using procedural audio nodes
-      if (sound === 'rain' || sound === 'ocean' || sound === 'wind') {
+      if (sound === 'rain' || sound === 'ocean' || sound === 'wind' || sound === 'whitenoise') {
         const bufferSize = this.ctx.sampleRate * 2;
         const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
         const data = buffer.getChannelData(0);
@@ -53,7 +101,7 @@ class AmbientSoundEngine {
         noise.loop = true;
 
         const filter = this.ctx.createBiquadFilter();
-        if (sound === 'rain') {
+        if (sound === 'rain' || sound === 'whitenoise') {
           filter.type = 'lowpass';
           filter.frequency.setValueAtTime(800, this.ctx.currentTime);
         } else if (sound === 'ocean') {
@@ -78,14 +126,35 @@ class AmbientSoundEngine {
         filter.connect(this.gainNode);
         noise.start();
         this.noiseNode = noise;
-      } else if (sound === 'crickets' || sound === 'train' || sound === 'fire') {
+      } else if (
+        sound === 'crickets' ||
+        sound === 'forest' ||
+        sound === 'train' ||
+        sound === 'fire' ||
+        sound === 'classic' ||
+        sound === 'sleep' ||
+        sound === 'lullaby' ||
+        sound === 'madlibs'
+      ) {
         // Multi-oscillator warm harmonic soundscape
         const osc = this.ctx.createOscillator();
-        osc.type = sound === 'crickets' ? 'sine' : 'triangle';
-        osc.frequency.setValueAtTime(sound === 'crickets' ? 4200 : sound === 'train' ? 110 : 85, this.ctx.currentTime);
+        osc.type = sound === 'crickets' || sound === 'forest' ? 'sine' : 'triangle';
+        const baseFreq =
+          sound === 'crickets' || sound === 'forest'
+            ? 4200
+            : sound === 'train'
+            ? 110
+            : sound === 'fire'
+            ? 85
+            : sound === 'sleep' || sound === 'lullaby'
+            ? 220
+            : sound === 'madlibs'
+            ? 330
+            : 261.63;
+        osc.frequency.setValueAtTime(baseFreq, this.ctx.currentTime);
 
         const lfo = this.ctx.createOscillator();
-        lfo.frequency.setValueAtTime(sound === 'crickets' ? 7 : sound === 'train' ? 1.5 : 3, this.ctx.currentTime);
+        lfo.frequency.setValueAtTime(sound === 'crickets' || sound === 'forest' ? 7 : sound === 'train' ? 1.5 : 3, this.ctx.currentTime);
         const lfoGain = this.ctx.createGain();
         lfoGain.gain.setValueAtTime(0.5, this.ctx.currentTime);
 
@@ -101,13 +170,23 @@ class AmbientSoundEngine {
   }
 
   public setVolume(volume: number) {
+    const clamped = Math.min(Math.max(volume, 0), 1);
+    if (this.audioElement) {
+      this.audioElement.volume = clamped;
+    }
     if (this.gainNode && this.ctx) {
-      this.gainNode.gain.setValueAtTime(Math.min(Math.max(volume, 0), 1) * 0.25, this.ctx.currentTime);
+      const synthScale = AUDIO_ASSET_URLS[this.currentSound] ? 0.04 : 0.25;
+      this.gainNode.gain.setValueAtTime(clamped * synthScale, this.ctx.currentTime);
     }
   }
 
   public stopAmbient() {
     try {
+      if (this.audioElement) {
+        this.audioElement.pause();
+        this.audioElement.currentTime = 0;
+        this.audioElement = null;
+      }
       if (this.noiseNode) {
         (this.noiseNode as AudioScheduledSourceNode).stop?.();
         this.noiseNode.disconnect();

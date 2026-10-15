@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Volume2, X, Star } from 'lucide-react';
 import { VocabularyWord } from '../types';
-import confetti from 'canvas-confetti';
+import { safeConfetti } from '../utils/confetti';
 
 interface VocabularySparkModalProps {
   word: VocabularyWord | null;
@@ -22,7 +22,7 @@ export const VocabularySparkModal: React.FC<VocabularySparkModalProps> = ({
   useEffect(() => {
     if (isOpen && word) {
       try {
-        confetti({
+        safeConfetti({
           particleCount: 35,
           spread: 60,
           origin: { y: 0.6 },

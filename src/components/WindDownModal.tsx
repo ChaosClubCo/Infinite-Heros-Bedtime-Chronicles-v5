@@ -6,14 +6,17 @@ import { WindDownAudioVisualizer } from './WindDownAudioVisualizer';
 import { VISUALIZER_COLOR_THEMES, getVisualizerThemeById } from '../data/visualizerThemes';
 
 export const AMBIENT_SOUND_TRACKS: { id: AmbientSoundTrack; name: string; description: string }[] = [
-  { id: 'ocean', name: 'Ocean Waves', description: 'Gentle rhythmic shore waves' },
-  { id: 'rain', name: 'Gentle Rain', description: 'Warm soothing rain on leaves' },
+  { id: 'ocean', name: 'Ocean Waves', description: 'Gentle rhythmic shore waves (ocean.wav)' },
+  { id: 'rain', name: 'Gentle Rain', description: 'Warm soothing rain on leaves (rain.wav)' },
+  { id: 'wind', name: 'Starry Wind', description: 'Quiet celestial night breeze (wind.wav)' },
+  { id: 'crickets', name: 'Night Crickets', description: 'Gentle meadow lullaby (crickets.wav)' },
+  { id: 'fire', name: 'Cozy Hearth', description: 'Warm comforting embers (fire.wav)' },
+  { id: 'sleep', name: 'Sleep Lullaby', description: 'Dreamy ambient sleep music (sleep.mp3)' },
+  { id: 'classic', name: 'Classic Theme', description: 'Celestial adventure harp (classic.mp3)' },
+  { id: 'madlibs', name: 'Mad Libs Melody', description: 'Playful pizzicato music box (madlibs.mp3)' },
   { id: 'forest', name: 'Night Forest', description: 'Crickets & whispering breeze' },
-  { id: 'wind', name: 'Starry Wind', description: 'Quiet celestial night breeze' },
   { id: 'lullaby', name: 'Lullaby Chimes', description: 'Soft sine chime melodies' },
   { id: 'whitenoise', name: 'Cosmic Drift', description: 'Warm pink noise blanket' },
-  { id: 'crickets', name: 'Night Crickets', description: 'Gentle meadow lullaby' },
-  { id: 'fire', name: 'Cozy Hearth', description: 'Warm comforting embers' },
   { id: 'train', name: 'Starlight Express', description: 'Distant gentle rhythm' },
   { id: 'none', name: 'Silent Night', description: 'No background audio' },
 ];

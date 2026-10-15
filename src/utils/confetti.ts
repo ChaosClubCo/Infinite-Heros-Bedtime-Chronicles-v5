@@ -99,6 +99,46 @@ export interface ConfettiShowerOptions {
   intensity?: 'gentle' | 'medium' | 'festive';
 }
 
+let mainThreadConfetti: ReturnType<typeof confetti.create> | null = null;
+
+/**
+ * Safely fires confetti on the main thread (useWorker: false) after verifying
+ * valid DOM viewport dimensions. Prevents OffscreenCanvas Web Worker crashes
+ * (`canvas.getBoundingClientRect is not a function`) when the viewport is 0x0
+ * or inside restricted iframe environments.
+ */
+export function safeConfetti(options?: confetti.Options): Promise<null> | null {
+  if (typeof window === 'undefined' || typeof document === 'undefined' || !document.body) {
+    return null;
+  }
+
+  if (
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ) {
+    return null;
+  }
+
+  const width = document.documentElement?.clientWidth || window.innerWidth || 0;
+  const height = document.documentElement?.clientHeight || window.innerHeight || 0;
+  if (width <= 0 || height <= 0) {
+    return null;
+  }
+
+  try {
+    if (!mainThreadConfetti) {
+      mainThreadConfetti = confetti.create(undefined, {
+        resize: true,
+        useWorker: false,
+      });
+    }
+    return mainThreadConfetti(options);
+  } catch (err) {
+    console.warn('Confetti synthesis deferred:', err);
+    return null;
+  }
+}
+
 /**
  * Triggers a subtle, refined, starlight confetti shower designed specifically
  * for soothing bedtime aesthetics (soft gold, amber, celestial violet, cyan, pearl).
@@ -106,7 +146,7 @@ export interface ConfettiShowerOptions {
  */
 export function triggerSubtleConfettiShower(options: ConfettiShowerOptions = {}): void {
   // Respect user accessibility preference for reduced motion
-  if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     if (options.playSound !== false) {
       ambientSoundEngine.playStarTwinkle();
     }
@@ -141,7 +181,7 @@ export function triggerSubtleConfettiShower(options: ConfettiShowerOptions = {})
 
   try {
     // Stage 1: Soft central stardust burst
-    confetti({
+    safeConfetti({
       particleCount: Math.round(baseCount * 0.55),
       spread: 75,
       startVelocity: 28,
@@ -156,7 +196,7 @@ export function triggerSubtleConfettiShower(options: ConfettiShowerOptions = {})
 
     // Stage 2: Left sky gentle drift wave
     setTimeout(() => {
-      confetti({
+      safeConfetti({
         particleCount: Math.round(baseCount * 0.25),
         angle: 60,
         spread: 55,
@@ -173,7 +213,7 @@ export function triggerSubtleConfettiShower(options: ConfettiShowerOptions = {})
 
     // Stage 3: Right sky gentle drift wave
     setTimeout(() => {
-      confetti({
+      safeConfetti({
         particleCount: Math.round(baseCount * 0.25),
         angle: 120,
         spread: 55,

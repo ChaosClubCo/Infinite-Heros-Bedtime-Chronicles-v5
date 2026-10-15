@@ -15,6 +15,7 @@ import {
   Square,
   Activity,
   Disc,
+  Moon,
 } from 'lucide-react';
 import { AmbientSoundTrack, VisualizerColorTheme } from '../types';
 import { ambientSoundEngine } from '../services/audioNarration';
@@ -164,6 +165,45 @@ const SOUNDSCAPE_CONFIGS: Record<string, SoundscapeVisualConfig> = {
     waveFormStyle: 'pulse',
     barCount: 24,
   },
+  sleep: {
+    id: 'sleep',
+    name: 'Sleep Lullaby',
+    icon: Moon,
+    tagline: 'Dreamy ambient sleep music',
+    primaryColor: '#a855f7', // purple-500
+    secondaryColor: '#818cf8', // indigo-400
+    accentGlow: 'rgba(168, 85, 247, 0.45)',
+    bgGradient: 'radial-gradient(ellipse at 50% 120%, rgba(147, 51, 234, 0.35) 0%, rgba(79, 70, 229, 0.15) 50%, rgba(10, 8, 30, 0.95) 100%)',
+    particleType: 'notes',
+    waveFormStyle: 'gentle',
+    barCount: 24,
+  },
+  classic: {
+    id: 'classic',
+    name: 'Classic Theme',
+    icon: Music2,
+    tagline: 'Celestial adventure harp',
+    primaryColor: '#fbbf24', // amber-400
+    secondaryColor: '#818cf8', // indigo-400
+    accentGlow: 'rgba(251, 191, 36, 0.45)',
+    bgGradient: 'radial-gradient(ellipse at 50% 120%, rgba(245, 158, 11, 0.35) 0%, rgba(99, 102, 241, 0.15) 50%, rgba(10, 8, 30, 0.95) 100%)',
+    particleType: 'notes',
+    waveFormStyle: 'shimmer',
+    barCount: 26,
+  },
+  madlibs: {
+    id: 'madlibs',
+    name: 'Mad Libs Melody',
+    icon: Sparkles,
+    tagline: 'Playful bedtime music box',
+    primaryColor: '#f472b6', // pink-400
+    secondaryColor: '#fbbf24', // amber-400
+    accentGlow: 'rgba(244, 114, 182, 0.45)',
+    bgGradient: 'radial-gradient(ellipse at 50% 120%, rgba(236, 72, 153, 0.3) 0%, rgba(245, 158, 11, 0.15) 50%, rgba(10, 8, 30, 0.95) 100%)',
+    particleType: 'notes',
+    waveFormStyle: 'shimmer',
+    barCount: 28,
+  },
   none: {
     id: 'none',
     name: 'Silent Night',
@@ -231,7 +271,7 @@ export const WindDownAudioVisualizer: React.FC<WindDownAudioVisualizerProps> = (
 
   // Handle interactive touch/click to generate starlight ripples & playful interaction
   const handleInteraction = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || typeof containerRef.current.getBoundingClientRect !== 'function') return;
     const rect = containerRef.current.getBoundingClientRect();
     let clientX = 0;
     let clientY = 0;

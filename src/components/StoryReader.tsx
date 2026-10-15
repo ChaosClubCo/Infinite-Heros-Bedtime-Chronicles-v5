@@ -14,7 +14,7 @@ import { AmbientWaveVisualizer } from './AmbientWaveVisualizer';
 import { BadgeUnlockCelebrationModal } from './BadgeUnlockCelebrationModal';
 import { VocabularySparkModal } from './VocabularySparkModal';
 import { findVocabularyWordByText, getVocabularyWordById } from '../data/vocabularyWords';
-import confetti from 'canvas-confetti';
+import { safeConfetti } from '../utils/confetti';
 import {
   VolumeX,
   Volume2,
@@ -116,7 +116,11 @@ const SOUND_OPTIONS = [
   { id: 'ocean', label: 'Ocean', name: 'Ocean Waves', icon: Waves },
   { id: 'rain', label: 'Rain', name: 'Gentle Rain', icon: CloudRain },
   { id: 'wind', label: 'Breeze', name: 'Night Breeze', icon: Wind },
+  { id: 'crickets', label: 'Crickets', name: 'Night Crickets', icon: Sparkles },
   { id: 'fire', label: 'Fire', name: 'Cozy Fire', icon: Flame },
+  { id: 'sleep', label: 'Sleep Tune', name: 'Sleep Lullaby', icon: Moon },
+  { id: 'classic', label: 'Classic', name: 'Classic Theme', icon: Music2 },
+  { id: 'madlibs', label: 'Mad Libs', name: 'Playful Tune', icon: Star },
   { id: 'train', label: 'Train', name: 'Dream Train', icon: Train },
 ];
 
@@ -375,7 +379,7 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
       ];
 
       // Stage 1: Central starlight burst
-      confetti({
+      safeConfetti({
         particleCount: 80,
         spread: 80,
         origin: { y: 0.55 },
@@ -387,7 +391,7 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
 
       // Stage 2: Left side cannon launch
       const timer1 = setTimeout(() => {
-        confetti({
+        safeConfetti({
           particleCount: 55,
           angle: 60,
           spread: 60,
@@ -400,7 +404,7 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
 
       // Stage 3: Right side cannon launch
       const timer2 = setTimeout(() => {
-        confetti({
+        safeConfetti({
           particleCount: 55,
           angle: 120,
           spread: 60,
@@ -413,7 +417,7 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
 
       // Stage 4: Gentle starlight shower from above
       const timer3 = setTimeout(() => {
-        confetti({
+        safeConfetti({
           particleCount: 45,
           spread: 120,
           origin: { y: 0.25 },
@@ -913,19 +917,31 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <span
-                className="w-2.5 h-2.5 rounded-full inline-block"
-                style={{ backgroundColor: hero.color }}
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-9 h-9 rounded-xl overflow-hidden border border-white/15 shrink-0 shadow-md hidden sm:flex items-center justify-center"
+              style={{ backgroundColor: hero.color }}
+            >
+              <img
+                src={hero.avatarImage || '/assets/images/splash-icon.png'}
+                alt={hero.name}
+                className="w-full h-full object-cover"
               />
-              <h2 className="text-sm sm:text-base font-bold text-white tracking-tight truncate max-w-xs sm:max-w-md">
-                {story.title}
-              </h2>
             </div>
-            <p className="text-xs text-slate-400">
-              Guided by <span className="text-indigo-300 font-medium">{hero.name}</span> • {hero.power}
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-2.5 h-2.5 rounded-full inline-block"
+                  style={{ backgroundColor: hero.color }}
+                />
+                <h2 className="text-sm sm:text-base font-bold text-white tracking-tight truncate max-w-xs sm:max-w-md">
+                  {story.title}
+                </h2>
+              </div>
+              <p className="text-xs text-slate-400">
+                Guided by <span className="text-indigo-300 font-medium">{hero.name}</span> • {hero.power}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -1022,7 +1038,7 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
           </div>
 
           {/* Sound selection grid */}
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
             {SOUND_OPTIONS.map((snd) => {
               const Icon = snd.icon;
               const isSelected = ambientSound === snd.id;

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import confetti from 'canvas-confetti';
+import { safeConfetti } from '../utils/confetti';
 import {
   Sparkles,
   Shield,
@@ -83,7 +83,7 @@ export const BadgeUnlockCelebrationModal: React.FC<BadgeUnlockCelebrationModalPr
         ];
 
         // Wave 1: Immediate central burst with stars
-        confetti({
+        safeConfetti({
           particleCount: 90,
           spread: 90,
           origin: { y: 0.52 },
@@ -94,7 +94,7 @@ export const BadgeUnlockCelebrationModal: React.FC<BadgeUnlockCelebrationModalPr
 
         // Wave 2: Left starlight cannon
         const t1 = setTimeout(() => {
-          confetti({
+          safeConfetti({
             particleCount: 65,
             angle: 60,
             spread: 65,
@@ -107,7 +107,7 @@ export const BadgeUnlockCelebrationModal: React.FC<BadgeUnlockCelebrationModalPr
 
         // Wave 3: Right starlight cannon
         const t2 = setTimeout(() => {
-          confetti({
+          safeConfetti({
             particleCount: 65,
             angle: 120,
             spread: 65,
@@ -120,7 +120,7 @@ export const BadgeUnlockCelebrationModal: React.FC<BadgeUnlockCelebrationModalPr
 
         // Wave 4: Gentle starlight shower floating from above
         const t3 = setTimeout(() => {
-          confetti({
+          safeConfetti({
             particleCount: 50,
             spread: 140,
             origin: { y: 0.2 },

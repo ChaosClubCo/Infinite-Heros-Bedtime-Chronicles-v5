@@ -357,8 +357,14 @@ export const MadlibDiariesView: React.FC<MadlibDiariesViewProps> = ({
           ? 'wind'
           : backgroundAudio === 'Whispering Pines'
           ? 'crickets'
-          : 'night';
-      ambientSoundEngine.playAmbient(soundType as any, 0.4);
+          : backgroundAudio === 'Cozy Hearth'
+          ? 'fire'
+          : backgroundAudio === 'Ocean Waves'
+          ? 'ocean'
+          : backgroundAudio === 'Sleep Lullaby'
+          ? 'sleep'
+          : 'madlibs';
+      ambientSoundEngine.playAmbient(soundType, 0.4);
       setAudioPreviewPlaying(true);
     }
   };
@@ -747,10 +753,13 @@ export const MadlibDiariesView: React.FC<MadlibDiariesViewProps> = ({
                 </div>
                 <div className="space-y-2">
                   {[
-                    { id: 'Celestial Hum', icon: '🌌', desc: 'Deep soft cosmic resonance' },
-                    { id: 'Purring Galaxy', icon: '⭐', desc: 'Cosmic night warmth' },
-                    { id: 'Rain on Glass', icon: '💧', desc: 'Gentle droplet rhythm' },
-                    { id: 'Whispering Pines', icon: '🌲', desc: 'Soft breeze in cedar grove' },
+                    { id: 'Purring Galaxy', icon: '🎵', desc: 'Playful Mad Libs melody (madlibs.mp3)' },
+                    { id: 'Sleep Lullaby', icon: '🌙', desc: 'Dreamy bedtime music (sleep.mp3)' },
+                    { id: 'Celestial Hum', icon: '🌬️', desc: 'Starry night breeze (wind.wav)' },
+                    { id: 'Rain on Glass', icon: '💧', desc: 'Gentle droplet rhythm (rain.wav)' },
+                    { id: 'Whispering Pines', icon: '🦗', desc: 'Night crickets in grove (crickets.wav)' },
+                    { id: 'Cozy Hearth', icon: '🔥', desc: 'Warm fireplace crackle (fire.wav)' },
+                    { id: 'Ocean Waves', icon: '🌊', desc: 'Calming shore waves (ocean.wav)' },
                   ].map((audio) => (
                     <button
                       key={audio.id}
@@ -764,8 +773,14 @@ export const MadlibDiariesView: React.FC<MadlibDiariesViewProps> = ({
                             ? 'wind'
                             : audio.id === 'Whispering Pines'
                             ? 'crickets'
-                            : 'night';
-                        ambientSoundEngine.playAmbient(sType as any, 0.4);
+                            : audio.id === 'Cozy Hearth'
+                            ? 'fire'
+                            : audio.id === 'Ocean Waves'
+                            ? 'ocean'
+                            : audio.id === 'Sleep Lullaby'
+                            ? 'sleep'
+                            : 'madlibs';
+                        ambientSoundEngine.playAmbient(sType, 0.4);
                         setAudioPreviewPlaying(true);
                       }}
                       className={`w-full p-2.5 rounded-2xl flex items-center justify-between text-left transition-all border ${
